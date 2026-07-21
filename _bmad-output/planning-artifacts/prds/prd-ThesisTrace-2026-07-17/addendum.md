@@ -1,0 +1,33 @@
+# ThesisTrace PRD — Addendum
+
+Research depth and options-considered rationale that informed PRD decisions but doesn't belong in the PRD's main narrative. Referenced from `prd.md` where relevant.
+
+## A1. Comparable-product research: onboarding, drill-down, and brokerage-referral patterns
+
+Conducted during Discovery to ground the UJ-1 flow and the onboarding/brokerage-referral decisions.
+
+**Onboarding patterns.** Research/analytics tools (Simply Wall St, Stratosphere.io, Finchat.io, TIKR, Seeking Alpha) all drop users straight into search/dashboard after signup — no suitability questionnaire. Personalization happens organically via manual watchlist-building. Suitability quizzes are specific to robo-advisors (Wealthsimple's ~10-minute goals/risk/horizon quiz feeding a model-portfolio recommendation engine) because the answers drive a recommendation and satisfy a regulatory KYC requirement — not cosmetic. Since ThesisTrace computes deterministic scores rather than recommending a portfolio, a quiz would be off-pattern for the category and would risk implying a suitability/advice relationship.
+
+**Summary-first, drill-down-second pattern.** Simply Wall St's "Snowflake" (5-axis radar, each axis from six binary pass/fail checks, methodology publicly documented and even open-sourced on GitHub) and Seeking Alpha's Quant Rating (top-line rating backed by 5 letter-graded Factor Grades, expandable inline, linked to a static methodology FAQ) both use the same three-tier structure: **(1)** glanceable verdict → **(2)** expandable sub-factor breakdown inline, same page, no modal → **(3)** separate linked-out methodology page. This directly informed FR-8/FR-9/FR-10's shape.
+
+**Brokerage referral / execution boundary.** No research tool in this category (Simply Wall St, Stratosphere.io, Finchat.io, TIKR, Seeking Alpha) embeds a live broker-comparison or "buy here" feature on the analysis page. Simply Wall St's broker integration (via Plaid/SnapTrade) is portfolio-import/tracking only — no execution, no fee comparison. Fee-comparison-with-affiliate-links exists as a distinct genre (NerdWallet, Ratehub) but always as a separate, general "compare brokers" page, never fused with a specific stock's verdict. Regulatory logic: broker-dealers avoid Investment Adviser registration only when advice is "solely incidental" to brokerage with no special compensation tied to it — the same principle underlying NerdWallet-style affiliate models. This fusion is specifically where research risks becoming solicitation, which is why the feature was dropped from v1 entirely rather than kept "architecturally separate."
+
+Sources: Simply Wall St Snowflake methodology and Company-Analysis-Model (GitHub), Seeking Alpha Quant/Factor Grades FAQ, Simply Wall St Affiliate Program and broker-linking help articles, Wealthsimple Conflicts of Interest Policy and risk/timeline help article, NerdWallet and Ratehub broker comparison pages.
+
+## A2. Whitespace check: thesis-journal and risk-factor-diffing features
+
+Conducted before adding UJ-4 (Thesis Journal) and evaluating risk-factor change detection, to avoid pitching either as novel if already commoditized.
+
+**Investment thesis journal + auto re-verification — partially commoditized, genuine whitespace remains.** Simply Wall St's "Narratives" feature is the closest prior art: users write a thesis with assumptions (revenue growth, margins, fair value), and Simply Wall St tracks Fair Value vs. share price over time, alerting on divergence or when followed authors update their narrative. This is fundamentally a **price-vs-fair-value tracker**, not claim-by-claim evidence re-checking. A separate product, "Thesis" (usethesis.com), is purely manual — no automated re-verification. Stratosphere.io, TIKR, Finchat/Fiscal.ai, Seeking Alpha, and Commonstock showed no evidence of structured thesis-recording-plus-reverification. ThesisTrace's angle — tying a written thesis to the *exact deterministic lens outputs* that justified it, then diffing those specific metrics against updated filings — is not directly replicated anywhere in the tools reviewed above. Position as "a more rigorous version of an emerging pattern," not "first of its kind."
+
+**Risk-factor (Item 1A) diffing for retail users — not whitespace.** PageCrawl.io does sentence-level diffing of 10-K/10-Q filings, explicitly flagging new/deleted risk factors and MD&A language shifts, and marketed to retail investors with a free tier and a paid tier. FilingRadar markets a similar "diff against the last 10-K" angle. Boardroom Alpha does similar work but reads more prosumer/expert-analyst. This is why the "heavy" news/risk-tracking notification idea was framed as non-differentiating in the PRD's Non-Goals section, while the "cheap" version (new 8-K filed, reusing the existing EDGAR pipeline) was preserved as a plausible low-cost future add-on rather than claimed as a differentiator.
+
+Sources: Simply Wall St Community Narratives and Narratives Help, usethesis.com, PageCrawl.io 10-K/10-Q diff monitoring, FilingRadar, Boardroom Alpha risk-factor identification articles.
+
+## A3. Deliberate divergences from `equipulse` beyond the TradingView decision
+
+`equipulse` (a prior sibling portfolio project, see `foundational-decisions.md` D7) was consulted specifically for the TradingView-exclusion decision, but a few of its other patterns are worth recording as intentionally *not* reused, rather than being left to look coincidental:
+
+- **Persistent, cross-session watchlist** (equipulse: `localStorage: eq_watchlist`, indefinite) — ThesisTrace's closest analog, Comparison (FR-13), is deliberately **session-only**. This is a scope difference, not an oversight: equipulse's watchlist spans an open, growing market; ThesisTrace's Comparison operates over a fixed 4-company universe where session-scoping is sufficient and defers persistence-design questions until they're needed. The Thesis Journal (FR-18) is the feature that actually needs cross-session persistence, and is treated separately with its own browser-local design.
+- **Live, broad-market ticker search via Finnhub** (equipulse) — ThesisTrace's search (FR-2) is deliberately scoped to the fixed Company Universe only, consistent with the product's "honest about current coverage" stance (see UJ-1's edge case) rather than reaching out to a live market-wide API.
+- **No-auth, public-first posture** — both products converge here, but for different reasons: equipulse to minimize friction on a public dashboard; ThesisTrace per `foundational-decisions.md` D4's architecture-cost reasoning. Noted as convergent-but-independently-derived, not copied.
