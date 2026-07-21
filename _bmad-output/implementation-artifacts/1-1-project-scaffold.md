@@ -1,6 +1,6 @@
 # Story 1.1: Project scaffold and deployable skeleton
 
-Status: ready-for-dev
+Status: ready-for-review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -122,10 +122,32 @@ db/migrations/                (NEW — empty dir; migration tooling chosen in St
 
 ### Agent Model Used
 
-_(to be filled by the dev agent)_
+claude-opus-4-8
 
 ### Debug Log References
 
+- FastAPI rejected `/health/db` whose return annotation was `JSONResponse | dict` ("Invalid args for response field"). Fixed by setting `response_model=None` on that route (the endpoint returns raw responses, not a serialized model).
+- Next.js auto-reconfigured `frontend/tsconfig.json` (`jsx` → `react-jsx`, added `.next/dev/types`) and `next-env.d.ts` on first build; kept as-is (framework-managed).
+
 ### Completion Notes List
 
+- Monorepo tree created exactly per the spine (AC1): `frontend/`, `backend/` with all 8 empty domain subpackages, `db/migrations/` (empty, `.gitkeep`). No data-model tables or domain logic added — deferred to Story 1.2+ as scoped.
+- Backend (AC2/AC4/AC5): FastAPI app with `GET /health` (200) and `GET /health/db` (SELECT 1, 503 envelope when unconfigured/unreachable, AD-10). `pydantic-settings` reads all secrets from env only; `.env.example` committed. Async SQLAlchemy engine built lazily from `DATABASE_URL`.
+- Frontend (AC3): Next.js 16.2.10 / React 19.2.7 App-Router skeleton; server-side landing page fetches `/health` and shows backend status. Presentation only (AD-8).
+- Deploy config (AC2/AC3): `render.yaml` (Web Service; Cron Job placeholder noted for Story 1.10), README documents Vercel + Supabase setup.
+- **Verified:** backend `uv run pytest` → 3 passed, 1 skipped (live-DB test skips without `DATABASE_URL`); `ruff check` clean; frontend `npm run build` succeeds. Python 3.12.3 via uv.
+- **Operator steps remaining (not code):** create the Supabase project + set `DATABASE_URL`; connect the repo to Render and Vercel. Code paths and configs are in place; `/health/db` returns `ok` once a live `DATABASE_URL` is present (the skipped test covers it).
+
 ### File List
+
+- `README.md` (new)
+- `.env.example` (new)
+- `render.yaml` (new)
+- `backend/pyproject.toml` (new)
+- `backend/app/__init__.py`, `backend/app/main.py`, `backend/app/config.py`, `backend/app/db.py` (new)
+- `backend/{ingestion,raw_store,canonicalization,validation,formulas,scoring,explanation,api}/__init__.py` (new, empty placeholders)
+- `backend/tests/__init__.py`, `backend/tests/test_health.py` (new)
+- `backend/uv.lock` (new, generated)
+- `db/migrations/.gitkeep` (new)
+- `frontend/package.json`, `frontend/package-lock.json`, `frontend/tsconfig.json`, `frontend/next.config.mjs`, `frontend/next-env.d.ts`, `frontend/.gitignore` (new)
+- `frontend/app/layout.tsx`, `frontend/app/page.tsx` (new)

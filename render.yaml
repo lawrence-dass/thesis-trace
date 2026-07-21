@@ -1,0 +1,29 @@
+# Render deployment (AD-13): FastAPI read API as a Web Service.
+# The scheduled batch pipeline is added as a Render Cron Job in Story 1.10 —
+# not defined yet (see the commented placeholder below).
+services:
+  - type: web
+    name: thesistrace-api
+    runtime: python
+    rootDir: backend
+    plan: starter
+    buildCommand: "pip install uv && uv sync --no-dev"
+    startCommand: "uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: EDGAR_CONTACT
+        sync: false
+      - key: TIINGO_API_KEY
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+
+# Placeholder — added in Story 1.10 (AD-13); the daily run doubles as the
+# Supabase keep-alive ping:
+#   - type: cron
+#     name: thesistrace-pipeline
+#     schedule: "0 6 * * *"
+#     rootDir: backend
+#     startCommand: "uv run python -m ingestion.run"   # module lands in later stories
