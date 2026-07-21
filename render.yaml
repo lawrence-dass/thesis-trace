@@ -1,0 +1,41 @@
+# Render deployment (AD-13): FastAPI read API as a Web Service.
+# The scheduled batch pipeline is added as a Render Cron Job in Story 1.10 —
+# not defined yet (see the commented placeholder below).
+services:
+  - type: web
+    name: thesistrace-api
+    runtime: python
+    rootDir: backend
+    plan: starter
+    buildCommand: "pip install uv && uv sync --no-dev"
+    startCommand: "uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: EDGAR_CONTACT
+        sync: false
+      - key: TIINGO_API_KEY
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+
+  # Batch pipeline (write path) as a Render Cron Job (AD-13). The daily run
+  # doubles as the Supabase free-tier keep-alive ping. Performs live SEC EDGAR
+  # fetches — only universe entries with a confirmed CIK run (see pipeline/universe.py).
+  - type: cron
+    name: thesistrace-pipeline
+    runtime: python
+    rootDir: backend
+    schedule: "0 6 * * *"
+    buildCommand: "pip install uv && uv sync --no-dev"
+    startCommand: "uv run python -m pipeline.run"
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: EDGAR_CONTACT
+        sync: false
+      - key: TIINGO_API_KEY
+        sync: false
+      - key: LLM_API_KEY
+        sync: false

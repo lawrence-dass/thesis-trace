@@ -1,0 +1,59 @@
+# Altman Z-Score (original 1968 manufacturing model) — versioned spec (AD-5).
+# Source: Altman, E. (1968) "Financial Ratios, Discriminant Analysis and the
+# Prediction of Corporate Bankruptcy", The Journal of Finance.
+model: altman
+formula_version: altman_v1
+description: >
+  Z = 1.2*X1 + 1.4*X2 + 3.3*X3 + 0.6*X4 + 1.0*X5, where
+  X1 = working capital / total assets, X2 = retained earnings / total assets,
+  X3 = EBIT / total assets, X4 = market value of equity / total liabilities,
+  X5 = sales / total assets. Market value of equity = FYE close x shares
+  outstanding, never a book-value substitute (AD-11).
+
+rounding:
+  mode: ROUND_HALF_EVEN
+  ratio_places: 6
+
+missing_data_policy: insufficient_data
+divide_by_zero_policy: insufficient_data
+
+inputs:
+  - current_assets
+  - current_liabilities
+  - total_assets
+  - retained_earnings
+  - ebit
+  - total_liabilities
+  - revenue
+  - shares_outstanding   # x market price (market_prices) for market value of equity
+
+coefficients:
+  x1_working_capital: 1.2
+  x2_retained_earnings: 1.4
+  x3_ebit: 3.3
+  x4_market_value_equity: 0.6
+  x5_sales: 1.0
+
+signals:
+  - key: x1_working_capital
+    description: 1.2 * (working capital / total assets)
+  - key: x2_retained_earnings
+    description: 1.4 * (retained earnings / total assets)
+  - key: x3_ebit
+    description: 3.3 * (EBIT / total assets)
+  - key: x4_market_value_equity
+    description: 0.6 * (market value of equity / total liabilities)
+  - key: x5_sales
+    description: 1.0 * (sales / total assets)
+
+# Altman's own published bands (AD-12).
+bands:
+  citation: "Altman (1968), Journal of Finance"
+  classes:
+    - label: Safe
+      above: 2.99
+    - label: Grey
+      min: 1.81
+      max: 2.99
+    - label: Distress
+      below: 1.81

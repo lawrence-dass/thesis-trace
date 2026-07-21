@@ -5,9 +5,9 @@ purpose: build-substrate
 altitude: initiative
 paradigm: 'Batch Pipeline + Read-Only Query API (CQRS-style split, pipes-and-filters internally)'
 scope: 'ThesisTrace whole-system architecture spine, derived from prd.md FR-1-21 and foundational-decisions.md D1-D7'
-status: draft
+status: final
 created: '2026-07-19'
-updated: '2026-07-19'
+updated: '2026-07-21'
 binds:
   - FR-1
   - FR-2
@@ -63,9 +63,9 @@ flowchart LR
     subgraph Store["Postgres (Supabase)"]
         DB[(canonical_facts / market_prices / score_runs / score_results / data_quality_issues)]
     end
-    subgraph Read["Read Path — Query API (on-demand, Render Web Service)"]
-        API[FastAPI read-only endpoints]
-        WEB[Next.js frontend]
+    subgraph Read["Read Path — Query (on-demand)"]
+        API[FastAPI read-only endpoints — Render Web Service]
+        WEB[Next.js frontend — Vercel]
     end
     OPERATOR[Operator-only trigger]
 
@@ -108,19 +108,19 @@ flowchart LR
 
 - **Binds:** FR-3, FR-4, FR-6, FR-7
 - **Prevents:** silent gaps for custom-taxonomy facts the Company Facts API omits.
-- **Rule:** SEC Company Facts API is the primary ingestion source; raw Inline XBRL parsing is the audit/fallback path for facts the Company Facts API omits.
+- **Rule:** SEC Company Facts API is the primary ingestion source; raw Inline XBRL parsing is the audit/fallback path for facts the Company Facts API omits. On a value conflict between the two sources for the same fact, Company Facts wins and the divergence writes a `data_quality_issues` row (AD-17); Inline XBRL only supplies facts Company Facts omits, never silently overrides.
 
 ### AD-5 — Versioned exact formula specification
 
 - **Binds:** FR-3, FR-4, FR-6, FR-7, FR-11
 - **Prevents:** ambiguity between named model variants (Altman Z vs Z' vs Z", Beneish 8-var vs 5-var, Sloan balance-sheet vs cash-flow approach) and untracked silent formula changes.
-- **Rule:** each formula's equation, inputs, thresholds, rounding policy, missing-data policy, and divide-by-zero policy lives in a versioned config/spec artifact (e.g. `formulas/piotroski_v1.yaml`), not a DB table. Every `score_run` records the `formula_version` used, referencing the spec version by string.
+- **Rule:** each formula's equation, inputs, thresholds, rounding policy, missing-data policy, and divide-by-zero policy lives in a versioned config/spec artifact (e.g. `formulas/piotroski_v1.yaml`), not a DB table. Every `score_run` records the `formula_version` used, referencing the spec version by string. A spec declares rounding via an **enumerated mode** (default `ROUND_HALF_EVEN`) applied by one shared decimal engine — never free-form per spec (AD-15). Each spec also pins the stable `signal_key` vocabulary and the cited band copy its results use (AD-12, AD-18).
 
 ### AD-6 — Append-only versioned score_runs
 
 - **Binds:** FR-3, FR-4, FR-6, FR-7
 - **Prevents:** amended/restated filings (10-K/A) silently overwriting or invalidating prior scores.
-- **Rule:** an amendment triggers a new `score_run` referencing the new `canonical_facts`; the prior run is marked superseded, never deleted or mutated. Resolves PRD Open Question 2.
+- **Rule:** an amendment triggers a new `score_run` referencing the new `canonical_facts`; the prior run is marked superseded, never deleted or mutated. The "current" score for an issuer/model is the single latest non-superseded `score_run`; superseded runs stay queryable but are never the default surfaced result. Resolves PRD Open Question 2.
 
 ### AD-7 — Deterministic-first explanation; LLM as constrained rewrite only
 
@@ -132,7 +132,7 @@ flowchart LR
 
 - **Binds:** all
 - **Prevents:** scoring or canonicalization logic leaking into the frontend.
-- **Rule:** Python owns ingestion, canonicalization, and all score computation. Next.js owns presentation only — it renders exactly what the read API returns and contains no scoring/canonicalization logic.
+- **Rule:** Python owns ingestion, canonicalization, and all score computation — **including threshold-band classification**: the band label (e.g. Safe/Grey/Distress) is computed in scoring and stored in `score_results`. Next.js owns presentation only — it renders exactly what the read API returns, contains no scoring/canonicalization logic, and never recomputes or hardcodes band cutoffs (AD-12).
 
 ### AD-9 — EDGAR access discipline
 
@@ -156,7 +156,7 @@ flowchart LR
 
 - **Binds:** FR-9
 - **Prevents:** the Verdict becoming a further blended/weighted single number across models, or an LLM-invented figure.
-- **Rule:** the Verdict shows each live model's own published, cited threshold classification side by side (Piotroski 8-9 Strong/5-7 Moderate/0-4 Weak; Altman >2.99 Safe/1.81-2.99 Grey/<1.81 Distress; Beneish >-1.78; Sloan per its versioned formula-spec threshold) — never combined into one score.
+- **Rule:** the Verdict shows each live model's own published, cited threshold classification side by side — never combined into one score. Bands are each model's own, not an invented split: Piotroski per its original paper (Strong 8-9, Weak 0-1, and 2-7 shown as **Middle/mixed** with no invented cutoff); Altman >2.99 Safe / 1.81-2.99 Grey / <1.81 Distress; Beneish >-1.78; Sloan per its versioned formula-spec threshold. The band label is precomputed in scoring and stored in `score_results` (AD-8); the frontend renders the stored label and never recomputes cutoffs. Exact band copy and its citation live in each formula spec (AD-5).
 
 ### AD-13 — Backend hosting = Render `[ADOPTED]`
 
@@ -168,20 +168,56 @@ flowchart LR
 
 - **Binds:** FR-4
 - **Prevents:** Altman computation depending on a live, unlogged Tiingo call at read time.
-- **Rule:** `market_prices` (`issuer_id`, `price_date`, `close_price`, `source`, `fetched_at`) persists every fetched close price. Altman computation joins through this table; it never calls Tiingo live during a read request.
+- **Rule:** `market_prices` (`issuer_id`, `price_date`, `close_price`, `source`, `fetched_at`) persists every fetched close price. Altman computation joins through this table; it never calls Tiingo live during a read request. The FYE market price is the close on the **last trading day on or before fiscal-year-end** (not an exact-date-only match, which would miss weekend/holiday FYEs).
 
 ### AD-15 — NUMERIC/DECIMAL, never FLOAT/DOUBLE
 
 - **Binds:** FR-3, FR-4, FR-6, FR-7, SM-1
 - **Prevents:** silent floating-point rounding divergence between independently-built calculation code, which would break golden-dataset matching (SM-1) in hard-to-trace ways.
-- **Rule:** every financial figure stored or computed anywhere in the pipeline or Postgres schema is `NUMERIC`/`DECIMAL`. `FLOAT`/`DOUBLE` is never used for a financial value.
+- **Rule:** every financial figure stored or computed anywhere in the pipeline or Postgres schema is `NUMERIC`/`DECIMAL`. `FLOAT`/`DOUBLE` is never used for a financial value. Rounding uses one enumerated policy (default `ROUND_HALF_EVEN`) applied by a single shared decimal engine (AD-5), never a per-module choice — otherwise two independently-built evaluators could classify the same company differently at a threshold boundary.
+
+### AD-16 — Tri-state signal status; never a defaulted zero
+
+- **Binds:** FR-3, FR-4, FR-5, FR-6, FR-7, FR-8
+- **Prevents:** a missing input being stored as NULL and silently coerced to a failing `0` (or a passing value) downstream — the exact guess/default FR-3 forbids.
+- **Rule:** every per-signal / per-component result carries an explicit `status` enum — `pass` | `fail` | `insufficient_data`. A missing or unresolvable input is `insufficient_data`, propagated verbatim through scoring → API → frontend; no layer coerces it to a numeric default.
+
+### AD-17 — Single `data_quality_issues` contract and mutation owner
+
+- **Binds:** FR-3, FR-4, FR-6, FR-7, FR-8
+- **Prevents:** canonicalization and validation (both of which raise issues) writing clashing row shapes, or either stage unilaterally rewriting another's issue status.
+- **Rule:** `data_quality_issues` has one documented row shape and a closed `status` enum — `needs_review` | `resolved` | `dismissed`. Any pipeline stage may **append** an issue; only the protected operator path (AD-10) mutates a status. No in-place status rewrite by a pipeline stage.
+
+### AD-18 — Canonical `score_results` shape and `signal_key` vocabulary
+
+- **Binds:** FR-3, FR-4, FR-5, FR-6, FR-7, FR-9, FR-10, FR-12
+- **Prevents:** scoring, explanation, and the API diverging on an EAV-vs-JSON-blob row shape or on ad-hoc signal names.
+- **Rule:** `score_results` is one row per model per signal/component — `(score_run_id, model, signal_key, value NUMERIC, status [AD-16], band_label, threshold_ref)`. `signal_key` is a stable snake_case vocabulary pinned in each formula spec (AD-5); every consumer reads by that key.
+
+### AD-19 — Provenance is a first-class invariant
+
+- **Binds:** FR-5, FR-8, FR-9, FR-10, FR-11, FR-12
+- **Prevents:** the product's core "traceable to the filing line item" promise degrading into a rendering convention the backend and frontend can diverge on.
+- **Rule:** every displayed canonical value and every score input resolves to a provenance reference — `(accession_number, xbrl_concept / line item, filing period, source)` — end to end. The read API returns provenance alongside the value; the frontend links to it. A value with no resolvable provenance is not displayed as fact.
+
+### AD-20 — Sector-scope applicability state
+
+- **Binds:** FR-4, FR-5, FR-6, FR-8, FR-9
+- **Prevents:** an out-of-scope company (financials, per D6) or a caveated one (capital-intensive, per D6) being shown a bare number as if unconditionally valid.
+- **Rule:** each model result carries an `applicability` state — `computed` | `excluded_out_of_scope` | `computed_with_caveat`. Scoring sets it per D6 (financials excluded from Altman/Beneish; capital-intensive firms carry the interpretive caveat); the API and frontend render it uniformly — never a bare score for an excluded or caveated case.
+
+### AD-21 — FR-12 LLM: small, cheap, env-keyed, out of the numeric loop
+
+- **Binds:** FR-12
+- **Prevents:** an unpinned or expensive model, or a hardcoded provider key, in the Phase-1 explanation feature.
+- **Rule:** FR-12's explanation uses a small, cheap model — default Anthropic Claude Haiku 4.5 — with the API key supplied via env var and the provider swappable. It performs constrained rewrite only (AD-7) and is never in the numeric/computation loop. Fits the ~$25/mo cost ceiling.
 
 ## Consistency Conventions
 
 | Concern | Convention |
 | --- | --- |
 | Naming (entities, files, interfaces, events) | Internal PKs are UUID, except `issuers` (keyed by CIK string) and `filings` (keyed by SEC `accession_number` string) — natural external keys. |
-| Data & formats (ids, dates, error shapes, envelopes) | `DATE` for fiscal/filing dates; `TIMESTAMPTZ` for `computed_at`/`fetched_at`; ISO 8601 throughout. All FastAPI errors use one documented envelope: `{error: {code, message, details}}`. Financial figures are `NUMERIC`/`DECIMAL` only, never `FLOAT`/`DOUBLE` (AD-15). |
+| Data & formats (ids, dates, error shapes, envelopes) | `DATE` for fiscal/filing dates; `TIMESTAMPTZ` for `computed_at`/`fetched_at`; ISO 8601 throughout. All FastAPI errors use one documented envelope: `{error: {code, message, details}}`. A lens not yet covered for a company is a **success**-envelope `not_available` state, never an error and never a fabricated zero (aligns with the AD-16 status semantics). Financial figures are `NUMERIC`/`DECIMAL` only, never `FLOAT`/`DOUBLE` (AD-15). |
 | State & cross-cutting (mutation, errors, logging, config, auth) | Config via env vars only for secrets (EDGAR contact, Tiingo key, LLM key, DB connection) — never hardcoded. No end-user auth in Phase 1 (foundational-decisions D4); admin/recompute endpoints protected by a shared-secret header, operator-only, not a full auth system. |
 
 ## Stack
@@ -190,9 +226,9 @@ flowchart LR
 | --- | --- |
 | Next.js | 16.2.10 |
 | React | 19.2.7 |
-| FastAPI | 0.136.x |
-| Pydantic | 2.10.x |
-| SQLAlchemy | 2.0.36 (async `AsyncSession`) |
+| FastAPI | 0.139.x |
+| Pydantic | 2.13.x |
+| SQLAlchemy | 2.0.51 (async `AsyncSession`) |
 | Python | 3.12 / 3.13 |
 | Postgres (Supabase) | 17 |
 | Render | Web Service + Cron Job (~$8-10/mo) |
@@ -226,11 +262,11 @@ ThesisTrace/
     ingestion/         # EDGAR Company Facts + Inline XBRL fallback, Tiingo close price (AD-4, AD-9)
     raw_store/         # raw_facts — append-only (AD-2)
     canonicalization/  # concept_mappings, canonical fact selection (AD-2, AD-3)
-    validation/        # data_quality_issues, accounting-identity checks (AD-3)
-    formulas/          # versioned formula specs, e.g. piotroski_v1.yaml (AD-5)
-    scoring/           # score_runs / score_inputs / score_results (AD-5, AD-6, AD-15)
-    explanation/       # deterministic template + constrained LLM rewrite (AD-7)
-    api/               # FastAPI read-only query endpoints (AD-1, AD-10)
+    validation/        # data_quality_issues (single contract), accounting-identity checks (AD-3, AD-17)
+    formulas/          # versioned formula specs, e.g. piotroski_v1.yaml — rounding mode + signal_key + cited bands (AD-5)
+    scoring/           # score_runs / score_inputs / score_results — tri-state status, applicability, backend band label (AD-5, AD-6, AD-15, AD-16, AD-18, AD-20)
+    explanation/       # deterministic template + constrained LLM rewrite, Claude Haiku default (AD-7, AD-21)
+    api/               # FastAPI read-only query endpoints, provenance in payload (AD-1, AD-10, AD-19)
   db/
     migrations/        # schema incl. market_prices (AD-14)
 ```
@@ -243,16 +279,16 @@ ThesisTrace/
 | --- | --- | --- |
 | FR-1 Starter list display | `frontend/app` | AD-8, AD-10 |
 | FR-2 Ticker search | `frontend/app`, `backend/api` | AD-8, AD-10 |
-| FR-3 Piotroski F-Score | `backend/scoring`, `backend/formulas` | AD-2, AD-3, AD-4, AD-5, AD-6, AD-15 |
-| FR-4 Altman Z-Score | `backend/scoring`, `backend/formulas`, `market_prices` | AD-2, AD-3, AD-4, AD-5, AD-6, AD-11, AD-14, AD-15 |
-| FR-5 Quality/Health sub-signal display | `backend/api`, `frontend/app` | AD-3, AD-10 |
-| FR-6 Beneish M-Score | `backend/scoring`, `backend/formulas` | AD-2, AD-3, AD-4, AD-5, AD-6, AD-15 |
-| FR-7 Sloan accruals ratio | `backend/scoring`, `backend/formulas` | AD-2, AD-3, AD-4, AD-5, AD-6, AD-15 |
-| FR-8 Integrity sub-signal display & Provenance | `backend/api`, `backend/validation` | AD-3, AD-10 |
-| FR-9 Company overview page (Verdict) | `backend/api`, `frontend/app` | AD-8, AD-10, AD-12 |
-| FR-10 Expandable sub-factor breakdown | `frontend/app` | AD-8, AD-10 |
-| FR-11 Methodology page per score | `backend/formulas`, `frontend/app` | AD-5 |
-| FR-12 Cited narrative explanation | `backend/explanation` | AD-7 |
+| FR-3 Piotroski F-Score | `backend/scoring`, `backend/formulas` | AD-2, AD-3, AD-4, AD-5, AD-6, AD-15, AD-16, AD-18 |
+| FR-4 Altman Z-Score | `backend/scoring`, `backend/formulas`, `market_prices` | AD-2, AD-3, AD-4, AD-5, AD-6, AD-11, AD-14, AD-15, AD-16, AD-18, AD-20 |
+| FR-5 Quality/Health sub-signal display | `backend/api`, `frontend/app` | AD-3, AD-10, AD-16, AD-19 |
+| FR-6 Beneish M-Score | `backend/scoring`, `backend/formulas` | AD-2, AD-3, AD-4, AD-5, AD-6, AD-15, AD-16, AD-18, AD-20 |
+| FR-7 Sloan accruals ratio | `backend/scoring`, `backend/formulas` | AD-2, AD-3, AD-4, AD-5, AD-6, AD-15, AD-16, AD-18 |
+| FR-8 Integrity sub-signal display & Provenance | `backend/api`, `backend/validation` | AD-3, AD-10, AD-17, AD-19 |
+| FR-9 Company overview page (Verdict) | `backend/api`, `frontend/app` | AD-8, AD-10, AD-12, AD-18, AD-19, AD-20 |
+| FR-10 Expandable sub-factor breakdown | `frontend/app` | AD-8, AD-10, AD-19 |
+| FR-11 Methodology page per score | `backend/formulas`, `frontend/app` | AD-5, AD-19 |
+| FR-12 Cited narrative explanation | `backend/explanation` | AD-7, AD-18, AD-21 |
 | FR-13 Add to comparison | `frontend/app` (session-only) | AD-8 |
 | FR-14 Side-by-side comparison view | `backend/api`, `frontend/app` | AD-8, AD-10 |
 | FR-15 Cited filing Q&A | Deferred | — |
@@ -272,4 +308,4 @@ ThesisTrace/
 - **SEDAR+/TSX-only ingestion pipeline** — explicit PRD Non-Goal, no phase scheduled.
 - **Exact accounting-identity validation rule set** — the `data_quality_issues` tracking mechanism exists now; the specific checks are an implementation detail, not a spine-level invariant.
 - **Sloan accruals exact threshold value** — pinned in the versioned formula spec (AD-5) at implementation time, not at spine level.
-- **CI/CD, monitoring, rollback** — Phase 4 per the PRD; hobby-scale posture defers operational rigor.
+- **CI/CD, monitoring, rollback** — Phase 4 per the PRD; hobby-scale posture defers operational rigor. Note the exception: the **golden-dataset regression harness** for SM-1 (all four models' outputs matched against hand-verified/published values) is **in Phase-1 scope** — only its *CI automation* is Phase-4-deferred, so SM-1's correctness bar is enforceable from the first story.

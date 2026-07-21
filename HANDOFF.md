@@ -8,35 +8,27 @@ An evidence-backed equity intelligence platform for retail investors. Four trans
 
 Consolidates two prior concepts (LedgerLens + Fundalens); the original comparison is now in-repo at `_bmad-output/planning-artifacts/ledgerlens-fundalens-consolidation-review.md` (copied 2026-07-20 from its original location outside version control, so cloud/mobile sessions can read it).
 
-## Where things stand (as of 2026-07-19)
+## Where things stand (as of 2026-07-21)
 
 | Artifact | Status | Path |
 |---|---|---|
 | Foundational decisions (D1–D7) | **Locked** | `_bmad-output/planning-artifacts/foundational-decisions.md` |
-| PRD | **Final** | `_bmad-output/planning-artifacts/prds/prd-ThesisTrace-2026-07-17/prd.md` (+ `addendum.md` in the same folder) |
-| Architecture spine | **Draft — Finalize in progress, paused mid-review** | `_bmad-output/planning-artifacts/architecture/architecture-ThesisTrace-2026-07-19/ARCHITECTURE-SPINE.md` |
-| Epics & Stories | **Not started** | — |
-| Application code | **Not started** | — |
-| Git repo / GitHub | **Not yet initialized** (Lawrence doing this himself) | — |
+| PRD | **Final** (3 architecture-surfaced refinements folded in 2026-07-21) | `_bmad-output/planning-artifacts/prds/prd-ThesisTrace-2026-07-17/prd.md` (+ `addendum.md` in the same folder) |
+| Architecture spine | **Final** (21 ADs; Reviewer Gate passed 2026-07-21) | `_bmad-output/planning-artifacts/architecture/architecture-ThesisTrace-2026-07-19/ARCHITECTURE-SPINE.md` |
+| SPEC kernel | **Final** (14 capabilities; adopts spine + PRD + decisions) | `_bmad-output/specs/spec-thesistrace/SPEC.md` |
+| Epics & Stories | **Final** — Phase-1: 4 epics, 26 stories, all 14 FRs covered | `_bmad-output/planning-artifacts/epics.md` |
+| Application code | **Epics 1–2 complete** — all four models live (Piotroski, Altman+Tiingo, Beneish, Sloan) with sub-signal displays, provenance, data-quality flags; 43 backend tests green. Next: Epic 3 (Verdict/Methodology/Explanation) | `backend/`, `frontend/`, `db/` |
+| Git repo / GitHub | **Initialized** (`lawrence-dass/thesis-trace`); work branch `claude/codebase-review-setup-rz93qm` | — |
 
-## Architecture spine — exact resume point
+## Architecture spine — finalized 2026-07-21
 
-The spine itself (15 ADs: paradigm, data model, ingestion/canonicalization rules, formula versioning, hosting, etc.) is drafted and reads as complete — but the BMad Architecture skill's Finalize sequence was interrupted partway through, deliberately, to switch to this handoff. Do not treat the spine as final yet.
+The spine is **final** (`status: final`), now **21 ADs**. The paused Finalize sequence was completed in a Claude cloud session:
 
-**Done:**
-1. Distill — spine written from the coaching session's memlog.
-2. Reconcile — checked against the PRD; found and fixed one real issue (AD-11 adopting Tiingo as a market-data source silently conflicted with a locked "no multiple data providers" constraint — resolved by amending `foundational-decisions.md` D7 with an explicit, narrowly-scoped exception, confirmed by Lawrence).
+- **Reviewer Gate passed.** `lint_spine.py` clean (0 findings). Three lenses ran as parallel subagents against the spine — rubric walker, web/version verification, and adversarial two-units-diverge — with full reviews saved under `.../architecture-ThesisTrace-2026-07-19/reviews/`.
+- **Fixes applied from the gate:** six new invariants (AD-16 tri-state signal status; AD-17 single `data_quality_issues` contract/owner; AD-18 canonical `score_results` shape + `signal_key` vocabulary; AD-19 provenance as a first-class invariant; AD-20 sector-scope applicability state; AD-21 FR-12 LLM = Claude Haiku default, env-keyed, out of the numeric loop). Tightened AD-4 (dual-source tiebreaker), AD-5/AD-15 (one shared rounding engine), AD-6 (current-run selection), AD-8/AD-12 (band classification computed backend), AD-14 (FYE trading-day price). Refreshed stale Python version pins (FastAPI 0.139, Pydantic 2.13, SQLAlchemy 2.0.51 — Next.js 16.2.10 / React 19.2.7 re-verified current). Fixed a mermaid diagram bug (frontend was under Render, belongs on Vercel).
+- **Two product calls confirmed by Lawrence:** Piotroski Verdict bands corrected to the paper's own classification (Strong 8-9, Weak 0-1, 2-7 = Middle/mixed — the prior 5-7/0-4 split was invented); FR-12 LLM pinned to Claude Haiku 4.5.
 
-**Not done:**
-3. Reviewer Gate — the deterministic lint (`lint_spine.py`) ran clean (0 findings), but the rubric walker and the two configured reviewer lenses (verify-web-researched-decisions, adversarial-two-independent-units-test) were dispatched and then interrupted before finishing. **No review files exist yet.**
-4. Triage open items.
-5. Polish / renderings (spine-only was chosen as the deliverable — no extra walkthrough artifact needed).
-6. External handoffs (none configured).
-7. Close — flip frontmatter `status: draft` → `final`.
-
-**To resume:** invoke the `bmad-architecture` skill again (or just ask to continue the architecture finalize) — it will find the existing run under `_bmad-output/planning-artifacts/architecture/architecture-ThesisTrace-2026-07-19/` and should reload `.memlog.md`, whose last entry states this exact resume point.
-
-Full run memory: `_bmad-output/planning-artifacts/architecture/architecture-ThesisTrace-2026-07-19/.memlog.md` (30 entries — every decision made during the architecture coaching session, with reasoning).
+Full run memory: `.../architecture-ThesisTrace-2026-07-19/.memlog.md` (44 entries).
 
 ## Standing decisions a future session must respect
 
@@ -52,10 +44,11 @@ These are locked/final and shouldn't be silently re-litigated — see the source
 - **Cost ceiling:** ~$25/month total (hosting + data + LLM). Current architecture: Render (~$8-10/mo) + Vercel (free) + Supabase (free) + Tiingo (free) — leaves ample headroom for LLM costs.
 - **Web-only** — no native mobile app is planned for the *product itself* (unrelated to Lawrence developing *from* a mobile/cloud session).
 
-Two PRD-touching refinements surfaced during architecture work and are recorded but **not yet folded back into `prd.md`** — do this before or during epics/stories work:
-- FR-12 (AI explanation) should tighten to "deterministic template first, LLM as constrained rewrite only" (spine AD-7).
-- FR-9 (Verdict) should state the actual synthesis rule now defined (spine AD-12) in place of the current placeholder language.
-- FR-4/FR-5 (Altman) should note the Tiingo market-data dependency (spine AD-11).
+Three PRD-touching refinements surfaced during architecture work and have now been **folded back into `prd.md`** (2026-07-21):
+- FR-12 (AI explanation) tightened to "deterministic template first, LLM as constrained rewrite only," Claude Haiku default (spine AD-7/AD-21). ✅
+- FR-9 (Verdict) now states the per-model-threshold-juxtaposition synthesis rule with paper-faithful Piotroski bands and backend-computed labels (spine AD-8/AD-12). ✅
+- FR-4 (Altman) now notes the Tiingo market-data dependency (spine AD-11/AD-14). ✅
+- Also: PRD Open Question 2 (restatement policy) marked resolved by spine AD-6. ✅
 
 ## How Lawrence works (for any AI session picking this up)
 
@@ -68,10 +61,15 @@ This isn't captured anywhere else in the repo — it's local assistant memory on
 
 ## What's left before development starts
 
-1. Finish the architecture spine Finalize sequence (resume point above).
-2. Fold the three PRD-touching refinements above back into `prd.md` (a `bmad-prd` Update run).
-3. Recommended next BMad steps once the spine is final: `bmad-spec` (adopt the spine as a companion spec, keeping AD IDs stable) → `bmad-create-epics-and-stories` → `bmad-create-story` for the first story. Or invoke `bmad-help` for authoritative routing if priorities shift.
-4. Git repo + GitHub — Lawrence is initializing this himself; once done, this `HANDOFF.md` should move with the repo (keep it at project root) so it's the first thing a cloud/mobile session sees.
+Planning is now complete end-to-end (PRD → foundational decisions → architecture spine → SPEC → epics & stories). Development can begin.
+
+1. **`bmad-create-story`** — draft the first implementable story, **Epic 1 Story 1.1 (project scaffold & deployable skeleton)**, with full dev context, then implement it. This is the recommended next step.
+2. Proceed through Epic 1 in order (1.1 → 1.10) — it is the walking skeleton (Shopify-first, Piotroski + Sloan, EDGAR-only) that proves the whole pipeline.
+3. Or invoke **`bmad-help`** for authoritative routing if priorities shift.
+
+The story backlog lives in `_bmad-output/planning-artifacts/epics.md` (4 epics, 26 stories). Each story cites the FR/AD it fulfills.
+
+Environment note for cloud/web sessions: once the first code lands (Story 1.1), add a `README`, a `.claude/` SessionStart hook, and `.env.example` (EDGAR contact, Tiingo key, LLM key, DB URL) so a fresh web container can `install`/`test`/run immediately. Story 1.1's acceptance criteria already include `.env.example` and a health check.
 
 ## Everything on disk right now
 
@@ -81,13 +79,13 @@ ThesisTrace/
   _bmad-output/planning-artifacts/
     foundational-decisions.md                   # D1-D7, locked
     prds/prd-ThesisTrace-2026-07-17/
-      prd.md                                    # final
+      prd.md                                    # final (refinements folded 2026-07-21)
       addendum.md                                # competitor/whitespace research depth
       .memlog.md                                 # full PRD-run decision trail
       review-rubric.md, reconcile-*.md           # PRD review/reconciliation artifacts
     architecture/architecture-ThesisTrace-2026-07-19/
-      ARCHITECTURE-SPINE.md                      # draft, Finalize paused (see above)
-      .memlog.md                                 # full architecture-run decision trail
+      ARCHITECTURE-SPINE.md                      # FINAL — 21 ADs
+      .memlog.md                                 # full architecture-run decision trail (44 entries)
       reconcile-prd.md                           # reconciliation findings (AD-11/D7 issue)
-      reviews/                                   # empty - reviewer gate not yet run
+      reviews/                                   # Reviewer Gate output (3 lens reviews)
 ```
