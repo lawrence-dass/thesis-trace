@@ -67,3 +67,4 @@ class CompanyCardOut(BaseModel):
     cik: str
     ticker: str
     name: str
+    last_updated: str | None

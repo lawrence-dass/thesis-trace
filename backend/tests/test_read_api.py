@@ -86,5 +86,9 @@ async def test_uncovered_company_is_not_available(seeded_app) -> None:
 async def test_companies_list(seeded_app) -> None:
     async with AsyncClient(transport=ASGITransport(app=seeded_app), base_url="http://test") as client:
         resp = await client.get("/api/companies")
-    tickers = [c["ticker"] for c in resp.json()]
+    cards = resp.json()
+    tickers = [c["ticker"] for c in cards]
     assert "SHOP" in tickers
+    # FR-1 card carries a last-updated date.
+    shop = next(c for c in cards if c["ticker"] == "SHOP")
+    assert shop["last_updated"] is not None

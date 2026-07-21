@@ -44,7 +44,15 @@ PENDING_LENSES = ["value", "growth"]
 
 async def list_companies(session: AsyncSession) -> list[CompanyCardOut]:
     issuers = (await session.execute(select(Issuer).order_by(Issuer.ticker))).scalars().all()
-    return [CompanyCardOut(cik=i.cik, ticker=i.ticker, name=i.name) for i in issuers]
+    return [
+        CompanyCardOut(
+            cik=i.cik,
+            ticker=i.ticker,
+            name=i.name,
+            last_updated=i.updated_at.isoformat() if i.updated_at else None,
+        )
+        for i in issuers
+    ]
 
 
 async def get_issuer_by_ticker(session: AsyncSession, ticker: str) -> Issuer | None:

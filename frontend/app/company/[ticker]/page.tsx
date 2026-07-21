@@ -2,6 +2,8 @@
 // This is a skeleton view; the full Verdict/overview UI is Epic 3 (FR-9/FR-10).
 // Presentation only — renders exactly what the API returns (AD-8).
 
+import AddToCompare from "../../components/AddToCompare";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 type Provenance = {
@@ -85,6 +87,8 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
       <h1>
         {data.name} ({data.ticker})
       </h1>
+
+      <AddToCompare ticker={data.ticker ?? ticker.toUpperCase()} />
 
       {/* Verdict: each live model's own cited classification, side by side (FR-9, AD-12). */}
       {data.verdict && data.verdict.length > 0 ? (
