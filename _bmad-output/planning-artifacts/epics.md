@@ -1,5 +1,5 @@
 ---
-stepsCompleted: [step-01-validate-prerequisites]
+stepsCompleted: [step-01-validate-prerequisites, step-02-design-epics]
 inputDocuments:
   - _bmad-output/specs/spec-thesistrace/SPEC.md
   - _bmad-output/planning-artifacts/prds/prd-ThesisTrace-2026-07-17/prd.md
@@ -80,8 +80,38 @@ None — no UX design contract (bmad-ux run) exists. UI stories will reference P
 
 ### FR Coverage Map
 
-{{requirements_coverage_map}}
+Each Phase-1 FR is owned by exactly one epic (where it is *completed*). Epic 1's thin display is a deliberate pre-FR walking-skeleton, so it owns only the two score-computation FRs.
+
+- **FR-1** → Epic 4 — Starter list display
+- **FR-2** → Epic 4 — Ticker search ("not yet covered" handling)
+- **FR-3** → Epic 1 — Piotroski F-Score computation
+- **FR-4** → Epic 2 — Altman Z-Score computation (Tiingo market value of equity)
+- **FR-5** → Epic 2 — Quality/Health sub-signal display with provenance (all models)
+- **FR-6** → Epic 2 — Beneish M-Score computation
+- **FR-7** → Epic 1 — Sloan accruals ratio computation
+- **FR-8** → Epic 2 — Integrity sub-signal display, provenance & data-quality flags
+- **FR-9** → Epic 3 — Company overview page (Verdict juxtaposition)
+- **FR-10** → Epic 3 — Expandable sub-factor breakdown
+- **FR-11** → Epic 3 — Methodology page per score
+- **FR-12** → Epic 3 — Cited narrative explanation (deterministic-first)
+- **FR-13** → Epic 4 — Add to comparison
+- **FR-14** → Epic 4 — Side-by-side comparison view
+- *FR-15…FR-21 → Phase 2/3, not decomposed in this run.*
 
 ## Epic List
 
-{{epics_list}}
+### Epic 1: Foundation & First Evidence (Walking Skeleton)
+A visitor can open a real company (Shopify first, then the full universe) and see a genuine forensic score — Piotroski F-Score and Sloan accruals ratio — traced to the actual EDGAR filing line item, proving the entire deterministic batch pipeline end-to-end on live data. Establishes project scaffold + Render/Vercel/Supabase infra, the data model, EDGAR ingestion (Company Facts + Inline XBRL fallback), canonicalization + validation, versioned formula specs, append-only scoring, the read-only query API, a thin overview page, and the golden-dataset regression harness. Uses only EDGAR (no Tiingo dependency yet).
+**FRs covered:** FR-3, FR-7
+
+### Epic 2: Complete the Four Lenses
+A visitor sees all four forensic models for every company, each with full sub-signal detail and field-level provenance. Adds Altman Z-Score (with Tiingo market-price ingestion, `market_prices`, and sector applicability) and Beneish M-Score (with sector exclusion), and builds out the complete Quality/Health and Integrity sub-signal displays including accounting-identity data-quality warnings. Extends the golden-dataset harness to all four models across the full universe.
+**FRs covered:** FR-4, FR-6, FR-5, FR-8
+
+### Epic 3: Verdict, Methodology & Explanation
+A visitor gets a glanceable, honest Verdict per company, can drill into any factor in-page, read the exact methodology behind each score, and request a cited plain-language explanation. Builds the overview Verdict (transparent per-model threshold juxtaposition with phase-honesty), the in-page expandable breakdown, the per-score methodology pages, and the deterministic-first, citation-grounded AI explanation (Claude Haiku, never in the numeric loop).
+**FRs covered:** FR-9, FR-10, FR-11, FR-12
+
+### Epic 4: Discovery & Comparison
+A visitor discovers the Company Universe from the landing page, searches for tickers (with an honest "not yet covered" for anything outside the universe), and compares 2–4 companies side by side across whichever lenses are live. Completes the discovery shell and the session-scoped comparison experience around the now-complete company pages.
+**FRs covered:** FR-1, FR-2, FR-13, FR-14
