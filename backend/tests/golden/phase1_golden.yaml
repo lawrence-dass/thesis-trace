@@ -1,0 +1,30 @@
+# Phase-1 golden dataset for SM-1 (score correctness).
+#
+# ⚠️ PLACEHOLDER VALUES — NOT YET AUTHORITATIVE.
+# Per the standing decision (autopilot), the `expected` numbers below are
+# CHARACTERIZATION values computed from the synthetic committed fixtures, not
+# hand-verified or published figures. They pin current behavior so regressions
+# are caught; they MUST be replaced with hand-verified/published golden values
+# (open question OQ1) before SM-1 can be claimed. Companies without a fixture yet
+# are listed as `pending_fixture` so coverage gaps are explicit, never silent.
+
+universe: [SHOP, CP, QSR, OTEX]
+
+companies:
+  - ticker: SHOP
+    status: active
+    fixture: shop_company_facts.json
+    fiscal_year: 2024
+    expected:
+      piotroski:
+        f_score: 4          # placeholder (characterization from fixture)
+      sloan:
+        accruals_ratio: 0.033479   # placeholder
+        band: "Low accruals (higher quality)"
+
+  - ticker: CP
+    status: pending_fixture
+  - ticker: QSR
+    status: pending_fixture
+  - ticker: OTEX
+    status: pending_fixture
