@@ -2,7 +2,7 @@
 title: ThesisTrace
 status: final
 created: 2026-07-17
-updated: 2026-07-18
+updated: 2026-07-21
 ---
 
 # PRD: ThesisTrace
@@ -128,6 +128,7 @@ The system computes an Altman Z-Score for each company using its most recent fis
 
 **Consequences (testable):**
 - All 5 underlying weighted ratios (working capital/total assets, retained earnings/total assets, EBIT/total assets, market value of equity/total liabilities, sales/total assets) are individually computed and stored, not just the aggregate.
+- Market value of equity is computed from a period-end closing price sourced from Tiingo (free tier) joined with EDGAR's `dei:EntityCommonStockSharesOutstanding` at fiscal-year-end — never a book-value substitute (see `foundational-decisions.md` D7 exception and architecture AD-11/AD-14). The closing price is the close on the last trading day on or before fiscal-year-end.
 - The formula is versioned identically to FR-3.
 - Companies outside the model's valid sector scope (financial-sector firms) are excluded from Altman computation entirely rather than shown a misleading score — Altman's original model is undefined for that capital structure (see `foundational-decisions.md` D6).
 - A company in a structurally capital-intensive sector (e.g., pipelines/infrastructure) that is included in the universe carries an explicit interpretive caveat alongside its Altman score rather than a bare number (see `foundational-decisions.md` D6, ENB note).
@@ -171,7 +172,7 @@ A user can view each Integrity signal's inputs and its source filing line item. 
 Each company in the universe has a dedicated overview page showing its Verdict and all currently-live lens scores.
 
 **Consequences (testable):**
-- The Verdict is a transparent, stated-rule synthesis of whichever lenses are live in the current phase — never an LLM-invented number.
+- The Verdict is a transparent side-by-side juxtaposition of each live model's own published, cited threshold classification — never a blended/weighted single score and never an LLM-invented number (architecture AD-12). Each model shows its own bands: Piotroski per its original paper (Strong 8-9, Weak 0-1, 2-7 shown as Middle/mixed — no invented cutoff); Altman >2.99 Safe / 1.81-2.99 Grey / <1.81 Distress; Beneish >-1.78; Sloan per its versioned formula-spec threshold. The band label is computed in the backend and stored; the frontend renders the stored label and never recomputes cutoffs (AD-8).
 - Individual lens scores remain visible and clickable even when the Verdict is a synthesis; a user is never forced to accept only the summary.
 - The page states explicitly which lenses are live vs. pending for that company (honest about Phase 1's partial coverage).
 
@@ -196,12 +197,14 @@ Each Deterministic Score (Piotroski, Altman, Beneish, Sloan, and later Value/Gro
 **Description:** A narrow, direct LLM wrapper (per `foundational-decisions.md` D7 — no LangChain/LangGraph here) that narrates already-computed scores and verdicts with citations. Realizes UJ-1, UJ-2.
 
 #### FR-12: Cited narrative explanation
-A user can request a plain-language explanation of any computed score or the overall Verdict.
+A user can request a plain-language explanation of any computed score or the overall Verdict. The explanation is generated deterministically-first: a template renders directly from already-computed `score_results`/Canonical Facts, and an LLM — if used at all — only rewrites/polishes that already-correct text, never originating a claim, number, or citation (architecture AD-7).
 
 **Consequences (testable):**
+- The explanation text is produced by a deterministic template from already-computed scores/Canonical Facts; the LLM is never in the computation loop and never introduces a claim, number, or citation not already present in the source data.
 - The LLM receives only already-computed Canonical Facts/scores as input — it never computes or alters a number.
+- The Phase-1 LLM is a small, cheap model (default Claude Haiku 4.5) behind an env-configured key, a narrow direct wrapper — no LangChain/LangGraph (see `foundational-decisions.md` D7, architecture AD-21).
 - Every explanation includes inline Citations to the specific Provenance record(s) it drew from.
-- If the LLM cannot ground a statement in a Citation, it omits the statement rather than asserting it uncited.
+- If a statement cannot be grounded in a Citation, it is omitted rather than asserted uncited.
 
 ### 4.7 Comparison *(Phase 1, grows with lenses)*
 **Description:** Side-by-side comparison of two or more user-selected companies, showing whichever lenses are live at the time. Realizes UJ-3.
@@ -343,7 +346,7 @@ When a Deep Research Request is completed, the system emails the requesting addr
 ## 8. Open Questions
 
 1. **Golden-dataset sourcing** — where do hand-verified/published Piotroski, Altman, Beneish, and Sloan scores for CP, QSR, OTEX, and SHOP come from, and how is the dataset kept current as new filings arrive? Blocks SM-1 measurement.
-2. **Amended/restated filings policy** — when a 10-K/A supersedes a 10-K that a score was already computed from, does the system recompute automatically, flag for manual review, or something else?
+2. ~~Amended/restated filings policy~~ — **resolved 2026-07-19 by architecture AD-6:** an amendment triggers a new append-only `score_run` referencing the new `canonical_facts`; the prior run is marked superseded, never deleted or mutated. The "current" score is the latest non-superseded run.
 3. **Not-investment-advice disclaimer** — exact wording, placement (every page? footer? first-visit notice?), and whether any Canada-specific legal review is warranted.
 4. ~~Monthly cost ceiling~~ — **resolved 2026-07-17: ~$25/month** total for hosting + LLM spend. Forces free/hobby tiers (Vercel free, Supabase free tier, modest LLM API usage) — a binding constraint for the architecture phase.
 5. **Deep Research Request SLA** — should the SLA be a fixed window (e.g., 24 hours) for every request, or vary by question complexity/cost? Affects queue design and user-facing copy for FR-19.
