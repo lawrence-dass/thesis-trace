@@ -43,12 +43,18 @@ async def test_piotroski_signals_and_tristate(db_session) -> None:
     assert results["roa_increasing"].status == SignalStatus.pass_
     # accruals: CFO/TA (0.1229) > ROA (0.154) is false -> fail.
     assert results["accruals"].status == SignalStatus.fail
-    # Concepts absent from the fixture -> insufficient_data, never a defaulted 0 (AD-16).
-    assert results["gross_margin_increasing"].status == SignalStatus.insufficient_data
-    assert results["leverage_decreasing"].status == SignalStatus.insufficient_data
+    # With the full fixture these now compute (Epic 2 completed the inputs).
+    assert results["leverage_decreasing"].status == SignalStatus.pass_
+    assert results["gross_margin_increasing"].status == SignalStatus.pass_
+    assert results["asset_turnover_increasing"].status == SignalStatus.pass_
+    # shares_not_diluted: 1.29B > 1.27B -> dilution -> fail.
+    assert results["shares_not_diluted"].status == SignalStatus.fail
+    # No signal is insufficient now that all inputs are present.
+    assert all(r.status != SignalStatus.insufficient_data for r in results.values())
     # Aggregate = count of pass signals.
     passes = sum(1 for r in results.values() if r.status == SignalStatus.pass_)
     assert run.aggregate_value == passes
+    assert run.aggregate_value == 7
 
 
 @requires_db

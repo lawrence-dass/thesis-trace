@@ -24,6 +24,7 @@ class SignalOut(BaseModel):
 
 class LensScoreOut(BaseModel):
     model: str
+    category: str  # quality_health | integrity
     fiscal_year: int
     formula_version: str
     aggregate_value: float | None
@@ -32,12 +33,21 @@ class LensScoreOut(BaseModel):
     signals: list[SignalOut]
 
 
+class DataQualityOut(BaseModel):
+    issue_type: str
+    status: str
+    raised_by: str
+    accession_number: str | None
+    detail: dict | None
+
+
 class CompanyOverviewOut(BaseModel):
     cik: str
     ticker: str
     name: str
     lenses_live: list[str]
     scores: list[LensScoreOut]
+    data_quality: list[DataQualityOut]
 
 
 class CompanyCardOut(BaseModel):

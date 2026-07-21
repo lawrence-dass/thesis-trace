@@ -12,7 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
     CanonicalFact,
+    DataQualityIssue,
     Filing,
+    IssueStatus,
     Issuer,
     ScoreInput,
     ScoreResult,
@@ -21,10 +23,19 @@ from app.models import (
 from api.schemas import (
     CompanyCardOut,
     CompanyOverviewOut,
+    DataQualityOut,
     LensScoreOut,
     Provenance,
     SignalOut,
 )
+
+# Lens category per model (FR-5 Quality/Health vs FR-8 Integrity).
+LENS_CATEGORY = {
+    "piotroski": "quality_health",
+    "altman": "quality_health",
+    "beneish": "integrity",
+    "sloan": "integrity",
+}
 
 
 async def list_companies(session: AsyncSession) -> list[CompanyCardOut]:
@@ -92,6 +103,7 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
         scores.append(
             LensScoreOut(
                 model=run.model.value,
+                category=LENS_CATEGORY.get(run.model.value, "quality_health"),
                 fiscal_year=run.fiscal_year,
                 formula_version=run.formula_version,
                 aggregate_value=float(run.aggregate_value) if run.aggregate_value is not None else None,
@@ -101,7 +113,31 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
             )
         )
 
+    # Open data-quality warnings for this issuer's filings (AD-17, FR-8) — never hidden.
+    dq_rows = (
+        await session.execute(
+            select(DataQualityIssue, Filing.issuer_cik)
+            .join(Filing, Filing.accession_number == DataQualityIssue.accession_number)
+            .where(Filing.issuer_cik == issuer.cik, DataQualityIssue.status != IssueStatus.dismissed)
+        )
+    ).all()
+    data_quality = [
+        DataQualityOut(
+            issue_type=dq.issue_type,
+            status=dq.status.value,
+            raised_by=dq.raised_by,
+            accession_number=dq.accession_number,
+            detail=dq.detail,
+        )
+        for dq, _cik in dq_rows
+    ]
+
     lenses_live = sorted({s.model for s in scores})
     return CompanyOverviewOut(
-        cik=issuer.cik, ticker=issuer.ticker, name=issuer.name, lenses_live=lenses_live, scores=scores
+        cik=issuer.cik,
+        ticker=issuer.ticker,
+        name=issuer.name,
+        lenses_live=lenses_live,
+        scores=scores,
+        data_quality=data_quality,
     )

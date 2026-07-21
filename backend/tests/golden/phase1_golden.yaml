@@ -14,13 +14,20 @@ companies:
   - ticker: SHOP
     status: active
     fixture: shop_company_facts.json
+    fye_close: 106.20         # Tiingo FYE close for Altman (placeholder)
     fiscal_year: 2024
     expected:
       piotroski:
-        f_score: 4          # placeholder (characterization from fixture)
+        f_score: 7          # placeholder (characterization from full fixture)
       sloan:
         accruals_ratio: 0.033479   # placeholder
         band: "Low accruals (higher quality)"
+      altman:
+        z_score: 20.074491   # placeholder
+        band: "Safe"
+      beneish:
+        m_score: -2.059996   # placeholder
+        band: "No manipulation flag"
 
   - ticker: CP
     status: pending_fixture

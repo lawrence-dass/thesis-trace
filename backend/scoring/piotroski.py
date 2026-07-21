@@ -63,8 +63,13 @@ def compute_piotroski(facts: FactLookup, fiscal_year: int, spec: FormulaSpec) ->
     except InsufficientData:
         outcomes.append(insufficient("accruals"))
 
-    # 5. leverage_decreasing — needs long-term debt (not yet ingested)
-    outcomes.append(insufficient("leverage_decreasing"))
+    # 5. leverage_decreasing: long-term-debt ratio (LTD/TA) fell year over year.
+    try:
+        lev_y = divide(facts.get("long_term_debt", y), facts.get("total_assets", y), spec)
+        lev_p = divide(facts.get("long_term_debt", p), facts.get("total_assets", p), spec)
+        outcomes.append(_bool_signal("leverage_decreasing", lev_y < lev_p, (("long_term_debt", y), ("long_term_debt", p))))
+    except InsufficientData:
+        outcomes.append(insufficient("leverage_decreasing"))
 
     # 6. current_ratio_increasing
     try:
@@ -83,11 +88,21 @@ def compute_piotroski(facts: FactLookup, fiscal_year: int, spec: FormulaSpec) ->
         else _bool_signal("shares_not_diluted", sh_y <= sh_p, (("shares_outstanding", y), ("shares_outstanding", p)))
     )
 
-    # 8. gross_margin_increasing — needs revenue + COGS (not yet ingested)
-    outcomes.append(insufficient("gross_margin_increasing"))
+    # 8. gross_margin_increasing: gross margin (gross_profit/revenue) rose YoY.
+    try:
+        gm_y = divide(facts.get("gross_profit", y), facts.get("revenue", y), spec)
+        gm_p = divide(facts.get("gross_profit", p), facts.get("revenue", p), spec)
+        outcomes.append(_bool_signal("gross_margin_increasing", gm_y > gm_p, (("gross_profit", y), ("revenue", y))))
+    except InsufficientData:
+        outcomes.append(insufficient("gross_margin_increasing"))
 
-    # 9. asset_turnover_increasing — needs revenue (not yet ingested)
-    outcomes.append(insufficient("asset_turnover_increasing"))
+    # 9. asset_turnover_increasing: asset turnover (revenue/total_assets) rose YoY.
+    try:
+        at_y = divide(facts.get("revenue", y), facts.get("total_assets", y), spec)
+        at_p = divide(facts.get("revenue", p), facts.get("total_assets", p), spec)
+        outcomes.append(_bool_signal("asset_turnover_increasing", at_y > at_p, (("revenue", y), ("total_assets", y))))
+    except InsufficientData:
+        outcomes.append(insufficient("asset_turnover_increasing"))
 
     return outcomes
 

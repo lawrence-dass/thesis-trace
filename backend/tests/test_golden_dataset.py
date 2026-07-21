@@ -11,18 +11,19 @@ from __future__ import annotations
 
 import json
 import warnings
+from datetime import date
 from pathlib import Path
 
 import yaml
 
-from app.models import Model, SignalStatus
+from app.models import Model, ScoreResult, ScoreRun, SignalStatus
 from canonicalization.canonicalize import canonicalize_issuer
 from canonicalization.mappings import seed_concept_mappings
 from ingestion.company_facts import parse_company_facts
+from raw_store.market_prices import upsert_fye_close
 from raw_store.repository import persist_company_facts
-from scoring.runner import score_piotroski, score_sloan
+from scoring.runner import score_altman, score_beneish, score_piotroski, score_sloan
 from sqlalchemy import select
-from app.models import ScoreResult
 from tests.conftest import requires_db
 
 GOLDEN = yaml.safe_load((Path(__file__).parent / "golden" / "phase1_golden.yaml").read_text())
@@ -38,13 +39,20 @@ def test_universe_fully_partitioned() -> None:
         warnings.warn(f"Golden coverage pending for: {', '.join(pending)} (need fixtures + OQ1 values).")
 
 
-async def _run_pipeline(db_session, fixture_name: str, fiscal_year: int) -> str:
-    parsed = parse_company_facts(json.loads((FIXTURES_DIR / fixture_name).read_text()))
+async def _run_pipeline(db_session, company: dict) -> str:
+    fiscal_year = company["fiscal_year"]
+    parsed = parse_company_facts(json.loads((FIXTURES_DIR / company["fixture"]).read_text()))
     await persist_company_facts(db_session, parsed, ticker=parsed.entity_name[:8])
     await seed_concept_mappings(db_session)
     await canonicalize_issuer(db_session, parsed.cik)
     await score_piotroski(db_session, parsed.cik, fiscal_year)
     await score_sloan(db_session, parsed.cik, fiscal_year)
+    await score_beneish(db_session, parsed.cik, fiscal_year)
+    if "fye_close" in company:
+        await upsert_fye_close(
+            db_session, issuer_cik=parsed.cik, price_date=date(fiscal_year, 12, 31), close_price=company["fye_close"]
+        )
+        await score_altman(db_session, parsed.cik, fiscal_year)
     return parsed.cik
 
 
@@ -54,7 +62,7 @@ async def test_active_companies_match_golden(db_session) -> None:
     assert active, "expected at least one active golden company"
 
     for company in active:
-        await _run_pipeline(db_session, company["fixture"], company["fiscal_year"])
+        cik = await _run_pipeline(db_session, company)
         expected = company["expected"]
 
         # Piotroski F-Score = count of passing signals.
@@ -70,3 +78,19 @@ async def test_active_companies_match_golden(db_session) -> None:
         ).scalars().one()
         assert abs(float(sloan_result.value) - expected["sloan"]["accruals_ratio"]) < 1e-4, f"{company['ticker']} Sloan ratio"
         assert sloan_result.band_label == expected["sloan"]["band"], f"{company['ticker']} Sloan band"
+
+        # Altman Z.
+        altman_run = (
+            await db_session.execute(
+                select(ScoreRun).where(ScoreRun.model == Model.altman, ScoreRun.issuer_cik == cik)
+            )
+        ).scalars().one()
+        assert abs(float(altman_run.aggregate_value) - expected["altman"]["z_score"]) < 1e-3, f"{company['ticker']} Altman Z"
+
+        # Beneish M.
+        beneish_run = (
+            await db_session.execute(
+                select(ScoreRun).where(ScoreRun.model == Model.beneish, ScoreRun.issuer_cik == cik)
+            )
+        ).scalars().one()
+        assert abs(float(beneish_run.aggregate_value) - expected["beneish"]["m_score"]) < 1e-3, f"{company['ticker']} Beneish M"
