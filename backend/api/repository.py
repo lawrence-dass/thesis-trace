@@ -27,6 +27,7 @@ from api.schemas import (
     LensScoreOut,
     Provenance,
     SignalOut,
+    VerdictItem,
 )
 
 # Lens category per model (FR-5 Quality/Health vs FR-8 Integrity).
@@ -36,6 +37,9 @@ LENS_CATEGORY = {
     "beneish": "integrity",
     "sloan": "integrity",
 }
+
+# Phase honesty (FR-9): the Value and Growth lenses are Phase-2, shown as pending.
+PENDING_LENSES = ["value", "growth"]
 
 
 async def list_companies(session: AsyncSession) -> list[CompanyCardOut]:
@@ -132,12 +136,33 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
         for dq, _cik in dq_rows
     ]
 
+    # Verdict: each live model's own classification for its latest fiscal year,
+    # side by side — never blended into one number (AD-12).
+    latest_by_model: dict[str, LensScoreOut] = {}
+    for s in scores:
+        cur = latest_by_model.get(s.model)
+        if cur is None or s.fiscal_year > cur.fiscal_year:
+            latest_by_model[s.model] = s
+    verdict = [
+        VerdictItem(
+            model=s.model,
+            category=s.category,
+            fiscal_year=s.fiscal_year,
+            aggregate_value=s.aggregate_value,
+            band_label=s.band_label,
+            applicability=s.applicability,
+        )
+        for s in sorted(latest_by_model.values(), key=lambda x: (x.category, x.model))
+    ]
+
     lenses_live = sorted({s.model for s in scores})
     return CompanyOverviewOut(
         cik=issuer.cik,
         ticker=issuer.ticker,
         name=issuer.name,
         lenses_live=lenses_live,
+        lenses_pending=PENDING_LENSES,
+        verdict=verdict,
         scores=scores,
         data_quality=data_quality,
     )

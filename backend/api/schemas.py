@@ -41,11 +41,24 @@ class DataQualityOut(BaseModel):
     detail: dict | None
 
 
+class VerdictItem(BaseModel):
+    """One model's own published, cited classification — never blended (AD-12)."""
+
+    model: str
+    category: str
+    fiscal_year: int
+    aggregate_value: float | None
+    band_label: str | None
+    applicability: str
+
+
 class CompanyOverviewOut(BaseModel):
     cik: str
     ticker: str
     name: str
     lenses_live: list[str]
+    lenses_pending: list[str]
+    verdict: list[VerdictItem]
     scores: list[LensScoreOut]
     data_quality: list[DataQualityOut]
 

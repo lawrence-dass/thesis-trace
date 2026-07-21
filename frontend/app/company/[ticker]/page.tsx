@@ -20,18 +20,39 @@ type LensScore = {
   signals: Signal[];
 };
 type DataQuality = { issue_type: string; status: string; raised_by: string };
+type VerdictItem = {
+  model: string;
+  category: string;
+  fiscal_year: number;
+  aggregate_value: number | null;
+  band_label: string | null;
+  applicability: string;
+};
 type Overview = {
   state: string;
   ticker?: string;
   name?: string;
   scores?: LensScore[];
   data_quality?: DataQuality[];
+  verdict?: VerdictItem[];
+  lenses_pending?: string[];
 };
+type Explanation = { model: string; text: string; citations: string[] };
 
 const CATEGORY_LABEL: Record<string, string> = {
   quality_health: "Quality & Health",
   integrity: "Integrity & Evidence",
 };
+
+async function getExplanations(ticker: string): Promise<Explanation[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/companies/${ticker}/explanation`, { cache: "no-store" });
+    const body = (await res.json()) as { explanations?: Explanation[] };
+    return body.explanations ?? [];
+  } catch {
+    return [];
+  }
+}
 
 async function getOverview(ticker: string): Promise<Overview> {
   try {
@@ -45,6 +66,8 @@ async function getOverview(ticker: string): Promise<Overview> {
 export default async function CompanyPage({ params }: { params: Promise<{ ticker: string }> }) {
   const { ticker } = await params;
   const data = await getOverview(ticker);
+  const explanations = data.state === "ok" ? await getExplanations(ticker) : [];
+  const explanationByModel = new Map(explanations.map((e) => [e.model, e]));
 
   if (data.state !== "ok") {
     return (
@@ -62,6 +85,27 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
       <h1>
         {data.name} ({data.ticker})
       </h1>
+
+      {/* Verdict: each live model's own cited classification, side by side (FR-9, AD-12). */}
+      {data.verdict && data.verdict.length > 0 ? (
+        <section style={{ marginBottom: "1.5rem" }}>
+          <h2>Verdict</h2>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
+            {data.verdict.map((v) => (
+              <div key={v.model} style={{ border: "1px solid #ccc", borderRadius: 6, padding: "0.5rem 0.75rem", minWidth: 150 }}>
+                <div style={{ fontWeight: 600 }}>{v.model}</div>
+                <div>{v.aggregate_value ?? "—"}</div>
+                <div style={{ color: "#444" }}>{v.band_label ?? (v.applicability !== "computed" ? v.applicability : "—")}</div>
+              </div>
+            ))}
+          </div>
+          {data.lenses_pending && data.lenses_pending.length > 0 ? (
+            <p style={{ color: "#666" }}>
+              Pending lenses (future phase): {data.lenses_pending.join(", ")}.
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       {data.data_quality && data.data_quality.length > 0 ? (
         <section style={{ background: "#fff6e5", border: "1px solid #e0b050", padding: "0.75rem 1rem", marginBottom: "1.5rem" }}>
@@ -82,30 +126,38 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
         return (
           <div key={cat}>
             <h2>{CATEGORY_LABEL[cat] ?? cat}</h2>
-            {lenses.map((lens) => (
-              <section key={`${lens.model}-${lens.fiscal_year}`} style={{ marginBottom: "1.5rem" }}>
-                <h3>
-                  {lens.model} — FY{lens.fiscal_year}
-                  {lens.aggregate_value !== null ? ` · ${lens.aggregate_value}` : ""}
-                  {lens.band_label ? ` · ${lens.band_label}` : ""}
-                  {lens.applicability !== "computed" ? ` · [${lens.applicability}]` : ""}
-                </h3>
-                <ul>
-                  {lens.signals.map((s) => (
-                    <li key={s.signal_key}>
-                      <strong>{s.signal_key}</strong>: {s.status}
-                      {s.value !== null ? ` (${s.value})` : ""}
-                      {s.provenance.length > 0 ? (
-                        <span style={{ color: "#666" }}>
-                          {" "}
-                          — {s.provenance.map((p) => `${p.canonical_concept} FY${p.fiscal_year}`).join(", ")}
-                        </span>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
+            {lenses.map((lens) => {
+              const exp = explanationByModel.get(lens.model);
+              return (
+                <section key={`${lens.model}-${lens.fiscal_year}`} style={{ marginBottom: "1rem" }}>
+                  {/* In-page expandable breakdown (FR-10) via native <details>. */}
+                  <details>
+                    <summary style={{ cursor: "pointer", fontWeight: 600 }}>
+                      {lens.model} — FY{lens.fiscal_year}
+                      {lens.aggregate_value !== null ? ` · ${lens.aggregate_value}` : ""}
+                      {lens.band_label ? ` · ${lens.band_label}` : ""}
+                      {lens.applicability !== "computed" ? ` · [${lens.applicability}]` : ""}
+                    </summary>
+                    {exp ? <p style={{ color: "#333" }}>{exp.text}</p> : null}
+                    <ul>
+                      {lens.signals.map((s) => (
+                        <li key={s.signal_key}>
+                          <strong>{s.signal_key}</strong>: {s.status}
+                          {s.value !== null ? ` (${s.value})` : ""}
+                          {s.provenance.length > 0 ? (
+                            <span style={{ color: "#666" }}>
+                              {" "}
+                              — {s.provenance.map((p) => `${p.canonical_concept} FY${p.fiscal_year}`).join(", ")}
+                            </span>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                    <a href={`/methodology/${lens.model}`}>Methodology →</a>
+                  </details>
+                </section>
+              );
+            })}
           </div>
         );
       })}
