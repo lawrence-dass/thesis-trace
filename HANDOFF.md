@@ -17,7 +17,7 @@ Consolidates two prior concepts (LedgerLens + Fundalens); the original compariso
 | Architecture spine | **Final** (21 ADs; Reviewer Gate passed 2026-07-21) | `_bmad-output/planning-artifacts/architecture/architecture-ThesisTrace-2026-07-19/ARCHITECTURE-SPINE.md` |
 | SPEC kernel | **Final** (14 capabilities; adopts spine + PRD + decisions) | `_bmad-output/specs/spec-thesistrace/SPEC.md` |
 | Epics & Stories | **Final** — Phase-1: 4 epics, 26 stories, all 14 FRs covered | `_bmad-output/planning-artifacts/epics.md` |
-| Application code | **Epic 1 complete** (Stories 1.1–1.10: scaffold → pipeline → Piotroski+Sloan → read API → golden harness; 33 backend tests green) — next: Epic 2 (Altman/Beneish) | `backend/`, `frontend/`, `db/` |
+| Application code | **Epics 1–2 complete** — all four models live (Piotroski, Altman+Tiingo, Beneish, Sloan) with sub-signal displays, provenance, data-quality flags; 43 backend tests green. Next: Epic 3 (Verdict/Methodology/Explanation) | `backend/`, `frontend/`, `db/` |
 | Git repo / GitHub | **Initialized** (`lawrence-dass/thesis-trace`); work branch `claude/codebase-review-setup-rz93qm` | — |
 
 ## Architecture spine — finalized 2026-07-21
