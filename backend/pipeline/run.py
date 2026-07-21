@@ -22,7 +22,7 @@ from ingestion.company_facts import parse_company_facts
 from raw_store.market_prices import get_fye_close, upsert_fye_close
 from raw_store.repository import persist_company_facts
 from scoring.facts import load_facts
-from scoring.runner import score_altman, score_piotroski, score_sloan
+from scoring.runner import score_altman, score_beneish, score_piotroski, score_sloan
 
 
 async def scoreable_years(session: AsyncSession, issuer_cik: str) -> list[int]:
@@ -72,12 +72,14 @@ async def run_issuer(
             )
 
     years = await scoreable_years(session, parsed.cik)
-    scored = {"piotroski": [], "sloan": [], "altman": []}
+    scored = {"piotroski": [], "sloan": [], "beneish": [], "altman": []}
     for year in years:
         await score_piotroski(session, parsed.cik, year)
         scored["piotroski"].append(year)
         await score_sloan(session, parsed.cik, year)
         scored["sloan"].append(year)
+        await score_beneish(session, parsed.cik, year)
+        scored["beneish"].append(year)
         filing = filings.get(year)
         if filing is not None and await get_fye_close(session, parsed.cik, filing.fiscal_year_end):
             await score_altman(session, parsed.cik, year)

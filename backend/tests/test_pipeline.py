@@ -38,7 +38,8 @@ async def test_run_issuer_scores_all_scoreable_years(db_session) -> None:
         await db_session.execute(select(ScoreRun).where(ScoreRun.issuer_cik == summary["cik"]))
     ).scalars().all()
     models = {r.model for r in runs}
-    assert models == {Model.piotroski, Model.sloan}
+    # No market price provided -> Altman not scored; the three EDGAR-only models are.
+    assert models == {Model.piotroski, Model.sloan, Model.beneish}
 
 
 @requires_db

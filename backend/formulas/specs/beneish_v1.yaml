@@ -1,0 +1,63 @@
+# Beneish M-Score (8-variable model) — versioned spec (AD-5).
+# Source: Beneish, M. (1999) "The Detection of Earnings Manipulation",
+# Financial Analysts Journal.
+model: beneish
+formula_version: beneish_v1
+description: >
+  M = -4.84 + 0.920*DSRI + 0.528*GMI + 0.404*AQI + 0.892*SGI + 0.115*DEPI
+      - 0.172*SGAI + 4.679*TATA - 0.327*LVGI, over years t and t-1.
+  M > -1.78 flags likely earnings manipulation (Beneish's published cutoff).
+
+rounding:
+  mode: ROUND_HALF_EVEN
+  ratio_places: 6
+
+missing_data_policy: insufficient_data
+divide_by_zero_policy: insufficient_data
+
+inputs:
+  - receivables
+  - revenue
+  - cogs
+  - current_assets
+  - ppe_net
+  - total_assets
+  - depreciation
+  - sga
+  - current_liabilities
+  - long_term_debt
+  - net_income
+  - cash_from_operations
+
+constant: -4.84
+coefficients:
+  dsri: 0.920
+  gmi: 0.528
+  aqi: 0.404
+  sgi: 0.892
+  depi: 0.115
+  sgai: -0.172
+  tata: 4.679
+  lvgi: -0.327
+
+signals:
+  - {key: dsri, description: Days Sales in Receivables Index}
+  - {key: gmi, description: Gross Margin Index}
+  - {key: aqi, description: Asset Quality Index}
+  - {key: sgi, description: Sales Growth Index}
+  - {key: depi, description: Depreciation Index}
+  - {key: sgai, description: SG&A Index}
+  - {key: tata, description: Total Accruals to Total Assets}
+  - {key: lvgi, description: Leverage Index}
+
+threshold:
+  manipulation_above: -1.78
+  citation: "Beneish (1999), Financial Analysts Journal"
+
+bands:
+  citation: "Beneish (1999), Financial Analysts Journal"
+  classes:
+    - label: Manipulation risk flagged
+      above: -1.78
+    - label: No manipulation flag
+      below: -1.78
