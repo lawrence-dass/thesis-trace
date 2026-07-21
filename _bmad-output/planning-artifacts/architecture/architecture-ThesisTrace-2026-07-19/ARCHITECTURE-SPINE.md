@@ -149,8 +149,8 @@ flowchart LR
 ### AD-11 — Altman market-data gap resolved via Tiingo `[ADOPTED]`
 
 - **Binds:** FR-4, FR-5
-- **Prevents:** substituting book value for market value of equity, or using `EntityPublicFloat` (wrong as-of date — Q2, not FYE).
-- **Rule:** Altman Z-Score's market value of equity = period-end closing price (Tiingo free tier) x EDGAR `dei:EntityCommonStockSharesOutstanding` at FYE. Altman stays in Phase 1 scope; never computed with a book-value substitute.
+- **Prevents:** substituting book value for market value of equity; using `EntityPublicFloat` (wrong as-of date — Q2, not FYE); using `dei:EntityCommonStockSharesOutstanding`, which is a **cover-page fact dated to the 10-K's filing date** (confirmed live 2026-07-21 against CP, QSR, OTEX — commonly 45-75+ days after fiscal year-end for a December filer), not FYE — the same class of as-of-date bug this AD exists to eliminate. Because canonicalization groups facts by `period_end.year`, using this fact would silently starve Altman's X4 (and Piotroski's `shares_not_diluted` signal) of data for every real filer whose FYE and filing date span a calendar-year boundary — i.e. most December-FYE companies.
+- **Rule:** Altman Z-Score's market value of equity = period-end closing price (Tiingo free tier, "most recent close on or before FYE") x shares outstanding, sourced from a priority-ordered concept fallback chain (never `dei:EntityCommonStockSharesOutstanding`): (1) `us-gaap:CommonStockSharesOutstanding` — confirmed genuinely FYE-dated for single-class filers (CP, QSR, OTEX); (2) `us-gaap:WeightedAverageNumberOfSharesOutstandingBasic` — fallback for multi-class-share filers whose 10-Ks don't tag the point-in-time concept (confirmed against SHOP, whose 10-Ks lack `CommonStockSharesOutstanding` entirely). A lower-priority concept never contends for "ambiguous" against a higher-priority one — they measure different things; the priority tier is a hard preference, not a tiebreak among equals. Altman stays in Phase 1 scope; never computed with a book-value substitute.
 
 ### AD-12 — Verdict synthesis: per-model threshold juxtaposition `[ADOPTED]`
 

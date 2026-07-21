@@ -4,12 +4,18 @@ For each (issuer, canonical_concept, fiscal_year), choose one raw_fact by the
 ordered rules:
   1. as-originally-filed  (fact from the filing whose fiscal_year == the period's
      year) over a restated comparative carried in a later filing;
-  2. higher `decimals` precision;
-  3. earliest `fetched_at` as a stable final tiebreak.
-Any unresolved ambiguity (distinct values that the rules can't separate) writes a
-`data_quality_issues` row with status needs_review — never a defaulted guess (AD-3).
-Canonical facts are derived, never mutated in place; a mapping-version change
-produces new rows (AD-2).
+  2. concept priority (when several source XBRL concepts map to one canonical
+     concept — e.g. shares_outstanding's CommonStockSharesOutstanding-first,
+     WeightedAverageNumberOfSharesOutstandingBasic-fallback chain — the lower
+     priority number wins outright rather than being compared for ambiguity
+     against a fundamentally different measurement);
+  3. higher `decimals` precision;
+  4. earliest `fetched_at` as a stable final tiebreak.
+Ambiguity (distinct values tied through rule 2 — including a Company-Facts-vs-
+Inline-XBRL conflict on the *same* source concept, AD-4) writes a
+`data_quality_issues` row with status needs_review — never a defaulted guess
+(AD-3). Canonical facts are derived, never mutated in place; a mapping-version
+change produces new rows (AD-2).
 """
 
 from __future__ import annotations
@@ -20,7 +26,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import CanonicalFact, DataQualityIssue, Filing, IssueStatus, RawFact
-from canonicalization.mappings import MAPPING_VERSION, SOURCE_TO_CANONICAL
+from canonicalization.mappings import MAPPING_VERSION, SOURCE_PRIORITY, SOURCE_TO_CANONICAL
 
 
 async def canonicalize_issuer(
@@ -69,14 +75,21 @@ async def canonicalize_issuer(
 
         def rank(rf: RawFact) -> tuple:
             originally_filed = filings[rf.accession_number].fiscal_year == fiscal_year
+            concept_priority = SOURCE_PRIORITY.get((rf.taxonomy, rf.concept), 0)
             return (
                 0 if originally_filed else 1,  # originally filed first
+                concept_priority,  # lower-priority source concept wins outright
                 -(rf.decimals if rf.decimals is not None else -9),  # higher decimals first
                 rf.fetched_at,  # stable
             )
 
         candidates.sort(key=rank)
         best = candidates[0]
+        # Tie tier = (originally_filed, concept_priority) — a lower-priority concept never
+        # contends for "ambiguous" against a higher-priority one (they measure different
+        # things); decimals/fetched_at remain pure tiebreaks within a genuinely tied tier,
+        # so two same-priority facts with different values (incl. a company_facts-vs-
+        # inline_xbrl conflict on the same concept, AD-4) are still correctly flagged.
         top_tier = [c for c in candidates if rank(c)[:2] == rank(best)[:2]]
         distinct_values = {c.value for c in top_tier}
 

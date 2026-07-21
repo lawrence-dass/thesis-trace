@@ -17,8 +17,8 @@ Consolidates two prior concepts (LedgerLens + Fundalens); the original compariso
 | Architecture spine | **Final** (21 ADs; Reviewer Gate passed 2026-07-21) | `_bmad-output/planning-artifacts/architecture/architecture-ThesisTrace-2026-07-19/ARCHITECTURE-SPINE.md` |
 | SPEC kernel | **Final** (14 capabilities; adopts spine + PRD + decisions) | `_bmad-output/specs/spec-thesistrace/SPEC.md` |
 | Epics & Stories | **Final** — Phase-1: 4 epics, 26 stories, all 14 FRs covered | `_bmad-output/planning-artifacts/epics.md` |
-| Application code | **Epics 1–2 complete** — all four models live (Piotroski, Altman+Tiingo, Beneish, Sloan) with sub-signal displays, provenance, data-quality flags; 43 backend tests green. Next: Epic 3 (Verdict/Methodology/Explanation) | `backend/`, `frontend/`, `db/` |
-| Git repo / GitHub | **Initialized** (`lawrence-dass/thesis-trace`); work branch `claude/codebase-review-setup-rz93qm` | — |
+| Application code | **Epics 1–4 complete (Phase 1)** — all four models live (Piotroski, Altman+Tiingo, Beneish, Sloan), Verdict/Methodology/Explanation, Discovery & Comparison. 48 backend tests green (see 2026-07-21 fix below — was 43). Merged to `main` via PR #1. | `backend/`, `frontend/`, `db/` |
+| Git repo / GitHub | **Initialized** (`lawrence-dass/thesis-trace`), Phase 1 merged to `main` | — |
 
 ## Architecture spine — finalized 2026-07-21
 
@@ -30,13 +30,23 @@ The spine is **final** (`status: final`), now **21 ADs**. The paused Finalize se
 
 Full run memory: `.../architecture-ThesisTrace-2026-07-19/.memlog.md` (44 entries).
 
+## Real bug found and fixed post-implementation (2026-07-21)
+
+A desktop session independently ran the architecture spine's Reviewer Gate a second time (parallel to the cloud session's own work — see "Note on parallel sessions" below) and its adversarial + web-verification lenses converged on a genuine, live-verified correctness bug that had made it into shipped code:
+
+**The bug:** `backend/canonicalization/mappings.py` mapped `shares_outstanding` from `dei:EntityCommonStockSharesOutstanding` — a 10-K cover-page fact dated to the *filing* date, not fiscal year-end. Confirmed live against SEC EDGAR (CP, QSR, OTEX): for a December-FYE filer that files in Jan/Feb, this fact's `end` date falls in the *next calendar year*. Since canonicalization groups raw facts by `period_end.year`, this silently misfiled `shares_outstanding` under the wrong fiscal year for essentially every real company — meaning **Altman's X4 term and Piotroski's `shares_not_diluted` signal would have shown `insufficient_data` for real production filings**, not the small date-approximation issue the original AD-11 language implied. The shipped test suite didn't catch it because its fixture used unrealistic dates (dei `end` = FYE exactly, which real EDGAR data never does).
+
+**The fix:** `shares_outstanding` now resolves through a priority-ordered concept fallback: `us-gaap:CommonStockSharesOutstanding` (confirmed genuinely FYE-dated for single-class filers CP/QSR/OTEX) first, `us-gaap:WeightedAverageNumberOfSharesOutstandingBasic` (confirmed FYE-dated, needed for SHOP's multi-class share structure, whose 10-Ks don't tag the point-in-time concept at all) as fallback. `canonicalize.py`'s selection ranking gained a concept-priority tier (using the `ConceptMapping.priority` field, which existed in the schema but was never consulted). `MAPPING_VERSION` bumped `concepts_v1` → `concepts_v2` per AD-2. Added a regression test (`test_shares_outstanding_prefers_point_in_time_over_dei_and_ignores_wrong_year_dei`) — verified it fails against the original code and passes against the fix, by literally reverting and re-running. All 48 backend tests pass (verified against a real Postgres 17 container, not just reasoning).
+
+**Note on parallel sessions:** while this fix was being worked out, the desktop's local git history had diverged from `origin/main` (the cloud session had raced ahead through spec → epics → full Phase 1 implementation while the desktop session was still running its own copy of the architecture Reviewer Gate). The desktop's redundant spine-only changes were discarded (`git reset --hard origin/main`) in favor of the cloud session's already-implemented code; only this real bug fix was carried forward as a new commit on top of the merged Phase 1 work. **If you're running multiple sessions (desktop + cloud) concurrently on planning/architecture work, pull before starting and push frequently — two sessions can legitimately race past each other on long-running planning work, not just code.**
+
 ## Standing decisions a future session must respect
 
 These are locked/final and shouldn't be silently re-litigated — see the source docs for full reasoning:
 
 - **Deterministic/LLM boundary (inviolable):** all scores/numbers computed deterministically; LLM only explains + cites, never originates a figure or gives advice.
 - **Phase 1 company universe:** CP, QSR, OTEX, SHOP — validated live against EDGAR (cross-listed Canadian, US-GAAP 10-K filers, non-financial sector).
-- **Phase 1 scope:** all four deterministic models (Piotroski, Altman, Beneish, Sloan) — Altman's market-value-of-equity term uses Tiingo (free tier) for closing price, joined with EDGAR's own `dei:EntityCommonStockSharesOutstanding`. Value + Growth lenses (DCF, growth trajectory, etc.) are Phase 2.
+- **Phase 1 scope:** all four deterministic models (Piotroski, Altman, Beneish, Sloan) — Altman's market-value-of-equity term uses Tiingo (free tier) for closing price, joined with shares outstanding from a priority-ordered EDGAR concept chain (`us-gaap:CommonStockSharesOutstanding` primary, `us-gaap:WeightedAverageNumberOfSharesOutstandingBasic` fallback for multi-class filers like SHOP) — **not** `dei:EntityCommonStockSharesOutstanding`, which is filing-date-dated, not FYE, and was found and fixed as a real bug 2026-07-21 (see below). Value + Growth lenses (DCF, growth trajectory, etc.) are Phase 2.
 - **Verdict:** shown as a transparent per-model threshold classification, never a blended/weighted single score.
 - **No TradingView / off-the-shelf charting** — custom visualizations only (differentiates from Lawrence's sibling portfolio project `equipulse`).
 - **LangGraph** reserved for Phase 2 Filing Q&A only — Phase 1's explanation feature is a plain direct LLM wrapper, never LangGraph.

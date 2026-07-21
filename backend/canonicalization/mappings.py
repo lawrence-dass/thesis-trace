@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import ConceptMapping
 
-MAPPING_VERSION = "concepts_v1"
+MAPPING_VERSION = "concepts_v2"
 
 
 @dataclass(frozen=True)
@@ -34,7 +34,17 @@ MAPPING_RULES: tuple[MappingRule, ...] = (
     MappingRule("current_liabilities", "us-gaap", "LiabilitiesCurrent"),
     MappingRule("net_income", "us-gaap", "NetIncomeLoss"),
     MappingRule("cash_from_operations", "us-gaap", "NetCashProvidedByUsedInOperatingActivities"),
-    MappingRule("shares_outstanding", "dei", "EntityCommonStockSharesOutstanding"),
+    # shares_outstanding: NOT sourced from dei:EntityCommonStockSharesOutstanding — that
+    # cover-page fact is dated to the 10-K's filing date (commonly 45-75+ days after
+    # fiscal year-end for a December filer), not FYE, so it lands in the wrong fiscal-year
+    # bucket during canonicalization (grouped by rf.period_end.year) and silently starves
+    # Altman's X4 and Piotroski's shares_not_diluted signal of real production data.
+    # Verified live against SEC EDGAR (2026-07-21): us-gaap:CommonStockSharesOutstanding is
+    # genuinely FYE-dated for single-class filers (CP, QSR, OTEX all confirmed). SHOP's
+    # multi-class share structure means its 10-Ks don't tag that concept at all — its FYE-
+    # dated fallback is the weighted-average basic count, also confirmed live.
+    MappingRule("shares_outstanding", "us-gaap", "CommonStockSharesOutstanding", priority=0),
+    MappingRule("shares_outstanding", "us-gaap", "WeightedAverageNumberOfSharesOutstandingBasic", priority=1),
     # Altman (Story 2.2)
     MappingRule("total_liabilities", "us-gaap", "Liabilities"),
     MappingRule("retained_earnings", "us-gaap", "RetainedEarningsAccumulatedDeficit"),
@@ -53,6 +63,14 @@ MAPPING_RULES: tuple[MappingRule, ...] = (
 # Source (taxonomy, concept) -> canonical concept, for quick lookup during canonicalization.
 SOURCE_TO_CANONICAL: dict[tuple[str, str], str] = {
     (r.source_taxonomy, r.source_concept): r.canonical_concept for r in MAPPING_RULES
+}
+
+# Source (taxonomy, concept) -> priority, consulted by canonicalize.py's rank() so that
+# when several source concepts map to the same canonical concept (e.g. the shares_outstanding
+# fallback chain above), the lower-priority-number concept wins outright rather than being
+# compared for value-ambiguity against a fundamentally different measurement.
+SOURCE_PRIORITY: dict[tuple[str, str], int] = {
+    (r.source_taxonomy, r.source_concept): r.priority for r in MAPPING_RULES
 }
 
 

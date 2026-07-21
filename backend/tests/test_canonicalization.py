@@ -92,6 +92,43 @@ async def test_conflicting_values_flag_ambiguity_not_guess(db_session) -> None:
 
 
 @requires_db
+async def test_shares_outstanding_prefers_point_in_time_over_dei_and_ignores_wrong_year_dei(db_session) -> None:
+    """Regression guard (AD-3/AD-11): dei:EntityCommonStockSharesOutstanding is dated to
+    the filing date, not FYE — for a December filer that files in Jan/Feb, its `end` date
+    falls in the *next* calendar year, so if it were ever (re-)mapped to shares_outstanding
+    it would land under the wrong fiscal_year bucket and silently starve Altman's X4 /
+    Piotroski's shares_not_diluted of real data. shares_outstanding must resolve correctly
+    for the true fiscal year using only the FYE-dated us-gaap fallback chain."""
+    cik = await _ingest(db_session)
+    await canonicalize_issuer(db_session, cik)
+
+    shares = {
+        f.fiscal_year: f.value
+        for f in (
+            await db_session.execute(
+                select(CanonicalFact).where(CanonicalFact.canonical_concept == "shares_outstanding")
+            )
+        ).scalars()
+    }
+    # Fixture's WeightedAverageNumberOfSharesOutstandingBasic (FYE-dated) resolves for
+    # both fiscal years — not the dei fact, which is unmapped and correctly ignored.
+    assert shares[2023] == 1270000000
+    assert shares[2024] == 1290000000
+
+    # The (now-unmapped) dei fact never produced a canonical row of its own — proving it
+    # wasn't silently picked up under some other (wrong) fiscal-year key.
+    all_years = {
+        fy
+        for (fy,) in (
+            await db_session.execute(
+                select(CanonicalFact.fiscal_year).where(CanonicalFact.canonical_concept == "shares_outstanding")
+            )
+        ).all()
+    }
+    assert all_years == {2023, 2024}, "no stray shares_outstanding row from the unmapped dei fact"
+
+
+@requires_db
 async def test_validation_flags_identity_violation(db_session) -> None:
     cik = await _ingest(db_session)
     await canonicalize_issuer(db_session, cik)
