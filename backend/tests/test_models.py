@@ -43,15 +43,15 @@ async def test_expected_tables_present(db_session) -> None:
 
 
 @requires_db
-async def test_market_prices_not_yet_present(db_session) -> None:
-    """Scope guard: market_prices belongs to Story 2.1 (Altman/Tiingo), not Story 1.2."""
+async def test_market_prices_present(db_session) -> None:
+    """market_prices arrived in Story 2.1 (Altman/Tiingo, AD-14)."""
 
     def _tables(sync_conn):
         return set(inspect(sync_conn).get_table_names())
 
     conn = await db_session.connection()
     tables = await conn.run_sync(_tables)
-    assert "market_prices" not in tables
+    assert "market_prices" in tables
 
 
 @requires_db

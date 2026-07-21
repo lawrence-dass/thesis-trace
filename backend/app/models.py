@@ -196,6 +196,24 @@ class ScoreRun(Base):
     inputs: Mapped[list["ScoreInput"]] = relationship(back_populates="run")
 
 
+class MarketPrice(Base):
+    """Persisted period-end close prices (AD-14). Altman joins through this table;
+    it never calls Tiingo live during a read. Tiingo is the only market-data
+    provider in Phase 1 (D7 exception)."""
+
+    __tablename__ = "market_prices"
+    __table_args__ = (
+        UniqueConstraint("issuer_cik", "price_date", "source", name="uq_market_prices_key"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    issuer_cik: Mapped[str] = mapped_column(ForeignKey("issuers.cik"), index=True)
+    price_date: Mapped[date] = mapped_column(Date)
+    close_price: Mapped[float] = mapped_column(Numeric(28, 6))  # NUMERIC (AD-15)
+    source: Mapped[str] = mapped_column(String(16), default="tiingo")
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class ScoreInput(Base):
     __tablename__ = "score_inputs"
 
@@ -203,7 +221,7 @@ class ScoreInput(Base):
     score_run_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("score_runs.id"), index=True)
     signal_key: Mapped[str] = mapped_column(String(64))
     canonical_fact_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("canonical_facts.id"))
-    # market_price_id FK is added in Story 2.1 with the market_prices table (Altman).
+    market_price_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("market_prices.id"))  # Altman (AD-14)
 
     run: Mapped["ScoreRun"] = relationship(back_populates="inputs")
 
