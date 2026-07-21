@@ -13,12 +13,16 @@ import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import select
+
+from app.models import Filing
 from canonicalization.canonicalize import canonicalize_issuer
 from canonicalization.mappings import MAPPING_VERSION, seed_concept_mappings
 from ingestion.company_facts import parse_company_facts
+from raw_store.market_prices import get_fye_close, upsert_fye_close
 from raw_store.repository import persist_company_facts
 from scoring.facts import load_facts
-from scoring.runner import score_piotroski, score_sloan
+from scoring.runner import score_altman, score_piotroski, score_sloan
 
 
 async def scoreable_years(session: AsyncSession, issuer_cik: str) -> list[int]:
@@ -35,21 +39,51 @@ async def run_issuer(
     ticker: str,
     sector: str | None = None,
     is_financial_sector: bool = False,
+    is_capital_intensive: bool = False,
+    fye_prices: dict[int, float] | None = None,
 ) -> dict:
-    """Full write-path pipeline for one issuer from a Company Facts payload."""
+    """Full write-path pipeline for one issuer from a Company Facts payload.
+
+    `fye_prices` maps fiscal_year -> period-end close (from Tiingo); when present
+    for a year, Altman is also scored for that year (AD-11/AD-14).
+    """
     parsed = parse_company_facts(payload)
     await persist_company_facts(
-        session, parsed, ticker=ticker, sector=sector, is_financial_sector=is_financial_sector
+        session,
+        parsed,
+        ticker=ticker,
+        sector=sector,
+        is_financial_sector=is_financial_sector,
+        is_capital_intensive=is_capital_intensive,
     )
     await seed_concept_mappings(session)
     await canonicalize_issuer(session, parsed.cik)
 
+    # Persist any provided FYE market prices at the filing's fiscal-year-end.
+    fye_prices = fye_prices or {}
+    filings = {
+        f.fiscal_year: f
+        for f in (await session.execute(select(Filing).where(Filing.issuer_cik == parsed.cik))).scalars()
+    }
+    for fy, close in fye_prices.items():
+        if fy in filings:
+            await upsert_fye_close(
+                session, issuer_cik=parsed.cik, price_date=filings[fy].fiscal_year_end, close_price=close
+            )
+
     years = await scoreable_years(session, parsed.cik)
+    scored = {"piotroski": [], "sloan": [], "altman": []}
     for year in years:
         await score_piotroski(session, parsed.cik, year)
+        scored["piotroski"].append(year)
         await score_sloan(session, parsed.cik, year)
+        scored["sloan"].append(year)
+        filing = filings.get(year)
+        if filing is not None and await get_fye_close(session, parsed.cik, filing.fiscal_year_end):
+            await score_altman(session, parsed.cik, year)
+            scored["altman"].append(year)
     await session.commit()
-    return {"cik": parsed.cik, "ticker": ticker, "scored_years": years}
+    return {"cik": parsed.cik, "ticker": ticker, "scored_years": years, "scored": scored}
 
 
 async def main() -> None:  # pragma: no cover — live path, gated

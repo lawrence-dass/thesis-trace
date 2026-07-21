@@ -11,9 +11,12 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from decimal import Decimal
+
 from app.models import (
     Applicability,
     Filing,
+    Issuer,
     Model,
     ScoreInput,
     ScoreResult,
@@ -21,6 +24,8 @@ from app.models import (
 )
 from canonicalization.mappings import MAPPING_VERSION
 from formulas.engine import load_spec
+from raw_store.market_prices import get_fye_close
+from scoring.altman import compute_altman
 from scoring.facts import load_facts
 from scoring.piotroski import compute_piotroski, piotroski_band, piotroski_score
 from scoring.sloan import compute_sloan, sloan_band
@@ -89,6 +94,65 @@ async def score_piotroski(session: AsyncSession, issuer_cik: str, fiscal_year: i
                 session.add(ScoreInput(score_run_id=run.id, signal_key=o.key, canonical_fact_id=fid))
     # Store the run-level band on the aggregate marker result for easy read.
     run.aggregate_value = score
+    await session.flush()
+    return run
+
+
+async def score_altman(session: AsyncSession, issuer_cik: str, fiscal_year: int) -> ScoreRun:
+    spec = load_spec("altman_v1")
+    facts = await load_facts(session, issuer_cik, mapping_version=MAPPING_VERSION)
+    issuer = await session.get(Issuer, issuer_cik)
+
+    filing = (
+        await session.execute(
+            select(Filing).where(Filing.issuer_cik == issuer_cik, Filing.fiscal_year == fiscal_year)
+        )
+    ).scalars().first()
+    market_close = None
+    market_price_id = None
+    if filing is not None:
+        mp = await get_fye_close(session, issuer_cik, filing.fiscal_year_end)
+        if mp is not None:
+            market_close = Decimal(str(mp.close_price))
+            market_price_id = mp.id
+
+    result = compute_altman(
+        facts,
+        fiscal_year,
+        spec,
+        market_close=market_close,
+        is_financial_sector=bool(issuer and issuer.is_financial_sector),
+        is_capital_intensive=bool(issuer and issuer.is_capital_intensive),
+    )
+
+    run = ScoreRun(
+        issuer_cik=issuer_cik,
+        model=Model.altman,
+        fiscal_year=fiscal_year,
+        formula_version=spec.formula_version,
+        accession_number=filing.accession_number if filing else "",
+        aggregate_value=result.z_score,
+        applicability=result.applicability,
+    )
+    session.add(run)
+    await session.flush()
+    await _supersede_prior(session, issuer_cik, Model.altman, fiscal_year, run.id)
+
+    for i, comp in enumerate(result.components):
+        session.add(
+            ScoreResult(
+                score_run_id=run.id,
+                model=Model.altman,
+                signal_key=comp.key,
+                value=comp.value,
+                status=comp.status,
+                band_label=result.band if i == 0 else None,  # Z band on the first component
+                threshold_ref=spec.formula_version,
+            )
+        )
+    # Link the market price used, if any.
+    if market_price_id is not None:
+        session.add(ScoreInput(score_run_id=run.id, signal_key="x4_market_value_equity", market_price_id=market_price_id))
     await session.flush()
     return run
 

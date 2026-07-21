@@ -35,6 +35,19 @@ MAPPING_RULES: tuple[MappingRule, ...] = (
     MappingRule("net_income", "us-gaap", "NetIncomeLoss"),
     MappingRule("cash_from_operations", "us-gaap", "NetCashProvidedByUsedInOperatingActivities"),
     MappingRule("shares_outstanding", "dei", "EntityCommonStockSharesOutstanding"),
+    # Altman (Story 2.2)
+    MappingRule("total_liabilities", "us-gaap", "Liabilities"),
+    MappingRule("retained_earnings", "us-gaap", "RetainedEarningsAccumulatedDeficit"),
+    MappingRule("ebit", "us-gaap", "OperatingIncomeLoss"),
+    MappingRule("revenue", "us-gaap", "Revenues"),
+    # Beneish + Piotroski completeness (Story 2.3)
+    MappingRule("cogs", "us-gaap", "CostOfRevenue"),
+    MappingRule("sga", "us-gaap", "SellingGeneralAndAdministrativeExpense"),
+    MappingRule("receivables", "us-gaap", "AccountsReceivableNetCurrent"),
+    MappingRule("ppe_net", "us-gaap", "PropertyPlantAndEquipmentNet"),
+    MappingRule("depreciation", "us-gaap", "DepreciationDepletionAndAmortization"),
+    MappingRule("long_term_debt", "us-gaap", "LongTermDebtNoncurrent"),
+    MappingRule("gross_profit", "us-gaap", "GrossProfit"),
 )
 
 # Source (taxonomy, concept) -> canonical concept, for quick lookup during canonicalization.

@@ -27,6 +27,7 @@ async def persist_company_facts(
     ticker: str,
     sector: str | None = None,
     is_financial_sector: bool = False,
+    is_capital_intensive: bool = False,
 ) -> dict[str, int]:
     """Upsert issuer + filings, append new raw_facts. Returns counts of inserts."""
     counts = {"filings_added": 0, "raw_facts_added": 0}
@@ -40,6 +41,7 @@ async def persist_company_facts(
                 name=parsed.entity_name,
                 sector=sector,
                 is_financial_sector=is_financial_sector,
+                is_capital_intensive=is_capital_intensive,
             )
         )
         await session.flush()

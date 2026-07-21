@@ -84,6 +84,7 @@ class Issuer(Base):
     name: Mapped[str] = mapped_column(String(255))
     sector: Mapped[str | None] = mapped_column(String(128))
     is_financial_sector: Mapped[bool] = mapped_column(default=False)  # excludes Altman/Beneish (D6)
+    is_capital_intensive: Mapped[bool] = mapped_column(default=False)  # Altman caveat (D6)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     filings: Mapped[list["Filing"]] = relationship(back_populates="issuer")
