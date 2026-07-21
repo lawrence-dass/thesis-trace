@@ -1,0 +1,107 @@
+"""Read-only queries against materialized Postgres (AD-1, AD-10).
+
+Never computes a score, never calls EDGAR/Tiingo. Assembles the current
+(non-superseded) score runs for an issuer with per-signal results and the
+provenance of each input.
+"""
+
+from __future__ import annotations
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models import (
+    CanonicalFact,
+    Filing,
+    Issuer,
+    ScoreInput,
+    ScoreResult,
+    ScoreRun,
+)
+from api.schemas import (
+    CompanyCardOut,
+    CompanyOverviewOut,
+    LensScoreOut,
+    Provenance,
+    SignalOut,
+)
+
+
+async def list_companies(session: AsyncSession) -> list[CompanyCardOut]:
+    issuers = (await session.execute(select(Issuer).order_by(Issuer.ticker))).scalars().all()
+    return [CompanyCardOut(cik=i.cik, ticker=i.ticker, name=i.name) for i in issuers]
+
+
+async def get_issuer_by_ticker(session: AsyncSession, ticker: str) -> Issuer | None:
+    return (
+        await session.execute(select(Issuer).where(Issuer.ticker == ticker.upper()))
+    ).scalars().first()
+
+
+async def _provenance_for(session: AsyncSession, run_id, signal_key: str) -> list[Provenance]:
+    rows = (
+        await session.execute(
+            select(CanonicalFact, Filing.form_type)
+            .join(ScoreInput, ScoreInput.canonical_fact_id == CanonicalFact.id)
+            .join(Filing, Filing.accession_number == CanonicalFact.accession_number)
+            .where(ScoreInput.score_run_id == run_id, ScoreInput.signal_key == signal_key)
+        )
+    ).all()
+    return [
+        Provenance(
+            accession_number=cf.accession_number,
+            canonical_concept=cf.canonical_concept,
+            fiscal_year=cf.fiscal_year,
+            period_end=cf.period_end.isoformat() if cf.period_end else None,
+            source_filing_form=form,
+        )
+        for cf, form in rows
+    ]
+
+
+async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOverviewOut | None:
+    issuer = await get_issuer_by_ticker(session, ticker)
+    if issuer is None:
+        return None
+
+    runs = (
+        await session.execute(
+            select(ScoreRun).where(
+                ScoreRun.issuer_cik == issuer.cik, ScoreRun.superseded.is_(False)
+            ).order_by(ScoreRun.model, ScoreRun.fiscal_year.desc())
+        )
+    ).scalars().all()
+
+    scores: list[LensScoreOut] = []
+    for run in runs:
+        results = (
+            await session.execute(
+                select(ScoreResult).where(ScoreResult.score_run_id == run.id).order_by(ScoreResult.signal_key)
+            )
+        ).scalars().all()
+        signals = [
+            SignalOut(
+                signal_key=r.signal_key,
+                status=r.status.value,
+                value=float(r.value) if r.value is not None else None,
+                band_label=r.band_label,
+                provenance=await _provenance_for(session, run.id, r.signal_key),
+            )
+            for r in results
+        ]
+        scores.append(
+            LensScoreOut(
+                model=run.model.value,
+                fiscal_year=run.fiscal_year,
+                formula_version=run.formula_version,
+                aggregate_value=float(run.aggregate_value) if run.aggregate_value is not None else None,
+                band_label=next((s.band_label for s in signals if s.band_label), None),
+                applicability=run.applicability.value,
+                signals=signals,
+            )
+        )
+
+    lenses_live = sorted({s.model for s in scores})
+    return CompanyOverviewOut(
+        cik=issuer.cik, ticker=issuer.ticker, name=issuer.name, lenses_live=lenses_live, scores=scores
+    )

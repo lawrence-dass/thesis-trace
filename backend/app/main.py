@@ -15,6 +15,11 @@ from app.db import get_sessionmaker
 
 app = FastAPI(title="ThesisTrace API", version="0.1.0")
 
+# Public read-only endpoints (registered at import; DB access is per-request).
+from api.routes import router as read_router  # noqa: E402
+
+app.include_router(read_router)
+
 
 def error_response(status_code: int, code: str, message: str, details: dict | None = None) -> JSONResponse:
     """Build the single documented error envelope."""
