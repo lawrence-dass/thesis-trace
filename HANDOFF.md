@@ -15,8 +15,9 @@ Consolidates two prior concepts (LedgerLens + Fundalens); the original compariso
 | Foundational decisions (D1–D7) | **Locked** | `_bmad-output/planning-artifacts/foundational-decisions.md` |
 | PRD | **Final** (3 architecture-surfaced refinements folded in 2026-07-21) | `_bmad-output/planning-artifacts/prds/prd-ThesisTrace-2026-07-17/prd.md` (+ `addendum.md` in the same folder) |
 | Architecture spine | **Final** (21 ADs; Reviewer Gate passed 2026-07-21) | `_bmad-output/planning-artifacts/architecture/architecture-ThesisTrace-2026-07-19/ARCHITECTURE-SPINE.md` |
-| Epics & Stories | **Not started** — next step | — |
-| Application code | **Not started** | — |
+| SPEC kernel | **Final** (14 capabilities; adopts spine + PRD + decisions) | `_bmad-output/specs/spec-thesistrace/SPEC.md` |
+| Epics & Stories | **Final** — Phase-1: 4 epics, 26 stories, all 14 FRs covered | `_bmad-output/planning-artifacts/epics.md` |
+| Application code | **Not started** — ready to begin (Epic 1, Story 1.1) | — |
 | Git repo / GitHub | **Initialized** (`lawrence-dass/thesis-trace`); work branch `claude/codebase-review-setup-rz93qm` | — |
 
 ## Architecture spine — finalized 2026-07-21
@@ -51,14 +52,15 @@ Three PRD-touching refinements surfaced during architecture work and have now be
 
 ## What's left before development starts
 
-Planning is now complete through the architecture spine. The remaining path to code:
+Planning is now complete end-to-end (PRD → foundational decisions → architecture spine → SPEC → epics & stories). Development can begin.
 
-1. **`bmad-spec`** — adopt the finalized spine as a companion spec, keeping AD IDs (AD-1…AD-21) stable so downstream stories can cite them. *(Top recommended next step.)*
-2. **`bmad-create-epics-and-stories`** — break Phase-1 scope (FR-1…FR-14) into epics and stories.
-3. **`bmad-create-story`** — draft the first story (walking-skeleton sequencing: Shopify-only, Piotroski + Sloan first, per the architecture memlog).
-4. Or invoke **`bmad-help`** for authoritative routing if priorities shift.
+1. **`bmad-create-story`** — draft the first implementable story, **Epic 1 Story 1.1 (project scaffold & deployable skeleton)**, with full dev context, then implement it. This is the recommended next step.
+2. Proceed through Epic 1 in order (1.1 → 1.10) — it is the walking skeleton (Shopify-first, Piotroski + Sloan, EDGAR-only) that proves the whole pipeline.
+3. Or invoke **`bmad-help`** for authoritative routing if priorities shift.
 
-Environment note for cloud/web sessions: there is **no application code or dependency manifest yet**, so a fresh container has nothing to `install`/`test`. Once the first code lands, add a `README`, a `.claude/` SessionStart hook, and `.env.example` (EDGAR contact, Tiingo key, LLM key, DB URL) so web sessions bootstrap cleanly.
+The story backlog lives in `_bmad-output/planning-artifacts/epics.md` (4 epics, 26 stories). Each story cites the FR/AD it fulfills.
+
+Environment note for cloud/web sessions: once the first code lands (Story 1.1), add a `README`, a `.claude/` SessionStart hook, and `.env.example` (EDGAR contact, Tiingo key, LLM key, DB URL) so a fresh web container can `install`/`test`/run immediately. Story 1.1's acceptance criteria already include `.env.example` and a health check.
 
 ## Everything on disk right now
 
