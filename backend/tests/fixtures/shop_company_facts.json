@@ -1,0 +1,63 @@
+{
+  "cik": 1594805,
+  "entityName": "Shopify Inc.",
+  "facts": {
+    "us-gaap": {
+      "Assets": {
+        "label": "Assets",
+        "units": {
+          "USD": [
+            {"end": "2023-12-31", "val": 11393000000, "accn": "0001594805-24-000010", "fy": 2023, "fp": "FY", "form": "10-K", "filed": "2024-02-13"},
+            {"end": "2024-12-31", "val": 13100000000, "accn": "0001594805-25-000010", "fy": 2024, "fp": "FY", "form": "10-K", "filed": "2025-02-11"}
+          ]
+        }
+      },
+      "LiabilitiesCurrent": {
+        "label": "Liabilities, Current",
+        "units": {
+          "USD": [
+            {"end": "2023-12-31", "val": 1590000000, "accn": "0001594805-24-000010", "fy": 2023, "fp": "FY", "form": "10-K", "filed": "2024-02-13"},
+            {"end": "2024-12-31", "val": 1780000000, "accn": "0001594805-25-000010", "fy": 2024, "fp": "FY", "form": "10-K", "filed": "2025-02-11"}
+          ]
+        }
+      },
+      "AssetsCurrent": {
+        "label": "Assets, Current",
+        "units": {
+          "USD": [
+            {"end": "2023-12-31", "val": 6250000000, "accn": "0001594805-24-000010", "fy": 2023, "fp": "FY", "form": "10-K", "filed": "2024-02-13"},
+            {"end": "2024-12-31", "val": 7010000000, "accn": "0001594805-25-000010", "fy": 2024, "fp": "FY", "form": "10-K", "filed": "2025-02-11"}
+          ]
+        }
+      },
+      "NetIncomeLoss": {
+        "label": "Net Income (Loss)",
+        "units": {
+          "USD": [
+            {"start": "2023-01-01", "end": "2023-12-31", "val": 132000000, "accn": "0001594805-24-000010", "fy": 2023, "fp": "FY", "form": "10-K", "filed": "2024-02-13"},
+            {"start": "2024-01-01", "end": "2024-12-31", "val": 2020000000, "accn": "0001594805-25-000010", "fy": 2024, "fp": "FY", "form": "10-K", "filed": "2025-02-11"}
+          ]
+        }
+      },
+      "NetCashProvidedByUsedInOperatingActivities": {
+        "label": "Net Cash Provided by Operating Activities",
+        "units": {
+          "USD": [
+            {"start": "2023-01-01", "end": "2023-12-31", "val": 905000000, "accn": "0001594805-24-000010", "fy": 2023, "fp": "FY", "form": "10-K", "filed": "2024-02-13"},
+            {"start": "2024-01-01", "end": "2024-12-31", "val": 1610000000, "accn": "0001594805-25-000010", "fy": 2024, "fp": "FY", "form": "10-K", "filed": "2025-02-11"}
+          ]
+        }
+      }
+    },
+    "dei": {
+      "EntityCommonStockSharesOutstanding": {
+        "label": "Entity Common Stock, Shares Outstanding",
+        "units": {
+          "shares": [
+            {"end": "2024-12-31", "val": 1290000000, "accn": "0001594805-25-000010", "fy": 2024, "fp": "FY", "form": "10-K", "filed": "2025-02-11"}
+          ]
+        }
+      }
+    }
+  }
+}
