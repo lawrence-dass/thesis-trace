@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-17
 **Status:** Locked (revisit only via explicit correct-course)
-**Input:** LedgerLens/Fundalens consolidation review (`/Users/lawrence/.codex/.chatgpt-projects/g-p-6a582c0cd0608191bbb731d8052a7041/ledgerlens-fundalens-consolidation-review.md`)
+**Input:** LedgerLens/Fundalens consolidation review (`_bmad-output/planning-artifacts/ledgerlens-fundalens-consolidation-review.md`, copied into the repo 2026-07-20 from its original location outside version control)
 
 ## D1 — Product name: ThesisTrace
 

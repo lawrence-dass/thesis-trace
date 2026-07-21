@@ -6,7 +6,7 @@
 
 An evidence-backed equity intelligence platform for retail investors. Four transparent analytical lenses (Value, Growth, Quality/Health, Integrity) computed deterministically from SEC EDGAR filings — never an LLM-invented score. An LLM layer explains already-computed results and answers filing-grounded questions, but never originates a number or gives investment advice. Full product vision: `_bmad-output/planning-artifacts/prds/prd-ThesisTrace-2026-07-17/prd.md`.
 
-Consolidates two prior concepts (LedgerLens + Fundalens); the original comparison lives at `/Users/lawrence/.codex/.chatgpt-projects/g-p-6a582c0cd0608191bbb731d8052a7041/ledgerlens-fundalens-consolidation-review.md` (outside this repo).
+Consolidates two prior concepts (LedgerLens + Fundalens); the original comparison is now in-repo at `_bmad-output/planning-artifacts/ledgerlens-fundalens-consolidation-review.md` (copied 2026-07-20 from its original location outside version control, so cloud/mobile sessions can read it).
 
 ## Where things stand (as of 2026-07-19)
 
@@ -56,6 +56,15 @@ Two PRD-touching refinements surfaced during architecture work and are recorded 
 - FR-12 (AI explanation) should tighten to "deterministic template first, LLM as constrained rewrite only" (spine AD-7).
 - FR-9 (Verdict) should state the actual synthesis rule now defined (spine AD-12) in place of the current placeholder language.
 - FR-4/FR-5 (Altman) should note the Tiingo market-data dependency (spine AD-11).
+
+## How Lawrence works (for any AI session picking this up)
+
+This isn't captured anywhere else in the repo — it's local assistant memory on the desktop machine, which a cloud/mobile session won't have access to:
+
+- **Wants research-backed grounding, not assertions.** Before a feature, competitor-differentiation claim, or technical assumption gets locked in, verify it (live data checks, web research, named comparables) rather than reasoning from training data alone. He explicitly invites this ("you can do research if needed") and expects it even when he doesn't ask.
+- **Quality over reduced scope.** When a real technical gap surfaces (e.g., Altman's market-data dependency), don't default to the option that cuts scope or defers the hard part just because it's offered as "the pragmatic choice." He's willing to invest more engineering effort to keep a feature fully correct rather than simplify it away. Solve the underlying problem; reserve simplification for when the simpler path is *also* the higher-quality one.
+- **Catches gaps himself and expects them taken seriously.** His "wait, did we cover X?" questions (e.g. the missing multi-ticker comparison feature, the Altman data question) are genuine gap-finding, not idle curiosity — verify before answering rather than reassuring from memory.
+- **Values honest pushback.** He responded well to direct pushback like "wrapping a trivial LLM call in LangGraph would read as keyword-stuffing to a technical reviewer" — don't just validate every idea.
 
 ## What's left before development starts
 
