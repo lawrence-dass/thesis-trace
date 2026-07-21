@@ -1,0 +1,64 @@
+# Piotroski F-Score — versioned formula spec (AD-5).
+# Source: Piotroski, J. (2000) "Value Investing: The Use of Historical Financial
+# Statement Information to Separate Winners from Losers", Journal of Accounting Research.
+model: piotroski
+formula_version: piotroski_v1
+description: >
+  Nine binary financial-strength signals across profitability, leverage/liquidity,
+  and operating efficiency, summed to a 0-9 F-Score. Each signal is stored
+  individually (FR-3); a missing input yields status insufficient_data, never a
+  defaulted 0 (AD-16).
+
+rounding:
+  mode: ROUND_HALF_EVEN   # shared decimal engine, never per-module (AD-15/AD-5)
+  ratio_places: 6
+
+missing_data_policy: insufficient_data   # a signal lacking an input is insufficient_data
+divide_by_zero_policy: insufficient_data # a zero denominator yields insufficient_data
+
+# Canonical concepts consumed (see canonicalization/mappings.py).
+inputs:
+  - net_income
+  - total_assets
+  - cash_from_operations
+  - current_assets
+  - current_liabilities
+  - shares_outstanding
+
+# The 9 signal_keys (stable vocabulary, AD-18). Some require concepts beyond the
+# Phase-1 fixture (gross margin, long-term debt, revenue); those resolve to
+# insufficient_data until the inputs are ingested.
+signals:
+  - key: roa_positive
+    description: Return on assets (net_income / total_assets) is positive.
+  - key: cfo_positive
+    description: Cash from operations is positive.
+  - key: roa_increasing
+    description: ROA increased year over year.
+  - key: accruals
+    description: Cash from operations / total_assets exceeds ROA (earnings quality).
+  - key: leverage_decreasing
+    description: Long-term debt ratio decreased year over year.
+  - key: current_ratio_increasing
+    description: Current ratio increased year over year.
+  - key: shares_not_diluted
+    description: Shares outstanding did not increase year over year.
+  - key: gross_margin_increasing
+    description: Gross margin increased year over year.
+  - key: asset_turnover_increasing
+    description: Asset turnover increased year over year.
+
+# Cited verdict bands, per the model's own published classification (AD-12).
+# Faithful to Piotroski (2000): Strong 8-9, Weak 0-1; 2-7 shown as Middle/mixed.
+bands:
+  citation: "Piotroski (2000), Journal of Accounting Research"
+  classes:
+    - label: Strong
+      min: 8
+      max: 9
+    - label: Middle
+      min: 2
+      max: 7
+    - label: Weak
+      min: 0
+      max: 1

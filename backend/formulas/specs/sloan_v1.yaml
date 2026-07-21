@@ -1,0 +1,39 @@
+# Sloan accruals ratio — versioned formula spec (AD-5).
+# Source: Sloan, R. (1996) "Do Stock Prices Fully Reflect Information in Accruals
+# and Cash Flows about Future Earnings?", The Accounting Review.
+model: sloan
+formula_version: sloan_v1
+description: >
+  Balance-sheet-approach accruals ratio: accruals = net_income - cash_from_operations;
+  ratio = accruals / average_total_assets across two consecutive fiscal years.
+  A high positive ratio flags low earnings quality (FR-7).
+
+rounding:
+  mode: ROUND_HALF_EVEN
+  ratio_places: 6
+
+missing_data_policy: insufficient_data
+divide_by_zero_policy: insufficient_data
+
+inputs:
+  - net_income
+  - cash_from_operations
+  - total_assets   # current and prior year, for average_total_assets
+
+signals:
+  - key: accruals_ratio
+    description: (net_income - cash_from_operations) / average_total_assets.
+
+# High-accrual warning threshold, stated explicitly (FR-7). Placeholder value
+# pending golden-dataset verification; the exact cutoff is pinned here per AD-5.
+threshold:
+  high_accrual_above: 0.10
+  citation: "Sloan (1996), The Accounting Review (threshold pending verification)"
+
+bands:
+  citation: "Sloan (1996), The Accounting Review"
+  classes:
+    - label: Low accruals (higher quality)
+      max: 0.10
+    - label: High accruals (lower quality)
+      above: 0.10
