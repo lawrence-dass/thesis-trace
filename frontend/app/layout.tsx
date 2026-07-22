@@ -31,6 +31,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
         <div className="mx-auto max-w-5xl px-6 py-10">{children}</div>
+        <footer className="border-t border-[var(--color-border)] bg-[var(--color-surface)]">
+          <div className="mx-auto max-w-5xl px-6 py-6 text-xs leading-relaxed text-[var(--color-ink-faint)]">
+            ThesisTrace presents evidence-based analytical scores computed from public SEC EDGAR
+            filings. It is not investment, legal, or tax advice, and nothing on this site is a
+            recommendation to buy, sell, or hold any security. Scores are derived from historical
+            filings and may not reflect a company&apos;s current financial condition. Do your own
+            research and consult a licensed financial advisor before making investment decisions.
+          </div>
+        </footer>
       </body>
     </html>
   );

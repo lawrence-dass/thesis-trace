@@ -107,6 +107,10 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
       {data.verdict && data.verdict.length > 0 ? (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">Verdict</h2>
+          <p className="text-sm text-[var(--color-ink-faint)]">
+            Each model&apos;s own published threshold classification, shown side by side — not a
+            buy/sell recommendation.
+          </p>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {data.verdict.map((v) => (
               <Card key={v.model} className="space-y-2">

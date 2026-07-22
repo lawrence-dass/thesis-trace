@@ -8,6 +8,12 @@ An evidence-backed equity intelligence platform for retail investors. Four trans
 
 Consolidates two prior concepts (LedgerLens + Fundalens); the original comparison is now in-repo at `_bmad-output/planning-artifacts/ledgerlens-fundalens-consolidation-review.md` (copied 2026-07-20 from its original location outside version control, so cloud/mobile sessions can read it).
 
+## 🔵 Session note (2026-07-22, cloud): environment constraint on the golden-dataset investigation
+
+A cloud session tried to resume the golden-dataset investigation (below) per this file's exact resume steps and hit a hard environment blocker: this particular sandbox had no Docker daemon (no local Postgres), no `.env`/`TIINGO_API_KEY`, and outbound network access to `data.sec.gov` was rejected by the sandbox's own network policy (403 on CONNECT — a deliberate policy denial, not a fixable client-side config issue). None of the resume steps (DB queries, live EDGAR tag verification, pipeline runs) were executable there. Rather than fabricate verification results or add unverified concept fallbacks to `mappings.py` (exactly the class of mistake that caused the shares_outstanding bug), the session deferred that work and instead shipped the not-investment-advice disclaimer (PRD Open Question 3, see "What's left" below) — a self-contained frontend change needing no DB or network access.
+
+**Implication for whoever picks up the golden-dataset investigation next:** confirm your session/environment actually has Docker + Postgres + outbound network access to `data.sec.gov` and Tiingo before starting — a cloud session isn't guaranteed to have these depending on how its environment/network policy was configured. If unsure, check early (e.g. `docker ps`, a `curl` to `data.sec.gov`) rather than discovering the blocker mid-investigation.
+
 ## Where things stand (as of 2026-07-22)
 
 | Artifact | Status | Path |
@@ -114,10 +120,10 @@ This isn't captured anywhere else in the repo — it's local assistant memory on
 
 ## What's left
 
-Phase 1 (all 4 epics) is implemented and verified against real data; the frontend has a real design system. **The active task is the golden-dataset investigation above — resume there first.** After that's closed out, in rough priority order:
+Phase 1 (all 4 epics) is implemented and verified against real data; the frontend has a real design system. **The active task is the golden-dataset investigation above — resume there first, in a session that actually has Docker/Postgres/network access (see the session note above).** After that's closed out, in rough priority order:
 
 1. **Deploy to real cloud infra** — nothing has been pushed to Render/Vercel/a real Supabase project yet; everything so far is local-only (local Docker Postgres, local dev servers).
-2. **Not-investment-advice disclaimer** (PRD Open Question 3) — not yet added anywhere in the frontend; worth doing before any real/public use.
+2. ~~**Not-investment-advice disclaimer**~~ — **done 2026-07-22:** site-wide footer (`frontend/app/layout.tsx`) + a one-line caption on the company page's Verdict section (`frontend/app/company/[ticker]/page.tsx`). Wording/placement resolved as a product-copy call; whether Canada-specific legal review is warranted is still open (PRD Open Question 3).
 3. **Phase 2 features** — Value lens, Growth lens, Filing Q&A (LangGraph), Thesis Journal — per the already-committed roadmap in `epics.md`/the PRD.
 4. **Epic retrospective** — `bmad-retrospective` hasn't been run yet for Phase 1; there's real material for it (the shares_outstanding bug, the accession_number bug, the parallel-session incident, this golden-dataset investigation).
 
