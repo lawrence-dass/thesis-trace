@@ -6,6 +6,7 @@
 import AddToCompare from "../../components/AddToCompare";
 import { Badge, applicabilityLabel, applicabilityVariant, bandTone, signalVariant } from "../../components/ui/Badge";
 import { Card } from "../../components/ui/Card";
+import { Gauge, type BandClass } from "../../components/ui/Gauge";
 import { AlertIcon, ChevronIcon } from "../../components/ui/icons";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
@@ -53,6 +54,32 @@ const MODEL_LABEL: Record<string, string> = {
   sloan: "Sloan Accruals",
 };
 
+// Plain-language teaching copy per model — what it measures and which
+// direction is favorable. Presentational content, not a scoring input.
+const MODEL_CAPTION: Record<string, string> = {
+  piotroski: "Financial strength, scored 0–9. Higher is stronger.",
+  altman: "Bankruptcy-risk score. Higher means safer.",
+  beneish: "Earnings-manipulation risk. Lower (more negative) means safer.",
+  sloan: "Accrual-based earnings quality. Lower means higher quality.",
+};
+
+const MODELS = ["piotroski", "altman", "beneish", "sloan"];
+
+async function getBands(model: string): Promise<BandClass[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/methodology/${model}`, { cache: "no-store" });
+    const body = (await res.json()) as { bands?: { classes?: BandClass[] } };
+    return body.bands?.classes ?? [];
+  } catch {
+    return [];
+  }
+}
+
+async function getAllBands(): Promise<Record<string, BandClass[]>> {
+  const entries = await Promise.all(MODELS.map(async (m) => [m, await getBands(m)] as const));
+  return Object.fromEntries(entries);
+}
+
 async function getExplanations(ticker: string): Promise<Explanation[]> {
   try {
     const res = await fetch(`${API_BASE_URL}/api/companies/${ticker}/explanation`, { cache: "no-store" });
@@ -77,6 +104,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
   const data = await getOverview(ticker);
   const explanations = data.state === "ok" ? await getExplanations(ticker) : [];
   const explanationByModel = new Map(explanations.map((e) => [e.model, e]));
+  const bandsByModel = data.state === "ok" ? await getAllBands() : {};
 
   if (data.state !== "ok") {
     return (
@@ -107,6 +135,10 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
       {data.verdict && data.verdict.length > 0 ? (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">Verdict</h2>
+          <p className="text-sm text-[var(--color-ink-faint)]">
+            Each model&apos;s own published threshold classification, shown side by side — not a
+            buy/sell recommendation.
+          </p>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {data.verdict.map((v) => (
               <Card key={v.model} className="space-y-2">
@@ -122,6 +154,12 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                   <Badge variant={bandTone(v.band_label)} icon={false}>
                     {v.band_label}
                   </Badge>
+                ) : null}
+                {v.aggregate_value !== null && v.applicability !== "excluded_out_of_scope" && bandsByModel[v.model]?.length ? (
+                  <Gauge model={v.model} value={v.aggregate_value} bandLabel={v.band_label} bands={bandsByModel[v.model]} />
+                ) : null}
+                {MODEL_CAPTION[v.model] ? (
+                  <p className="text-xs leading-snug text-[var(--color-ink-faint)]">{MODEL_CAPTION[v.model]}</p>
                 ) : null}
               </Card>
             ))}
