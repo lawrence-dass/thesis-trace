@@ -88,11 +88,47 @@ async def run_issuer(
     return {"cik": parsed.cik, "ticker": ticker, "scored_years": years, "scored": scored}
 
 
+async def _fye_prices_for(payload: dict, ticker: str) -> dict[int, float]:
+    """Fetch Tiingo EOD prices covering every filed fiscal-year-end and resolve
+    the FYE close per year (AD-11, AD-14). Returns {} — never raises — when
+    TIINGO_API_KEY is unset, so Altman degrades to insufficient_data rather
+    than blocking Piotroski/Beneish/Sloan for the whole company."""
+    from datetime import timedelta
+
+    from app.config import get_settings
+    from ingestion.tiingo import fetch_eod_prices, select_fye_close
+
+    if not get_settings().tiingo_api_key:
+        print(f"  (no TIINGO_API_KEY — {ticker} Altman will show insufficient_data)")
+        return {}
+
+    parsed = parse_company_facts(payload)
+    fye_dates = sorted({f.fiscal_year_end for f in parsed.filings.values()})
+    if not fye_dates:
+        return {}
+    from datetime import date as _date
+
+    start = _date.fromisoformat(fye_dates[0]) - timedelta(days=10)
+    end = _date.fromisoformat(fye_dates[-1])
+    prices = await fetch_eod_prices(ticker, start, end)
+
+    fye_prices: dict[int, float] = {}
+    for f in parsed.filings.values():
+        fye = _date.fromisoformat(f.fiscal_year_end)
+        row = select_fye_close(prices, fye)
+        if row is not None:
+            fye_prices[f.fiscal_year] = row["close"]
+    return fye_prices
+
+
 async def main() -> None:  # pragma: no cover — live path, gated
     """Live universe run for the Render Cron Job. Requires network + EDGAR_CONTACT.
 
     Gated: performs live SEC EDGAR fetches. Only entries with a confirmed CIK run;
-    others are reported as skipped so coverage gaps are explicit.
+    others are reported as skipped so coverage gaps are explicit. Tiingo (AD-11)
+    is fetched per company and passed through so Altman is scored wherever a
+    market price resolves; if TIINGO_API_KEY is unset, everything else still
+    scores and Altman degrades to insufficient_data rather than failing the run.
     """
     from app.db import get_sessionmaker
     from ingestion.edgar import fetch_company_facts
@@ -107,14 +143,17 @@ async def main() -> None:  # pragma: no cover — live path, gated
             print(f"SKIP {entry.ticker}: CIK not yet confirmed against EDGAR")
             continue
         payload = await fetch_company_facts(entry.cik)
+        fye_prices = await _fye_prices_for(payload, entry.ticker)
         async with sessionmaker() as session:
             summary = await run_issuer(
                 session,
                 payload,
                 ticker=entry.ticker,
                 is_financial_sector=entry.is_financial_sector,
+                is_capital_intensive=entry.capital_intensive,
+                fye_prices=fye_prices,
             )
-        print(f"OK {entry.ticker}: scored {summary['scored_years']}")
+        print(f"OK {entry.ticker}: scored {summary['scored_years']} (altman: {summary['scored']['altman']})")
 
 
 if __name__ == "__main__":  # pragma: no cover

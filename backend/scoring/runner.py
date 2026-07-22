@@ -15,7 +15,7 @@ from decimal import Decimal
 
 from app.models import (
     Applicability,
-    Filing,
+    CanonicalFact,
     Issuer,
     Model,
     ScoreInput,
@@ -49,13 +49,30 @@ async def _supersede_prior(session: AsyncSession, issuer_cik: str, model: Model,
         run.superseded_by = new_run_id
 
 
-async def _accession_for(session: AsyncSession, issuer_cik: str, fiscal_year: int) -> str:
-    filing = (
+async def _canonical_fact_for_year(session: AsyncSession, issuer_cik: str, fiscal_year: int) -> CanonicalFact | None:
+    """A representative canonical fact for (issuer, fiscal_year) — the correct
+    provenance root for a score_run's accession_number and true fiscal-year-end.
+
+    NOT derived from Filing.fiscal_year: that column is the accession's OWN
+    primary year, which can differ from a fiscal year whose only canonical data
+    is a restated comparative embedded in a LATER filing (e.g. SHOP's FY2023
+    facts live only inside its FY2024 10-K's comparative column — there is no
+    Filing row with fiscal_year=2023 at all). CanonicalFact.fiscal_year is the
+    period the value actually describes, correctly resolved by AD-3 selection,
+    so it is the reliable join key here."""
+    return (
         await session.execute(
-            select(Filing).where(Filing.issuer_cik == issuer_cik, Filing.fiscal_year == fiscal_year)
+            select(CanonicalFact)
+            .where(CanonicalFact.issuer_cik == issuer_cik, CanonicalFact.fiscal_year == fiscal_year)
+            .order_by(CanonicalFact.canonical_concept)
+            .limit(1)
         )
     ).scalars().first()
-    return filing.accession_number if filing else ""
+
+
+async def _accession_for(session: AsyncSession, issuer_cik: str, fiscal_year: int) -> str:
+    fact = await _canonical_fact_for_year(session, issuer_cik, fiscal_year)
+    return fact.accession_number if fact else ""
 
 
 async def score_piotroski(session: AsyncSession, issuer_cik: str, fiscal_year: int) -> ScoreRun:
@@ -104,15 +121,11 @@ async def score_altman(session: AsyncSession, issuer_cik: str, fiscal_year: int)
     facts = await load_facts(session, issuer_cik, mapping_version=MAPPING_VERSION)
     issuer = await session.get(Issuer, issuer_cik)
 
-    filing = (
-        await session.execute(
-            select(Filing).where(Filing.issuer_cik == issuer_cik, Filing.fiscal_year == fiscal_year)
-        )
-    ).scalars().first()
+    fact = await _canonical_fact_for_year(session, issuer_cik, fiscal_year)
     market_close = None
     market_price_id = None
-    if filing is not None:
-        mp = await get_fye_close(session, issuer_cik, filing.fiscal_year_end)
+    if fact is not None:
+        mp = await get_fye_close(session, issuer_cik, fact.period_end)
         if mp is not None:
             market_close = Decimal(str(mp.close_price))
             market_price_id = mp.id
@@ -131,7 +144,7 @@ async def score_altman(session: AsyncSession, issuer_cik: str, fiscal_year: int)
         model=Model.altman,
         fiscal_year=fiscal_year,
         formula_version=spec.formula_version,
-        accession_number=filing.accession_number if filing else "",
+        accession_number=fact.accession_number if fact else "",
         aggregate_value=result.z_score,
         applicability=result.applicability,
     )

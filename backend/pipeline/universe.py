@@ -1,9 +1,7 @@
 """Phase-1 Company Universe (foundational decision D6).
 
-All four are US-GAAP 10-K filers on EDGAR. CIKs are needed for live ingestion;
-SHOP is confirmed. The others are marked needs_cik until confirmed against EDGAR
-during the first live run (gated — see the standing "ask before live fetch"
-decision), so nothing fetches a guessed CIK.
+All four are US-GAAP 10-K filers on EDGAR. All CIKs confirmed live against
+data.sec.gov/submissions/ (2026-07-21) before being hardcoded here.
 """
 
 from __future__ import annotations
@@ -22,7 +20,7 @@ class UniverseEntry:
 
 PHASE1_UNIVERSE: tuple[UniverseEntry, ...] = (
     UniverseEntry("SHOP", "Shopify Inc.", "0001594805"),
-    UniverseEntry("CP", "Canadian Pacific Kansas City Limited", None, capital_intensive=True),
-    UniverseEntry("QSR", "Restaurant Brands International Inc.", None),
-    UniverseEntry("OTEX", "Open Text Corporation", None),
+    UniverseEntry("CP", "Canadian Pacific Kansas City Limited", "0000016875", capital_intensive=True),
+    UniverseEntry("QSR", "Restaurant Brands International Inc.", "0001618756"),
+    UniverseEntry("OTEX", "Open Text Corporation", "0001002638"),
 )

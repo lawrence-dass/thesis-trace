@@ -116,7 +116,9 @@ class RawFact(Base):
     id: Mapped[uuid.UUID] = _uuid_pk()
     accession_number: Mapped[str] = mapped_column(ForeignKey("filings.accession_number"), index=True)
     taxonomy: Mapped[str] = mapped_column(String(32))  # us-gaap, dei
-    concept: Mapped[str] = mapped_column(String(128), index=True)
+    # 256, not 128: real XBRL custom-extension concept names exceed 128 chars
+    # (e.g. a 140-char CP stock-compensation tag, confirmed live 2026-07-21).
+    concept: Mapped[str] = mapped_column(String(256), index=True)
     unit: Mapped[str | None] = mapped_column(String(32))
     period_start: Mapped[date | None] = mapped_column(Date)
     period_end: Mapped[date | None] = mapped_column(Date)
