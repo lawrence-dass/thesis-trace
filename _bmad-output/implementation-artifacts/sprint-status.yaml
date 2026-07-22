@@ -53,7 +53,7 @@
 # stories. No retrospective has been run for any epic.
 
 generated: 2026-07-21
-last_updated: 2026-07-21
+last_updated: 2026-07-22
 project: ThesisTrace
 project_key: NOKEY
 tracking_system: file-system
@@ -71,7 +71,7 @@ development_status:
   1-8-read-only-query-api-and-thin-company-overview: done
   1-9-golden-dataset-regression-harness: done
   1-10-scheduled-pipeline-across-the-full-universe: done
-  epic-1-retrospective: optional
+  epic-1-retrospective: done
 
   epic-2: done
   2-1-tiingo-market-price-ingestion-and-market-prices-table: done
@@ -80,7 +80,7 @@ development_status:
   2-4-quality-health-sub-signal-display-with-provenance: done
   2-5-integrity-sub-signal-display-provenance-and-data-quality-flags: done
   2-6-extend-the-golden-dataset-harness-to-all-four-models: done
-  epic-2-retrospective: optional
+  epic-2-retrospective: done
 
   epic-3: done
   3-1-backend-verdict-assembly-and-band-classification: done
@@ -89,11 +89,33 @@ development_status:
   3-4-methodology-page-per-score: done
   3-5-deterministic-cited-explanation-template: done
   3-6-llm-constrained-rewrite-layer: done
-  epic-3-retrospective: optional
+  epic-3-retrospective: done
 
   epic-4: done
   4-1-landing-page-starter-list: done
   4-2-ticker-search-with-honest-coverage: done
   4-3-add-to-comparison-session-scoped: done
   4-4-side-by-side-comparison-view: done
-  epic-4-retrospective: optional
+  epic-4-retrospective: done
+
+action_items:
+  - epic: 4
+    action: "Resume the golden-dataset investigation (HANDOFF.md's exact resume steps) in a session with real Docker/Postgres/EDGAR/Tiingo access; SM-1 is not met until real hand-verified values replace the placeholder golden dataset"
+    owner: "next capable session"
+    status: open
+  - epic: 4
+    action: "Add a live-data spot-check to the Definition of Done for any story touching real EDGAR/Tiingo integration or concept mapping"
+    owner: "Lawrence"
+    status: open
+  - epic: 4
+    action: "Diagnose SHOP's null Altman aggregate and Beneish's zero-coverage concept mappings, per HANDOFF.md's existing diagnosis steps"
+    owner: "next capable session"
+    status: open
+  - epic: 4
+    action: "Audit bandTone() and similar frontend string-matching against backend-authored labels for coverage gaps across all 4 models (one real gap, Beneish, already found and fixed 2026-07-22)"
+    owner: "next session"
+    status: open
+  - epic: 4
+    action: "Decide whether to add a CI pipeline, since none exists and PRs are landing without automated checks"
+    owner: "Lawrence"
+    status: open
