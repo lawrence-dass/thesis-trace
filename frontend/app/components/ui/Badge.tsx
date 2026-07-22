@@ -76,8 +76,12 @@ export function applicabilityLabel(applicability: string): string {
 export function bandTone(label: string | null): BadgeVariant {
   if (!label) return "neutral";
   const l = label.toLowerCase();
-  if (l.includes("strong") || l.includes("safe") || l.includes("low accrual")) return "pass";
-  if (l.includes("weak") || l.includes("distress") || l.includes("high accrual")) return "fail";
+  if (l.includes("strong") || l.includes("safe") || l.includes("low accrual") || l.includes("no manipulation")) {
+    return "pass";
+  }
+  if (l.includes("weak") || l.includes("distress") || l.includes("high accrual") || l.includes("manipulation risk")) {
+    return "fail";
+  }
   if (l.includes("middle") || l.includes("grey") || l.includes("gray")) return "caveat";
   return "neutral";
 }
