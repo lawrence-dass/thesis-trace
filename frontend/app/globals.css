@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/*
+ * ThesisTrace design system.
+ *
+ * Presentation-layer only (AD-8) — these are visual tokens, not scoring logic.
+ * The signal-* colors are the one domain-specific decision here: they encode
+ * the product's tri-state/verdict vocabulary (pass/fail/insufficient/caveat/
+ * excluded) so every page renders the same state the same way. Never invent a
+ * one-off color for a status elsewhere — extend this palette instead.
+ */
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+
+  /* Neutrals — cool slate, matches a serious analytical tool over a warm gray. */
+  --color-canvas: #f6f7fb;
+  --color-surface: #ffffff;
+  --color-border: #e2e5ec;
+  --color-border-strong: #c7cbd6;
+  --color-ink: #12141c;
+  --color-ink-muted: #565c6d;
+  --color-ink-faint: #8b91a1;
+
+  /* Brand — primary actions, links, "live" indicators. */
+  --color-brand-50: #eef4ff;
+  --color-brand-100: #dbe7fe;
+  --color-brand-500: #2f6fed;
+  --color-brand-600: #1f56d6;
+  --color-brand-700: #1a45ad;
+
+  /* Signal semantics — the tri-state/verdict vocabulary (AD-16, AD-17, AD-20). */
+  --color-signal-pass: #0f8a5f;
+  --color-signal-pass-bg: #e6f6ee;
+  --color-signal-pass-border: #b9e5cd;
+
+  --color-signal-fail: #c4392b;
+  --color-signal-fail-bg: #fbeae8;
+  --color-signal-fail-border: #f2c3bd;
+
+  --color-signal-caveat: #a86b06;
+  --color-signal-caveat-bg: #fdf3de;
+  --color-signal-caveat-border: #f2debb;
+
+  --color-signal-pending: #5c6270;
+  --color-signal-pending-bg: #eef0f4;
+  --color-signal-pending-border: #d8dbe3;
+
+  --color-signal-excluded: #6941a8;
+  --color-signal-excluded-bg: #f2ecfb;
+  --color-signal-excluded-border: #ddccf0;
+
+  --radius-card: 1rem;
+  --radius-control: 0.6rem;
+  --radius-pill: 999px;
+
+  --shadow-card: 0 1px 2px rgba(18, 20, 28, 0.04), 0 8px 24px -12px rgba(18, 20, 28, 0.12);
+  --shadow-card-hover: 0 2px 4px rgba(18, 20, 28, 0.06), 0 16px 32px -12px rgba(18, 20, 28, 0.16);
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Give the native <details>/<summary> breakdown (FR-10) a clean disclosure
+   triangle that matches the rest of the system instead of the browser default. */
+details > summary {
+  list-style: none;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}

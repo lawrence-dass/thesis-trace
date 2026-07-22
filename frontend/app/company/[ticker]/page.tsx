@@ -1,16 +1,16 @@
-// Thin company overview (Story 1.8): renders the read-API scores + provenance.
-// This is a skeleton view; the full Verdict/overview UI is Epic 3 (FR-9/FR-10).
-// Presentation only — renders exactly what the API returns (AD-8).
+// Company overview (FR-9, FR-10): transparent per-model Verdict juxtaposition,
+// in-page expandable sub-factor breakdown, data-quality warnings, cited
+// explanation. Presentation only — renders exactly what the read API returns,
+// no scoring logic (AD-8).
 
 import AddToCompare from "../../components/AddToCompare";
+import { Badge, applicabilityLabel, applicabilityVariant, bandTone, signalVariant } from "../../components/ui/Badge";
+import { Card } from "../../components/ui/Card";
+import { AlertIcon, ChevronIcon } from "../../components/ui/icons";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
-type Provenance = {
-  accession_number: string;
-  canonical_concept: string;
-  fiscal_year: number;
-};
+type Provenance = { accession_number: string; canonical_concept: string; fiscal_year: number };
 type Signal = { signal_key: string; status: string; value: number | null; provenance: Provenance[] };
 type LensScore = {
   model: string;
@@ -46,6 +46,13 @@ const CATEGORY_LABEL: Record<string, string> = {
   integrity: "Integrity & Evidence",
 };
 
+const MODEL_LABEL: Record<string, string> = {
+  piotroski: "Piotroski F-Score",
+  altman: "Altman Z-Score",
+  beneish: "Beneish M-Score",
+  sloan: "Sloan Accruals",
+};
+
 async function getExplanations(ticker: string): Promise<Explanation[]> {
   try {
     const res = await fetch(`${API_BASE_URL}/api/companies/${ticker}/explanation`, { cache: "no-store" });
@@ -73,9 +80,13 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
 
   if (data.state !== "ok") {
     return (
-      <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem" }}>
-        <h1>{ticker.toUpperCase()}</h1>
-        <p>{data.state === "not_available" ? "Not yet covered." : "Backend unreachable."}</p>
+      <main className="space-y-3">
+        <h1 className="text-2xl font-semibold text-[var(--color-ink)]">{ticker.toUpperCase()}</h1>
+        <Card>
+          <p className="text-[var(--color-ink-muted)]">
+            {data.state === "not_available" ? "Not yet covered by ThesisTrace." : "Backend unreachable."}
+          </p>
+        </Card>
       </main>
     );
   }
@@ -83,28 +94,40 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
   const categories = ["quality_health", "integrity"];
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 760 }}>
-      <h1>
-        {data.name} ({data.ticker})
-      </h1>
-
-      <AddToCompare ticker={data.ticker ?? ticker.toUpperCase()} />
+    <main className="space-y-10">
+      <section className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="font-mono text-sm font-semibold text-[var(--color-brand-600)]">{data.ticker}</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-ink)] sm:text-3xl">{data.name}</h1>
+        </div>
+        <AddToCompare ticker={data.ticker ?? ticker.toUpperCase()} />
+      </section>
 
       {/* Verdict: each live model's own cited classification, side by side (FR-9, AD-12). */}
       {data.verdict && data.verdict.length > 0 ? (
-        <section style={{ marginBottom: "1.5rem" }}>
-          <h2>Verdict</h2>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">Verdict</h2>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {data.verdict.map((v) => (
-              <div key={v.model} style={{ border: "1px solid #ccc", borderRadius: 6, padding: "0.5rem 0.75rem", minWidth: 150 }}>
-                <div style={{ fontWeight: 600 }}>{v.model}</div>
-                <div>{v.aggregate_value ?? "—"}</div>
-                <div style={{ color: "#444" }}>{v.band_label ?? (v.applicability !== "computed" ? v.applicability : "—")}</div>
-              </div>
+              <Card key={v.model} className="space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
+                  {MODEL_LABEL[v.model] ?? v.model}
+                </div>
+                <div className="font-mono text-2xl font-semibold tabular-nums text-[var(--color-ink)]">
+                  {v.aggregate_value ?? "—"}
+                </div>
+                {v.applicability !== "computed" ? (
+                  <Badge variant={applicabilityVariant(v.applicability)}>{applicabilityLabel(v.applicability)}</Badge>
+                ) : v.band_label ? (
+                  <Badge variant={bandTone(v.band_label)} icon={false}>
+                    {v.band_label}
+                  </Badge>
+                ) : null}
+              </Card>
             ))}
           </div>
           {data.lenses_pending && data.lenses_pending.length > 0 ? (
-            <p style={{ color: "#666" }}>
+            <p className="text-sm text-[var(--color-ink-faint)]">
               Pending lenses (future phase): {data.lenses_pending.join(", ")}.
             </p>
           ) : null}
@@ -112,57 +135,96 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
       ) : null}
 
       {data.data_quality && data.data_quality.length > 0 ? (
-        <section style={{ background: "#fff6e5", border: "1px solid #e0b050", padding: "0.75rem 1rem", marginBottom: "1.5rem" }}>
-          <strong>Data-quality warnings</strong>
-          <ul>
-            {data.data_quality.map((dq, i) => (
-              <li key={i}>
-                {dq.issue_type} <span style={{ color: "#666" }}>({dq.status}, raised by {dq.raised_by})</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <div className="flex gap-3 rounded-[var(--radius-card)] border border-[var(--color-signal-caveat-border)] bg-[var(--color-signal-caveat-bg)] p-4">
+          <AlertIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--color-signal-caveat)]" />
+          <div className="space-y-1 text-sm">
+            <p className="font-semibold text-[var(--color-signal-caveat)]">Data-quality warnings</p>
+            <ul className="space-y-0.5 text-[var(--color-ink-muted)]">
+              {data.data_quality.map((dq, i) => (
+                <li key={i}>
+                  {dq.issue_type}{" "}
+                  <span className="text-[var(--color-ink-faint)]">
+                    ({dq.status}, raised by {dq.raised_by})
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       ) : null}
 
       {categories.map((cat) => {
         const lenses = data.scores?.filter((l) => l.category === cat) ?? [];
         if (lenses.length === 0) return null;
         return (
-          <div key={cat}>
-            <h2>{CATEGORY_LABEL[cat] ?? cat}</h2>
-            {lenses.map((lens) => {
-              const exp = explanationByModel.get(lens.model);
-              return (
-                <section key={`${lens.model}-${lens.fiscal_year}`} style={{ marginBottom: "1rem" }}>
-                  {/* In-page expandable breakdown (FR-10) via native <details>. */}
-                  <details>
-                    <summary style={{ cursor: "pointer", fontWeight: 600 }}>
-                      {lens.model} — FY{lens.fiscal_year}
-                      {lens.aggregate_value !== null ? ` · ${lens.aggregate_value}` : ""}
-                      {lens.band_label ? ` · ${lens.band_label}` : ""}
-                      {lens.applicability !== "computed" ? ` · [${lens.applicability}]` : ""}
-                    </summary>
-                    {exp ? <p style={{ color: "#333" }}>{exp.text}</p> : null}
-                    <ul>
-                      {lens.signals.map((s) => (
-                        <li key={s.signal_key}>
-                          <strong>{s.signal_key}</strong>: {s.status}
-                          {s.value !== null ? ` (${s.value})` : ""}
-                          {s.provenance.length > 0 ? (
-                            <span style={{ color: "#666" }}>
-                              {" "}
-                              — {s.provenance.map((p) => `${p.canonical_concept} FY${p.fiscal_year}`).join(", ")}
+          <section key={cat} className="space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
+              {CATEGORY_LABEL[cat] ?? cat}
+            </h2>
+            <div className="space-y-3">
+              {lenses.map((lens) => {
+                const exp = explanationByModel.get(lens.model);
+                return (
+                  <Card key={`${lens.model}-${lens.fiscal_year}`} className="p-0">
+                    {/* In-page expandable breakdown (FR-10) via native <details>. */}
+                    <details className="group">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5">
+                        <span className="flex flex-wrap items-center gap-2.5">
+                          <span className="font-medium text-[var(--color-ink)]">
+                            {MODEL_LABEL[lens.model] ?? lens.model}
+                          </span>
+                          <span className="text-xs text-[var(--color-ink-faint)]">FY{lens.fiscal_year}</span>
+                          {lens.aggregate_value !== null ? (
+                            <span className="font-mono text-sm tabular-nums text-[var(--color-ink-muted)]">
+                              {lens.aggregate_value}
                             </span>
                           ) : null}
-                        </li>
-                      ))}
-                    </ul>
-                    <a href={`/methodology/${lens.model}`}>Methodology →</a>
-                  </details>
-                </section>
-              );
-            })}
-          </div>
+                          {lens.applicability !== "computed" ? (
+                            <Badge variant={applicabilityVariant(lens.applicability)}>
+                              {applicabilityLabel(lens.applicability)}
+                            </Badge>
+                          ) : lens.band_label ? (
+                            <Badge variant={bandTone(lens.band_label)} icon={false}>
+                              {lens.band_label}
+                            </Badge>
+                          ) : null}
+                        </span>
+                        <ChevronIcon className="h-4 w-4 flex-shrink-0 text-[var(--color-ink-faint)] transition-transform group-open:rotate-180" />
+                      </summary>
+
+                      <div className="space-y-4 border-t border-[var(--color-border)] p-5">
+                        {exp ? <p className="text-sm leading-relaxed text-[var(--color-ink-muted)]">{exp.text}</p> : null}
+                        <ul className="space-y-2">
+                          {lens.signals.map((s) => (
+                            <li
+                              key={s.signal_key}
+                              className="flex flex-wrap items-center gap-2 border-b border-[var(--color-border)] pb-2 text-sm last:border-0 last:pb-0"
+                            >
+                              <Badge variant={signalVariant(s.status)}>{s.signal_key}</Badge>
+                              {s.value !== null ? (
+                                <span className="font-mono tabular-nums text-[var(--color-ink-muted)]">{s.value}</span>
+                              ) : null}
+                              {s.provenance.length > 0 ? (
+                                <span className="text-xs text-[var(--color-ink-faint)]">
+                                  {s.provenance.map((p) => `${p.canonical_concept} FY${p.fiscal_year}`).join(", ")}
+                                </span>
+                              ) : null}
+                            </li>
+                          ))}
+                        </ul>
+                        <a
+                          href={`/methodology/${lens.model}`}
+                          className="inline-flex items-center gap-1 text-sm font-medium text-[var(--color-brand-600)] hover:text-[var(--color-brand-700)]"
+                        >
+                          Methodology →
+                        </a>
+                      </div>
+                    </details>
+                  </Card>
+                );
+              })}
+            </div>
+          </section>
         );
       })}
     </main>

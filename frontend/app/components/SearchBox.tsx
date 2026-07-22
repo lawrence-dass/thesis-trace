@@ -4,6 +4,8 @@
 // honest "not yet covered" for anything outside the universe (AD-10).
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { SearchIcon } from "./ui/icons";
+import { Button } from "./ui/Button";
 
 export default function SearchBox() {
   const router = useRouter();
@@ -16,17 +18,18 @@ export default function SearchBox() {
   }
 
   return (
-    <form onSubmit={go} style={{ margin: "1rem 0" }}>
-      <input
-        value={ticker}
-        onChange={(e) => setTicker(e.target.value)}
-        placeholder="Search a ticker (e.g. SHOP)"
-        aria-label="Ticker search"
-        style={{ padding: "0.5rem", fontSize: "1rem", width: 240 }}
-      />
-      <button type="submit" style={{ padding: "0.5rem 1rem", marginLeft: 8 }}>
-        Search
-      </button>
+    <form onSubmit={go} className="flex max-w-md items-center gap-2 pt-1">
+      <div className="relative flex-1">
+        <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-ink-faint)]" />
+        <input
+          value={ticker}
+          onChange={(e) => setTicker(e.target.value)}
+          placeholder="Search a ticker (e.g. SHOP)"
+          aria-label="Ticker search"
+          className="w-full rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] py-2.5 pl-9 pr-3 text-sm text-[var(--color-ink)] outline-none placeholder:text-[var(--color-ink-faint)] focus:border-[var(--color-brand-500)] focus:ring-2 focus:ring-[var(--color-brand-100)]"
+        />
+      </div>
+      <Button type="submit">Search</Button>
     </form>
   );
 }

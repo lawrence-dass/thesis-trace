@@ -2,15 +2,17 @@
 // Presentation only (AD-8). No auth (D4).
 
 import SearchBox from "./components/SearchBox";
+import { Card } from "./components/ui/Card";
+import { ArrowRightIcon } from "./components/ui/icons";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
-type Card = { cik: string; ticker: string; name: string; last_updated: string | null };
+type CompanyCard = { cik: string; ticker: string; name: string; last_updated: string | null };
 
-async function getCompanies(): Promise<Card[]> {
+async function getCompanies(): Promise<CompanyCard[]> {
   try {
     const res = await fetch(`${API_BASE_URL}/api/companies`, { cache: "no-store" });
-    return (await res.json()) as Card[];
+    return (await res.json()) as CompanyCard[];
   } catch {
     return [];
   }
@@ -20,32 +22,51 @@ export default async function Home() {
   const companies = await getCompanies();
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", maxWidth: 760 }}>
-      <h1>ThesisTrace</h1>
-      <p>Evidence-backed equity intelligence. Deterministic forensic scores with provenance — never an LLM-invented number.</p>
+    <main className="space-y-10">
+      <section className="space-y-3">
+        <p className="text-sm font-semibold uppercase tracking-wide text-[var(--color-brand-600)]">
+          Evidence-backed equity intelligence
+        </p>
+        <h1 className="text-3xl font-semibold tracking-tight text-[var(--color-ink)] sm:text-4xl">
+          Deterministic forensic scores, traced to the filing.
+        </h1>
+        <p className="max-w-2xl text-base leading-relaxed text-[var(--color-ink-muted)]">
+          Four transparent lenses computed directly from SEC EDGAR filings — never an LLM-invented
+          number. Every score links back to the exact line item it came from.
+        </p>
+        <SearchBox />
+      </section>
 
-      <SearchBox />
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
+          Company Universe
+        </h2>
 
-      <h2>Company Universe</h2>
-      {companies.length === 0 ? (
-        <p style={{ color: "#666" }}>No companies available yet.</p>
-      ) : (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
-          {companies.map((c) => (
-            <a
-              key={c.cik}
-              href={`/company/${c.ticker}`}
-              style={{ border: "1px solid #ccc", borderRadius: 6, padding: "0.75rem 1rem", minWidth: 180, textDecoration: "none", color: "inherit" }}
-            >
-              <div style={{ fontWeight: 600 }}>{c.ticker}</div>
-              <div>{c.name}</div>
-              {c.last_updated ? (
-                <div style={{ color: "#666", fontSize: "0.85rem" }}>Updated {c.last_updated.slice(0, 10)}</div>
-              ) : null}
-            </a>
-          ))}
-        </div>
-      )}
+        {companies.length === 0 ? (
+          <Card className="text-center text-[var(--color-ink-muted)]">
+            No companies available yet — the pipeline hasn&apos;t run for this environment.
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {companies.map((c) => (
+              <Card key={c.cik} href={`/company/${c.ticker}`} className="group flex flex-col gap-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-lg font-semibold tracking-tight text-[var(--color-ink)]">
+                    {c.ticker}
+                  </span>
+                  <ArrowRightIcon className="h-4 w-4 text-[var(--color-ink-faint)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--color-brand-600)]" />
+                </div>
+                <div className="text-sm text-[var(--color-ink-muted)]">{c.name}</div>
+                {c.last_updated ? (
+                  <div className="pt-2 text-xs text-[var(--color-ink-faint)]">
+                    Updated {c.last_updated.slice(0, 10)}
+                  </div>
+                ) : null}
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
     </main>
   );
 }
