@@ -129,6 +129,94 @@ async def test_shares_outstanding_prefers_point_in_time_over_dei_and_ignores_wro
 
 
 @requires_db
+async def test_quarterly_breakdown_fact_does_not_shadow_annual_figure(db_session) -> None:
+    """Regression guard (AD-3/AD-11): a 10-K's "selected quarterly financial
+    data" footnote tags quarterly sub-periods under the SAME accession/fy/fp as
+    the true annual figure — confirmed live 2026-07-23 against CP's
+    us-gaap:Revenues, fy=2016, where a Q4 fact (end=2016-12-31, ~90-day span)
+    and the genuine full-year fact (end=2016-12-31, ~365-day span) shared the
+    same period_end and so landed in the same (concept, fiscal_year) candidate
+    pool, spuriously flagging the clean annual figure as ambiguous_selection.
+    Grouping must exclude non-full-year duration facts before selection."""
+    cik = await _ingest(db_session)
+    # A Q4 2024 revenue breakdown fact, same accession/period_end as the real
+    # annual FY2024 Revenues fact (8,880,000,000) but a ~90-day span and a
+    # different value — must NOT contend for the fiscal_year=2024 slot.
+    db_session.add(
+        RawFact(
+            accession_number="0001594805-25-000010",
+            taxonomy="us-gaap",
+            concept="Revenues",
+            unit="USD",
+            period_start=date(2024, 10, 1),
+            period_end=date(2024, 12, 31),
+            value=2300000000,
+            source="company_facts",
+            content_hash="q4-2024-revenue-hash",
+            fetched_at=datetime(2020, 1, 1, tzinfo=timezone.utc),
+        )
+    )
+    await db_session.flush()
+
+    counts = await canonicalize_issuer(db_session, cik)
+    assert counts["ambiguities_flagged"] == 0
+
+    revenue_2024 = (
+        await db_session.execute(
+            select(CanonicalFact).where(
+                CanonicalFact.canonical_concept == "revenue", CanonicalFact.fiscal_year == 2024
+            )
+        )
+    ).scalars().one()
+    assert revenue_2024.value == 8880000000  # the annual figure, not the Q4 breakdown
+
+
+@requires_db
+async def test_standard_adoption_opening_balance_does_not_shadow_closing_balance(db_session) -> None:
+    """Regression guard (AD-3/AD-11): a new-accounting-standard adoption (e.g.
+    ASC 606/842) is commonly disclosed with a cumulative-effect balance "as of
+    the beginning of the year" — an instantaneous fact dated the FIRST day of
+    the fiscal year, alongside the true closing balance dated the LAST day,
+    both falling in the SAME calendar year. Confirmed live 2026-07-23 against
+    QSR's FY2018 10-K: us-gaap:Assets tagged at both end=2018-01-01 (opening,
+    adjusted balance) and end=2018-12-31 (true closing balance) — grouping by
+    period_end.year alone put both in fiscal_year=2018, spuriously flagging the
+    clean closing balance as ambiguous_selection. Must be resolved by day-of-
+    year proximity to the issuer's own recognized fiscal-year-end, not by
+    calendar year alone."""
+    cik = await _ingest(db_session)
+    # A Jan-1-2024 "opening balance" Assets fact, same accession as the real
+    # 2024-12-31 closing balance (13,100,000,000 per the fixture) but a
+    # different value — must NOT contend for the fiscal_year=2024 slot.
+    db_session.add(
+        RawFact(
+            accession_number="0001594805-25-000010",
+            taxonomy="us-gaap",
+            concept="Assets",
+            unit="USD",
+            period_end=date(2024, 1, 1),
+            value=12000000000,
+            source="company_facts",
+            content_hash="jan1-2024-assets-hash",
+            fetched_at=datetime(2020, 1, 1, tzinfo=timezone.utc),
+        )
+    )
+    await db_session.flush()
+
+    counts = await canonicalize_issuer(db_session, cik)
+    assert counts["ambiguities_flagged"] == 0
+
+    assets_2024 = (
+        await db_session.execute(
+            select(CanonicalFact).where(
+                CanonicalFact.canonical_concept == "total_assets", CanonicalFact.fiscal_year == 2024
+            )
+        )
+    ).scalars().one()
+    assert assets_2024.value == 13100000000  # the true closing balance, not the Jan-1 opening one
+
+
+@requires_db
 async def test_validation_flags_identity_violation(db_session) -> None:
     cik = await _ingest(db_session)
     await canonicalize_issuer(db_session, cik)

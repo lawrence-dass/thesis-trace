@@ -217,6 +217,28 @@ class MarketPrice(Base):
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class FxRate(Base):
+    """Persisted historical FX rates (AD-11 currency fix, 2026-07-23). Confirmed
+    live: some Phase-1 filers (CP) report all financial-statement figures in a
+    non-USD currency (CAD), while Tiingo's price is always USD — Altman's X4
+    (market value of equity / total liabilities) would otherwise silently divide
+    mismatched currencies. Source is the Bank of Canada Valet API (free, no key,
+    the authoritative central-bank rate for this exact pair) — never a live call
+    during a read (AD-1), same discipline as market_prices."""
+
+    __tablename__ = "fx_rates"
+    __table_args__ = (
+        UniqueConstraint("currency_pair", "rate_date", "source", name="uq_fx_rates_key"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    currency_pair: Mapped[str] = mapped_column(String(8), index=True)  # e.g. "USDCAD"
+    rate_date: Mapped[date] = mapped_column(Date)
+    rate: Mapped[float] = mapped_column(Numeric(18, 8))  # NUMERIC (AD-15)
+    source: Mapped[str] = mapped_column(String(32), default="bank_of_canada")
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class ScoreInput(Base):
     __tablename__ = "score_inputs"
 
@@ -225,6 +247,7 @@ class ScoreInput(Base):
     signal_key: Mapped[str] = mapped_column(String(64))
     canonical_fact_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("canonical_facts.id"))
     market_price_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("market_prices.id"))  # Altman (AD-14)
+    fx_rate_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("fx_rates.id"))  # Altman currency fix (AD-11, AD-19)
 
     run: Mapped["ScoreRun"] = relationship(back_populates="inputs")
 

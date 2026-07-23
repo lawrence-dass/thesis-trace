@@ -24,6 +24,7 @@ from app.models import (
 )
 from canonicalization.mappings import MAPPING_VERSION
 from formulas.engine import load_spec
+from raw_store.fx_rates import get_fx_rate_on_or_before
 from raw_store.market_prices import get_fye_close
 from scoring.altman import compute_altman
 from scoring.beneish import compute_beneish
@@ -124,11 +125,33 @@ async def score_altman(session: AsyncSession, issuer_cik: str, fiscal_year: int)
     fact = await _canonical_fact_for_year(session, issuer_cik, fiscal_year)
     market_close = None
     market_price_id = None
+    fx_rate_id = None
     if fact is not None:
         mp = await get_fye_close(session, issuer_cik, fact.period_end)
         if mp is not None:
             market_close = Decimal(str(mp.close_price))
             market_price_id = mp.id
+
+            # Currency fix (2026-07-23, confirmed live against real filings): Tiingo's
+            # close price is always USD, but some filers (e.g. CP) report every
+            # financial-statement figure in a different currency (CAD) — X1/X2/X3/X5
+            # are automatically internally consistent (all raw XBRL facts share one
+            # currency), but X4 would silently divide a USD numerator by a non-USD
+            # denominator without this. Convert into the issuer's own reporting
+            # currency using the Bank of Canada's own rate; if no rate is available
+            # for the date, X4 is insufficient_data rather than silently wrong.
+            reporting_currency = facts.unit("total_assets", fiscal_year)
+            if reporting_currency and reporting_currency != "USD":
+                fx = await get_fx_rate_on_or_before(session, f"USD{reporting_currency}", fact.period_end)
+                if fx is not None:
+                    market_close = market_close * Decimal(str(fx.rate))
+                    fx_rate_id = fx.id
+                else:
+                    # No FX rate for this date — market_price_id must also clear, or
+                    # the ScoreInput link below would misleadingly point to a USD
+                    # price that was never actually used in the (insufficient_data) X4.
+                    market_close = None
+                    market_price_id = None
 
     result = compute_altman(
         facts,
@@ -164,9 +187,17 @@ async def score_altman(session: AsyncSession, issuer_cik: str, fiscal_year: int)
                 threshold_ref=spec.formula_version,
             )
         )
-    # Link the market price used, if any.
+    # Link the market price (and, if the issuer's currency required conversion,
+    # the FX rate) actually used, if any.
     if market_price_id is not None:
-        session.add(ScoreInput(score_run_id=run.id, signal_key="x4_market_value_equity", market_price_id=market_price_id))
+        session.add(
+            ScoreInput(
+                score_run_id=run.id,
+                signal_key="x4_market_value_equity",
+                market_price_id=market_price_id,
+                fx_rate_id=fx_rate_id,
+            )
+        )
     await session.flush()
     return run
 

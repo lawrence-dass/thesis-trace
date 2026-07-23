@@ -27,10 +27,29 @@ A cloud session tried to resume the golden-dataset investigation (below) per thi
 | Application code | **Epics 1–4 implemented** — all four models, Verdict/Methodology/Explanation, Discovery & Comparison. Verified against **real** EDGAR + Tiingo data for all 4 companies (2026-07-21), not just fixtures. 48 backend tests green. | `backend/`, `frontend/`, `db/` |
 | Frontend design system | **Done 2026-07-21** — Tailwind v4 + semantic tokens (tri-state signal palette), reusable UI primitives, all 4 pages restyled. Lawrence confirmed it looks good. | `frontend/app/globals.css`, `frontend/app/components/ui/` |
 | Deployment | **Not done — local only.** Everything so far runs against a local Docker Postgres + local `uvicorn`/`next dev`. `render.yaml` exists but nothing has actually been pushed to Render/Vercel/a real Supabase project yet. | — |
-| Golden-dataset verification (SM-1 / PRD OQ1) | **IN PROGRESS, paused 2026-07-22 mid-investigation** — see the section below, read it before doing anything else. | `backend/tests/golden/phase1_golden.yaml` |
-| Git repo / GitHub | **Initialized** (`lawrence-dass/thesis-trace`), Phase 1 + design system merged to `main` via PRs #1–#6. Branch-per-session + PR workflow is now binding — see `CLAUDE.md`. | — |
+| Golden-dataset verification (SM-1 / PRD OQ1) | **IN PROGRESS — 7 correctness bugs found and fixed 2026-07-23 (PR #9, not yet merged); hand-verification itself not yet started.** See the section below. | `backend/tests/golden/phase1_golden.yaml` |
+| Git repo / GitHub | **Initialized** (`lawrence-dass/thesis-trace`), Phase 1 + design system merged to `main` via PRs #1–#6, live-data bug fixes via PR #7/#8. PR #9 open (canonicalization/FX fixes below). Branch-per-session + PR workflow is now binding — see `CLAUDE.md`. | — |
 
-## 🔴 IN PROGRESS: Golden-dataset verification (started 2026-07-22, paused mid-investigation)
+## 🟡 Round 2 of the golden-dataset investigation — 7 more bugs fixed, PR #9 open (2026-07-23)
+
+Resumed the investigation below and, before touching the actual hand-verification work, found and fixed seven more real correctness bugs (full detail in PR #9's description and its commit message — this is a summary):
+
+1. **SHOP's total_liabilities never resolved** (SHOP never tags `us-gaap:Liabilities`) — added `stockholders_equity` mapping + a derived `total_liabilities = total_assets - stockholders_equity` fallback (accounting identity, verified exact against real SHOP figures).
+2. **Beneish never computed for any company** — `cogs`/`sga`/`long_term_debt` never resolved. Added verified priority-ordered fallback tags (this closes the item the 2026-07-22 note below flagged as the next concrete step).
+3. **CP's revenue/net_income missing 2014-2021** — added `Revenues`/`ProfitLoss` fallback mappings.
+4. **CP's Altman X4 silently mixed USD (Tiingo price) and CAD (CP's own reporting currency)** — added a Bank of Canada Valet API integration (new `fx_rates` table, `backend/ingestion/fx.py`, `backend/raw_store/fx_rates.py`) to convert market value of equity into CAD before computing X4. Lawrence explicitly chose this over marking Altman insufficient_data or sourcing a CAD price feed.
+5. **`ParsedFiling.fiscal_year_end` corrupted by dei cover-page dates** winning a naive first-or-max selection over the true us-gaap fiscal-year-end — this was silently misdating every FX-rate and Tiingo-price lookup keyed off it.
+6. **10-K/A amendments silently overrode the original 10-K's more reliable fiscal_year_end** in per-fiscal-year filing lookups — added a shared `_primary_filing_per_year` helper (mirrors AD-3's as-originally-filed principle).
+7. **Canonicalization grouped raw facts purely by `period_end.year`**, causing two distinct real collisions: a 10-K's quarterly "selected financial data" footnote sharing the true annual figure's `period_end` (CP revenue/ebit, 2014-2021), and an accounting-standard-adoption "opening balance as of Jan 1" snapshot landing in the same calendar year as the true Dec-31 closing balance (QSR FY2018/2019 balance sheet). Fixed by filtering candidates to full-year-duration facts whose `period_end` matches the issuer's own recognized fiscal-year-end day (with tolerance, since OTEX's FYE occasionally shifts a few days off June 30).
+8. **QSR's FY2016 cash_from_operations** used a `NetCashProvidedByUsedInOperatingActivitiesContinuingOperations` tag variant never in the mapping table — added the fallback.
+
+Every fix has a regression test verified (via git-stash) to fail on the pre-fix code and pass on the fix. Full suite: 51 passed, 1 skipped (up from 48). Verified against real EDGAR data via a clean-slate database rebuild + full live pipeline re-run across all 4 companies, not just fixtures or reasoning.
+
+**Left correctly flagged, not "fixed":** OTEX's `shares_outstanding` FY2008 has a genuine 1000x scale inconsistency between two of OTEX's own filed comparatives (50,780 vs 50,780,000 — a real filer data-quality issue in EDGAR itself). Per AD-3's never-guess rule, this stays `needs_review` rather than picking one value by heuristic.
+
+**Next step:** merge PR #9 (Lawrence's call, not done automatically), then proceed to the actual hand-verification work described in the original investigation section below — the concept-mapping/computation groundwork should now be solid enough to do that without it being invalidated by yet another mapping gap.
+
+## Golden-dataset verification — original investigation (started 2026-07-22)
 
 Lawrence chose this as the next priority over deploying or starting Phase 2: **PRD Open Question 1 / success metric SM-1** ("100% of scores match a hand-verified or published golden dataset") is still unresolved. The existing `backend/tests/golden/phase1_golden.yaml` file's header literally says **"⚠️ PLACEHOLDER VALUES — NOT YET AUTHORITATIVE"** — even Shopify's "golden" values are just characterization values computed from a synthetic fixture, not real hand-verified figures. CP/QSR/OTEX have zero golden coverage (`status: pending_fixture`).
 

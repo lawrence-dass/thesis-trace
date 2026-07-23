@@ -36,6 +36,62 @@ def test_zero_pad_cik() -> None:
     assert zero_pad_cik(1594805) == "0001594805"
 
 
+def test_fiscal_year_end_ignores_dei_cover_page_dates() -> None:
+    """Regression guard: a dei cover-page fact (e.g. shares-outstanding-as-of-
+    filing-date) commonly carries an `end` date *after* the filing's real
+    fiscal-year-end — confirmed live 2026-07-22/23 against CP's actual FY2025
+    10-K (dei end=2026-02-25, real FYE=2025-12-31). Since dei sorts before
+    us-gaap in the real payload and a naive parse takes whichever entry it
+    sees first (or even the max end across ALL taxonomies), this can silently
+    misdate `fiscal_year_end` by ~2 months — corrupting every Tiingo/FX price
+    lookup keyed off it. The parser must derive fiscal_year_end from us-gaap
+    facts only."""
+    payload = {
+        "cik": 1,
+        "entityName": "Test Co",
+        "facts": {
+            "dei": {
+                "EntityCommonStockSharesOutstanding": {
+                    "units": {
+                        "shares": [
+                            {
+                                "end": "2026-02-25",  # filing-date-dated, LATER than the real FYE
+                                "val": 100,
+                                "accn": "0000000000-26-000001",
+                                "fy": 2025,
+                                "fp": "FY",
+                                "form": "10-K",
+                                "filed": "2026-02-26",
+                            }
+                        ]
+                    }
+                }
+            },
+            "us-gaap": {
+                "Assets": {
+                    "units": {
+                        "USD": [
+                            {
+                                "end": "2025-12-31",  # the real fiscal-year-end
+                                "val": 1000,
+                                "accn": "0000000000-26-000001",
+                                "fy": 2025,
+                                "fp": "FY",
+                                "form": "10-K",
+                                "filed": "2026-02-26",
+                            }
+                        ]
+                    }
+                }
+            },
+        },
+    }
+    parsed = parse_company_facts(payload)
+    filing = parsed.filings["0000000000-26-000001"]
+    assert filing.fiscal_year == 2025
+    assert filing.fiscal_year_end == "2025-12-31"  # not 2026-02-25
+
+
 @requires_db
 async def test_persist_is_idempotent(db_session) -> None:
     parsed = parse_company_facts(_payload())
