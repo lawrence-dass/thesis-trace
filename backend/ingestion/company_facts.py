@@ -57,8 +57,29 @@ def parse_company_facts(payload: dict, *, source: str = "company_facts") -> Pars
 
     Only annual 10-K / 10-K/A facts (fp == 'FY') are kept — Phase 1 scores from
     annual filings (PRD FR-3/FR-4/FR-6/FR-7).
+
+    A single accession's facts span multiple (fy, end) pairs — its own primary/
+    current period plus one or more prior-year comparatives carried for
+    disclosure, PLUS `dei` cover-page facts (e.g. shares-outstanding-as-of-
+    filing-date) whose `end` is dated to the filing date, *after* the true
+    fiscal-year-end. Confirmed live 2026-07-22/23, two compounding bugs:
+    (1) a naive single pass picking whichever entry is encountered first (dict/
+    list iteration order — `dei` sorts before `us-gaap` in the payload) can
+    associate an entirely wrong (fy, end) with an accession (SHOP's FY2024 10-K
+    was recorded as fiscal_year_end=2023-12-31, a full year off); (2) even a
+    "take the latest end date" fix is wrong if `dei` facts are included in that
+    comparison, since a cover-page fact's filing-date-dated `end` is later than
+    the real fiscal-year-end and wins the max spuriously (CP FY2025 came out as
+    fiscal_year_end=2026-02-25 instead of 2025-12-31). Fixed by restricting the
+    (fy, end) candidate pool to `us-gaap` facts only — genuine financial-
+    statement periods never carry a cover-page "as of filing date" style
+    entry — then taking the latest end among those (the filing's own current
+    period; comparatives are always for an earlier period).
     """
     result = ParsedCompanyFacts(cik=zero_pad_cik(payload["cik"]), entity_name=payload.get("entityName", ""))
+
+    filing_meta: dict[str, dict] = {}  # accn -> {form_type, filed, candidates: [(fy, end)]}
+    all_entries: list[tuple[str, str, str, dict]] = []  # (taxonomy, concept, unit, entry)
 
     for taxonomy, concepts in payload.get("facts", {}).items():
         for concept, concept_body in concepts.items():
@@ -71,27 +92,46 @@ def parse_company_facts(payload: dict, *, source: str = "company_facts") -> Pars
                     accn = entry["accn"]
                     end = entry.get("end")
                     fy = int(entry["fy"])
-                    if accn not in result.filings:
-                        result.filings[accn] = ParsedFiling(
-                            accession_number=accn,
-                            form_type=entry["form"],
-                            filing_date=entry.get("filed", end),
-                            fiscal_year=fy,
-                            fiscal_year_end=end,
-                        )
-                    value = float(entry["val"])
-                    result.facts.append(
-                        ParsedFact(
-                            accession_number=accn,
-                            taxonomy=taxonomy,
-                            concept=concept,
-                            unit=unit,
-                            period_start=entry.get("start"),
-                            period_end=end,
-                            value=value,
-                            fiscal_year=fy,
-                            source=source,
-                            content_hash=_content_hash(taxonomy, concept, unit, entry.get("start"), end, value),
-                        )
+                    meta = filing_meta.setdefault(
+                        accn,
+                        {"form_type": entry["form"], "filed": entry.get("filed", end), "candidates": [], "fallback": []},
                     )
+                    if taxonomy == "us-gaap":  # never dei — see docstring
+                        meta["candidates"].append((fy, end))
+                    else:
+                        # Rare: an accession (e.g. a narrow 10-K/A amending only a
+                        # cover-page/footnote disclosure) with zero us-gaap FY facts.
+                        # Still needs a Filing row or its raw_facts orphan the FK —
+                        # fall back to any taxonomy rather than dropping the filing.
+                        meta["fallback"].append((fy, end))
+                    all_entries.append((taxonomy, concept, unit, entry))
+
+    for accn, meta in filing_meta.items():
+        candidates = meta["candidates"] or meta["fallback"]
+        fy, end = max(candidates, key=lambda pair: pair[1])  # latest end = the filing's own primary period
+        result.filings[accn] = ParsedFiling(
+            accession_number=accn,
+            form_type=meta["form_type"],
+            filing_date=meta["filed"],
+            fiscal_year=fy,
+            fiscal_year_end=end,
+        )
+
+    for taxonomy, concept, unit, entry in all_entries:
+        end = entry.get("end")
+        value = float(entry["val"])
+        result.facts.append(
+            ParsedFact(
+                accession_number=entry["accn"],
+                taxonomy=taxonomy,
+                concept=concept,
+                unit=unit,
+                period_start=entry.get("start"),
+                period_end=end,
+                value=value,
+                fiscal_year=int(entry["fy"]),
+                source=source,
+                content_hash=_content_hash(taxonomy, concept, unit, entry.get("start"), end, value),
+            )
+        )
     return result

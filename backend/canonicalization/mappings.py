@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import ConceptMapping
 
-MAPPING_VERSION = "concepts_v2"
+MAPPING_VERSION = "concepts_v3"
 
 
 @dataclass(frozen=True)
@@ -32,8 +32,19 @@ MAPPING_RULES: tuple[MappingRule, ...] = (
     MappingRule("total_assets", "us-gaap", "Assets"),
     MappingRule("current_assets", "us-gaap", "AssetsCurrent"),
     MappingRule("current_liabilities", "us-gaap", "LiabilitiesCurrent"),
-    MappingRule("net_income", "us-gaap", "NetIncomeLoss"),
-    MappingRule("cash_from_operations", "us-gaap", "NetCashProvidedByUsedInOperatingActivities"),
+    # net_income: CP tags us-gaap:ProfitLoss for years its NetIncomeLoss tag omits
+    # (confirmed live 2026-07-22 — CP is missing NetIncomeLoss for FY2014-2021).
+    MappingRule("net_income", "us-gaap", "NetIncomeLoss", priority=0),
+    MappingRule("net_income", "us-gaap", "ProfitLoss", priority=1),
+    # cash_from_operations: QSR's FY2016 10-K tags the ContinuingOperations variant
+    # instead of the plain concept (confirmed live 2026-07-23) — without this fallback,
+    # the originally-filed FY2016 value never enters the candidate pool at all, leaving
+    # only two later, mutually-conflicting comparative copies (1,269M vs 1,250M) and a
+    # spurious ambiguous_selection where a clean originally-filed figure should win.
+    MappingRule("cash_from_operations", "us-gaap", "NetCashProvidedByUsedInOperatingActivities", priority=0),
+    MappingRule(
+        "cash_from_operations", "us-gaap", "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations", priority=1
+    ),
     # shares_outstanding: NOT sourced from dei:EntityCommonStockSharesOutstanding — that
     # cover-page fact is dated to the 10-K's filing date (commonly 45-75+ days after
     # fiscal year-end for a December filer), not FYE, so it lands in the wrong fiscal-year
@@ -46,17 +57,41 @@ MAPPING_RULES: tuple[MappingRule, ...] = (
     MappingRule("shares_outstanding", "us-gaap", "CommonStockSharesOutstanding", priority=0),
     MappingRule("shares_outstanding", "us-gaap", "WeightedAverageNumberOfSharesOutstandingBasic", priority=1),
     # Altman (Story 2.2)
+    # total_liabilities: SHOP never tags us-gaap:Liabilities at all (confirmed live
+    # 2026-07-22) — its balance sheet reports LiabilitiesAndStockholdersEquity and
+    # StockholdersEquity instead. stockholders_equity is mapped below so
+    # canonicalize.py can derive total_liabilities = total_assets - stockholders_equity
+    # (the basic accounting identity, verified exactly against SHOP's real FY2024/2025
+    # figures) as a last-resort fallback when the direct tag is genuinely absent.
     MappingRule("total_liabilities", "us-gaap", "Liabilities"),
+    MappingRule("stockholders_equity", "us-gaap", "StockholdersEquity"),
     MappingRule("retained_earnings", "us-gaap", "RetainedEarningsAccumulatedDeficit"),
     MappingRule("ebit", "us-gaap", "OperatingIncomeLoss"),
-    MappingRule("revenue", "us-gaap", "Revenues"),
+    # revenue: CP's us-gaap:Revenues tag doesn't cover FY2014-2021 (confirmed live
+    # 2026-07-22) even though it exists as a concept overall; RevenueFromContract...
+    # is the ASC-606-era tag most filers (including CP) switched some years to.
+    MappingRule("revenue", "us-gaap", "Revenues", priority=0),
+    MappingRule("revenue", "us-gaap", "RevenueFromContractWithCustomerExcludingAssessedTax", priority=1),
     # Beneish + Piotroski completeness (Story 2.3)
-    MappingRule("cogs", "us-gaap", "CostOfRevenue"),
-    MappingRule("sga", "us-gaap", "SellingGeneralAndAdministrativeExpense"),
+    # cogs/sga/long_term_debt: none of these 3 concepts ever resolved for any of the
+    # 4 companies under the original single-tag mapping (confirmed live 2026-07-22 —
+    # zero canonical_facts rows existed for any of them). Fallback tags verified live
+    # per company; a company with neither tag (e.g. CP for cogs/sga — a railroad,
+    # plausibly reports functional expense categories instead of a single COGS/SGA
+    # line) correctly resolves to insufficient_data rather than a guess (AD-3).
+    MappingRule("cogs", "us-gaap", "CostOfRevenue", priority=0),
+    MappingRule("cogs", "us-gaap", "CostOfGoodsAndServicesSold", priority=1),
+    MappingRule("sga", "us-gaap", "SellingGeneralAndAdministrativeExpense", priority=0),
+    MappingRule("sga", "us-gaap", "GeneralAndAdministrativeExpense", priority=1),
     MappingRule("receivables", "us-gaap", "AccountsReceivableNetCurrent"),
     MappingRule("ppe_net", "us-gaap", "PropertyPlantAndEquipmentNet"),
     MappingRule("depreciation", "us-gaap", "DepreciationDepletionAndAmortization"),
-    MappingRule("long_term_debt", "us-gaap", "LongTermDebtNoncurrent"),
+    MappingRule("long_term_debt", "us-gaap", "LongTermDebtNoncurrent", priority=0),
+    # CP: verified live 2026-07-22 — no "...Noncurrent" variant exists; the actual
+    # tag CP uses is LongTermDebtAndCapitalLeaseObligations (total, not split into
+    # current/noncurrent), reported in CAD (see the currency note on total_liabilities
+    # above — CP's financials are entirely CAD-denominated).
+    MappingRule("long_term_debt", "us-gaap", "LongTermDebtAndCapitalLeaseObligations", priority=1),
     MappingRule("gross_profit", "us-gaap", "GrossProfit"),
 )
 
