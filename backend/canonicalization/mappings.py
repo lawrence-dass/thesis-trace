@@ -83,9 +83,27 @@ MAPPING_RULES: tuple[MappingRule, ...] = (
     MappingRule("cogs", "us-gaap", "CostOfGoodsAndServicesSold", priority=1),
     MappingRule("sga", "us-gaap", "SellingGeneralAndAdministrativeExpense", priority=0),
     MappingRule("sga", "us-gaap", "GeneralAndAdministrativeExpense", priority=1),
-    MappingRule("receivables", "us-gaap", "AccountsReceivableNetCurrent"),
+    # receivables: QSR tags AccountsNotesAndLoansReceivableNetCurrent (a combined
+    # notes+accounts tag), never AccountsReceivableNetCurrent — confirmed live
+    # 2026-07-23, this made QSR's Beneish insufficient_data for every year, not
+    # just the 2024-2025 window the cogs gap alone would explain. SHOP tags
+    # AccountsAndOtherReceivablesNetCurrent instead — also confirmed live, SHOP's
+    # Beneish never resolved at all under the original single-tag mapping.
+    MappingRule("receivables", "us-gaap", "AccountsReceivableNetCurrent", priority=0),
+    MappingRule("receivables", "us-gaap", "AccountsNotesAndLoansReceivableNetCurrent", priority=1),
+    MappingRule("receivables", "us-gaap", "AccountsAndOtherReceivablesNetCurrent", priority=2),
     MappingRule("ppe_net", "us-gaap", "PropertyPlantAndEquipmentNet"),
-    MappingRule("depreciation", "us-gaap", "DepreciationDepletionAndAmortization"),
+    # depreciation: QSR never tags the combined DepreciationDepletionAndAmortization
+    # concept — it tags the plain Depreciation/DepreciationAndAmortization line
+    # instead (confirmed live 2026-07-23). OTEX switches away from a single total
+    # D&A tag entirely after FY2019 (splits into DepreciationNonproduction +
+    # OtherDepreciationAndAmortization + several Amortization* line items with no
+    # single combined tag) — deriving a total by summing an assumed subset would be
+    # a guess (AD-3), so OTEX's Beneish correctly stays insufficient_data for
+    # FY2020 onward rather than being forced with an unverified derivation.
+    MappingRule("depreciation", "us-gaap", "DepreciationDepletionAndAmortization", priority=0),
+    MappingRule("depreciation", "us-gaap", "DepreciationAndAmortization", priority=1),
+    MappingRule("depreciation", "us-gaap", "Depreciation", priority=2),
     MappingRule("long_term_debt", "us-gaap", "LongTermDebtNoncurrent", priority=0),
     # CP: verified live 2026-07-22 — no "...Noncurrent" variant exists; the actual
     # tag CP uses is LongTermDebtAndCapitalLeaseObligations (total, not split into
