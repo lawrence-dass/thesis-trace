@@ -1,12 +1,13 @@
 # Phase-1 golden dataset for SM-1 (score correctness).
 #
-# ⚠️ PLACEHOLDER VALUES — NOT YET AUTHORITATIVE.
-# Per the standing decision (autopilot), the `expected` numbers below are
-# CHARACTERIZATION values computed from the synthetic committed fixtures, not
-# hand-verified or published figures. They pin current behavior so regressions
-# are caught; they MUST be replaced with hand-verified/published golden values
-# (open question OQ1) before SM-1 can be claimed. Companies without a fixture yet
-# are listed as `pending_fixture` so coverage gaps are explicit, never silent.
+# SHOP is still a placeholder (see the warning on its entry below). QSR is the
+# first genuinely hand-verified entry (2026-07-23): every canonical input was
+# independently cross-checked against QSR's raw EDGAR company-facts JSON
+# (bypassing the pipeline/DB entirely), then all four models were hand-computed
+# from those confirmed-correct figures and matched the pipeline's stored output
+# exactly (Piotroski to the signal, Beneish to all 8 indices, Altman to all 5
+# components). Companies without a fixture yet are listed as `pending_fixture`
+# so coverage gaps are explicit, never silent.
 
 universe: [SHOP, CP, QSR, OTEX]
 
@@ -17,21 +18,45 @@ companies:
     fye_close: 106.20         # Tiingo FYE close for Altman (placeholder)
     fiscal_year: 2024
     expected:
+      # ⚠️ PLACEHOLDER — characterization values from the synthetic fixture,
+      # not yet hand-verified against SHOP's real filings (OQ1 still open for
+      # this company).
       piotroski:
-        f_score: 7          # placeholder (characterization from full fixture)
+        f_score: 7
       sloan:
-        accruals_ratio: 0.033479   # placeholder
+        accruals_ratio: 0.033479
         band: "Low accruals (higher quality)"
       altman:
-        z_score: 20.074491   # placeholder
+        z_score: 20.074491
         band: "Safe"
       beneish:
-        m_score: -2.059996   # placeholder
+        m_score: -2.059996
+        band: "No manipulation flag"
+
+  - ticker: QSR
+    status: active
+    fixture: qsr_company_facts.json
+    # Real EDGAR-filed close, QSR's FY2023 10-K's fiscal-year-end (2023-12-31),
+    # confirmed against the Tiingo price actually stored for that date.
+    fye_close: 78.13
+    fiscal_year: 2023
+    expected:
+      # Hand-verified 2026-07-23 against QSR's real FY2023 10-K figures
+      # (accession 0001618756-24-000020) and its FY2022 comparative
+      # (accession 0001618756-23-000013). See qsr_company_facts.json.
+      piotroski:
+        f_score: 6
+      sloan:
+        accruals_ratio: 0.017123
+        band: "Low accruals (higher quality)"
+      altman:
+        z_score: 1.471660
+        band: "Distress"
+      beneish:
+        m_score: -2.219847
         band: "No manipulation flag"
 
   - ticker: CP
-    status: pending_fixture
-  - ticker: QSR
     status: pending_fixture
   - ticker: OTEX
     status: pending_fixture

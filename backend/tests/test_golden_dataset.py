@@ -65,16 +65,27 @@ async def test_active_companies_match_golden(db_session) -> None:
         cik = await _run_pipeline(db_session, company)
         expected = company["expected"]
 
-        # Piotroski F-Score = count of passing signals.
+        # Piotroski F-Score = count of passing signals. Scoped to this company's own
+        # run — an unscoped query would double-count once a second active golden
+        # company exists in the same session (caught 2026-07-23 when QSR was added:
+        # SHOP's 7 + QSR's 6 leaked together into a bogus F-score of 13).
         piotroski_results = (
-            await db_session.execute(select(ScoreResult).where(ScoreResult.model == Model.piotroski))
+            await db_session.execute(
+                select(ScoreResult)
+                .join(ScoreRun, ScoreRun.id == ScoreResult.score_run_id)
+                .where(ScoreResult.model == Model.piotroski, ScoreRun.issuer_cik == cik)
+            )
         ).scalars().all()
         f_score = sum(1 for r in piotroski_results if r.status == SignalStatus.pass_)
         assert f_score == expected["piotroski"]["f_score"], f"{company['ticker']} Piotroski"
 
-        # Sloan accruals ratio + band.
+        # Sloan accruals ratio + band. Same scoping fix as Piotroski above.
         sloan_result = (
-            await db_session.execute(select(ScoreResult).where(ScoreResult.model == Model.sloan))
+            await db_session.execute(
+                select(ScoreResult)
+                .join(ScoreRun, ScoreRun.id == ScoreResult.score_run_id)
+                .where(ScoreResult.model == Model.sloan, ScoreRun.issuer_cik == cik)
+            )
         ).scalars().one()
         assert abs(float(sloan_result.value) - expected["sloan"]["accruals_ratio"]) < 1e-4, f"{company['ticker']} Sloan ratio"
         assert sloan_result.band_label == expected["sloan"]["band"], f"{company['ticker']} Sloan band"
