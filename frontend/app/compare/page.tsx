@@ -4,6 +4,7 @@
 
 import { Badge, applicabilityLabel, applicabilityVariant, bandTone } from "../components/ui/Badge";
 import { Card } from "../components/ui/Card";
+import { Gauge, type BandClass } from "../components/ui/Gauge";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
@@ -27,6 +28,21 @@ const MODEL_LABEL: Record<string, string> = {
   sloan: "Sloan Accruals",
 };
 
+async function getBands(model: string): Promise<BandClass[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/methodology/${model}`, { cache: "no-store" });
+    const body = (await res.json()) as { bands?: { classes?: BandClass[] } };
+    return body.bands?.classes ?? [];
+  } catch {
+    return [];
+  }
+}
+
+async function getAllBands(): Promise<Record<string, BandClass[]>> {
+  const entries = await Promise.all(MODELS.map(async (m) => [m, await getBands(m)] as const));
+  return Object.fromEntries(entries);
+}
+
 export default async function ComparePage({ searchParams }: { searchParams: Promise<{ tickers?: string }> }) {
   const { tickers } = await searchParams;
   const list = (tickers ?? "").split(",").map((t) => t.trim().toUpperCase()).filter(Boolean).slice(0, 4);
@@ -43,6 +59,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   }
 
   const overviews = await Promise.all(list.map(getOverview));
+  const bandsByModel = await getAllBands();
   const verdictFor = (o: Overview, model: string) => o.verdict?.find((x) => x.model === model);
   const cellKey = (v: VerdictItem | undefined) =>
     !v ? "—" : v.band_label ?? (v.applicability !== "computed" ? v.applicability : String(v.aggregate_value ?? "—"));
@@ -86,18 +103,32 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
                     <td key={i} className="border-b border-[var(--color-border)] p-4">
                       {!v ? (
                         <span className="text-[var(--color-ink-faint)]">—</span>
-                      ) : v.applicability !== "computed" ? (
-                        <Badge variant={applicabilityVariant(v.applicability)}>
-                          {applicabilityLabel(v.applicability)}
-                        </Badge>
-                      ) : v.band_label ? (
-                        <Badge variant={bandTone(v.band_label)} icon={false}>
-                          {v.band_label}
-                        </Badge>
                       ) : (
-                        <span className="font-mono tabular-nums text-[var(--color-ink-muted)]">
-                          {v.aggregate_value ?? "—"}
-                        </span>
+                        <div className="min-w-[110px] space-y-1.5">
+                          {v.applicability !== "computed" ? (
+                            <Badge variant={applicabilityVariant(v.applicability)}>
+                              {applicabilityLabel(v.applicability)}
+                            </Badge>
+                          ) : v.band_label ? (
+                            <Badge variant={bandTone(v.band_label)} icon={false}>
+                              {v.band_label}
+                            </Badge>
+                          ) : (
+                            <span className="font-mono tabular-nums text-[var(--color-ink-muted)]">
+                              {v.aggregate_value ?? "—"}
+                            </span>
+                          )}
+                          {v.aggregate_value !== null &&
+                          v.applicability !== "excluded_out_of_scope" &&
+                          bandsByModel[v.model]?.length ? (
+                            <Gauge
+                              model={v.model}
+                              value={v.aggregate_value}
+                              bandLabel={v.band_label}
+                              bands={bandsByModel[v.model]}
+                            />
+                          ) : null}
+                        </div>
                       )}
                     </td>
                   ))}
