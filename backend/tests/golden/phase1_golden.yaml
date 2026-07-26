@@ -1,13 +1,13 @@
 # Phase-1 golden dataset for SM-1 (score correctness).
 #
-# SHOP is still a placeholder (see the warning on its entry below). QSR is the
-# first genuinely hand-verified entry (2026-07-23): every canonical input was
-# independently cross-checked against QSR's raw EDGAR company-facts JSON
-# (bypassing the pipeline/DB entirely), then all four models were hand-computed
-# from those confirmed-correct figures and matched the pipeline's stored output
-# exactly (Piotroski to the signal, Beneish to all 8 indices, Altman to all 5
-# components). Companies without a fixture yet are listed as `pending_fixture`
-# so coverage gaps are explicit, never silent.
+# SHOP is still a placeholder (see the warning on its entry below). QSR, CP,
+# and OTEX are genuinely hand-verified (2026-07-23/25/26): every canonical
+# input was independently cross-checked against each company's raw EDGAR
+# company-facts JSON (bypassing the pipeline/DB entirely), then all four
+# models were hand-computed from those confirmed-correct figures and matched
+# the pipeline's stored output exactly (Piotroski to the signal, Beneish to
+# all 8 indices, Altman to all 5 components). Companies without a fixture yet
+# are listed as `pending_fixture` so coverage gaps are explicit, never silent.
 
 universe: [SHOP, CP, QSR, OTEX]
 
@@ -16,6 +16,7 @@ companies:
     status: active
     fixture: shop_company_facts.json
     fye_close: 106.20         # Tiingo FYE close for Altman (placeholder)
+    fye_date: "2024-12-31"
     fiscal_year: 2024
     expected:
       # ⚠️ PLACEHOLDER — characterization values from the synthetic fixture,
@@ -39,6 +40,7 @@ companies:
     # Real EDGAR-filed close, QSR's FY2023 10-K's fiscal-year-end (2023-12-31),
     # confirmed against the Tiingo price actually stored for that date.
     fye_close: 78.13
+    fye_date: "2023-12-31"
     fiscal_year: 2023
     expected:
       # Hand-verified 2026-07-23 against QSR's real FY2023 10-K figures
@@ -64,6 +66,7 @@ companies:
     # confirmed live (Tiingo close + Bank of Canada's own published rate for
     # 2023-12-29, the last trading day before the Sunday FYE).
     fye_close: 79.06
+    fye_date: "2023-12-31"
     fx_rate:
       currency_pair: USDCAD
       rate: 1.3226
@@ -88,4 +91,29 @@ companies:
         band: null
 
   - ticker: OTEX
-    status: pending_fixture
+    status: active
+    fixture: otex_company_facts.json
+    # OTEX's fiscal year ends June 30, not Dec 31 — confirmed live against the
+    # real 10-K and the Tiingo close actually stored for that date.
+    fye_close: 41.20
+    fye_date: "2019-06-30"
+    fiscal_year: 2019
+    expected:
+      # Hand-verified 2026-07-26 against OTEX's real FY2019 10-K figures
+      # (accession 0001002638-19-000014) and its FY2018 comparative
+      # (accession 0001002638-18-000022). See otex_company_facts.json.
+      # Notably confirms the "as-originally-filed wins" rule (AD-3) correctly
+      # resolving several genuine restatement conflicts in the real data
+      # (ebit, cash_from_operations, and sga each differ by a small amount
+      # between OTEX's own FY2018 10-K and later filings' comparative column).
+      piotroski:
+        f_score: 7
+      sloan:
+        accruals_ratio: -0.075263
+        band: "Low accruals (higher quality)"
+      altman:
+        z_score: 2.699877
+        band: "Grey"
+      beneish:
+        m_score: -2.884422
+        band: "No manipulation flag"
