@@ -27,10 +27,31 @@ A cloud session tried to resume the golden-dataset investigation (below) per thi
 | Application code | **Epics 1–4 implemented** — all four models, Verdict/Methodology/Explanation, Discovery & Comparison. Verified against **real** EDGAR + Tiingo data for all 4 companies (2026-07-21), not just fixtures. 48 backend tests green. | `backend/`, `frontend/`, `db/` |
 | Frontend design system | **Done 2026-07-21** — Tailwind v4 + semantic tokens (tri-state signal palette), reusable UI primitives, all 4 pages restyled. Lawrence confirmed it looks good. | `frontend/app/globals.css`, `frontend/app/components/ui/` |
 | Deployment | **Not done — local only.** Everything so far runs against a local Docker Postgres + local `uvicorn`/`next dev`. `render.yaml` exists but nothing has actually been pushed to Render/Vercel/a real Supabase project yet. | — |
-| Golden-dataset verification (SM-1 / PRD OQ1) | **IN PROGRESS — QSR FY2023 is the first real, hand-verified golden entry (2026-07-24, `status: active`). CP/OTEX still `pending_fixture`; SHOP's entry is still the old placeholder.** See the sections below. | `backend/tests/golden/phase1_golden.yaml` |
-| Git repo / GitHub | **Initialized** (`lawrence-dass/thesis-trace`), Phase 1 + design system merged to `main` via PRs #1–#6, live-data bug fixes via PR #7/#8, canonicalization/FX + Beneish-coverage fixes via PR #9/#10 (both merged). Branch-per-session + PR workflow is now binding — see `CLAUDE.md`. | — |
+| Golden-dataset verification (SM-1 / PRD OQ1) | **IN PROGRESS — QSR and CP FY2023 are real, hand-verified golden entries (2026-07-24/25, `status: active`). OTEX still `pending_fixture`; SHOP's entry is still the old placeholder.** See the sections below. | `backend/tests/golden/phase1_golden.yaml` |
+| Git repo / GitHub | **Initialized** (`lawrence-dass/thesis-trace`), Phase 1 + design system merged to `main` via PRs #1–#6, live-data bug fixes via PR #7/#8, canonicalization/FX + Beneish-coverage fixes via PR #9/#10, QSR golden entry via PR #11 (all merged). Branch-per-session + PR workflow is now binding — see `CLAUDE.md`. | — |
 
-## 🟢 QSR FY2023 hand-verified — first real golden-dataset entry (2026-07-24)
+## 🟢 CP FY2023 hand-verified — second real golden-dataset entry (2026-07-25)
+
+Same pilot process as QSR below, applied to CP FY2023 — the harder case, since CP reports entirely in CAD and needs the FX conversion. Independently pulled CP's real EDGAR company-facts JSON and cross-checked every canonical input the pipeline had stored; every one matched exactly (including confirming CP's own FY2022 10-K doesn't tag `PropertyPlantAndEquipmentNet` at all — its FY2022 comparative genuinely comes only from the FY2023 10-K, which the pipeline already handled correctly).
+
+| Model | Hand-computed | Pipeline-stored | Match |
+|---|---|---|---|
+| Piotroski F-Score | 6/9 (all 9 signals verified individually) | 6 | ✓ |
+| Sloan accruals ratio | -0.002738 → "Low accruals (higher quality)" | -0.002738 | ✓ |
+| Altman Z-Score | 2.145200 (all 5 components verified individually, incl. the CAD/FX conversion) → "Grey" | 2.145200 | ✓ |
+| Beneish M-Score | N/A — CP genuinely has no COGS/SGA tags (a railroad reporting functional expense categories instead, confirmed live, not a bug) | `insufficient_data` | ✓ (correctly absent) |
+
+Independently confirmed the FX rate too: Bank of Canada's own published USD/CAD rate for 2023-12-29 (the last trading day before the Sunday 2023-12-31 FYE) is 1.3226, exactly matching what's stored in `fx_rates`.
+
+- Added `backend/tests/fixtures/cp_company_facts.json` (real EDGAR payload, CP's FY2022/FY2023 10-Ks, 15 concepts).
+- Extended `test_golden_dataset.py`'s `_run_pipeline` to support an `fx_rate` field per company (needed for any non-USD reporting filer's Altman) and to handle a golden entry whose Beneish `m_score` is genuinely `null` (asserts `insufficient_data`, not skipped).
+- **Also fixed a second, unrelated gap in the same test found while extending it**: the `band` field under `altman` in `phase1_golden.yaml` existed for every company (SHOP, QSR) but nothing had ever actually asserted it — only `z_score` was checked. Added the missing assertion.
+
+Full suite: 51 passed, 1 skipped (unchanged — fixes to an existing test file, no new test files).
+
+**Next step:** only OTEX remains for full SM-1/OQ1 closure, plus a hand-verification pass on SHOP's still-placeholder entry.
+
+## QSR FY2023 hand-verified — first real golden-dataset entry (2026-07-24)
 
 With PR #9 and #10 merged, picked QSR FY2023 as the hand-verification pilot. Independently pulled QSR's real EDGAR company-facts JSON (bypassing the pipeline/DB entirely) and cross-checked every canonical input the pipeline had stored — every single one matched exactly. Then hand-computed all four models from those confirmed-correct figures:
 

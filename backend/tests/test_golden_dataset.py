@@ -20,6 +20,7 @@ from app.models import Model, ScoreResult, ScoreRun, SignalStatus
 from canonicalization.canonicalize import canonicalize_issuer
 from canonicalization.mappings import seed_concept_mappings
 from ingestion.company_facts import parse_company_facts
+from raw_store.fx_rates import upsert_fx_rate
 from raw_store.market_prices import upsert_fye_close
 from raw_store.repository import persist_company_facts
 from scoring.runner import score_altman, score_beneish, score_piotroski, score_sloan
@@ -52,6 +53,15 @@ async def _run_pipeline(db_session, company: dict) -> str:
         await upsert_fye_close(
             db_session, issuer_cik=parsed.cik, price_date=date(fiscal_year, 12, 31), close_price=company["fye_close"]
         )
+        # Non-USD reporting filers (e.g. CP, in CAD) need the FX rate too, or X4
+        # silently divides a USD price by a CAD denominator (AD-11 currency fix).
+        if "fx_rate" in company:
+            await upsert_fx_rate(
+                db_session,
+                currency_pair=company["fx_rate"]["currency_pair"],
+                rate_date=date(fiscal_year, 12, 31),
+                rate=company["fx_rate"]["rate"],
+            )
         await score_altman(db_session, parsed.cik, fiscal_year)
     return parsed.cik
 
@@ -90,7 +100,8 @@ async def test_active_companies_match_golden(db_session) -> None:
         assert abs(float(sloan_result.value) - expected["sloan"]["accruals_ratio"]) < 1e-4, f"{company['ticker']} Sloan ratio"
         assert sloan_result.band_label == expected["sloan"]["band"], f"{company['ticker']} Sloan band"
 
-        # Altman Z.
+        # Altman Z + band. The band assertion was missing before 2026-07-25 — the
+        # `band` field in phase1_golden.yaml existed but nothing checked it.
         altman_run = (
             await db_session.execute(
                 select(ScoreRun).where(ScoreRun.model == Model.altman, ScoreRun.issuer_cik == cik)
@@ -98,10 +109,24 @@ async def test_active_companies_match_golden(db_session) -> None:
         ).scalars().one()
         assert abs(float(altman_run.aggregate_value) - expected["altman"]["z_score"]) < 1e-3, f"{company['ticker']} Altman Z"
 
-        # Beneish M.
+        altman_band_result = (
+            await db_session.execute(
+                select(ScoreResult).where(ScoreResult.score_run_id == altman_run.id, ScoreResult.band_label.is_not(None))
+            )
+        ).scalars().one()
+        assert altman_band_result.band_label == expected["altman"]["band"], f"{company['ticker']} Altman band"
+
+        # Beneish M. A null expected m_score means the golden entry asserts the
+        # model genuinely CANNOT compute for this company (e.g. CP has no COGS/SGA
+        # tags at all, a real railroad reporting characteristic, not a bug) — the
+        # ScoreRun still exists (score_beneish always writes one) but its aggregate
+        # stays None, which must be confirmed rather than silently skipped.
         beneish_run = (
             await db_session.execute(
                 select(ScoreRun).where(ScoreRun.model == Model.beneish, ScoreRun.issuer_cik == cik)
             )
         ).scalars().one()
-        assert abs(float(beneish_run.aggregate_value) - expected["beneish"]["m_score"]) < 1e-3, f"{company['ticker']} Beneish M"
+        if expected["beneish"]["m_score"] is None:
+            assert beneish_run.aggregate_value is None, f"{company['ticker']} Beneish expected insufficient_data"
+        else:
+            assert abs(float(beneish_run.aggregate_value) - expected["beneish"]["m_score"]) < 1e-3, f"{company['ticker']} Beneish M"

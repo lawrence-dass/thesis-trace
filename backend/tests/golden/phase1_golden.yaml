@@ -57,6 +57,35 @@ companies:
         band: "No manipulation flag"
 
   - ticker: CP
-    status: pending_fixture
+    status: active
+    fixture: cp_company_facts.json
+    # CP reports entirely in CAD (AD-11 currency fix) — Tiingo's close is USD,
+    # so Altman's X4 needs the matching USD/CAD rate for the same date, both
+    # confirmed live (Tiingo close + Bank of Canada's own published rate for
+    # 2023-12-29, the last trading day before the Sunday FYE).
+    fye_close: 79.06
+    fx_rate:
+      currency_pair: USDCAD
+      rate: 1.3226
+    fiscal_year: 2023
+    expected:
+      # Hand-verified 2026-07-25 against CP's real FY2023 10-K figures
+      # (accession 0000016875-24-000009) and its FY2022 comparative
+      # (accession 0000016875-23-000008). See cp_company_facts.json.
+      piotroski:
+        f_score: 6
+      sloan:
+        accruals_ratio: -0.002738
+        band: "Low accruals (higher quality)"
+      altman:
+        z_score: 2.145200
+        band: "Grey"
+      beneish:
+        # CP genuinely has no COGS/SGA tags at all (confirmed live: a railroad
+        # reporting functional expense categories instead) — insufficient_data
+        # is the correct, real outcome here, not a bug to chase.
+        m_score: null
+        band: null
+
   - ticker: OTEX
     status: pending_fixture
