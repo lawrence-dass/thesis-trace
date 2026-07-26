@@ -27,10 +27,33 @@ A cloud session tried to resume the golden-dataset investigation (below) per thi
 | Application code | **Epics 1–4 implemented** — all four models, Verdict/Methodology/Explanation, Discovery & Comparison. Verified against **real** EDGAR + Tiingo data for all 4 companies (2026-07-21), not just fixtures. 48 backend tests green. | `backend/`, `frontend/`, `db/` |
 | Frontend design system | **Done 2026-07-21** — Tailwind v4 + semantic tokens (tri-state signal palette), reusable UI primitives, all 4 pages restyled. Lawrence confirmed it looks good. | `frontend/app/globals.css`, `frontend/app/components/ui/` |
 | Deployment | **Not done — local only.** Everything so far runs against a local Docker Postgres + local `uvicorn`/`next dev`. `render.yaml` exists but nothing has actually been pushed to Render/Vercel/a real Supabase project yet. | — |
-| Golden-dataset verification (SM-1 / PRD OQ1) | **IN PROGRESS — QSR and CP FY2023 are real, hand-verified golden entries (2026-07-24/25, `status: active`). OTEX still `pending_fixture`; SHOP's entry is still the old placeholder.** See the sections below. | `backend/tests/golden/phase1_golden.yaml` |
-| Git repo / GitHub | **Initialized** (`lawrence-dass/thesis-trace`), Phase 1 + design system merged to `main` via PRs #1–#6, live-data bug fixes via PR #7/#8, canonicalization/FX + Beneish-coverage fixes via PR #9/#10, QSR golden entry via PR #11 (all merged). Branch-per-session + PR workflow is now binding — see `CLAUDE.md`. | — |
+| Golden-dataset verification (SM-1 / PRD OQ1) | **NEARLY CLOSED — QSR, CP, and OTEX are all real, hand-verified golden entries (2026-07-24/25/26, `status: active`). Only SHOP's entry is still the old placeholder** (it's marked `active` too, but that field currently just means "has a fixture," not "hand-verified" — see the note below). See the sections below. | `backend/tests/golden/phase1_golden.yaml` |
+| Git repo / GitHub | **Initialized** (`lawrence-dass/thesis-trace`), Phase 1 + design system merged to `main` via PRs #1–#6, live-data bug fixes via PR #7/#8, canonicalization/FX + Beneish-coverage fixes via PR #9/#10, QSR/CP golden entries via PR #11/#12 (all merged). Branch-per-session + PR workflow is now binding — see `CLAUDE.md`. | — |
 
-## 🟢 CP FY2023 hand-verified — second real golden-dataset entry (2026-07-25)
+## 🟢 OTEX FY2019 hand-verified — third and final pilot company (2026-07-26)
+
+Same process again, for OTEX FY2019 — the most instructive pilot of the three, since it surfaced several genuine restatement conflicts in the real EDGAR data (not bugs — the "as-originally-filed wins" rule, AD-3, is exactly what resolves these correctly):
+
+| Model | Hand-computed | Pipeline-stored | Match |
+|---|---|---|---|
+| Piotroski F-Score | 7/9 (all 9 signals verified individually) | 7 | ✓ |
+| Sloan accruals ratio | -0.075263 → "Low accruals (higher quality)" | -0.075263 | ✓ |
+| Altman Z-Score | 2.699877 (all 5 components verified individually) → "Grey" | 2.699877 | ✓ |
+| Beneish M-Score | -2.884422 (all 8 indices verified individually) → "No manipulation flag" | -2.884422 | ✓ |
+
+Notable findings while independently pulling OTEX's real EDGAR data (all correctly handled by the existing pipeline, not new bugs):
+
+- **OTEX's `total_liabilities` is derived, not tagged** — OTEX never tags `us-gaap:Liabilities` at all (same situation as SHOP); the `total_assets - stockholders_equity` fallback from PR #9 correctly covers it too, not just SHOP as originally documented.
+- **Three genuine restatement conflicts**, each correctly resolved by preferring the originally-filed figure over a later comparative that differs slightly: FY2018's `ebit` (505,403,000 originally filed vs. 506,693,000 restated in later filings), `cash_from_operations` (709,885,000 vs. 708,081,000), and `sga` (205,313,000 vs. 205,227,000).
+- **Different fallback tags win in different years for the same concept** — FY2018's `cogs` resolves via `CostOfRevenue` (priority 0) while FY2019's resolves via `CostOfGoodsAndServicesSold` (priority 1, since OTEX's FY2019 10-K doesn't tag `CostOfRevenue` at all) — both correctly reachable through the existing priority-ordered fallback chain.
+
+**Also fixed a real bug in the test harness found while wiring OTEX up**: `_run_pipeline` hardcoded `date(fiscal_year, 12, 31)` for the FYE market-price lookup date — correct for SHOP/QSR/CP (all December fiscal-year-ends) but wrong for OTEX, whose fiscal year ends June 30. Would have silently produced `insufficient_data` for Altman instead of matching the hand-verified value. Fixed by adding an explicit `fye_date` field to each golden entry instead of assuming Dec 31.
+
+Added `backend/tests/fixtures/otex_company_facts.json` (real EDGAR payload, OTEX's FY2018/FY2019 10-Ks, 20 concepts) and flipped OTEX's `phase1_golden.yaml` entry to `status: active`. Full suite: 51 passed, 1 skipped — and for the first time, zero "pending coverage" warning, since all four companies in the Phase-1 universe now have a golden-dataset fixture.
+
+**What's left for full SM-1/OQ1 closure**: only SHOP's own entry, still the original placeholder from before this investigation began. Worth the same hand-verification pass — `status: active` on that entry currently only certifies "has a fixture," not "hand-verified against real filings," which remains a latent trap in the data model (the two meanings share one field) worth fixing if this pattern continues.
+
+## CP FY2023 hand-verified — second real golden-dataset entry (2026-07-25)
 
 Same pilot process as QSR below, applied to CP FY2023 — the harder case, since CP reports entirely in CAD and needs the FX conversion. Independently pulled CP's real EDGAR company-facts JSON and cross-checked every canonical input the pipeline had stored; every one matched exactly (including confirming CP's own FY2022 10-K doesn't tag `PropertyPlantAndEquipmentNet` at all — its FY2022 comparative genuinely comes only from the FY2023 10-K, which the pipeline already handled correctly).
 

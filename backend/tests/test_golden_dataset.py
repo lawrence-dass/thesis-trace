@@ -50,8 +50,14 @@ async def _run_pipeline(db_session, company: dict) -> str:
     await score_sloan(db_session, parsed.cik, fiscal_year)
     await score_beneish(db_session, parsed.cik, fiscal_year)
     if "fye_close" in company:
+        # fye_date must be the issuer's OWN fiscal-year-end, not assumed Dec 31 —
+        # OTEX's is June 30. score_altman looks up the price by the canonical
+        # fact's real period_end, so a hardcoded date(fiscal_year, 12, 31) would
+        # silently miss for any non-calendar-FYE filer and Altman would come back
+        # insufficient_data instead of matching the hand-verified golden value.
+        fye_date = date.fromisoformat(company["fye_date"])
         await upsert_fye_close(
-            db_session, issuer_cik=parsed.cik, price_date=date(fiscal_year, 12, 31), close_price=company["fye_close"]
+            db_session, issuer_cik=parsed.cik, price_date=fye_date, close_price=company["fye_close"]
         )
         # Non-USD reporting filers (e.g. CP, in CAD) need the FX rate too, or X4
         # silently divides a USD price by a CAD denominator (AD-11 currency fix).
@@ -59,7 +65,7 @@ async def _run_pipeline(db_session, company: dict) -> str:
             await upsert_fx_rate(
                 db_session,
                 currency_pair=company["fx_rate"]["currency_pair"],
-                rate_date=date(fiscal_year, 12, 31),
+                rate_date=fye_date,
                 rate=company["fx_rate"]["rate"],
             )
         await score_altman(db_session, parsed.cik, fiscal_year)
