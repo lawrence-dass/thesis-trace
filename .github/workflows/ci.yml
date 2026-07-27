@@ -24,6 +24,10 @@ jobs:
           --health-retries 5
 
     env:
+      # Alembic's env.py reads DATABASE_URL (not TEST_DATABASE_URL) to build the
+      # migration engine; both point at the same service-container DB in CI,
+      # unlike local dev's separate dev/test databases.
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/thesistrace_test
       TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/thesistrace_test
       EDGAR_CONTACT: "ThesisTrace CI ci@example.com"
 
