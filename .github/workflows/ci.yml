@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: thesistrace_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # Alembic's env.py reads DATABASE_URL (not TEST_DATABASE_URL) to build the
+      # migration engine; both point at the same service-container DB in CI,
+      # unlike local dev's separate dev/test databases.
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/thesistrace_test
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/thesistrace_test
+      EDGAR_CONTACT: "ThesisTrace CI ci@example.com"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.8.17"
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: "backend/uv.lock"
+
+      - name: Install backend deps
+        working-directory: backend
+        run: uv sync --locked --all-groups
+
+      - name: Run migrations
+        # alembic.ini lives at repo root (script_location = db/migrations,
+        # prepend_sys_path = backend) so this must run from there, per README.
+        run: uv run --project backend alembic upgrade head
+
+      - name: Lint (ruff)
+        working-directory: backend
+        run: uv run ruff check .
+
+      - name: Run tests
+        working-directory: backend
+        run: uv run pytest -v
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint (eslint)
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Build
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+        run: npm run build
