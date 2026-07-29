@@ -36,8 +36,9 @@ flowchart TB
         CRON["schedule 0 6 * * *<br/>daily run doubles as<br/>Supabase keep-alive ping"]:::infra
         ING["ingestion/<br/>edgar · company_facts<br/>tiingo · fx"]:::backend
         CANON["canonicalization/<br/>AD-3 tiebreak"]:::backend
+        VALID["validation/<br/>identity checks · advisory"]:::backend
         SCORE["scoring/ + formulas/engine.py<br/>piotroski · altman<br/>beneish · sloan"]:::backend
-        CRON --> ING --> CANON --> SCORE
+        CRON --> ING --> CANON --> VALID --> SCORE
     end
 
     subgraph EXT["EXTERNAL PROVIDERS"]
@@ -96,7 +97,7 @@ services: `DATABASE_URL`, `EDGAR_CONTACT`, `TIINGO_API_KEY`, `LLM_API_KEY`.
 
 | Job | Steps |
 |---|---|
-| `backend` | `postgres:17` service container → `uv sync --locked --all-groups` → `alembic upgrade head` (from repo root) → `ruff check` → `pytest` (54 tests) |
+| `backend` | `postgres:17` service container → `uv sync --locked --all-groups` → `alembic upgrade head` (from repo root) → `ruff check` → `pytest` (57 tests) |
 | `frontend` | Node 22 → `npm ci` → `eslint` → `next build` |
 
 **There is no deploy step.** CI proves the build and tests; nothing is shipped from it.

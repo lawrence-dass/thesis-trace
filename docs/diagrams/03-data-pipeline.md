@@ -1,6 +1,6 @@
 # Data Pipeline
 
-The write path, end to end: `pipeline/run.py` orchestrates **ingest → canonicalize → score**
+The write path, end to end: `pipeline/run.py` orchestrates **ingest → canonicalize → validate → score**
 for each of the four Phase-1 issuers, then commits. The read API never enters this flow — it
 only queries the tables this pipeline wrote.
 
@@ -44,10 +44,22 @@ flowchart TB
         direction LR
         T_CM[("concept_mappings")]:::table
         T_CF[("canonical_facts")]:::table
-        T_DQ[("data_quality_issues<br/>status = needs_review")]:::table
     end
 
-    subgraph SC["6 · Score — scoring/ + formulas/"]
+    subgraph VALST["6 · Validate — validation/checks.py"]
+        direction TB
+        VAL["run_validation · AD-17<br/>accounting-identity checks<br/>over the canonical facts"]:::action
+        VDEDUP{"already raised for<br/>this rule + fiscal year?"}:::decision
+        VNEW["write needs_review row<br/>raised_by = validation"]:::action
+        VSKIP["leave the existing row alone<br/>even if dismissed"]:::action
+        VAL --> VDEDUP
+        VDEDUP -->|no| VNEW
+        VDEDUP -->|yes| VSKIP
+    end
+
+    T_DQ[("data_quality_issues<br/>needs_review · raised_by<br/>canonicalization | validation")]:::table
+
+    subgraph SC["7 · Score — scoring/ + formulas/"]
         direction TB
         YEARS["scoreable_years<br/>year with year-1 present"]:::action
         ENGINE["formulas/engine.py<br/>4 versioned YAML specs<br/>piotroski_v1 altman_v1<br/>beneish_v1 sloan_v1"]:::action
@@ -60,20 +72,18 @@ flowchart TB
         GATE -->|no| SKIP
     end
 
-    subgraph RES["7 · Results — append-only, AD-6"]
+    subgraph RES["8 · Results — append-only, AD-6"]
         direction LR
         T_SR[("score_runs · superseded flag, never mutated<br/>score_inputs · → canonical_fact_id provenance<br/>score_results · pass / fail / insufficient_data")]:::table
     end
 
-    subgraph READ["8 · Read path"]
+    subgraph READ["9 · Read path"]
         direction TB
         REPO["api/repository.py<br/>get_company_overview<br/>filters superseded = false"]:::backend
         API["GET /api/companies/{ticker}/overview"]:::backend
         UI["Verdict cards · signal rows<br/>CitationChip → accession number"]:::insight
         REPO --> API --> UI
     end
-
-    VAL["validation/checks.run_validation<br/>DEFINED + TESTED, NOT WIRED<br/>see note below"]:::decision
 
     EDGAR --> FETCH
     TIINGO --> PRICE
@@ -88,8 +98,9 @@ flowchart TB
     FYE -->|"no · unresolvable conflict"| T_DQ
     RANK -.->|"Liabilities untagged"| DERIVE --> T_CF
 
-    T_CF --> YEARS
-    T_CF -.->|"gap · never invoked by pipeline/run.py"| VAL
+    T_CF --> VAL
+    VNEW --> T_DQ
+    VAL -->|"advisory · never blocks scoring"| YEARS
 
     RUN --> T_SR
     ALT --> T_SR
@@ -128,10 +139,23 @@ The pipeline is built so a missing input narrows the output rather than failing 
 - **Unresolvable fact conflict** → a `data_quality_issues` row flagged `needs_review`, never a guess or a default.
 - **Missing input to a signal** → `insufficient_data`, never a defaulted `0`/`false` (AD-16 tri-state).
 
-## Gap worth flagging
+## The validate stage
 
-`validation/checks.py::run_validation` is fully implemented and covered by
-`tests/test_canonicalization.py:234`, but **`pipeline/run.py` never calls it**. Its imports go
-straight from `canonicalize_issuer` to the `score_*` functions. The spec's stage order is
-ingest → canonicalize → **validate** → score; the validate stage is currently only exercised
-by tests, so it's drawn dashed above rather than as a live stage.
+`run_validation` runs between canonicalize and score, matching the spine's stage order. Two
+properties are worth knowing because they are load-bearing:
+
+**It is advisory, never blocking.** A failed accounting identity writes a `needs_review` row
+that the read API surfaces (FR-8); it does not stop scoring. One bad identity in one fiscal
+year should not suppress every other year's valid scores — the same reasoning behind the
+tri-state `insufficient_data` rule.
+
+**It is idempotent, like `canonicalize_issuer`.** The pipeline is a daily cron, so a
+violation that stays present must not accumulate a fresh row every night — the read API
+selects every issue whose status is not `dismissed`, so duplicates would surface as the same
+warning repeated N times after N days. Issues are keyed by `(rule, fiscal_year)` per issuer,
+and an existing key is left alone **regardless of status**: re-raising a `dismissed` issue
+would resurrect a warning a human deliberately cleared.
+
+The Phase-1 rule set is deliberately small (current assets ≤ total assets, current
+liabilities ≤ total assets). Per the spine's Deferred list, the rule set itself is an
+implementation detail expected to grow.
