@@ -29,9 +29,21 @@ A cloud session tried to resume the golden-dataset investigation (below) per thi
 | Deployment | **Not done — local only.** Everything so far runs against a local Docker Postgres + local `uvicorn`/`next dev`. `render.yaml` exists but nothing has actually been pushed to Render/Vercel/a real Supabase project yet. | — |
 | Golden-dataset verification (SM-1 / PRD OQ1) | **CLOSED (2026-07-29) — all four companies (SHOP, QSR, CP, OTEX) are real, hand-verified golden entries.** See the sections below. | `backend/tests/golden/phase1_golden.yaml` |
 | Verdict Beneish visibility bug | **Fixed 2026-07-29** — Verdict was hiding real historical Beneish scores (QSR 2017-2023, OTEX 2011-2019) behind an unrelated insufficient_data FY2025 run. See the section below. | `backend/api/repository.py` |
-| Git repo / GitHub | **Initialized** (`lawrence-dass/thesis-trace`), Phase 1 + design system merged to `main` via PRs #1–#6, live-data bug fixes via PR #7/#8, canonicalization/FX + Beneish-coverage fixes via PR #9/#10, golden-dataset entries via PR #11/#12/#14/#16, a concurrent session's GitHub Actions CI + enterprise UX redesign via PR #15/#17 (all merged). Branch-per-session + PR workflow is now binding — see `CLAUDE.md`. | — |
+| Verdict "why is this missing" indication | **Added 2026-07-29** — when a model's aggregate is genuinely insufficient_data (CP/SHOP's Beneish), the Verdict card now names which specific sub-signals are missing in plain language (e.g. "Missing: Gross Margin, SG&A Ratio") instead of a bare dash with no explanation. | `frontend/app/company/[ticker]/page.tsx`, `frontend/app/compare/page.tsx` |
+| Git repo / GitHub | **Initialized** (`lawrence-dass/thesis-trace`), Phase 1 + design system merged to `main` via PRs #1–#6, live-data bug fixes via PR #7/#8, canonicalization/FX + Beneish-coverage fixes via PR #9/#10, golden-dataset entries via PR #11/#12/#14/#16, a concurrent session's GitHub Actions CI + enterprise UX redesign via PR #15/#17, Verdict fixes via PR #18 (all merged). Branch-per-session + PR workflow is now binding — see `CLAUDE.md`. | — |
 
-## 🟢 Verdict was hiding real Beneish scores; CP's ppe_net mapping gap fixed (2026-07-29)
+## 🟢 Verdict now explains WHY a score is missing, not just a bare dash (2026-07-29)
+
+Follow-up to the fix below: Lawrence asked why CP and SHOP's Beneish still show "—" after the Verdict-selection fix, and — after the explanation — asked for the UI to indicate this directly rather than requiring an explanation each time. Both are genuine, permanent data limitations (CP has no COGS/SGA tags at all; SHOP's debt reclassifies between current/noncurrent in a way that would produce a misleading leverage signal if force-mapped), not something to fix further.
+
+Added a plain-language "why" explanation instead of a bare dash, confirmed with Lawrence via `AskUserQuestion` (chose the specific option over a generic "Insufficient data"-only badge):
+
+- **Backend**: `VerdictItem` gained a `missing_signals: list[str]` field — populated with the specific sub-signal keys that are `insufficient_data` for that model's chosen Verdict year (only when the aggregate itself is `None`; empty otherwise). Computed for free from data `get_company_overview` was already fetching (each `LensScoreOut`'s own `signals` list), no new query needed.
+- **Frontend**: added a `SIGNAL_LABEL` map (plain-language names for Beneish/Altman/Sloan's sub-signals, e.g. `gmi` → "Gross Margin") mirroring the existing `MODEL_CAPTION` pattern. The company page's Verdict card now shows an "Insufficient data" badge (reusing the existing `pending` badge style) plus a "Missing: X, Y" caption when an aggregate is null; the Compare page's more compact table shows the same list as a hover tooltip instead, to avoid cluttering the table.
+- Two regression tests added (`test_verdict_prefers_latest_year_with_a_value` extended to cover this; new `test_verdict_falls_back_to_latest_when_never_valid` assertion), verified via git-stash.
+- **Verified live** against the actual running dev servers (not just unit tests) — confirmed the real rendered HTML shows "Missing: Gross Margin, SG&A Ratio" for CP and "Missing: Leverage" for SHOP, on both the company page and the Compare page's tooltip.
+
+## Verdict was hiding real Beneish scores; CP's ppe_net mapping gap fixed (2026-07-29)
 
 Lawrence reported the live frontend showing Beneish M-Score as "—" for all 4 companies on their Verdict cards and asked to debug before fixing. Investigation found this was NOT a uniform data gap — it split into two very different situations:
 

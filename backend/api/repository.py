@@ -180,6 +180,14 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
             aggregate_value=s.aggregate_value,
             band_label=s.band_label,
             applicability=s.applicability,
+            # Only meaningful when the aggregate never resolved for any year
+            # (e.g. CP/SHOP's Beneish) — names which sub-signals are still
+            # missing so the UI can explain why, not just show a bare dash.
+            missing_signals=(
+                [sig.signal_key for sig in s.signals if sig.status == "insufficient_data"]
+                if s.aggregate_value is None
+                else []
+            ),
         )
         for s in sorted(latest_by_model.values(), key=lambda x: (x.category, x.model))
     ]

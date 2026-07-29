@@ -50,6 +50,11 @@ class VerdictItem(BaseModel):
     aggregate_value: float | None
     band_label: str | None
     applicability: str
+    # Which of the model's own sub-signals are insufficient_data for this
+    # fiscal year — populated only when aggregate_value is None so the UI can
+    # explain WHY a score didn't compute (e.g. "missing gmi, sgai") rather than
+    # showing a bare dash with no reason (AD-16 tri-state, surfaced not hidden).
+    missing_signals: list[str] = []
 
 
 class CompanyOverviewOut(BaseModel):

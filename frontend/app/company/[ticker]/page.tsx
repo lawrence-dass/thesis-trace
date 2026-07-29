@@ -31,6 +31,7 @@ type VerdictItem = {
   aggregate_value: number | null;
   band_label: string | null;
   applicability: string;
+  missing_signals: string[];
 };
 type Overview = {
   state: string;
@@ -63,6 +64,28 @@ const MODEL_CAPTION: Record<string, string> = {
   altman: "Bankruptcy-risk score. Higher means safer.",
   beneish: "Earnings-manipulation risk. Lower (more negative) means safer.",
   sloan: "Accrual-based earnings quality. Lower means higher quality.",
+};
+
+// Plain-language names for a model's own sub-signals — used only to explain
+// WHY an aggregate is missing (e.g. "Missing: Gross Margin, SG&A Ratio")
+// rather than showing a bare dash with no reason. Presentational only; the
+// underlying pass/fail/insufficient_data classification is never recomputed
+// here (AD-8, AD-16).
+const SIGNAL_LABEL: Record<string, string> = {
+  dsri: "Days Sales in Receivables",
+  gmi: "Gross Margin",
+  aqi: "Asset Quality",
+  sgi: "Sales Growth",
+  depi: "Depreciation Rate",
+  sgai: "SG&A Ratio",
+  tata: "Total Accruals",
+  lvgi: "Leverage",
+  x1_working_capital: "Working Capital",
+  x2_retained_earnings: "Retained Earnings",
+  x3_ebit: "EBIT",
+  x4_market_value_equity: "Market Value of Equity",
+  x5_sales: "Sales Turnover",
+  accruals_ratio: "Accruals",
 };
 
 const MODELS = ["piotroski", "altman", "beneish", "sloan"];
@@ -156,6 +179,13 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                   <Badge variant={bandTone(v.band_label)} icon={false}>
                     {v.band_label}
                   </Badge>
+                ) : v.aggregate_value === null ? (
+                  <Badge variant="pending">Insufficient data</Badge>
+                ) : null}
+                {v.aggregate_value === null && v.missing_signals.length > 0 ? (
+                  <p className="text-xs leading-snug text-[var(--color-ink-faint)]">
+                    Missing: {v.missing_signals.map((k) => SIGNAL_LABEL[k] ?? k).join(", ")}
+                  </p>
                 ) : null}
                 {v.aggregate_value !== null && v.applicability !== "excluded_out_of_scope" && bandsByModel[v.model]?.length ? (
                   <Gauge model={v.model} value={v.aggregate_value} bandLabel={v.band_label} bands={bandsByModel[v.model]} />

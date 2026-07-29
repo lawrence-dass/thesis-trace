@@ -207,12 +207,26 @@ async def test_verdict_falls_back_to_latest_when_never_valid(db_session) -> None
         applicability=Applicability.computed,
     )
     db_session.add_all([run_2023, run_2024])
+    await db_session.flush()
+
+    # run_2024 (the one Verdict picks) has a mix of pass/insufficient signals —
+    # only the insufficient ones should show up in missing_signals.
+    db_session.add(
+        ScoreResult(score_run_id=run_2024.id, model=Model.beneish, signal_key="dsri", value=1.0, status=SignalStatus.pass_)
+    )
+    db_session.add(
+        ScoreResult(score_run_id=run_2024.id, model=Model.beneish, signal_key="gmi", value=None, status=SignalStatus.insufficient_data)
+    )
+    db_session.add(
+        ScoreResult(score_run_id=run_2024.id, model=Model.beneish, signal_key="sgai", value=None, status=SignalStatus.insufficient_data)
+    )
     await db_session.commit()
 
     overview = await get_company_overview(db_session, "TEST2")
     beneish_verdict = next(v for v in overview.verdict if v.model == "beneish")
     assert beneish_verdict.fiscal_year == 2024  # still the latest, never silently dropped
     assert beneish_verdict.aggregate_value is None
+    assert set(beneish_verdict.missing_signals) == {"gmi", "sgai"}  # not dsri, which passed
 
 
 @requires_db
