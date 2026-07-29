@@ -6,6 +6,7 @@
 import AddToCompare from "../../components/AddToCompare";
 import { Badge, applicabilityLabel, applicabilityVariant, bandTone, signalVariant } from "../../components/ui/Badge";
 import { Card } from "../../components/ui/Card";
+import { CitationChip } from "../../components/ui/CitationChip";
 import { Gauge, type BandClass } from "../../components/ui/Gauge";
 import { AlertIcon, ChevronIcon } from "../../components/ui/icons";
 
@@ -33,6 +34,7 @@ type VerdictItem = {
 };
 type Overview = {
   state: string;
+  cik?: string;
   ticker?: string;
   name?: string;
   scores?: LensScore[];
@@ -108,7 +110,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
 
   if (data.state !== "ok") {
     return (
-      <main className="space-y-3">
+      <main className="mx-auto w-full max-w-5xl space-y-3">
         <h1 className="text-2xl font-semibold text-[var(--color-ink)]">{ticker.toUpperCase()}</h1>
         <Card>
           <p className="text-[var(--color-ink-muted)]">
@@ -122,7 +124,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
   const categories = ["quality_health", "integrity"];
 
   return (
-    <main className="space-y-10">
+    <main className="mx-auto w-full max-w-7xl space-y-10">
       <section className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="font-mono text-sm font-semibold text-[var(--color-brand-600)]">{data.ticker}</p>
@@ -242,9 +244,17 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                               {s.value !== null ? (
                                 <span className="font-mono tabular-nums text-[var(--color-ink-muted)]">{s.value}</span>
                               ) : null}
-                              {s.provenance.length > 0 ? (
-                                <span className="text-xs text-[var(--color-ink-faint)]">
-                                  {s.provenance.map((p) => `${p.canonical_concept} FY${p.fiscal_year}`).join(", ")}
+                              {s.provenance.length > 0 && data.cik ? (
+                                <span className="flex flex-wrap items-center gap-1">
+                                  {s.provenance.map((p, i) => (
+                                    <CitationChip
+                                      key={i}
+                                      cik={data.cik!}
+                                      accessionNumber={p.accession_number}
+                                      canonicalConcept={p.canonical_concept}
+                                      fiscalYear={p.fiscal_year}
+                                    />
+                                  ))}
                                 </span>
                               ) : null}
                             </li>

@@ -32,7 +32,7 @@ export default async function MethodologyPage({ params }: { params: Promise<{ mo
 
   if (m.state !== "ok") {
     return (
-      <main className="space-y-3">
+      <main className="mx-auto w-full max-w-5xl space-y-3">
         <h1 className="text-2xl font-semibold text-[var(--color-ink)]">{model}</h1>
         <Card>
           <p className="text-[var(--color-ink-muted)]">
@@ -44,7 +44,7 @@ export default async function MethodologyPage({ params }: { params: Promise<{ mo
   }
 
   return (
-    <main className="space-y-8">
+    <main className="mx-auto w-full max-w-5xl space-y-8">
       <section className="space-y-2">
         <p className="text-sm font-semibold uppercase tracking-wide text-[var(--color-brand-600)]">Methodology</p>
         <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-ink)] sm:text-3xl">{m.model}</h1>

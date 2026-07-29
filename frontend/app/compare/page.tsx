@@ -33,7 +33,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
 
   if (list.length < 2) {
     return (
-      <main className="space-y-3">
+      <main className="mx-auto w-full max-w-5xl space-y-3">
         <h1 className="text-2xl font-semibold text-[var(--color-ink)]">Comparison</h1>
         <Card>
           <p className="text-[var(--color-ink-muted)]">Add at least 2 companies (max 4) to compare.</p>
@@ -48,7 +48,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
     !v ? "—" : v.band_label ?? (v.applicability !== "computed" ? v.applicability : String(v.aggregate_value ?? "—"));
 
   return (
-    <main className="space-y-6">
+    <main className="mx-auto w-full max-w-7xl space-y-6">
       <section className="space-y-2">
         <p className="text-sm font-semibold uppercase tracking-wide text-[var(--color-brand-600)]">Comparison</p>
         <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-ink)] sm:text-3xl">

@@ -75,7 +75,11 @@ export function Gauge({
 
   return (
     <div className="pt-1" title={`${bandLabel ?? value} (${value} on this model's own scale)`}>
-      <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-canvas)]">
+      {/* Tick-marked horizontal band (DESIGN.md Components: a measurement
+          instrument, not a radial "hero dial") — zone boundaries render as a
+          visible tick, not just a color transition, so the classification
+          zones read as shape even without color (Accessibility Floor). */}
+      <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-[var(--color-canvas)]">
         {zones.map((z, i) => (
           <div
             key={i}
@@ -84,12 +88,12 @@ export function Gauge({
               left: `${z.startPct}%`,
               width: `${Math.max(z.widthPct, 0)}%`,
               backgroundColor: TONE_BG[bandTone(z.label)],
-              borderRight: i < zones.length - 1 ? "2px solid var(--color-surface)" : undefined,
+              borderRight: i < zones.length - 1 ? "2px solid var(--color-border-strong)" : undefined,
             }}
           />
         ))}
         <div
-          className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+          className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
           style={{
             left: `${valuePct}%`,
             backgroundColor: TONE_SOLID[markerTone],
