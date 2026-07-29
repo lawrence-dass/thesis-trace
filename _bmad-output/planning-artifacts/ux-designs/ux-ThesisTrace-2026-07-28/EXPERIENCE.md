@@ -1,6 +1,6 @@
 ---
 name: ThesisTrace
-status: draft
+status: final
 sources:
   - {planning_artifacts}/foundational-decisions.md
   - {planning_artifacts}/prds/prd-ThesisTrace-2026-07-17/prd.md
@@ -8,7 +8,7 @@ sources:
   - {planning_artifacts}/architecture/architecture-ThesisTrace-2026-07-19/ARCHITECTURE-SPINE.md
   - {planning_artifacts}/epics.md
   - {planning_artifacts}/ledgerlens-fundalens-consolidation-review.md
-updated: 2026-07-28
+updated: 2026-07-29
 ---
 
 # ThesisTrace — Experience Spine
@@ -136,7 +136,14 @@ Verbatim from the PRD (§2.3) — this spine does not restate them with differen
 
 ## Inspiration & Anti-patterns
 
-`[ASSUMPTION — pending research synthesis]` To be filled in against the competitive/design research pass (Bloomberg Terminal, Koyfin, Simply Wall St, TipRanks, Finchat.io, Morningstar, YCharts, stockanalysis.com) once it lands — this section will name specific behavioral patterns lifted or deliberately rejected, mirroring the granularity of the worked example (e.g. "Lifted from X: Y. Rejected — Z: reason").
+From the competitive/design research pass (Bloomberg Terminal, Koyfin, Simply Wall St, TipRanks, Finchat.io, Morningstar, YCharts, stockanalysis.com):
+
+- **Lifted from Morningstar: achromatic, disciplined rating display.** The Star Rating renders in plain black regardless of score, with solid vs. hollow stars communicating a *data-sufficiency* distinction (3+ years of history vs. not) rather than a good/bad judgment. ThesisTrace's own `insufficient_data` badge (State Patterns, above) already does the equivalent — showing absence as its own explicit state rather than defaulting to pass/fail — and this research confirms that's the right institutional pattern, not an ad hoc choice.
+- **Lifted from stockanalysis.com: chrome-free density, no upsell/dead-end interruptions.** Reviewers single out the absence of pop-ups, gates, or upsell modals as what makes it feel fast and trustworthy for research use. Directly reinforces the existing "Not yet covered by ThesisTrace" / "No manipulation flag" plain-copy rules in Voice and Tone above — no dead ends, no false cheerfulness, ever.
+- **Lifted from Koyfin/Bloomberg, decoupled from their trading context: a command bar reads as a serious tool.** Both use a `/`-triggered command surface (`ticker <enter> function <enter>`) as their power-user signature. ThesisTrace's existing ticker search already gestures at this; **not** extended into a full command-key system, since (per Interaction Primitives, above) Daniel is doing research, not trading, and a Bloomberg/Koyfin-style hotkey culture would misrepresent the product's audience.
+- **Rejected — Simply Wall St's Snowflake / TipRanks' Smart Score as a single "hero visualization."** Both make one colorful composite graphic the product's signature — exactly the pattern `DESIGN.md`'s Components section rejects for the Gauge redesign (a tick-marked band, not a radial dial) and exactly what AD-12's per-model Verdict juxtaposition already forbids at the data-model level. Confirms, doesn't just parallel, that existing rule.
+- **Rejected — Bloomberg's amber-on-black CRT aesthetic and physical color-coded keyboard.** A trading-desk signifier, not an equity-research one; would misrepresent ThesisTrace's audience (PRD §2.2 explicitly excludes day traders) even if visually striking.
+- **Rejected — Finchat.io's chat-first interaction paradigm as the primary surface.** Conversational/prompt-driven UI is a different product shape entirely (an AI-analyst chat, not a citation-grounded read surface) and would undercut FR-12's requirement that explanations stay grounded in the same visible citations a reader can independently verify — a chat transcript is a worse home for that than an inline expandable card.
 
 Already-decided anti-patterns from the PRD/foundational-decisions, not from research:
 - **Rejected — candlestick charts, technical indicators, TradingView-style widgets**: explicitly out of scope (D7, PRD §2.2) — the audience is fundamentals-based, not technical-analysis-based.
