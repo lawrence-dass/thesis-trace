@@ -1,5 +1,5 @@
 # generated: 2026-07-21
-# last_updated: 2026-07-21
+# last_updated: 2026-07-29
 # project: ThesisTrace
 # project_key: NOKEY
 # tracking_system: file-system
@@ -53,7 +53,7 @@
 # stories. No retrospective has been run for any epic.
 
 generated: 2026-07-21
-last_updated: 2026-07-22
+last_updated: 2026-07-29
 project: ThesisTrace
 project_key: NOKEY
 tracking_system: file-system
@@ -98,24 +98,70 @@ development_status:
   4-4-side-by-side-comparison-view: done
   epic-4-retrospective: done
 
+# Action-item statuses reconciled 2026-07-29 against the actual repo state.
+# Four of the five were already satisfied but still recorded as open, which
+# would have sent a fresh session chasing solved problems. Each closure cites
+# the evidence that settled it rather than asserting completion.
 action_items:
   - epic: 4
-    action: "Resume the golden-dataset investigation (HANDOFF.md's exact resume steps) in a session with real Docker/Postgres/EDGAR/Tiingo access; SM-1 is not met until real hand-verified values replace the placeholder golden dataset"
+    action: "Resume the golden-dataset investigation in a session with real Docker/Postgres/EDGAR/Tiingo access; SM-1 is not met until real hand-verified values replace the placeholder golden dataset"
     owner: "next capable session"
-    status: open
+    status: done
+    resolved: 2026-07-29
+    evidence: "backend/tests/golden/phase1_golden.yaml — all four companies hand-verified against raw EDGAR company-facts JSON (2026-07-23/25/26/29); no pending_fixture entries remain. Closes PRD OQ1."
   - epic: 4
     action: "Add a live-data spot-check to the Definition of Done for any story touching real EDGAR/Tiingo integration or concept mapping"
     owner: "Lawrence"
     status: open
+    note: "The only genuinely open Epic-4 item. Process change, not code — needs Lawrence's call on where the DoD lives."
   - epic: 4
-    action: "Diagnose SHOP's null Altman aggregate and Beneish's zero-coverage concept mappings, per HANDOFF.md's existing diagnosis steps"
+    action: "Diagnose SHOP's null Altman aggregate and Beneish's zero-coverage concept mappings"
     owner: "next capable session"
-    status: open
+    status: done
+    resolved: 2026-07-29
+    evidence: "SHOP's Altman resolves (z_score 36.292041, band Safe — phase1_golden.yaml). Its Beneish is CORRECTLY insufficient_data, not a coverage bug: SHOP genuinely carries no long_term_debt XBRL tag (a real zero-debt company), so LVGI and the M aggregate cannot resolve."
   - epic: 4
-    action: "Audit bandTone() and similar frontend string-matching against backend-authored labels for coverage gaps across all 4 models (one real gap, Beneish, already found and fixed 2026-07-22)"
+    action: "Audit bandTone() and similar frontend string-matching against backend-authored labels for coverage gaps across all 4 models"
     owner: "next session"
-    status: open
+    status: done
+    resolved: 2026-07-29
+    evidence: "All 10 band labels emitted by backend/formulas/specs/*.yaml traced through bandTone() in frontend/app/components/ui/Badge.tsx — Altman Safe/Grey/Distress, Piotroski Strong/Middle/Weak, Beneish flagged/no-flag, Sloan low/high accruals. All map to the intended tone; 'High accruals (lower quality)' does not false-match the 'low accrual' branch. Unrecognized labels fall back to neutral by design."
+    follow_up: "bandTone()'s docstring still lists only Piotroski/Altman/Sloan and omits Beneish — cosmetic, worth fixing when that file is next touched."
   - epic: 4
     action: "Decide whether to add a CI pipeline, since none exists and PRs are landing without automated checks"
     owner: "Lawrence"
-    status: open
+    status: done
+    evidence: ".github/workflows/ci.yml (commit d8ea4de) — backend job (postgres:17 -> alembic -> ruff -> pytest) and frontend job (node 22 -> eslint -> next build), gating push to main and every PR."
+
+# Work completed after Epic 4 that no epic owns, tracked here so it is not lost.
+post_epic_work:
+  - item: "Verdict selection bug — get_company_overview picked each model's latest EXISTING run regardless of whether it resolved a value, hiding real historical Beneish scores for QSR/OTEX"
+    status: done
+    evidence: "PR #18; PR #19 additionally explains genuinely-insufficient scores instead of showing a bare dash."
+  - item: "Architecture diagram suite + in-app /architecture page"
+    status: done
+    evidence: "PRs #21, #23 — docs/diagrams/ (3 diagrams, verified by rendering through mermaid-cli) read at build time by frontend/app/architecture/page.tsx, so docs and app cannot drift."
+  - item: "validation/checks.run_validation wired into pipeline/run.py and made idempotent"
+    status: done
+    evidence: "PR #22. The stage was implemented and tested but never invoked, so the spine's ingest -> canonicalize -> validate -> score order skipped validate in production. Idempotency was required, not optional: the daily cron would otherwise append a duplicate data_quality_issues row every night, and the read API surfaces those."
+  - item: "test_llm_rewrite_disabled_returns_text_unchanged depended on ambient environment"
+    status: done
+    evidence: "PR #24 — passed in CI while failing for anyone with a real .env sourced. Both the process env and the .env-file fallback are now pinned with monkeypatch."
+
+# NOTE FOR THE NEXT PLANNING SESSION (2026-07-29)
+#
+# epics.md defines Epics 1-4 only, and all four are done. There is NO Epic 5+.
+# Phase 2 (Value + Growth lenses, Filing Q&A via LangGraph, Thesis Journal FR-18)
+# exists only as PRD prose — no epic breakdown, no stories. Two PRD open questions
+# block that planning and are Lawrence's calls:
+#   OQ8 — universe expansion to 5-10 companies: repeat D6's manual EDGAR
+#         validation, or build an automated screening step?
+#   OQ9 — lens sub-metric depth: are the consolidation review's extra sub-metrics
+#         (debt maturity concentration, receivables-vs-revenue, cash-vs-earnings,
+#         trajectory-over-level) folded into Phase 2 or dropped?
+#
+# Known tech debt, unowned by any epic: nine test files assert against
+# backend/tests/fixtures/shop_company_facts.json, which is entirely SYNTHETIC
+# (fabricated accession numbers; tags SHOP does not actually use). Only the
+# golden dataset uses real EDGAR data. Those nine can stay green against fiction
+# — the same class of gap as the shares_outstanding and CP PP&E tag bugs.
