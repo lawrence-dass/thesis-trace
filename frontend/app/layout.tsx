@@ -30,7 +30,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </nav>
           </div>
         </header>
-        <div className="mx-auto max-w-5xl px-6 py-10">{children}</div>
+        {/* No max-width here — content width varies by page (data-dense pages
+            run wider, prose-heavy pages stay at a comfortable reading measure)
+            per DESIGN.md's Layout & Spacing. Each page's own <main> sets it. */}
+        <div className="px-6 py-10">{children}</div>
         <footer className="border-t border-[var(--color-border)] bg-[var(--color-surface)]">
           <div className="mx-auto max-w-5xl px-6 py-6 text-xs leading-relaxed text-[var(--color-ink-faint)]">
             ThesisTrace presents evidence-based analytical scores computed from public SEC EDGAR

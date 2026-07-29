@@ -22,7 +22,7 @@ export default async function Home() {
   const companies = await getCompanies();
 
   return (
-    <main className="space-y-10">
+    <main className="mx-auto w-full max-w-5xl space-y-10">
       <section className="space-y-3">
         <p className="text-sm font-semibold uppercase tracking-wide text-[var(--color-brand-600)]">
           Evidence-backed equity intelligence
