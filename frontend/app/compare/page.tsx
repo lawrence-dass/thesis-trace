@@ -7,8 +7,34 @@ import { Card } from "../components/ui/Card";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
-type VerdictItem = { model: string; aggregate_value: number | null; band_label: string | null; applicability: string };
+type VerdictItem = {
+  model: string;
+  aggregate_value: number | null;
+  band_label: string | null;
+  applicability: string;
+  missing_signals: string[];
+};
 type Overview = { state: string; ticker?: string; name?: string; verdict?: VerdictItem[] };
+
+// Plain-language names for a model's own sub-signals — used only to explain
+// WHY an aggregate is missing (shown as a hover tooltip in this compact
+// table), never to recompute or reclassify anything (AD-8, AD-16).
+const SIGNAL_LABEL: Record<string, string> = {
+  dsri: "Days Sales in Receivables",
+  gmi: "Gross Margin",
+  aqi: "Asset Quality",
+  sgi: "Sales Growth",
+  depi: "Depreciation Rate",
+  sgai: "SG&A Ratio",
+  tata: "Total Accruals",
+  lvgi: "Leverage",
+  x1_working_capital: "Working Capital",
+  x2_retained_earnings: "Retained Earnings",
+  x3_ebit: "EBIT",
+  x4_market_value_equity: "Market Value of Equity",
+  x5_sales: "Sales Turnover",
+  accruals_ratio: "Accruals",
+};
 
 async function getOverview(ticker: string): Promise<Overview> {
   try {
@@ -94,9 +120,19 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
                         <Badge variant={bandTone(v.band_label)} icon={false}>
                           {v.band_label}
                         </Badge>
+                      ) : v.aggregate_value === null ? (
+                        <span
+                          title={
+                            v.missing_signals.length > 0
+                              ? `Missing: ${v.missing_signals.map((k) => SIGNAL_LABEL[k] ?? k).join(", ")}`
+                              : undefined
+                          }
+                        >
+                          <Badge variant="pending">Insufficient data</Badge>
+                        </span>
                       ) : (
                         <span className="font-mono tabular-nums text-[var(--color-ink-muted)]">
-                          {v.aggregate_value ?? "—"}
+                          {v.aggregate_value}
                         </span>
                       )}
                     </td>
