@@ -144,13 +144,34 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
         for dq, _cik in dq_rows
     ]
 
-    # Verdict: each live model's own classification for its latest fiscal year,
-    # side by side — never blended into one number (AD-12).
-    latest_by_model: dict[str, LensScoreOut] = {}
+    # Verdict: each live model's own classification for its latest fiscal year
+    # WITH a usable value, side by side — never blended into one number
+    # (AD-12). A model is scored every scoreable year regardless of whether
+    # its inputs actually resolve (Beneish always gets a ScoreRun row, even
+    # when insufficient_data), so naively taking the newest run per model
+    # can hide real, valid results behind an unrelated later year that
+    # happens to be missing an input. Confirmed live 2026-07-29: QSR has 7
+    # real Beneish years (2017-2023) and OTEX has 9 (2011-2019) sitting in
+    # the database, both hidden behind their unrelated FY2025 insufficient
+    # run under the old "just take the newest" selection. Falls back to the
+    # latest run's insufficient_data/excluded state only when NO year for
+    # that model ever resolved (e.g. CP/SHOP's Beneish, which never
+    # computes) so the model still appears in the Verdict rather than
+    # silently vanishing.
+    latest_valid_by_model: dict[str, LensScoreOut] = {}
+    latest_any_by_model: dict[str, LensScoreOut] = {}
     for s in scores:
-        cur = latest_by_model.get(s.model)
-        if cur is None or s.fiscal_year > cur.fiscal_year:
-            latest_by_model[s.model] = s
+        cur_any = latest_any_by_model.get(s.model)
+        if cur_any is None or s.fiscal_year > cur_any.fiscal_year:
+            latest_any_by_model[s.model] = s
+        if s.aggregate_value is not None:
+            cur_valid = latest_valid_by_model.get(s.model)
+            if cur_valid is None or s.fiscal_year > cur_valid.fiscal_year:
+                latest_valid_by_model[s.model] = s
+    latest_by_model = {
+        model: latest_valid_by_model.get(model, latest_any_by_model[model])
+        for model in latest_any_by_model
+    }
     verdict = [
         VerdictItem(
             model=s.model,
