@@ -2,7 +2,7 @@
 
 Evidence-backed equity intelligence for retail investors. Four transparent analytical lenses (Value, Growth, Quality/Health, Integrity) computed **deterministically** from SEC EDGAR filings — never an LLM-invented score. An LLM layer explains already-computed results and answers filing-grounded questions, but never originates a number or gives investment advice.
 
-**New here? Read [`HANDOFF.md`](./HANDOFF.md) first** for full project state, then the canonical contract at [`_bmad-output/specs/spec-thesistrace/SPEC.md`](./_bmad-output/specs/spec-thesistrace/SPEC.md) and the architecture at [`_bmad-output/planning-artifacts/architecture/architecture-ThesisTrace-2026-07-19/ARCHITECTURE-SPINE.md`](./_bmad-output/planning-artifacts/architecture/architecture-ThesisTrace-2026-07-19/ARCHITECTURE-SPINE.md).
+**New here? Run `/session-start`** (reads `.claude/handoff/CURRENT.md` + `.claude/context/project-context.md` for current state and durable rules), then the canonical contract at [`_bmad-output/specs/spec-thesistrace/SPEC.md`](./_bmad-output/specs/spec-thesistrace/SPEC.md) and the architecture at [`_bmad-output/planning-artifacts/architecture/architecture-ThesisTrace-2026-07-19/ARCHITECTURE-SPINE.md`](./_bmad-output/planning-artifacts/architecture/architecture-ThesisTrace-2026-07-19/ARCHITECTURE-SPINE.md). Full historical narrative through 2026-07-29 is archived at [`_bmad-output/archive/HANDOFF-2026-07-29.md`](./_bmad-output/archive/HANDOFF-2026-07-29.md).
 
 ## Architecture at a glance
 
