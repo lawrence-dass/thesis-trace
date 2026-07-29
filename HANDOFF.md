@@ -27,10 +27,27 @@ A cloud session tried to resume the golden-dataset investigation (below) per thi
 | Application code | **Epics 1–4 implemented** — all four models, Verdict/Methodology/Explanation, Discovery & Comparison. Verified against **real** EDGAR + Tiingo data for all 4 companies (2026-07-21), not just fixtures. 48 backend tests green. | `backend/`, `frontend/`, `db/` |
 | Frontend design system | **Done 2026-07-21** — Tailwind v4 + semantic tokens (tri-state signal palette), reusable UI primitives, all 4 pages restyled. Lawrence confirmed it looks good. | `frontend/app/globals.css`, `frontend/app/components/ui/` |
 | Deployment | **Not done — local only.** Everything so far runs against a local Docker Postgres + local `uvicorn`/`next dev`. `render.yaml` exists but nothing has actually been pushed to Render/Vercel/a real Supabase project yet. | — |
-| Golden-dataset verification (SM-1 / PRD OQ1) | **NEARLY CLOSED — QSR, CP, and OTEX are all real, hand-verified golden entries (2026-07-24/25/26, `status: active`). Only SHOP's entry is still the old placeholder** (it's marked `active` too, but that field currently just means "has a fixture," not "hand-verified" — see the note below). See the sections below. | `backend/tests/golden/phase1_golden.yaml` |
-| Git repo / GitHub | **Initialized** (`lawrence-dass/thesis-trace`), Phase 1 + design system merged to `main` via PRs #1–#6, live-data bug fixes via PR #7/#8, canonicalization/FX + Beneish-coverage fixes via PR #9/#10, QSR/CP golden entries via PR #11/#12 (all merged). Branch-per-session + PR workflow is now binding — see `CLAUDE.md`. | — |
+| Golden-dataset verification (SM-1 / PRD OQ1) | **CLOSED (2026-07-29) — all four companies (SHOP, QSR, CP, OTEX) are real, hand-verified golden entries.** See the sections below. | `backend/tests/golden/phase1_golden.yaml` |
+| Git repo / GitHub | **Initialized** (`lawrence-dass/thesis-trace`), Phase 1 + design system merged to `main` via PRs #1–#6, live-data bug fixes via PR #7/#8, canonicalization/FX + Beneish-coverage fixes via PR #9/#10, golden-dataset entries via PR #11/#12/#14/#16, a concurrent session's GitHub Actions CI setup via PR #15 (all merged). Branch-per-session + PR workflow is now binding — see `CLAUDE.md`. | — |
 
-## 🟢 OTEX FY2019 hand-verified — third and final pilot company (2026-07-26)
+## 🟢 SHOP FY2024 hand-verified — fourth and final company, SM-1/OQ1 CLOSED (2026-07-29)
+
+Same process one last time, for SHOP FY2024 — closing out the golden-dataset investigation that began 2026-07-22.
+
+| Model | Hand-computed | Pipeline-stored | Match |
+|---|---|---|---|
+| Piotroski F-Score | 5/9 (all 9 signals verified individually) | 5 | ✓ |
+| Sloan accruals ratio | 0.031955 → "Low accruals (higher quality)" | 0.031955 | ✓ |
+| Altman Z-Score | 36.292041 (all 5 components verified individually) → "Safe" | 36.292041 | ✓ |
+| Beneish M-Score | N/A — SHOP genuinely has no `long_term_debt` XBRL tag at all (confirmed live: a real zero-debt company) — LVGI, and so the aggregate, is correctly `insufficient_data` | `insufficient_data` | ✓ (correctly absent) |
+
+**Found the existing SHOP fixture was entirely synthetic**, not real EDGAR data: `shop_company_facts.json` has fabricated accession numbers (`0001594805-24-000010`/`-25-000010` — neither exists in real EDGAR) and tags SHOP doesn't actually use (`Liabilities`, `CostOfRevenue`, `LongTermDebtNoncurrent`, `SellingGeneralAndAdministrativeExpense`, `AccountsReceivableNetCurrent`). This matches the original 2026-07-22 warning that SHOP's golden values were "characterization values computed from a synthetic fixture, not hand-verified" — the fixture itself was equally unreal, not just the expected values.
+
+That fixture is used by 9 other test files (`test_ingestion.py`, `test_canonicalization.py`, `test_pipeline.py`, etc.) for structural/mechanics testing unrelated to real-world numeric accuracy — replacing it wholesale would have broken all of their hardcoded characterization assertions for no benefit here. Instead, added a separate, real-data fixture (`shop_real_company_facts.json`, real EDGAR payload from SHOP's actual FY2024 10-K, accession `0001594805-25-000012` — SHOP has no standalone FY2023 10-K at all, its FY2023 figures exist only as that filing's comparative column) used exclusively by the golden-dataset entry. The original synthetic fixture is untouched and still serves the other 9 test files.
+
+Full suite: 51 passed, 1 skipped. **This closes PRD Open Question 1 / SM-1**: every company in the Phase-1 universe now has a real, independently hand-verified golden entry, not a placeholder or synthetic characterization value.
+
+## OTEX FY2019 hand-verified — third pilot company (2026-07-26)
 
 Same process again, for OTEX FY2019 — the most instructive pilot of the three, since it surfaced several genuine restatement conflicts in the real EDGAR data (not bugs — the "as-originally-filed wins" rule, AD-3, is exactly what resolves these correctly):
 

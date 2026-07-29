@@ -1,38 +1,55 @@
 # Phase-1 golden dataset for SM-1 (score correctness).
 #
-# SHOP is still a placeholder (see the warning on its entry below). QSR, CP,
-# and OTEX are genuinely hand-verified (2026-07-23/25/26): every canonical
-# input was independently cross-checked against each company's raw EDGAR
-# company-facts JSON (bypassing the pipeline/DB entirely), then all four
-# models were hand-computed from those confirmed-correct figures and matched
-# the pipeline's stored output exactly (Piotroski to the signal, Beneish to
-# all 8 indices, Altman to all 5 components). Companies without a fixture yet
-# are listed as `pending_fixture` so coverage gaps are explicit, never silent.
+# All four companies are now genuinely hand-verified (2026-07-23/25/26/29):
+# every canonical input was independently cross-checked against each
+# company's raw EDGAR company-facts JSON (bypassing the pipeline/DB
+# entirely), then all four models were hand-computed from those
+# confirmed-correct figures and matched the pipeline's stored output exactly
+# (Piotroski to the signal, Beneish to all 8 indices, Altman to all 5
+# components). Companies without a fixture yet are listed as
+# `pending_fixture` so coverage gaps are explicit, never silent — none
+# remain as of this entry.
+#
+# SHOP uses shop_real_company_facts.json (real EDGAR data), NOT
+# shop_company_facts.json — the latter is an older, entirely SYNTHETIC
+# fixture (fabricated accession numbers, and tags SHOP doesn't actually use:
+# Liabilities, CostOfRevenue, LongTermDebtNoncurrent) still relied on by
+# several other test files (test_ingestion.py, test_canonicalization.py,
+# test_pipeline.py, etc.) for structural/mechanics testing unrelated to
+# real-world numeric accuracy. Replacing it wholesale would have broken 9
+# other test files' hardcoded characterization assertions for no gain here,
+# so this golden entry uses its own separate, real fixture instead.
 
 universe: [SHOP, CP, QSR, OTEX]
 
 companies:
   - ticker: SHOP
     status: active
-    fixture: shop_company_facts.json
-    fye_close: 106.20         # Tiingo FYE close for Altman (placeholder)
+    fixture: shop_real_company_facts.json
+    # Real EDGAR-filed close, SHOP's FY2024 10-K's fiscal-year-end
+    # (2024-12-31), confirmed against the Tiingo price actually stored.
+    fye_close: 106.33
     fye_date: "2024-12-31"
     fiscal_year: 2024
     expected:
-      # ⚠️ PLACEHOLDER — characterization values from the synthetic fixture,
-      # not yet hand-verified against SHOP's real filings (OQ1 still open for
-      # this company).
+      # Hand-verified 2026-07-29 against SHOP's real FY2024 10-K figures
+      # (accession 0001594805-25-000012, which also carries FY2023 as its
+      # only comparative — SHOP has no standalone FY2023 10-K at all). See
+      # shop_real_company_facts.json.
       piotroski:
-        f_score: 7
+        f_score: 5
       sloan:
-        accruals_ratio: 0.033479
+        accruals_ratio: 0.031955
         band: "Low accruals (higher quality)"
       altman:
-        z_score: 20.074491
+        z_score: 36.292041
         band: "Safe"
       beneish:
-        m_score: -2.059996
-        band: "No manipulation flag"
+        # SHOP genuinely has no long_term_debt XBRL tag at all (confirmed
+        # live: a real zero-debt company) — LVGI, and so the aggregate M,
+        # is correctly insufficient_data rather than a bug to chase.
+        m_score: null
+        band: null
 
   - ticker: QSR
     status: active
