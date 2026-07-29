@@ -27,6 +27,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <Link href="/" className="transition-colors hover:text-[var(--color-ink)]">
                 Companies
               </Link>
+              <Link href="/architecture" className="transition-colors hover:text-[var(--color-ink)]">
+                Architecture
+              </Link>
             </nav>
           </div>
         </header>
