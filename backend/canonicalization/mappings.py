@@ -92,7 +92,17 @@ MAPPING_RULES: tuple[MappingRule, ...] = (
     MappingRule("receivables", "us-gaap", "AccountsReceivableNetCurrent", priority=0),
     MappingRule("receivables", "us-gaap", "AccountsNotesAndLoansReceivableNetCurrent", priority=1),
     MappingRule("receivables", "us-gaap", "AccountsAndOtherReceivablesNetCurrent", priority=2),
-    MappingRule("ppe_net", "us-gaap", "PropertyPlantAndEquipmentNet"),
+    # ppe_net: CP switched to a combined PP&E + finance-lease right-of-use-asset
+    # tag starting with its FY2021 10-K (confirmed live 2026-07-29) — its own
+    # originally-filed FY2021/2024/2025 accessions never tag the plain
+    # PropertyPlantAndEquipmentNet concept at all for those balance-sheet dates,
+    # which was silently starving Beneish's AQI/DEPI indices of a real value.
+    MappingRule("ppe_net", "us-gaap", "PropertyPlantAndEquipmentNet", priority=0),
+    MappingRule(
+        "ppe_net", "us-gaap",
+        "PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization",
+        priority=1,
+    ),
     # depreciation: QSR never tags the combined DepreciationDepletionAndAmortization
     # concept — it tags the plain Depreciation/DepreciationAndAmortization line
     # instead (confirmed live 2026-07-23). OTEX switches away from a single total

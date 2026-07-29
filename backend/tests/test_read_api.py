@@ -8,6 +8,7 @@ to the test engine.
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 
 import pytest_asyncio
@@ -15,8 +16,18 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from api.deps import get_session
+from api.repository import get_company_overview
 from app.main import app
-from app.models import Base
+from app.models import (
+    Applicability,
+    Base,
+    Filing,
+    Issuer,
+    Model,
+    ScoreResult,
+    ScoreRun,
+    SignalStatus,
+)
 from canonicalization.canonicalize import canonicalize_issuer
 from canonicalization.mappings import seed_concept_mappings
 from ingestion.company_facts import parse_company_facts
@@ -80,6 +91,128 @@ async def test_uncovered_company_is_not_available(seeded_app) -> None:
         resp = await client.get("/api/companies/ZZZZ/overview")
     assert resp.status_code == 200  # not an error
     assert resp.json()["state"] == "not_available"
+
+
+@requires_db
+async def test_verdict_prefers_latest_year_with_a_value(db_session) -> None:
+    """Regression guard: a model is scored every scoreable year regardless of
+    whether its inputs resolve (e.g. Beneish always gets a ScoreRun row, even
+    insufficient_data) — naively taking the newest run per model can hide a
+    real, valid result behind an unrelated later year missing an input.
+    Confirmed live 2026-07-29: QSR has 7 real Beneish years (2017-2023) and
+    OTEX has 9 (2011-2019) that the old "just take the newest" selection
+    hid behind their unrelated FY2025 insufficient_data run. The Verdict
+    must show the latest year that actually resolved, falling back to the
+    latest run's insufficient_data only when no year ever did."""
+    cik = "9999999999"
+    accn = "0000000000-99-000001"
+    db_session.add(Issuer(cik=cik, ticker="TEST", name="Test Co"))
+    db_session.add(
+        Filing(
+            accession_number=accn,
+            issuer_cik=cik,
+            form_type="10-K",
+            filing_date=date(2025, 2, 1),
+            fiscal_year=2025,
+            fiscal_year_end=date(2024, 12, 31),
+        )
+    )
+    await db_session.flush()
+
+    valid_run = ScoreRun(
+        issuer_cik=cik,
+        model=Model.beneish,
+        fiscal_year=2023,
+        formula_version="beneish_v1",
+        accession_number=accn,
+        aggregate_value=-2.5,
+        applicability=Applicability.computed,
+    )
+    insufficient_run = ScoreRun(
+        issuer_cik=cik,
+        model=Model.beneish,
+        fiscal_year=2024,
+        formula_version="beneish_v1",
+        accession_number=accn,
+        aggregate_value=None,
+        applicability=Applicability.computed,
+    )
+    db_session.add_all([valid_run, insufficient_run])
+    await db_session.flush()
+
+    db_session.add(
+        ScoreResult(
+            score_run_id=valid_run.id,
+            model=Model.beneish,
+            signal_key="dsri",
+            value=1.0,
+            status=SignalStatus.pass_,
+            band_label="No manipulation flag",
+        )
+    )
+    db_session.add(
+        ScoreResult(
+            score_run_id=insufficient_run.id,
+            model=Model.beneish,
+            signal_key="dsri",
+            value=None,
+            status=SignalStatus.insufficient_data,
+        )
+    )
+    await db_session.commit()
+
+    overview = await get_company_overview(db_session, "TEST")
+    beneish_verdict = next(v for v in overview.verdict if v.model == "beneish")
+    assert beneish_verdict.fiscal_year == 2023
+    assert beneish_verdict.aggregate_value == -2.5
+
+
+@requires_db
+async def test_verdict_falls_back_to_latest_when_never_valid(db_session) -> None:
+    """Companion to the test above: when a model NEVER resolves for any year
+    (e.g. CP's Beneish — genuinely no COGS/SGA tags), the Verdict must still
+    show the model with its latest insufficient_data run, not silently drop
+    it from the Verdict entirely."""
+    cik = "9999999998"
+    accn = "0000000000-99-000002"
+    db_session.add(Issuer(cik=cik, ticker="TEST2", name="Test Co 2"))
+    db_session.add(
+        Filing(
+            accession_number=accn,
+            issuer_cik=cik,
+            form_type="10-K",
+            filing_date=date(2025, 2, 1),
+            fiscal_year=2025,
+            fiscal_year_end=date(2024, 12, 31),
+        )
+    )
+    await db_session.flush()
+
+    run_2023 = ScoreRun(
+        issuer_cik=cik,
+        model=Model.beneish,
+        fiscal_year=2023,
+        formula_version="beneish_v1",
+        accession_number=accn,
+        aggregate_value=None,
+        applicability=Applicability.computed,
+    )
+    run_2024 = ScoreRun(
+        issuer_cik=cik,
+        model=Model.beneish,
+        fiscal_year=2024,
+        formula_version="beneish_v1",
+        accession_number=accn,
+        aggregate_value=None,
+        applicability=Applicability.computed,
+    )
+    db_session.add_all([run_2023, run_2024])
+    await db_session.commit()
+
+    overview = await get_company_overview(db_session, "TEST2")
+    beneish_verdict = next(v for v in overview.verdict if v.model == "beneish")
+    assert beneish_verdict.fiscal_year == 2024  # still the latest, never silently dropped
+    assert beneish_verdict.aggregate_value is None
 
 
 @requires_db
