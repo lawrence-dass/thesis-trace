@@ -6,11 +6,13 @@ import json
 from datetime import date
 from pathlib import Path
 
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from api.deps import get_session
+from app.config import Settings
 from app.main import app
 from app.models import Base
 from canonicalization.canonicalize import canonicalize_issuer
@@ -93,8 +95,20 @@ async def test_explanation_is_cited_and_deterministic(seeded_app) -> None:
     assert piotroski["citations"]  # grounded in provenance (accession numbers)
 
 
-async def test_llm_rewrite_disabled_returns_text_unchanged() -> None:
-    # No LLM key in tests -> rewrite is a safe no-op (deterministic-only, AD-7).
+async def test_llm_rewrite_disabled_returns_text_unchanged(monkeypatch: pytest.MonkeyPatch) -> None:
+    # No LLM key -> rewrite is a safe no-op (deterministic-only, AD-7).
+    #
+    # Pin that precondition rather than inheriting it from the ambient environment.
+    # `rewrite_enabled()` reads Settings, which resolves LLM_API_KEY from BOTH the
+    # process env and an `.env` file (`env_file` in Settings.model_config, resolved
+    # relative to the CWD). CI sets neither, so this passed there while failing for
+    # anyone who had sourced a real `.env` — green CI wrongly implying the test was
+    # sound. Clearing both inputs makes the result independent of who runs it and
+    # from where. Mirrors test_health.py's `delenv` + `_env_file=None` approach;
+    # `model_config` is a plain dict, so monkeypatch reverts it after the test.
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    monkeypatch.setitem(Settings.model_config, "env_file", None)
+
     assert rewrite_enabled() is False
     original = "Piotroski F-Score for FY2024 is 7 — classified Strong."
     assert await polish(original) == original
