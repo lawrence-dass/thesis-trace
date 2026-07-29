@@ -7,7 +7,7 @@ from pathlib import Path
 
 from sqlalchemy import select
 
-from app.models import Model, ScoreRun
+from app.models import CanonicalFact, DataQualityIssue, IssueStatus, Model, ScoreRun
 from pipeline.run import run_issuer, scoreable_years
 from pipeline.universe import PHASE1_UNIVERSE
 from tests.conftest import requires_db
@@ -52,3 +52,89 @@ async def test_run_issuer_is_idempotent_scores_current(db_session) -> None:
     runs = (await db_session.execute(select(ScoreRun).where(ScoreRun.model == Model.piotroski))).scalars().all()
     current = [r for r in runs if not r.superseded]
     assert len(current) == 1
+
+
+@requires_db
+async def test_run_issuer_runs_the_validate_stage(db_session) -> None:
+    """The pipeline must actually invoke validation between canonicalize and score."""
+    payload = json.loads(FIXTURE.read_text())
+    summary = await run_issuer(db_session, payload, ticker="SHOP")
+    # Clean fixture -> stage ran and found nothing, rather than never running.
+    assert summary["validation"] == {"issues_raised": 0, "issues_existing": 0}
+
+
+@requires_db
+async def test_pipeline_raises_validation_issue_and_does_not_duplicate(db_session) -> None:
+    """A violation is flagged once, and a re-run does not append a second row.
+
+    The cron runs daily over the same canonical facts; without an idempotency
+    guard a persistent violation would accumulate one row per night and the read
+    API would surface the same warning N times.
+    """
+    payload = json.loads(FIXTURE.read_text())
+    await run_issuer(db_session, payload, ticker="SHOP")
+
+    # Corrupt a canonical fact so current_assets > total_assets for FY2024.
+    ca = (
+        await db_session.execute(
+            select(CanonicalFact).where(
+                CanonicalFact.canonical_concept == "current_assets",
+                CanonicalFact.fiscal_year == 2024,
+            )
+        )
+    ).scalars().one()
+    ca.value = 99_000_000_000
+    await db_session.flush()
+
+    second = await run_issuer(db_session, payload, ticker="SHOP")
+    assert second["validation"]["issues_raised"] == 1
+
+    third = await run_issuer(db_session, payload, ticker="SHOP")
+    assert third["validation"]["issues_raised"] == 0
+    assert third["validation"]["issues_existing"] == 1
+
+    issues = (
+        await db_session.execute(
+            select(DataQualityIssue).where(DataQualityIssue.raised_by == "validation")
+        )
+    ).scalars().all()
+    assert len(issues) == 1
+    assert issues[0].issue_type == "identity_violation:current_assets_gt_total_assets"
+    assert issues[0].detail["fiscal_year"] == 2024
+
+
+@requires_db
+async def test_validation_does_not_resurrect_a_dismissed_issue(db_session) -> None:
+    """Dismissing a warning must stick across nightly re-runs."""
+    payload = json.loads(FIXTURE.read_text())
+    await run_issuer(db_session, payload, ticker="SHOP")
+
+    ca = (
+        await db_session.execute(
+            select(CanonicalFact).where(
+                CanonicalFact.canonical_concept == "current_assets",
+                CanonicalFact.fiscal_year == 2024,
+            )
+        )
+    ).scalars().one()
+    ca.value = 99_000_000_000
+    await db_session.flush()
+    await run_issuer(db_session, payload, ticker="SHOP")
+
+    issue = (
+        await db_session.execute(
+            select(DataQualityIssue).where(DataQualityIssue.raised_by == "validation")
+        )
+    ).scalars().one()
+    issue.status = IssueStatus.dismissed
+    await db_session.flush()
+
+    await run_issuer(db_session, payload, ticker="SHOP")
+
+    issues = (
+        await db_session.execute(
+            select(DataQualityIssue).where(DataQualityIssue.raised_by == "validation")
+        )
+    ).scalars().all()
+    assert len(issues) == 1
+    assert issues[0].status is IssueStatus.dismissed

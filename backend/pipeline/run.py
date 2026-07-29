@@ -24,6 +24,7 @@ from raw_store.market_prices import get_fye_close, upsert_fye_close
 from raw_store.repository import persist_company_facts
 from scoring.facts import load_facts
 from scoring.runner import score_altman, score_beneish, score_piotroski, score_sloan
+from validation.checks import run_validation
 
 
 def _primary_filing_per_year(filings) -> dict:
@@ -84,6 +85,13 @@ async def run_issuer(
     await seed_concept_mappings(session)
     await canonicalize_issuer(session, parsed.cik)
 
+    # Validate stage (AD-17): accounting-identity checks over the canonical facts,
+    # between canonicalize and score per the spine's stage order. Advisory only —
+    # a violation writes a needs_review data_quality_issues row that the read API
+    # surfaces (FR-8); it never blocks scoring, because a single bad identity for
+    # one year should not suppress every other year's valid scores.
+    validation = await run_validation(session, parsed.cik)
+
     # Persist any provided FYE market prices at the filing's fiscal-year-end.
     fye_prices = fye_prices or {}
     all_filings = (await session.execute(select(Filing).where(Filing.issuer_cik == parsed.cik))).scalars().all()
@@ -118,7 +126,13 @@ async def run_issuer(
             await score_altman(session, parsed.cik, year)
             scored["altman"].append(year)
     await session.commit()
-    return {"cik": parsed.cik, "ticker": ticker, "scored_years": years, "scored": scored}
+    return {
+        "cik": parsed.cik,
+        "ticker": ticker,
+        "scored_years": years,
+        "scored": scored,
+        "validation": validation,
+    }
 
 
 async def _fye_prices_for(payload: dict, ticker: str) -> dict[int, float]:
@@ -236,7 +250,16 @@ async def main() -> None:  # pragma: no cover — live path, gated
                 fx_rates=fx_rates,
                 reporting_currency=reporting_currency,
             )
-        print(f"OK {entry.ticker}: scored {summary['scored_years']} (altman: {summary['scored']['altman']})")
+        v = summary["validation"]
+        flagged = (
+            f", validation: {v['issues_raised']} new / {v['issues_existing']} open"
+            if v["issues_raised"] or v["issues_existing"]
+            else ""
+        )
+        print(
+            f"OK {entry.ticker}: scored {summary['scored_years']} "
+            f"(altman: {summary['scored']['altman']}){flagged}"
+        )
 
 
 if __name__ == "__main__":  # pragma: no cover
