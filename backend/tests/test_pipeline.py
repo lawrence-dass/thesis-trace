@@ -284,3 +284,69 @@ async def test_beneish_gmi_explodes_when_gross_margin_approaches_zero(db_session
     # GMI is far outside any plausible calibration range, and drives the aggregate.
     assert float(gmi.value) > 10, f"expected an exploded GMI, got {gmi.value}"
     assert float(run.aggregate_value) > 0, "expected the outlier to dominate M"
+
+
+@requires_db
+async def test_derived_facts_are_distinguishable_from_filed_facts(db_session) -> None:
+    """A computed figure must be marked, so no citation implies it was filed.
+
+    Cameco files no `ifrs-full:Liabilities` tag, so its total_liabilities comes
+    from the assets-minus-equity identity. That value's accession_number is a
+    faithful provenance root (same balance-sheet date) but NO line item in that
+    filing states it — previously indistinguishable from a filed figure in the
+    API, which let a computed number wear a filed-number citation.
+    """
+    payload = json.loads(IFRS_FIXTURE.read_text())
+    await run_issuer(db_session, payload, ticker="CCJ", is_capital_intensive=True)
+
+    derived = (
+        await db_session.execute(
+            select(CanonicalFact).where(
+                CanonicalFact.issuer_cik == "0001009001",
+                CanonicalFact.canonical_concept == "total_liabilities",
+            )
+        )
+    ).scalars().all()
+    assert derived, "expected derived total_liabilities for Cameco"
+    assert all(f.derivation == "assets_minus_equity" for f in derived), [
+        (f.fiscal_year, f.derivation) for f in derived
+    ]
+
+    # Directly-filed concepts must NOT be marked — otherwise the flag is noise.
+    filed = (
+        await db_session.execute(
+            select(CanonicalFact).where(
+                CanonicalFact.issuer_cik == "0001009001",
+                CanonicalFact.canonical_concept == "total_assets",
+            )
+        )
+    ).scalars().all()
+    assert filed and all(f.derivation is None for f in filed)
+
+
+@requires_db
+async def test_read_api_provenance_surfaces_the_derivation(db_session) -> None:
+    """The marker reaches the read API, not just the database.
+
+    Storing it without exposing it would leave the user-facing problem intact.
+    """
+    from api import repository
+
+    payload = json.loads(IFRS_FIXTURE.read_text())
+    await run_issuer(db_session, payload, ticker="CCJ", is_capital_intensive=True)
+
+    overview = await repository.get_company_overview(db_session, "CCJ")
+    assert overview is not None
+
+    provenances = [
+        p
+        for lens in overview.scores
+        for signal in lens.signals
+        for p in signal.provenance
+    ]
+    assert provenances, "no provenance rows surfaced at all"
+    # Every row carries the field; derived ones name their rule.
+    assert all(hasattr(p, "derivation") for p in provenances)
+    derived = [p for p in provenances if p.canonical_concept == "total_liabilities"]
+    if derived:  # only present if a scored signal actually consumed it
+        assert all(p.derivation == "assets_minus_equity" for p in derived)

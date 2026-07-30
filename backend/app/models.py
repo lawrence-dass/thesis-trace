@@ -169,6 +169,14 @@ class CanonicalFact(Base):
     value: Mapped[float] = mapped_column(Numeric(28, 6))  # NUMERIC (AD-15)
     unit: Mapped[str | None] = mapped_column(String(32))
     mapping_version: Mapped[str] = mapped_column(String(32))
+    # NULL = read directly from a filed XBRL tag. Non-NULL = computed by
+    # ThesisTrace from other canonical facts, naming the rule that produced it
+    # (e.g. "assets_minus_equity"). A derived value is a WEAKER evidential class
+    # than a filed one: its accession_number is a faithful provenance root (the
+    # same balance-sheet date) but no single line item in that filing states it.
+    # Surfaced through the read API so a citation can never imply "this figure
+    # appears in this filing" when it does not (FR-8, AD-19).
+    derivation: Mapped[str | None] = mapped_column(String(64))
     selected_from_raw_fact_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("raw_facts.id")
     )
