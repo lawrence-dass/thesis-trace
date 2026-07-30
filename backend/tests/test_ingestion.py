@@ -114,3 +114,75 @@ async def test_persist_is_idempotent(db_session) -> None:
     assert issuer is not None and issuer.ticker == "SHOP"
     filings = (await db_session.execute(select(Filing))).scalars().all()
     assert {f.fiscal_year for f in filings} == {2023, 2024}
+
+
+# --- Multi-regime support: 40-F / ifrs-full (see canonicalization.taxonomies) ---
+
+
+def _ifrs_payload() -> dict:
+    """Minimal 40-F / ifrs-full payload shaped like a real Canadian MJDS filer.
+
+    Mirrors the structure verified live 2026-07-29 against Cameco/BCE/Suncor:
+    a single `ifrs-full` taxonomy, form "40-F", plus a `dei` cover-page fact
+    dated to the FILING date to prove that exclusion still holds cross-regime.
+    """
+    return {
+        "cik": 1009001,
+        "entityName": "CAMECO CORPORATION",
+        "facts": {
+            "ifrs-full": {
+                "Assets": {
+                    "units": {
+                        "CAD": [
+                            {"fy": 2024, "fp": "FY", "form": "40-F", "accn": "0001009001-25-000001",
+                             "end": "2024-12-31", "filed": "2025-02-20", "val": 9_000_000_000, "decimals": -3},
+                            {"fy": 2023, "fp": "FY", "form": "40-F", "accn": "0001009001-24-000001",
+                             "end": "2023-12-31", "filed": "2024-02-22", "val": 8_000_000_000, "decimals": -3},
+                        ]
+                    }
+                },
+                "ProfitLoss": {
+                    "units": {
+                        "CAD": [
+                            {"fy": 2024, "fp": "FY", "form": "40-F", "accn": "0001009001-25-000001",
+                             "start": "2024-01-01", "end": "2024-12-31", "filed": "2025-02-20",
+                             "val": 500_000_000, "decimals": -3},
+                        ]
+                    }
+                },
+            },
+            "dei": {
+                "EntityCommonStockSharesOutstanding": {
+                    "units": {
+                        "shares": [
+                            # Dated to the FILING date, deliberately AFTER the FYE.
+                            {"fy": 2024, "fp": "FY", "form": "40-F", "accn": "0001009001-25-000001",
+                             "end": "2025-02-20", "filed": "2025-02-20", "val": 435_000_000, "decimals": 0},
+                        ]
+                    }
+                }
+            },
+        },
+    }
+
+
+def test_parse_accepts_40f_ifrs_full_filings() -> None:
+    """40-F / ifrs-full facts are ingested, not silently dropped."""
+    parsed = parse_company_facts(_ifrs_payload())
+    assert parsed.cik == "0001009001"
+    assert len(parsed.filings) == 2
+    assert {f.form_type for f in parsed.filings.values()} == {"40-F"}
+    taxonomies = {f.taxonomy for f in parsed.facts}
+    assert "ifrs-full" in taxonomies
+
+
+def test_dei_cover_page_exclusion_holds_for_ifrs_regime_too() -> None:
+    """The `dei` exclusion is regime-agnostic.
+
+    A cover-page fact dated to the filing date (2025-02-20) must not become the
+    filing's fiscal_year_end — the same bug class that made SHOP's FY2024 read as
+    2023-12-31 and CP's FY2025 as 2026-02-25 under us-gaap.
+    """
+    parsed = parse_company_facts(_ifrs_payload())
+    fy2024 = next(f for f in parsed.filings.values() if f.fiscal_year == 2024)
+    assert fy2024.fiscal_year_end == "2024-12-31"  # not the 2025-02-20 filing date

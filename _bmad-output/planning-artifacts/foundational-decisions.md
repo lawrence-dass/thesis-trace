@@ -70,9 +70,61 @@ Checked every major cross-listed Canadian ticker against `data.sec.gov` for annu
 - **Phase 2 (filing Q&A / RAG):** LangGraph, from that feature's first implementation. Justified by a genuine stateful/conditional flow: draft an answer from retrieved chunks, verify each claim is actually supported by the cited passage, re-retrieve or flag low-confidence if not (self-verifying citation loop). This ties directly to the product's Integrity-lens promise rather than being a decorative framework choice, and doubles as a deliberate learning goal for the 20% engineer-showcase weighting (D2) — motivation acknowledged and accepted as legitimate.
 - **Guardrail:** LangGraph orchestration is confined to the explain/retrieve/cite/Q&A surface. It never computes or touches a canonical score — the deterministic/LLM boundary (see Standing Constraints) still holds.
 
+## D8 — IFRS / 40-F support: Canada-first (supersedes D6's blanket IFRS exclusion, 2026-07-29)
+
+**Decision.** ThesisTrace is **Canada-first**, expanding to the US market later. That requires
+supporting Canadian MJDS filers who report under IFRS on Form 40-F. D6's blanket exclusion of
+IFRS filers is **narrowed, not kept**.
+
+**Why D6 was only partly right.** D6 excluded 40-F/`ifrs-full` filers on the grounds they
+"would break the Piotroski/Altman/Beneish/Sloan formulas." Verified live against
+`data.sec.gov` on 2026-07-29, that reasoning does not hold in general:
+
+| Filer | Taxonomy | Concepts tagged | Coverage | Models resolvable |
+|---|---|---|---|---|
+| BCE | `ifrs-full` | 288 | FY2017–2025 | 3 of 4 (no by-function SG&A) |
+| Cameco | `ifrs-full` | 250 | FY2017–2025 | **4 of 4, all from directly-filed tags** |
+| Suncor | `ifrs-full` | 234 | FY2017–2025 | 2 of 4 (no SG&A, no tagged retained earnings) |
+
+IFRS filings are **not less comprehensive** — 234–288 tagged concepts is dense disclosure.
+
+**What D6 got right, restated correctly.** Coverage varies **per filer, not per taxonomy**, and
+for a reason intrinsic to IFRS *presentation* rather than tagging quality: IAS 1 permits
+expenses **by nature** (raw materials, employee benefits, energy) instead of **by function**
+(COGS, SG&A). A by-nature filer has no SG&A line to tag at all, so Beneish's SGAI is
+unresolvable. That is the same shape as CP's missing COGS under `us-gaap`, and is handled
+identically — `insufficient_data`, never a substitute or a guess.
+
+**Consequences.**
+
+1. Supported regimes are declared as data in `backend/canonicalization/taxonomies.py`:
+   10-K/`us-gaap` and 40-F/`ifrs-full`. Adding a regime is a data change there plus its
+   `MappingRule`s — scoring, the formula engine, the read API and the frontend consume
+   canonical concepts and are already taxonomy-blind.
+2. History is **shallower** for IFRS filers: EDGAR XBRL for 40-F filers begins ~FY2017, so
+   ~9 fiscal years versus OTEX's 24 under `us-gaap`. Fine for point-in-time scoring (needs two
+   consecutive years) but a real constraint on the Phase-2 Growth lens's long-trend promise.
+3. Three canonical concepts must be **derived** rather than read for IFRS filers:
+   `total_liabilities` (= EquityAndLiabilities − Equity), `gross_profit`
+   (= Revenue − CostOfSales), and `ebit`. **`ebit` is a judgment, not arithmetic** — IFRS
+   mandates no operating-profit line, so `ProfitLossBeforeTax + InterestExpense` and
+   `ProfitLossBeforeTax − FinanceIncomeCost` are both defensible and give different numbers.
+   That decision must live in a versioned formula spec with its rationale, visible on the
+   methodology page — not buried in a mapping row.
+4. **Derived facts are a weaker provenance class than filed facts**, and are currently
+   indistinguishable in the API: `Provenance` exposes an accession number but not whether the
+   value was selected or derived, so a computed figure wears a filed-number citation. This is
+   already live for SHOP's `total_liabilities`. It must be surfaced before IFRS multiplies it
+   from one concept on one filer to three on every IFRS filer.
+5. Rollout order is **Cameco → BCE → Suncor** — 4/4 first, so the path is validated without a
+   partial result obscuring whether a gap is a bug or reality.
+
+**Non-goal unchanged.** The PRD's "no full market coverage" stands. This widens the addressable
+Canadian universe from ~4 to a curated handful; it does not turn ThesisTrace into a screener.
+
 ## Open items before PRD
 
-1. ~~Filing-type validation~~ — **done, see D6.**
+1. ~~Filing-type validation~~ — **done, see D6**, narrowed by **D8** (40-F/IFRS now supported).
 2. Correctness golden-dataset sourcing approach.
 3. Amended/restated filings (10-K/A) supersession policy.
 4. Not-investment-advice disclaimer posture.

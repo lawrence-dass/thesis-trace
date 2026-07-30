@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
+from canonicalization.taxonomies import ANNUAL_FORM_TYPES, FINANCIAL_TAXONOMIES
 
 
 @dataclass(frozen=True)
@@ -55,8 +56,9 @@ def zero_pad_cik(cik: int | str) -> str:
 def parse_company_facts(payload: dict, *, source: str = "company_facts") -> ParsedCompanyFacts:
     """Flatten a Company Facts payload into filings + individual facts.
 
-    Only annual 10-K / 10-K/A facts (fp == 'FY') are kept — Phase 1 scores from
-    annual filings (PRD FR-3/FR-4/FR-6/FR-7).
+    Only annual facts (fp == 'FY') on a supported annual form are kept — Phase 1
+    scores from annual filings (PRD FR-3/FR-4/FR-6/FR-7). Supported forms and
+    financial taxonomies are declared in canonicalization.taxonomies.
 
     A single accession's facts span multiple (fy, end) pairs — its own primary/
     current period plus one or more prior-year comparatives carried for
@@ -87,7 +89,7 @@ def parse_company_facts(payload: dict, *, source: str = "company_facts") -> Pars
                 for entry in entries:
                     if entry.get("fp") != "FY":
                         continue
-                    if entry.get("form") not in ("10-K", "10-K/A"):
+                    if entry.get("form") not in ANNUAL_FORM_TYPES:
                         continue
                     accn = entry["accn"]
                     end = entry.get("end")
@@ -96,11 +98,12 @@ def parse_company_facts(payload: dict, *, source: str = "company_facts") -> Pars
                         accn,
                         {"form_type": entry["form"], "filed": entry.get("filed", end), "candidates": [], "fallback": []},
                     )
-                    if taxonomy == "us-gaap":  # never dei — see docstring
+                    if taxonomy in FINANCIAL_TAXONOMIES:  # never dei — see docstring
                         meta["candidates"].append((fy, end))
                     else:
                         # Rare: an accession (e.g. a narrow 10-K/A amending only a
-                        # cover-page/footnote disclosure) with zero us-gaap FY facts.
+                        # cover-page/footnote disclosure) with zero financial-taxonomy
+                        # FY facts.
                         # Still needs a Filing row or its raw_facts orphan the FK —
                         # fall back to any taxonomy rather than dropping the filing.
                         meta["fallback"].append((fy, end))
