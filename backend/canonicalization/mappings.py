@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import ConceptMapping
 
-MAPPING_VERSION = "concepts_v3"
+MAPPING_VERSION = "concepts_v4"  # v4: adds ifrs-full (40-F) rules — D8
 
 
 @dataclass(frozen=True)
@@ -121,6 +121,66 @@ MAPPING_RULES: tuple[MappingRule, ...] = (
     # above — CP's financials are entirely CAD-denominated).
     MappingRule("long_term_debt", "us-gaap", "LongTermDebtAndCapitalLeaseObligations", priority=1),
     MappingRule("gross_profit", "us-gaap", "GrossProfit"),
+
+    # --- ifrs-full (Form 40-F, Canadian MJDS filers) -- D8 -------------------
+    #
+    # Verified live against data.sec.gov 2026-07-29. Cameco (CIK 0001009001)
+    # resolves 17 of 18 canonical concepts from directly-filed tags, every one
+    # with the full FY2017-2025 span. `total_liabilities` is the single gap and
+    # needs no new code: canonicalize._derive_total_liabilities already covers it
+    # via the accounting identity (assets - equity) and is taxonomy-blind, since
+    # it operates on canonical concepts rather than source tags.
+    #
+    # Two IFRS naming traps worth stating, both of which cost real coverage if
+    # the obvious tag is taken first (confirmed live on Suncor):
+    #   * revenue — `Revenue` exists but can carry only a single year, while
+    #     `RevenueFromContractsWithCustomers` (IFRS 15, mandatory from 2018)
+    #     carries the rest. Both are mapped, priority-ordered.
+    #   * shares_outstanding — `NumberOfSharesOutstanding` can be sparse;
+    #     `NumberOfSharesIssued` / `WeightedAverageShares` are the deeper
+    #     fallbacks. Same trap class as the us-gaap dei/shares bug.
+    #
+    # Presentation-driven gaps are deliberately NOT papered over. IAS 1 permits
+    # expenses by nature instead of by function, so a by-nature filer (Suncor)
+    # has no SG&A line at all and Beneish's SGAI correctly stays
+    # insufficient_data — the same treatment as CP's missing COGS under us-gaap.
+    MappingRule("total_assets", "ifrs-full", "Assets"),
+    MappingRule("current_assets", "ifrs-full", "CurrentAssets"),
+    MappingRule("current_liabilities", "ifrs-full", "CurrentLiabilities"),
+    MappingRule("total_liabilities", "ifrs-full", "Liabilities"),
+    MappingRule("stockholders_equity", "ifrs-full", "Equity", priority=0),
+    MappingRule("stockholders_equity", "ifrs-full", "EquityAttributableToOwnersOfParent", priority=1),
+    MappingRule("retained_earnings", "ifrs-full", "RetainedEarnings"),
+    MappingRule("net_income", "ifrs-full", "ProfitLoss", priority=0),
+    MappingRule("net_income", "ifrs-full", "ProfitLossAttributableToOwnersOfParent", priority=1),
+    # IFRS mandates no operating-profit line, but a filer MAY tag one. Where it
+    # does (Cameco, all 9 years) ebit is read as filed, not derived — so no
+    # judgment enters the number. Filers that omit it get insufficient_data
+    # until the derivation decision is made in a versioned spec (D8 consequence 3).
+    MappingRule("ebit", "ifrs-full", "ProfitLossFromOperatingActivities"),
+    MappingRule("cash_from_operations", "ifrs-full", "CashFlowsFromUsedInOperatingActivities", priority=0),
+    MappingRule("cash_from_operations", "ifrs-full", "CashFlowsFromUsedInOperations", priority=1),
+    MappingRule("revenue", "ifrs-full", "Revenue", priority=0),
+    MappingRule("revenue", "ifrs-full", "RevenueFromContractsWithCustomers", priority=1),
+    MappingRule("cogs", "ifrs-full", "CostOfSales", priority=0),
+    MappingRule("cogs", "ifrs-full", "CostOfInventoriesRecognisedAsExpenseDuringPeriod", priority=1),
+    MappingRule("gross_profit", "ifrs-full", "GrossProfit"),
+    MappingRule("sga", "ifrs-full", "AdministrativeExpense", priority=0),
+    MappingRule("sga", "ifrs-full", "SellingGeneralAndAdministrativeExpense", priority=1),
+    MappingRule("ppe_net", "ifrs-full", "PropertyPlantAndEquipment"),
+    MappingRule("depreciation", "ifrs-full", "DepreciationAndAmortisationExpense", priority=0),
+    MappingRule(
+        "depreciation", "ifrs-full",
+        "DepreciationAmortisationAndImpairmentLossReversalOfImpairmentLossRecognisedInProfitOrLoss",
+        priority=1,
+    ),
+    MappingRule("receivables", "ifrs-full", "TradeAndOtherCurrentReceivables", priority=0),
+    MappingRule("receivables", "ifrs-full", "CurrentTradeReceivables", priority=1),
+    MappingRule("long_term_debt", "ifrs-full", "LongtermBorrowings", priority=0),
+    MappingRule("long_term_debt", "ifrs-full", "NoncurrentPortionOfLongtermBorrowings", priority=1),
+    MappingRule("shares_outstanding", "ifrs-full", "NumberOfSharesOutstanding", priority=0),
+    MappingRule("shares_outstanding", "ifrs-full", "NumberOfSharesIssued", priority=1),
+    MappingRule("shares_outstanding", "ifrs-full", "WeightedAverageShares", priority=2),
 )
 
 # Source (taxonomy, concept) -> canonical concept, for quick lookup during canonicalization.
