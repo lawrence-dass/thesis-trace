@@ -41,6 +41,7 @@ grep -n "pattern" bigdoc.md                    # locate a section before reading
 1. **Mark the recommended option.** Whenever presenting choices, clearly highlight which one is recommended (and why), for quality development.
 2. **Commit frequently** — and always commit at the end of every major task, with a clear message.
 3. **Explain in plain language.** After each major task, give an easy-to-read recap of what was done and how to review it, so Lawrence can step away and come back without digging.
+4. **Ask for all permissions in one go.** Before starting research or any multi-fetch task, list every web domain, live API fetch, or approval the whole task will need and ask **once**. Never drip-feed one approval at a time — it turns a single task into a chain of interruptions for no added safety, since the activity itself is already approved. Applies equally to the standing "ask before live EDGAR fetch" rule: name all the tickers/CIKs in a single request.
 
 ## Project shape
 

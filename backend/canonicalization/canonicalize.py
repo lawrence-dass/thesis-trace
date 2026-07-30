@@ -29,6 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import CanonicalFact, DataQualityIssue, Filing, IssueStatus, RawFact
 from canonicalization.mappings import MAPPING_VERSION, SOURCE_PRIORITY, SOURCE_TO_CANONICAL
+from canonicalization.taxonomies import ORIGINAL_ANNUAL_FORM_TYPES
 
 # A 10-K's own accession routinely tags BOTH the true annual duration figure
 # AND quarterly sub-periods under the exact same (fy, fp="FY") label — e.g. a
@@ -71,13 +72,14 @@ def _day_of_year(month: int, day: int) -> int:
 
 
 def _issuer_fye_day(filings: dict[str, Filing]) -> int | None:
-    """The most common day-of-year among this issuer's own ORIGINAL 10-K
-    fiscal-year-ends (never 10-K/A — an amendment's own fiscal_year_end can be
-    unreliable, per the collision fix in pipeline.run._primary_filing_per_year)."""
+    """The most common day-of-year among this issuer's own ORIGINAL annual
+    fiscal-year-ends (never an amendment — its own fiscal_year_end can be
+    unreliable, per the collision fix in pipeline.run._primary_filing_per_year).
+    Regime-agnostic: 10-K for us-gaap filers, 40-F for IFRS filers."""
     counts = Counter(
         _day_of_year(f.fiscal_year_end.month, f.fiscal_year_end.day)
         for f in filings.values()
-        if f.form_type == "10-K"
+        if f.form_type in ORIGINAL_ANNUAL_FORM_TYPES
     )
     return counts.most_common(1)[0][0] if counts else None
 

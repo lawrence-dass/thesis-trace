@@ -18,6 +18,7 @@ from sqlalchemy import select
 from app.models import Filing
 from canonicalization.canonicalize import canonicalize_issuer
 from canonicalization.mappings import MAPPING_VERSION, seed_concept_mappings
+from canonicalization.taxonomies import supersedes
 from ingestion.company_facts import parse_company_facts
 from raw_store.fx_rates import upsert_fx_rate
 from raw_store.market_prices import get_fye_close, upsert_fye_close
@@ -28,19 +29,20 @@ from validation.checks import run_validation
 
 
 def _primary_filing_per_year(filings) -> dict:
-    """One filing per fiscal year, preferring the original 10-K over any
-    10-K/A — a narrow amendment often doesn't restate the full financial
+    """One filing per fiscal year, preferring the original annual filing over any
+    amendment — a narrow amendment often doesn't restate the full financial
     statements, so its own fiscal_year_end can be less reliable than the
     original filing's (confirmed live 2026-07-23: CP's 10-K/A rows are
     consistently dated to the amendment's own filing date). Mirrors AD-3's
     existing as-originally-filed-over-restated-comparative principle. Works
     for either ParsedFiling (dataclass) or Filing (DB model) rows — both
-    expose .fiscal_year/.form_type."""
+    expose .fiscal_year/.form_type. Regime-agnostic via
+    canonicalization.taxonomies.supersedes (10-K/A -> 10-K, 40-F/A -> 40-F)."""
     values = filings.values() if isinstance(filings, dict) else filings
     by_year: dict = {}
     for f in values:
         existing = by_year.get(f.fiscal_year)
-        if existing is None or (existing.form_type == "10-K/A" and f.form_type == "10-K"):
+        if existing is None or supersedes(f.form_type, existing.form_type):
             by_year[f.fiscal_year] = f
     return by_year
 
