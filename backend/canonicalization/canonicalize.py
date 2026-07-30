@@ -57,6 +57,10 @@ _MIN_FULL_YEAR_DAYS = 300  # excludes quarterly (~90d) and half-year (~180d) spa
 # landed on 2011-07-07, not its usual June 30).
 _FYE_DAY_TOLERANCE = 10
 
+# Derivation rule names recorded on CanonicalFact.derivation. A canonical fact
+# carrying one of these was COMPUTED by ThesisTrace, not read from a filed tag.
+DERIVATION_ASSETS_MINUS_EQUITY = "assets_minus_equity"
+
 
 def _is_full_year_duration(rf: RawFact) -> bool:
     """True for instantaneous facts (no period_start — balance-sheet items like
@@ -244,6 +248,9 @@ async def _derive_total_liabilities(
                 value=Decimal(str(total_assets.value)) - Decimal(str(equity.value)),
                 unit=total_assets.unit,
                 mapping_version=mapping_version,
+                # Names the rule rather than a bare flag, so the read API can say
+                # WHAT was computed and the UI never implies a filed line item.
+                derivation=DERIVATION_ASSETS_MINUS_EQUITY,
                 selected_from_raw_fact_id=None,
             )
         )

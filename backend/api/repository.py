@@ -77,6 +77,7 @@ async def _provenance_for(session: AsyncSession, run_id, signal_key: str) -> lis
             fiscal_year=cf.fiscal_year,
             period_end=cf.period_end.isoformat() if cf.period_end else None,
             source_filing_form=form,
+            derivation=cf.derivation,
         )
         for cf, form in rows
     ]

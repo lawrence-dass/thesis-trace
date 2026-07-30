@@ -12,7 +12,13 @@ import { AlertIcon, ChevronIcon } from "../../components/ui/icons";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
-type Provenance = { accession_number: string; canonical_concept: string; fiscal_year: number };
+type Provenance = {
+  accession_number: string;
+  canonical_concept: string;
+  fiscal_year: number;
+  // null = filed tag; set = computed by ThesisTrace (see CitationChip).
+  derivation?: string | null;
+};
 type Signal = { signal_key: string; status: string; value: number | null; provenance: Provenance[] };
 type LensScore = {
   model: string;
@@ -283,6 +289,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                                       accessionNumber={p.accession_number}
                                       canonicalConcept={p.canonical_concept}
                                       fiscalYear={p.fiscal_year}
+                                      derivation={p.derivation ?? null}
                                     />
                                   ))}
                                 </span>

@@ -12,6 +12,11 @@ class Provenance(BaseModel):
     fiscal_year: int
     period_end: str | None
     source_filing_form: str | None = None
+    # None = the figure is a filed XBRL tag in that accession. A value names the
+    # rule ThesisTrace used to COMPUTE it from other canonical facts (e.g.
+    # "assets_minus_equity"). Consumers must not present a derived figure as
+    # though a line item in the filing states it (FR-8, AD-19).
+    derivation: str | None = None
 
 
 class SignalOut(BaseModel):
