@@ -199,6 +199,11 @@ class ScoreRun(Base):
     applicability: Mapped[Applicability] = mapped_column(
         Enum(Applicability, native_enum=False, length=24), default=Applicability.computed
     )
+    # Why a caveat applies, when applicability is computed_with_caveat. Stored
+    # rather than inferred so the explanation layer never attaches one model's
+    # reasoning to another (Altman's caveat is capital intensity; Beneish's is an
+    # out-of-calibration input). NULL for computed / excluded runs.
+    caveat_reason: Mapped[str | None] = mapped_column(String(512))
     superseded: Mapped[bool] = mapped_column(default=False)  # amendment supersedes, never mutates (AD-6)
     superseded_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("score_runs.id"))
     computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -123,6 +123,7 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
                 band_label=next((s.band_label for s in signals if s.band_label), None),
                 applicability=run.applicability.value,
                 signals=signals,
+                caveat_reason=run.caveat_reason,
             )
         )
 

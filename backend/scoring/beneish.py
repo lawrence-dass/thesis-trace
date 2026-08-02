@@ -23,6 +23,9 @@ class BeneishResult:
     m_score: float | None
     band: str | None
     applicability: Applicability
+    # Why the caveat applies, when it does. Stored so the explanation layer never
+    # has to guess a model-specific reason (Altman's is capital intensity, not this).
+    caveat_reason: str | None = None
 
 
 def _ratio(numerator, denominator, spec: FormulaSpec) -> Decimal:
@@ -94,4 +97,14 @@ def compute_beneish(
 
     threshold = Decimal(str(spec.raw["threshold"]["manipulation_above"]))
     band = "Manipulation risk flagged" if m > threshold else "No manipulation flag"
+
+    # Out-of-calibration disclosure (see the `calibration` block in the spec).
+    # The score is NOT altered — only annotated, so nothing is invented.
+    calib = spec.raw.get("calibration") or {}
+    bound = calib.get("index_abs_max")
+    if bound is not None and any(abs(v) > Decimal(str(bound)) for v in indices.values()):
+        return BeneishResult(
+            components, float(m), band, Applicability.computed_with_caveat,
+            caveat_reason=calib.get("caveat_reason"),
+        )
     return BeneishResult(components, float(m), band, Applicability.computed)

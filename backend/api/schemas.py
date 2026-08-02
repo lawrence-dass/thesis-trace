@@ -36,6 +36,8 @@ class LensScoreOut(BaseModel):
     band_label: str | None
     applicability: str
     signals: list[SignalOut]
+    # Why the caveat applies, when applicability is computed_with_caveat.
+    caveat_reason: str | None = None
 
 
 class DataQualityOut(BaseModel):

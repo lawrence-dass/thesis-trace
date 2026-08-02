@@ -61,3 +61,27 @@ bands:
       above: -1.78
     - label: No manipulation flag
       below: -1.78
+
+# --- ThesisTrace presentation guard — NOT part of Beneish (1999) -------------
+# Every Beneish index is a year-over-year ratio centred near 1.0 for a company
+# whose fundamentals are stable. When a denominator approaches zero the index
+# explodes and the aggregate stops being a manipulation signal: Cameco FY2021's
+# gross margin fell from 5.91% to 0.13% after the Cigar Lake suspension, giving
+# GMI = 45.1, which alone contributes ~+23.8 to M and pushes it to +20.84
+# against a -1.78 threshold. Every input there is a correctly-mapped, filed
+# value and the arithmetic is right — what fails is the interpretation, because
+# the input is far outside anything the model was fitted on.
+#
+# This does NOT alter the score. The computed M is still stored and shown
+# exactly as calculated; the run is only annotated computed_with_caveat so the
+# UI and the explanation can say the input is out of range. The bound below is
+# ThesisTrace's own conservative disclosure threshold, chosen because a ratio of
+# 10 means a ten-fold year-over-year change — it is not a Beneish figure and is
+# deliberately recorded here, versioned with the spec, rather than hidden in code.
+calibration:
+  index_abs_max: 10.0
+  caveat_reason: >-
+    At least one Beneish index is far outside its normal range (a year-over-year
+    ratio near 1.0), so the M-score is dominated by an extreme input rather than
+    by a manipulation signal. This usually means a ratio denominator — most often
+    gross margin — approached zero.
