@@ -56,7 +56,14 @@ def _lens_sentences(lens: LensScoreOut) -> tuple[str, list[str]]:
                 citations.append(p.accession_number)
 
     if lens.applicability == "computed_with_caveat":
-        parts.append("Interpret with caveat: this is a capital-intensive company, for which the model runs structurally low.")
+        # Use the reason recorded on the run. Falling back to the capital-intensity
+        # wording only for runs written before caveat_reason existed — asserting it
+        # unconditionally would attach Altman's reasoning to Beneish's
+        # out-of-calibration caveat, which is a different thing entirely.
+        reason = (lens.caveat_reason or "").strip() or (
+            "this is a capital-intensive company, for which the model runs structurally low"
+        )
+        parts.append(f"Interpret with caveat: {reason.rstrip('.')}.")
 
     return (" ".join(parts), citations)
 

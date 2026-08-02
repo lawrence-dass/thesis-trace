@@ -23,6 +23,12 @@ class AltmanResult:
     z_score: float | None
     band: str | None
     applicability: Applicability
+    caveat_reason: str | None = None
+
+
+CAPITAL_INTENSIVE_CAVEAT = (
+    "this is a capital-intensive company, for which the model runs structurally low"
+)
 
 
 def _coeff(spec: FormulaSpec, key: str) -> Decimal:
@@ -95,9 +101,15 @@ def compute_altman(
 
     if any(v is None for v in weighted.values()):
         applic = Applicability.computed_with_caveat if is_capital_intensive else Applicability.computed
-        return AltmanResult(components, None, None, applic)
+        return AltmanResult(
+            components, None, None, applic,
+            caveat_reason=CAPITAL_INTENSIVE_CAVEAT if is_capital_intensive else None,
+        )
 
     z = round_ratio(sum(weighted.values()), spec)
     band = altman_band(z, spec)
     applic = Applicability.computed_with_caveat if is_capital_intensive else Applicability.computed
-    return AltmanResult(components, float(z), band, applic)
+    return AltmanResult(
+        components, float(z), band, applic,
+        caveat_reason=CAPITAL_INTENSIVE_CAVEAT if is_capital_intensive else None,
+    )

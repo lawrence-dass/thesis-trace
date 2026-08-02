@@ -170,6 +170,7 @@ async def score_altman(session: AsyncSession, issuer_cik: str, fiscal_year: int)
         accession_number=fact.accession_number if fact else "",
         aggregate_value=result.z_score,
         applicability=result.applicability,
+        caveat_reason=result.caveat_reason,
     )
     session.add(run)
     await session.flush()
@@ -218,6 +219,7 @@ async def score_beneish(session: AsyncSession, issuer_cik: str, fiscal_year: int
         accession_number=await _accession_for(session, issuer_cik, fiscal_year),
         aggregate_value=result.m_score,
         applicability=result.applicability,
+        caveat_reason=result.caveat_reason,
     )
     session.add(run)
     await session.flush()

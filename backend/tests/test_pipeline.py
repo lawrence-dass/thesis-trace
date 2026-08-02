@@ -8,6 +8,7 @@ from pathlib import Path
 from sqlalchemy import select
 
 from app.models import (
+    Applicability,
     CanonicalFact,
     DataQualityIssue,
     Filing,
@@ -350,3 +351,65 @@ async def test_read_api_provenance_surfaces_the_derivation(db_session) -> None:
     derived = [p for p in provenances if p.canonical_concept == "total_liabilities"]
     if derived:  # only present if a scored signal actually consumed it
         assert all(p.derivation == "assets_minus_equity" for p in derived)
+
+
+@requires_db
+async def test_out_of_calibration_beneish_is_caveated_not_altered(db_session) -> None:
+    """Cameco FY2021 (GMI = 45) must be flagged, and its M-score left untouched.
+
+    The disclosure changes what we SAY about the number, never the number. Any
+    clamping or suppression would be ThesisTrace originating methodology, which
+    the deterministic boundary forbids for our own code as much as for an LLM.
+    """
+    payload = json.loads(IFRS_FIXTURE.read_text())
+    await run_issuer(db_session, payload, ticker="CCJ", is_capital_intensive=True)
+
+    run = (
+        await db_session.execute(
+            select(ScoreRun).where(
+                ScoreRun.issuer_cik == "0001009001",
+                ScoreRun.model == Model.beneish,
+                ScoreRun.fiscal_year == 2021,
+                ScoreRun.superseded.is_(False),
+            )
+        )
+    ).scalars().one()
+
+    assert run.applicability is Applicability.computed_with_caveat
+    assert run.caveat_reason and "outside its normal range" in run.caveat_reason
+    # Value preserved exactly — the caveat annotates, it does not correct.
+    assert float(run.aggregate_value) > 20
+
+    # A normal year must NOT be caveated, or the flag is meaningless.
+    normal = (
+        await db_session.execute(
+            select(ScoreRun).where(
+                ScoreRun.issuer_cik == "0001009001",
+                ScoreRun.model == Model.beneish,
+                ScoreRun.fiscal_year == 2024,
+                ScoreRun.superseded.is_(False),
+            )
+        )
+    ).scalars().one()
+    assert normal.applicability is Applicability.computed
+    assert normal.caveat_reason is None
+
+
+@requires_db
+async def test_explanation_uses_the_models_own_caveat_reason(db_session) -> None:
+    """Beneish's caveat must not borrow Altman's capital-intensity wording."""
+    from explanation.template import build_explanations
+    from api import repository
+
+    payload = json.loads(IFRS_FIXTURE.read_text())
+    await run_issuer(db_session, payload, ticker="CCJ", is_capital_intensive=True)
+
+    overview = await repository.get_company_overview(db_session, "CCJ")
+    assert overview is not None
+    lenses = {e.model: e.text for e in build_explanations(overview)}
+
+    beneish_lens = next((s for s in overview.scores if s.model == "beneish"), None)
+    if beneish_lens and beneish_lens.applicability == "computed_with_caveat":
+        text = lenses["beneish"]
+        assert "outside its normal range" in text
+        assert "capital-intensive" not in text, "Altman's reason leaked into Beneish"
