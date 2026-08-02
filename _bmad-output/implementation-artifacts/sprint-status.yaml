@@ -148,6 +148,32 @@ post_epic_work:
     status: done
     evidence: "PR #24 — passed in CI while failing for anyone with a real .env sourced. Both the process env and the .env-file fallback are now pinned with monkeypatch."
 
+# D8 — Canada-first IFRS/40-F support. In progress, 4 of 7 increments merged.
+# Foundational decision recorded in planning-artifacts/foundational-decisions.md (D8);
+# it NARROWS D6's blanket IFRS exclusion rather than re-litigating it.
+d8_ifrs_track:
+  - step: "1. Reporting regimes as data (canonicalization/taxonomies.py); D8 recorded"
+    status: done
+    evidence: "PR #26. Four hardcoded gates across ingestion/canonicalization/pipeline now read a registry; behaviour-preserving for the four us-gaap filers."
+  - step: "3. ifrs-full mappings + Cameco (CCJ) as the first IFRS filer"
+    status: done
+    evidence: "PR #27. 18/18 canonical concepts, FY2016-2025, Beneish resolving all 8 indices. 29 ifrs-full MappingRules; MAPPING_VERSION concepts_v3 -> concepts_v4 per AD-2."
+  - step: "Derived-vs-filed provenance marker (found while scoping D8, pre-existing)"
+    status: done
+    evidence: "PR #28. canonical_facts.derivation + Provenance.derivation + CitationChip 'derived' badge. Migration a1c4e7b9f012."
+  - step: "Out-of-calibration Beneish caveat"
+    status: done
+    evidence: "PR #29. Cameco FY2021 GMI=45.1 -> M=+20.84 annotated computed_with_caveat, value UNCHANGED. score_runs.caveat_reason, migration b2d5f8c1a334."
+  - step: "4. Extract mapping engine to versioned per-taxonomy YAML"
+    status: open
+    note: "NEXT. 59 MappingRules (30 us-gaap, 29 ifrs-full) + _derive_total_liabilities become declarative, mirroring formulas/specs/*.yaml. Deliberately deferred until two real taxonomies existed to design against. Golden dataset is the regression guard."
+  - step: "5. BCE (3 of 4 models) and Suncor (2 of 4)"
+    status: open
+    note: "Each adds one degradation case. Suncor forces the ebit decision: IFRS mandates no operating-profit line, so ProfitLossBeforeTax + InterestExpense vs - FinanceIncomeCost both defensible and differ. Belongs in a versioned spec, not a mapping row."
+  - step: "6. Roxas-5 Beneish variant"
+    status: open
+    note: "Researched and verified, not implemented. M = -6.065 + 0.823*DSRI + 0.906*GMI + 0.593*AQI + 0.717*SGI + 0.107*DEPI; omits SGAI/LVGI/TATA; cutoff -2.76. Roxas (2011), J. Leadership Accountability and Ethics 8(4) 56-66. Would recover SHOP's Beneish (blocked on LVGI) and Suncor's (blocked on SGAI). Read the original PDF before encoding — secondary sources disagreed once already."
+
 # NOTE FOR THE NEXT PLANNING SESSION (2026-07-29)
 #
 # epics.md defines Epics 1-4 only, and all four are done. There is NO Epic 5+.
