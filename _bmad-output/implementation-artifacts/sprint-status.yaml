@@ -172,7 +172,7 @@ d8_ifrs_track:
     status: done
     resolved: 2026-08-02
     evidence: "Both added and verified live (BCE 0000718940, Suncor 0000311337). MAPPING_VERSION concepts_v4 -> concepts_v5. All three D8 consequence-3 decisions made: ebit = ProfitLossBeforeTax + InterestExpense (derivations_v2, with the rejected alternative recorded), gross_profit derived only from a true CostOfSales tag, and non-comparable by-nature inputs annotated computed_with_caveat. 100 passed / 1 skipped."
-    follow_up: "TWO open items. (1) The gross_profit derivation is deliberately scoped to ifrs-full: admitting the us-gaap cost tags derives a gross profit for QSR and moves its Piotroski F-score 6 -> 7, changing a hand-verified golden value (PRD OQ1 / SM-1, closed 2026-07-29). The derived figure looks sound, so this is likely a real signal QSR was missing — but it needs a deliberate golden re-verification, not a side effect. (2) The ebit DECISION rationale is versioned in derivations_v2.yaml but is NOT yet surfaced on the /methodology page, which D8 consequence 3 requires.
+    follow_up: "(1) RESOLVED 2026-08-02 — see qsr_gross_profit_reverification below. (2) The ebit DECISION rationale is versioned in derivations_v2.yaml but is NOT yet surfaced on the /methodology page, which D8 consequence 3 requires.
     note: "Each adds one degradation case. Suncor forces the ebit decision: IFRS mandates no operating-profit line, so ProfitLossBeforeTax + InterestExpense vs - FinanceIncomeCost both defensible and differ. Belongs in a versioned spec, not a mapping row."
   - step: "6. Roxas-5 Beneish variant"
     status: open
@@ -195,3 +195,19 @@ d8_ifrs_track:
 # (fabricated accession numbers; tags SHOP does not actually use). Only the
 # golden dataset uses real EDGAR data. Those nine can stay green against fiction
 # — the same class of gap as the shares_outstanding and CP PP&E tag bugs.
+
+# QSR gross-profit re-verification (2026-08-02). Asked: should the gross_profit
+# derivation extend to us-gaap cost tags, accepting a golden F-score change 6 -> 7?
+# Answered against live EDGAR (CIK 0001618756). ANSWER: NO. Golden value 6 stands.
+qsr_gross_profit_reverification:
+  verdict: "Do not extend. The derived figure is wrong, not a missing signal."
+  evidence:
+    - "QSR is primarily a franchisor: Revenues bundles royalties, property and advertising revenue with supply-chain and company-restaurant sales, while CostOfGoodsAndServicesSold covers only the latter. It is 49% of total costs and expenses; advertising expense alone (FY2023 $1,201M) sits outside cogs while its revenue sits inside Revenues."
+    - "The apparent improvement that would have flipped Piotroski's margin signal is a revenue-mix artefact: FY2022->FY2023 revenue +7.9%, cost of sales +5.3%, advertising expense +16.4%. A zero-cogs stream growing at twice revenue lifts the ratio 0.87pp with no underlying margin change."
+    - "Control: SHOP and OTEX both file GrossProfit AND revenue - cogs reproduces it to the dollar. QSR files no GrossProfit line at all — the filer signalling the subtraction is not meaningful for its income statement. CP tags no cogs and is unaffected."
+    - "Structurally identical to Suncor's inventories-only cogs, from the revenue side: a partial cost base against a full revenue base. Both excluded by the same requires_source constraint."
+  guarded_by: "backend/tests/test_concept_mappings.py::test_gross_profit_derivation_stays_scoped_to_true_cost_of_sales_tags"
+  open_follow_up:
+    - item: "Beneish's GMI already computes QSR's gross margin from the same (revenue - cogs) / revenue ratio, so the distortion is live in production for QSR's M-score today."
+      severity: "low — GMI is a ratio OF the two years' margins, so the mix effect largely divides out (0.988 for FY2023) rather than exploding."
+      note: "Correcting it would change another hand-verified golden value (m_score -2.219847) and needs its own change plus re-verification. Lawrence's call."
