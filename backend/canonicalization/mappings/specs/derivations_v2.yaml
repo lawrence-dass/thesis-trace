@@ -16,6 +16,11 @@
 #                assets_minus_equity is one. The bar is NOT "the concept is missing".
 #
 #   DECISION   — a defensible choice among alternatives that give different numbers.
+#                Declared with `kind: decision`, which is what makes it surface on the
+#                public methodology page: a judgment ThesisTrace made is something a
+#                user is entitled to see and disagree with, not an implementation
+#                detail. `kind: identity` rules are shown too, but framed as
+#                arithmetic rather than as a choice.
 #                ThesisTrace is originating methodology, so the rationale, the
 #                alternatives considered, and why one was chosen are recorded HERE,
 #                versioned with the rule, and surfaced on the methodology page.
@@ -24,6 +29,12 @@
 #
 # Summing an assumed subset of line items (OTEX's post-FY2019 split D&A tags) is
 # neither, and stays insufficient_data (AD-3).
+#
+# TWO AUDIENCES, TWO FIELDS. `note` is for whoever maintains this file — it may cite
+# decision records, filers and file paths. `rationale` is PUBLISHED verbatim on the
+# public methodology page, so it must stand alone for a reader who has never seen this
+# repository: no internal references, no jargon. Both are required; the loader refuses a
+# rule missing either, because a derivation nobody can explain should not run.
 #
 # v2 (2026-08-02) adds the IFRS ebit decision and a source-conditional gross_profit.
 
@@ -34,6 +45,12 @@ derivations:
   # --- IDENTITY --------------------------------------------------------------
 
   - rule: assets_minus_equity
+    rationale: >-
+      Some companies report total assets and shareholders' equity but no single
+      total-liabilities line. Where that happens, total liabilities is computed from the
+      accounting identity that assets equal liabilities plus equity. It was checked
+      against companies that do report the total and reproduces their figure exactly.
+    kind: identity
     canonical_concept: total_liabilities
     operation: subtract
     operands: [total_assets, stockholders_equity]
@@ -52,6 +69,17 @@ derivations:
   # --- DECISION --------------------------------------------------------------
 
   - rule: ebit_pbt_plus_interest
+    rationale: >-
+      IFRS does not require companies to report an operating profit line, and some do
+      not. Where it is missing, this input is reconstructed as pre-tax profit plus
+      interest expense — the standard definition of earnings before interest and taxes.
+      An alternative approach subtracts net finance costs instead and gives a different
+      figure; it was not used because several companies do not report that item at all.
+      Interest expense is not the only component of finance cost, so this reconstruction
+      can differ slightly from an operating profit the company would itself have
+      reported. Where it differs it understates the figure, which lowers this score
+      rather than flattering it.
+    kind: decision
     canonical_concept: ebit
     operation: add
     operands: [profit_before_tax, interest_expense]
@@ -81,6 +109,13 @@ derivations:
       lowers Z, never flattering the score.
 
   - rule: revenue_minus_cost_of_sales
+    rationale: >-
+      Some companies do not report a gross profit line. Where the company reports a cost
+      of sales covering the same revenue, gross profit is computed as revenue minus cost
+      of sales. It is deliberately not computed when the only available cost figure
+      covers just part of that revenue — a cost of inventories that excludes service and
+      labour costs, for example — because subtracting it would overstate the margin.
+    kind: identity
     canonical_concept: gross_profit
     operation: subtract
     operands: [revenue, cogs]

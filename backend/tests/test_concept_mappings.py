@@ -264,10 +264,12 @@ def test_loader_rejects_an_unknown_derivation_operation(tmp_path, monkeypatch) -
             "derivations": [
                 {
                     "rule": "made_up",
+                    "kind": "identity",
                     "canonical_concept": "ebit",
                     "operation": "interpolate",
                     "operands": ["revenue", "cogs"],
                     "provenance_from": "revenue",
+                    "note": "test fixture", "rationale": "test fixture",
                 }
             ],
         },
@@ -289,10 +291,12 @@ def test_loader_rejects_provenance_anchored_outside_the_operands(tmp_path, monke
             "derivations": [
                 {
                     "rule": "made_up",
+                    "kind": "identity",
                     "canonical_concept": "gross_profit",
                     "operation": "subtract",
                     "operands": ["revenue", "cogs"],
                     "provenance_from": "total_assets",
+                    "note": "test fixture", "rationale": "test fixture",
                 }
             ],
         },

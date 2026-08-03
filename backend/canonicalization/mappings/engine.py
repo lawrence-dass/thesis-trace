@@ -34,6 +34,12 @@ SPECS_DIR = Path(__file__).parent / "specs"
 # silently skipping a concept the pipeline expects.
 DERIVATION_OPERATIONS = frozenset({"subtract", "add"})
 
+# How a derivation is characterised on the public methodology page. `decision` means
+# ThesisTrace chose among defensible alternatives that give different numbers, which a
+# user is entitled to see and disagree with (D8 consequence 3). `identity` means the
+# rule is true by definition once its operands are the right measurements.
+DERIVATION_KINDS = frozenset({"identity", "decision"})
+
 
 @dataclass(frozen=True)
 class MappingRule:
@@ -56,16 +62,26 @@ class DerivationRule:
     filed tag. `rule` is the name recorded on CanonicalFact.derivation."""
 
     rule: str
+    kind: str
     canonical_concept: str
     operation: str
     operands: tuple[str, ...]
     provenance_from: str
+    # Maintainer-facing; may cite decision records and file paths.
     note: str | None = None
+    # PUBLISHED verbatim on the public methodology page — must stand alone.
+    rationale: str | None = None
     # operand -> source concepts it must have resolved from for this rule to fire.
     # An operand can be canonically correct yet measure the wrong thing: Suncor's
     # cogs comes from an inventories-only by-nature tag, so deriving gross profit
     # from it would OVERSTATE margin. Absent = the operand's source is unconstrained.
     requires_source: tuple[tuple[str, tuple[str, ...]], ...] = ()
+
+    def expression(self) -> str:
+        """`a + b` / `a - b`, generated from the operands so the published formula
+        cannot drift from the one actually applied."""
+        symbol = {"add": "+", "subtract": "-"}[self.operation]
+        return f" {symbol} ".join(self.operands)
 
 
 @dataclass(frozen=True)
@@ -118,6 +134,20 @@ def _load_derivations(spec_version: str) -> tuple[DerivationRule, ...]:
         operation = entry["operation"]
         if operation not in DERIVATION_OPERATIONS:
             raise ValueError(f"{path.name}: unknown derivation operation {operation!r}")
+        kind = entry.get("kind")
+        if kind not in DERIVATION_KINDS:
+            raise ValueError(
+                f"{path.name}: {entry['rule']!r} declares kind {kind!r}; must be one of "
+                f"{sorted(DERIVATION_KINDS)} — a derivation has to say whether it is arithmetic "
+                "or a judgment, because the methodology page presents them differently"
+            )
+        for field in ("note", "rationale"):
+            if not entry.get(field):
+                raise ValueError(
+                    f"{path.name}: {entry['rule']!r} has no {field}. `note` explains the rule to "
+                    "whoever maintains it; `rationale` is published verbatim on the public "
+                    "methodology page. A derivation nobody can explain should not run."
+                )
         operands = tuple(entry["operands"])
         if len(operands) != 2:
             raise ValueError(f"{path.name}: {operation!r} takes exactly 2 operands, got {len(operands)}")
@@ -136,11 +166,13 @@ def _load_derivations(spec_version: str) -> tuple[DerivationRule, ...]:
         derivations.append(
             DerivationRule(
                 rule=entry["rule"],
+                kind=kind,
                 canonical_concept=entry["canonical_concept"],
                 operation=operation,
                 operands=operands,
                 provenance_from=entry["provenance_from"],
                 note=entry.get("note"),
+                rationale=entry.get("rationale"),
                 requires_source=tuple(
                     (operand, tuple(sources)) for operand, sources in sorted(requires_source.items())
                 ),
