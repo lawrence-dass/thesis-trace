@@ -45,7 +45,7 @@ def test_mapping_version_is_the_registry_version() -> None:
 
 
 def test_rule_counts_per_taxonomy() -> None:
-    """30 us-gaap + 29 ifrs-full, covering the same 18 canonical concepts. A change
+    """30 us-gaap + 30 ifrs-full, covering the same 18 canonical concepts. A change
     here is legitimate only alongside a new spec version (see registry.yaml)."""
     per_taxonomy: dict[str, int] = defaultdict(int)
     concepts: dict[str, set[str]] = defaultdict(set)
@@ -53,7 +53,7 @@ def test_rule_counts_per_taxonomy() -> None:
         per_taxonomy[rule.source_taxonomy] += 1
         concepts[rule.source_taxonomy].add(rule.canonical_concept)
 
-    assert per_taxonomy == {"us-gaap": 30, "ifrs-full": 29}
+    assert per_taxonomy == {"us-gaap": 30, "ifrs-full": 30}
     assert len(concepts["us-gaap"]) == 18
     assert concepts["us-gaap"] == concepts["ifrs-full"]
 

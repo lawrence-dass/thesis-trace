@@ -14,16 +14,21 @@
 #   3. Re-run canonicalization; new rows are written under the new version and the
 #      old ones remain for audit.
 #
-# `mapping_version` deliberately stayed at concepts_v4 through the 2026-08-02
-# extraction of these rules from hardcoded Python into YAML: the extraction was
-# proven rule-for-rule identical (see tests/test_concept_mappings.py), so the
-# mapping itself did not change. Bumping a version that nothing semantically
-# changed would orphan every stored canonical fact behind a duplicate rule set.
+# HISTORY
+#   concepts_v4  us-gaap_v4 + ifrs-full_v1. Also the version the 2026-08-02
+#                extraction of these rules from hardcoded Python into YAML kept:
+#                that refactor was proven rule-for-rule identical, so the mapping
+#                itself did not change and bumping would have orphaned every stored
+#                canonical fact behind a duplicate rule set.
+#   concepts_v5  us-gaap_v4 + ifrs-full_v2. A real mapping change (D8 step 6): adds
+#                the right-of-use PP&E fallback that BCE and Suncor both switched to
+#                mid-history. us-gaap is untouched and keeps its v4 spec — a
+#                per-taxonomy change does not force a version on the others.
 
-mapping_version: concepts_v4
+mapping_version: concepts_v5
 
 taxonomies:
   us-gaap: us-gaap_v4
-  ifrs-full: ifrs-full_v1
+  ifrs-full: ifrs-full_v2
 
 derivations: derivations_v1
