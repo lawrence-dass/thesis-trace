@@ -1,0 +1,171 @@
+# ifrs-full concept mappings — Form 40-F, Canadian MJDS filers (D8).
+#
+# Verified live against data.sec.gov 2026-07-29. Cameco (CIK 0001009001) resolves
+# 17 of 18 canonical concepts from directly-filed tags, every one with the full
+# FY2017-2025 span. total_liabilities is the single gap and needs no IFRS-specific
+# rule: the `assets_minus_equity` derivation in derivations_v1.yaml already covers
+# it, and is taxonomy-blind because it operates on canonical concepts rather than
+# source tags.
+#
+# IFRS filings are NOT less comprehensive than us-gaap ones — 234-288 tagged
+# concepts across BCE/Cameco/Suncor is dense disclosure. What varies is IAS 1's
+# allowance of expenses by NATURE instead of by FUNCTION, which is a presentation
+# difference, not a tagging-quality one. Coverage therefore varies per FILER, not
+# per taxonomy (D8). Presentation-driven gaps are deliberately NOT papered over.
+#
+# As in us-gaap_v4.yaml, `sources` order IS priority order.
+
+taxonomy: ifrs-full
+spec_version: ifrs-full_v1
+
+concepts:
+
+  total_assets:
+    sources:
+      - concept: Assets
+
+  current_assets:
+    sources:
+      - concept: CurrentAssets
+
+  current_liabilities:
+    sources:
+      - concept: CurrentLiabilities
+
+  total_liabilities:
+    sources:
+      - concept: Liabilities
+
+  stockholders_equity:
+    sources:
+      - concept: Equity
+      - concept: EquityAttributableToOwnersOfParent
+        note: >-
+          UNVERIFIED VARIANT (see file footer). Excludes non-controlling interests,
+          so it is a genuinely different measurement from `Equity` and is ordered
+          strictly below it.
+
+  retained_earnings:
+    sources:
+      - concept: RetainedEarnings
+
+  net_income:
+    sources:
+      - concept: ProfitLoss
+      - concept: ProfitLossAttributableToOwnersOfParent
+        note: >-
+          UNVERIFIED VARIANT (see file footer). The parent-only profit measure,
+          mirroring the equity fallback above.
+
+  ebit:
+    note: >-
+      IFRS mandates no operating-profit line, but a filer MAY tag one. Where it does
+      (Cameco, all 9 years) ebit is read AS FILED, never derived — so no judgment
+      enters the number. Filers that omit it get insufficient_data until the
+      derivation decision is made in a versioned formula spec (D8 consequence 3):
+      ProfitLossBeforeTax + InterestExpense and ProfitLossBeforeTax -
+      FinanceIncomeCost are both defensible and give different numbers, so that
+      choice belongs on the methodology page, not in a mapping row.
+    sources:
+      - concept: ProfitLossFromOperatingActivities
+
+  cash_from_operations:
+    sources:
+      - concept: CashFlowsFromUsedInOperatingActivities
+      - concept: CashFlowsFromUsedInOperations
+        note: >-
+          UNVERIFIED VARIANT (see file footer). NOTE the real difference: this tag is
+          cash generated from operations BEFORE interest and taxes paid, so it is not
+          interchangeable with the primary tag. Only fires when the primary is absent
+          for that year.
+
+  revenue:
+    note: >-
+      IFRS naming trap, confirmed live on Suncor: `Revenue` exists but can carry only
+      a single year, while `RevenueFromContractsWithCustomers` (IFRS 15, mandatory
+      from 2018) carries the rest. Taking the obvious tag alone costs real coverage.
+    sources:
+      - concept: Revenue
+      - concept: RevenueFromContractsWithCustomers
+
+  cogs:
+    sources:
+      - concept: CostOfSales
+      - concept: CostOfInventoriesRecognisedAsExpenseDuringPeriod
+        note: >-
+          UNVERIFIED VARIANT (see file footer). An IFRS-by-nature disclosure, narrower
+          than CostOfSales — inventories only, excluding service/labour cost of sales.
+
+  gross_profit:
+    sources:
+      - concept: GrossProfit
+
+  sga:
+    note: >-
+      IAS 1 permits expenses by NATURE (raw materials, employee benefits, energy)
+      instead of by FUNCTION, so a by-nature filer such as Suncor has no SG&A line to
+      tag at all and Beneish's SGAI correctly stays insufficient_data. That is the
+      same shape as CP's missing COGS under us-gaap and gets the same treatment — a
+      gap, never a substitute.
+    sources:
+      - concept: AdministrativeExpense
+      - concept: SellingGeneralAndAdministrativeExpense
+
+  ppe_net:
+    sources:
+      - concept: PropertyPlantAndEquipment
+
+  depreciation:
+    sources:
+      - concept: DepreciationAndAmortisationExpense
+      - concept: DepreciationAmortisationAndImpairmentLossReversalOfImpairmentLossRecognisedInProfitOrLoss
+        note: >-
+          UNVERIFIED VARIANT (see file footer). Bundles impairment in with D&A, so it
+          overstates depreciation in an impairment year — a real distortion risk for
+          Beneish's DEPI, which is why it sits below the clean tag.
+
+  receivables:
+    sources:
+      - concept: TradeAndOtherCurrentReceivables
+      - concept: CurrentTradeReceivables
+        note: >-
+          UNVERIFIED VARIANT (see file footer). Trade receivables only, excluding the
+          "other" component of the primary tag.
+
+  long_term_debt:
+    sources:
+      - concept: LongtermBorrowings
+      - concept: NoncurrentPortionOfLongtermBorrowings
+        note: >-
+          UNVERIFIED VARIANT (see file footer). The explicitly-noncurrent split of the
+          same balance.
+
+  shares_outstanding:
+    note: >-
+      Same trap class as the us-gaap dei/shares bug: `NumberOfSharesOutstanding` can
+      be sparse where `NumberOfSharesIssued` is complete. Always check per-year
+      coverage, never mere tag presence.
+    sources:
+      - concept: NumberOfSharesOutstanding
+      - concept: NumberOfSharesIssued
+      - concept: WeightedAverageShares
+
+# --- Status of the "UNVERIFIED VARIANT" fallbacks -----------------------------
+#
+# The 2026-07-29 live sweep of BCE / Cameco / Suncor confirmed the PRIMARY tag for
+# every concept above, and specifically confirmed the two fallback chains flagged as
+# traps (revenue, shares_outstanding). The seven fallbacks marked UNVERIFIED VARIANT
+# were added in that same pass as plausible IFRS presentation alternatives — no
+# observed filer gap forced any of them, and none has been confirmed to carry data
+# for a filer whose primary tag is missing.
+#
+# They are inert rather than wrong: a priority > 0 rule only ever fires when the
+# primary tag is genuinely absent for that fiscal year. But several are NOT clean
+# substitutes (noted individually above — parent-only equity, pre-interest operating
+# cash flow, impairment-inclusive D&A), so the first filer that actually triggers one
+# needs its number checked against the filing rather than trusted.
+#
+# Before adding an IFRS filer beyond Cameco, verify per-year coverage for the tags it
+# actually uses — tag presence is not coverage. That trap has already produced two
+# real bugs in this codebase (the us-gaap dei/shares_outstanding misfiling and CP's
+# mid-history PP&E tag switch).

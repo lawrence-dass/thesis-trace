@@ -1,0 +1,29 @@
+# Concept-mapping registry (AD-2).
+#
+# Names the per-taxonomy spec files that together constitute one MAPPING_VERSION.
+# `mapping_version` is the composite identifier stamped onto every canonical_facts
+# and concept_mappings row, so a stored fact can always be traced back to the exact
+# set of rules that produced it.
+#
+# CHANGING A MAPPING:
+#   1. Copy the taxonomy's spec to a new file with the next version suffix
+#      (e.g. us-gaap_v4.yaml -> us-gaap_v5.yaml) and edit the copy. Never edit a
+#      spec that a stored mapping_version already points at — AD-2 requires that
+#      historical rows stay reproducible.
+#   2. Point the entry below at the new file and bump `mapping_version`.
+#   3. Re-run canonicalization; new rows are written under the new version and the
+#      old ones remain for audit.
+#
+# `mapping_version` deliberately stayed at concepts_v4 through the 2026-08-02
+# extraction of these rules from hardcoded Python into YAML: the extraction was
+# proven rule-for-rule identical (see tests/test_concept_mappings.py), so the
+# mapping itself did not change. Bumping a version that nothing semantically
+# changed would orphan every stored canonical fact behind a duplicate rule set.
+
+mapping_version: concepts_v4
+
+taxonomies:
+  us-gaap: us-gaap_v4
+  ifrs-full: ifrs-full_v1
+
+derivations: derivations_v1

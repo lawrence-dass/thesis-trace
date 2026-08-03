@@ -1,0 +1,40 @@
+# Canonical-concept derivations — values ThesisTrace COMPUTES rather than reads.
+#
+# A derivation only ever fires when the concept is genuinely absent for that fiscal
+# year and every operand resolved; it never overrides a directly-tagged value. The
+# resulting canonical_facts row carries `derivation: <rule>` so the read API and the
+# UI can mark it as a weaker provenance class than a filed figure (D8 consequence 4)
+# — a computed number must never wear a filed-line citation.
+#
+# Derivations are TAXONOMY-BLIND by construction: they operate on canonical concepts,
+# which is why the same accounting identity covers SHOP under us-gaap and every
+# ifrs-full filer without a second rule.
+#
+# The bar for adding one is high, and it is NOT "the concept is missing". It must be
+# an identity that holds by definition, verified exact against real filed figures
+# before it is relied on. Anything requiring a judgment call — IFRS `ebit`, where
+# ProfitLossBeforeTax + InterestExpense and ProfitLossBeforeTax - FinanceIncomeCost
+# are both defensible and give different numbers — does NOT belong here. That is a
+# methodology decision for a versioned formula spec, visible on the methodology page.
+# Summing an assumed subset of line items (OTEX's post-FY2019 split D&A tags) is a
+# guess and stays insufficient_data (AD-3).
+
+spec_version: derivations_v1
+
+derivations:
+
+  - rule: assets_minus_equity
+    canonical_concept: total_liabilities
+    operation: subtract
+    operands: [total_assets, stockholders_equity]
+    # Provenance root for a value that has no single source line. The total_assets
+    # fact carries the same balance-sheet date, making it the faithful anchor for
+    # the accession number and period_end recorded on the derived row.
+    provenance_from: total_assets
+    note: >-
+      The basic accounting identity, Assets = Liabilities + Equity. Needed for filers
+      that never tag a standalone liabilities total: confirmed live 2026-07-22 that
+      SHOP's 10-Ks report LiabilitiesAndStockholdersEquity and StockholdersEquity but
+      never us-gaap:Liabilities. Verified EXACT against SHOP's real FY2024/FY2025
+      figures before being relied on. Also covers ifrs-full filers, where Liabilities
+      is the one canonical concept Cameco does not file directly (D8).
