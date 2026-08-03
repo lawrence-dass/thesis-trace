@@ -173,6 +173,28 @@ def test_derivations_never_target_a_concept_they_consume() -> None:
         assert not produced.intersection(derivation.operands)
 
 
+def test_gross_profit_derivation_stays_scoped_to_true_cost_of_sales_tags() -> None:
+    """Re-verified against live EDGAR 2026-08-02 — this constraint is load-bearing.
+
+    Admitting the us-gaap cost tags derives a gross profit for QSR and moves its
+    Piotroski F-score 6 -> 7, and the derived figure is wrong: QSR is a franchisor,
+    so `Revenues` bundles royalties, property and advertising revenue while
+    CostOfGoodsAndServicesSold covers only supply-chain and company-restaurant
+    sales — 49% of its total costs. The apparent year-over-year improvement is a
+    revenue-mix artefact (advertising expense grew 16.4% against revenue's 7.9%).
+
+    A future session looking at Piotroski's coverage will be tempted to add these
+    tags. This test is the tripwire; the full finding is in derivations_v2.yaml.
+    """
+    rule = next(d for d in mappings.DERIVATION_RULES if d.canonical_concept == "gross_profit")
+    constrained = dict(rule.requires_source)
+    assert "cogs" in constrained, "the source constraint was removed entirely"
+    assert set(constrained["cogs"]) == {"CostOfSales"}, (
+        "gross_profit may only be derived from a true by-function cost-of-sales tag; "
+        f"got {constrained['cogs']}"
+    )
+
+
 def test_derivation_operands_are_real_canonical_concepts() -> None:
     mapped = {r.canonical_concept for r in mappings.MAPPING_RULES}
     for derivation in mappings.DERIVATION_RULES:

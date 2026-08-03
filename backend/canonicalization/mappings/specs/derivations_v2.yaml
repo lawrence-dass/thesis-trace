@@ -102,13 +102,37 @@ derivations:
       9 years, so it gains the concept; Cameco files GrossProfit directly and never
       reaches this rule; Suncor is correctly excluded by the constraint above.
 
-      DELIBERATELY SCOPED TO ifrs-full. The us-gaap cost tags (CostOfRevenue,
-      CostOfGoodsAndServicesSold) are NOT listed, so no us-gaap filer's behaviour
-      changes. They were tried and reverted: admitting them derives a gross profit for
-      QSR, whose Piotroski margin signal then flips from insufficient_data to pass and
-      moves its F-score from 6 to 7 — a hand-verified golden value (PRD OQ1 / SM-1,
-      closed 2026-07-29). The derived figure looks arithmetically sound, so this is
-      likely a real signal QSR was missing rather than a defect. But changing a closed
-      golden dataset is a decision with a re-verification attached, and it is not this
-      rule's job to make it as a side effect of an IFRS fix. Tracked in
-      sprint-status.yaml.
+      DELIBERATELY SCOPED TO ifrs-full, and the us-gaap cost tags (CostOfRevenue,
+      CostOfGoodsAndServicesSold) are deliberately NOT listed. Admitting them derives a
+      gross profit for QSR and moves its Piotroski F-score from 6 to 7. That was
+      re-verified against live EDGAR on 2026-08-02 and the derived figure is WRONG —
+      the golden 6 is correct and stands:
+
+        * QSR is primarily a franchisor. `Revenues` bundles franchise royalties,
+          property income and advertising revenue alongside supply-chain and
+          company-restaurant sales, while CostOfGoodsAndServicesSold covers only the
+          latter. It is 49% of QSR's total costs and expenses — advertising expense
+          alone (FY2023: $1,201M) sits entirely outside it while the matching revenue
+          sits inside `Revenues`. Revenue minus half the cost base is not a margin.
+        * The apparent year-over-year IMPROVEMENT is a mix artefact, which is what
+          would actually have flipped the signal. FY2022 -> FY2023: revenue +7.9%,
+          cost of sales +5.3%, advertising expense +16.4%. A zero-cogs revenue stream
+          growing at twice the rate of revenue lifts the ratio by 0.87pp with no
+          change in any underlying margin.
+        * Structurally identical to Suncor's inventories-only cogs, from the revenue
+          side instead of the cost side: a partial cost base against a full revenue
+          base. Both are excluded by this same constraint.
+
+      The check that makes this safe elsewhere: SHOP and OTEX both file GrossProfit
+      directly AND revenue - cogs reproduces it to the dollar, so the arithmetic is
+      sound wherever there is something to validate it against. QSR files no
+      GrossProfit line at all — and that absence is the filer telling you the
+      subtraction is not meaningful for its income statement, not an omission to fill
+      in. CP tags no cogs whatsoever and is unaffected either way.
+
+      KNOWN AND NOT ADDRESSED HERE: Beneish's GMI already computes QSR's gross margin
+      from this same (revenue - cogs) / revenue ratio, so the distortion is live in
+      production for QSR's M-score today. It is a ratio OF the two years' margins, so
+      the mix effect largely divides out (0.988 for FY2023) rather than exploding.
+      Correcting it would change another hand-verified golden value and belongs in its
+      own change. Tracked in sprint-status.yaml.
