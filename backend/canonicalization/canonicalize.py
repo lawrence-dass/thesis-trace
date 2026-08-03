@@ -24,6 +24,7 @@ selection algorithm, not the rules it runs on.
 
 from __future__ import annotations
 
+import uuid
 from collections import Counter, defaultdict
 from datetime import date
 from decimal import Decimal
@@ -247,6 +248,10 @@ async def _apply_derivations(
     for f in facts:
         by_year[f.fiscal_year][f.canonical_concept] = f
 
+    # Which source concept each selected fact actually came from, for rules whose
+    # operands are only valid when they measure the right thing (see requires_source).
+    source_of = await _source_concepts(session, facts) if any(r.requires_source for r in DERIVATION_RULES) else {}
+
     added = 0
     for rule in DERIVATION_RULES:
         for fiscal_year, concepts in by_year.items():
@@ -255,10 +260,14 @@ async def _apply_derivations(
             operands = [concepts.get(name) for name in rule.operands]
             if any(operand is None for operand in operands):
                 continue
+            if not _sources_satisfy(rule, concepts, source_of):
+                continue
 
+            left, right = operands
             if rule.operation == "subtract":
-                left, right = operands
                 value = Decimal(str(left.value)) - Decimal(str(right.value))
+            elif rule.operation == "add":
+                value = Decimal(str(left.value)) + Decimal(str(right.value))
             else:  # pragma: no cover - load_mapping_spec rejects unknown operations
                 raise ValueError(f"unsupported derivation operation: {rule.operation!r}")
 
@@ -279,3 +288,35 @@ async def _apply_derivations(
             )
             added += 1
     return added
+
+
+async def _source_concepts(
+    session: AsyncSession, facts: list[CanonicalFact]
+) -> dict[uuid.UUID, str]:
+    """canonical_fact.id -> the source XBRL concept it was selected from.
+
+    A derived fact has no source concept (selected_from_raw_fact_id is None) and is
+    simply absent from the mapping, so it can never satisfy a requires_source
+    constraint — correct, since a rule constrained to a specific filed tag must not
+    be fed another computed value."""
+    raw_ids = {f.selected_from_raw_fact_id: f.id for f in facts if f.selected_from_raw_fact_id}
+    if not raw_ids:
+        return {}
+    rows = (
+        await session.execute(select(RawFact.id, RawFact.concept).where(RawFact.id.in_(raw_ids)))
+    ).all()
+    return {raw_ids[raw_id]: concept for raw_id, concept in rows}
+
+
+def _sources_satisfy(
+    rule, concepts: dict[str, CanonicalFact], source_of: dict[uuid.UUID, str]
+) -> bool:
+    """True when every constrained operand resolved from an allowed source concept.
+
+    Guards against an operand that is canonically correct but measures the wrong
+    thing — Suncor's inventories-only cogs would overstate a derived gross profit.
+    """
+    for operand, allowed in rule.requires_source:
+        if source_of.get(concepts[operand].id) not in allowed:
+            return False
+    return True
