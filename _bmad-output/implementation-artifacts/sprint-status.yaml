@@ -207,7 +207,10 @@ qsr_gross_profit_reverification:
     - "Control: SHOP and OTEX both file GrossProfit AND revenue - cogs reproduces it to the dollar. QSR files no GrossProfit line at all — the filer signalling the subtraction is not meaningful for its income statement. CP tags no cogs and is unaffected."
     - "Structurally identical to Suncor's inventories-only cogs, from the revenue side: a partial cost base against a full revenue base. Both excluded by the same requires_source constraint."
   guarded_by: "backend/tests/test_concept_mappings.py::test_gross_profit_derivation_stays_scoped_to_true_cost_of_sales_tags"
-  open_follow_up:
-    - item: "Beneish's GMI already computes QSR's gross margin from the same (revenue - cogs) / revenue ratio, so the distortion is live in production for QSR's M-score today."
-      severity: "low — GMI is a ratio OF the two years' margins, so the mix effect largely divides out (0.988 for FY2023) rather than exploding."
-      note: "Correcting it would change another hand-verified golden value (m_score -2.219847) and needs its own change plus re-verification. Lawrence's call."
+  follow_up_resolved:
+    - item: "Beneish's GMI computed QSR's gross margin from the same (revenue - cogs) / revenue ratio, so the distortion was live in production for QSR's M-score."
+      status: done
+      resolved: 2026-08-02
+      evidence: "New `gross_margin_validation` guard in formulas/specs/beneish_v1.yaml, applied in scoring/beneish.py. QSR and Suncor are flagged computed_with_caveat; SHOP, OTEX, Cameco and BCE are not. The M-score is UNCHANGED — QSR FY2023 still -2.219847, the hand-verified golden value, so no golden re-verification was needed after all. Guarded by tests/test_beneish_gross_margin_guard.py."
+      design_note: "The test is filer-level, not year-level: a filer that reports a gross profit line ANYWHERE has demonstrated revenue - cogs is meaningful for its income statement. A year-level test would wrongly flag SHOP, whose fixture carries GrossProfit for FY2024 only. Stated limitation: validation once is validation throughout, so a filer that restructured after last reporting gross profit would not be re-flagged — accepted because the cases caught are structural (business model / presentation basis), not year-specific."
+      note: "Suncor's Beneish never resolves anyway (no SG&A line -> SGAI unresolvable), so the guard is real but unreachable for it. Pinned by a test so its absence is not later mistaken for a coverage bug."
