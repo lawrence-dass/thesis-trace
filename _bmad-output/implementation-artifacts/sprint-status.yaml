@@ -1,5 +1,5 @@
 # generated: 2026-07-21
-# last_updated: 2026-07-29
+# last_updated: 2026-08-02
 # project: ThesisTrace
 # project_key: NOKEY
 # tracking_system: file-system
@@ -53,7 +53,7 @@
 # stories. No retrospective has been run for any epic.
 
 generated: 2026-07-21
-last_updated: 2026-07-29
+last_updated: 2026-08-02
 project: ThesisTrace
 project_key: NOKEY
 tracking_system: file-system
@@ -165,8 +165,9 @@ d8_ifrs_track:
     status: done
     evidence: "PR #29. Cameco FY2021 GMI=45.1 -> M=+20.84 annotated computed_with_caveat, value UNCHANGED. score_runs.caveat_reason, migration b2d5f8c1a334."
   - step: "4. Extract mapping engine to versioned per-taxonomy YAML"
-    status: open
-    note: "NEXT. 59 MappingRules (30 us-gaap, 29 ifrs-full) + _derive_total_liabilities become declarative, mirroring formulas/specs/*.yaml. Deliberately deferred until two real taxonomies existed to design against. Golden dataset is the regression guard."
+    status: done
+    evidence: "PR #31. canonicalization/mappings/ package: engine.py + specs/{registry,us-gaap_v4,ifrs-full_v1,derivations_v1}.yaml. Rule set proven byte-identical to the pre-refactor tuples (all 59, same priorities), so MAPPING_VERSION stays concepts_v4 — AD-2 requires a bump for a mapping CHANGE, and nothing changed. 87 passed / 1 skipped against real Postgres 17. Priority is now list position; derivations are declarative and taxonomy-blind."
+    follow_up: "Seven ifrs-full fallbacks are marked UNVERIFIED VARIANT — added during the D8 sweep as plausible IFRS variants, never confirmed against a filer whose primary tag is missing. Inert (priority > 0 only fires when the primary is absent) but several are not clean substitutes: parent-only equity, pre-interest operating cash flow, impairment-inclusive D&A, inventories-only cost of sales. Verify per-year coverage when step 5 lands BCE/Suncor; delete any that no filer needs."
   - step: "5. BCE (3 of 4 models) and Suncor (2 of 4)"
     status: open
     note: "Each adds one degradation case. Suncor forces the ebit decision: IFRS mandates no operating-profit line, so ProfitLossBeforeTax + InterestExpense vs - FinanceIncomeCost both defensible and differ. Belongs in a versioned spec, not a mapping row."
