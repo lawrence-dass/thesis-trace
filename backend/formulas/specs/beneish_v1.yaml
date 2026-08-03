@@ -78,6 +78,43 @@ bands:
 # ThesisTrace's own conservative disclosure threshold, chosen because a ratio of
 # 10 means a ten-fold year-over-year change — it is not a Beneish figure and is
 # deliberately recorded here, versioned with the spec, rather than hidden in code.
+# --- ThesisTrace presentation guard — NOT part of Beneish (1999) -------------
+# GMI compares gross margin across two years, and Beneish defines gross margin as
+# (Sales - COGS) / Sales. That subtraction is only a gross margin when COGS covers
+# the cost base matching the revenue in the denominator, and for some filers it
+# does not:
+#
+#   * QSR is primarily a franchisor. `Revenues` bundles franchise royalties,
+#     property income and advertising revenue with supply-chain and
+#     company-restaurant sales, while CostOfGoodsAndServicesSold covers only the
+#     latter — 49% of total costs. Verified live 2026-08-02.
+#   * Suncor reports expenses by nature (IAS 1), so its only cost-of-sales tag
+#     covers inventories alone, excluding service and labour cost.
+#
+# Both are a PARTIAL cost base against a FULL revenue base, from the revenue and
+# cost sides respectively. The formula stays exactly as Beneish specified — the
+# input is what is unvalidated, so the M-score is annotated, never altered.
+#
+# The test is deliberately filer-level rather than year-level: a filer that files
+# a gross profit line anywhere in its history (or, under IFRS, one that can have it
+# validly derived) has demonstrated the subtraction is meaningful for its income
+# statement. SHOP and OTEX both file it AND revenue - cogs reproduces it to the
+# dollar, so they are validated even in years the tag itself is absent. QSR and
+# Suncor never file it at all, which is the filer signalling the subtraction is not
+# meaningful rather than an omission to fill in.
+#
+# Limitation, stated rather than hidden: validation once is treated as validation
+# throughout, so a filer that restructured after last filing a gross profit line
+# would not be re-flagged. Accepted because the cases this catches are structural
+# (business model / presentation basis), not year-specific.
+gross_margin_validation:
+  require_gross_profit_concept: true
+  caveat_reason: >-
+    This company does not report a gross profit line, and its cost of sales covers
+    only part of the revenue shown alongside it, so the gross margin behind this
+    score is an approximation rather than a reported figure. The margin trend it
+    implies can move with revenue mix rather than with profitability.
+
 calibration:
   index_abs_max: 10.0
   caveat_reason: >-

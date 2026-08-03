@@ -98,13 +98,40 @@ def compute_beneish(
     threshold = Decimal(str(spec.raw["threshold"]["manipulation_above"]))
     band = "Manipulation risk flagged" if m > threshold else "No manipulation flag"
 
-    # Out-of-calibration disclosure (see the `calibration` block in the spec).
-    # The score is NOT altered — only annotated, so nothing is invented.
+    # ThesisTrace presentation guards (see the spec). Neither alters the score —
+    # both only annotate, so nothing is invented. Reasons accumulate: a run can be
+    # both out of calibration and built on an unvalidated margin, and one must not
+    # silently replace the other.
+    reasons: list[str] = []
+
+    # Out-of-calibration disclosure (the `calibration` block).
     calib = spec.raw.get("calibration") or {}
     bound = calib.get("index_abs_max")
     if bound is not None and any(abs(v) > Decimal(str(bound)) for v in indices.values()):
+        reasons.append(calib["caveat_reason"].strip())
+
+    # Unvalidated gross margin (the `gross_margin_validation` block). GMI's
+    # (Sales - COGS) / Sales is only a margin when COGS matches the revenue base.
+    gross_margin = spec.raw.get("gross_margin_validation") or {}
+    if gross_margin.get("require_gross_profit_concept") and not _gross_profit_validated(facts):
+        reasons.append(gross_margin["caveat_reason"].strip())
+
+    if reasons:
         return BeneishResult(
             components, float(m), band, Applicability.computed_with_caveat,
-            caveat_reason=calib.get("caveat_reason"),
+            caveat_reason=" ".join(reasons)[:512],
         )
     return BeneishResult(components, float(m), band, Applicability.computed)
+
+
+def _gross_profit_validated(facts) -> bool:
+    """True when this filer has a gross_profit canonical fact for ANY year — filed
+    directly, or validly derived (which is itself source-constrained, see
+    derivations_v2.yaml).
+
+    Filer-level on purpose: a company that reports a gross profit line anywhere has
+    demonstrated that revenue - cogs is meaningful for its income statement, so it
+    stays validated in years the tag happens to be absent. One that never reports it
+    is telling you the subtraction does not describe its business.
+    """
+    return any(facts.get("gross_profit", year) is not None for year in facts.fiscal_years())
