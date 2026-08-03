@@ -44,18 +44,25 @@ def test_mapping_version_is_the_registry_version() -> None:
     assert mappings.MAPPING_VERSION == registry["mapping_version"]
 
 
-def test_rule_counts_per_taxonomy() -> None:
-    """30 us-gaap + 30 ifrs-full, covering the same 18 canonical concepts. A change
-    here is legitimate only alongside a new spec version (see registry.yaml)."""
-    per_taxonomy: dict[str, int] = defaultdict(int)
+def test_both_taxonomies_cover_every_model_consumed_concept() -> None:
+    """The 18 canonical concepts the four models consume must be mappable under both
+    regimes. ifrs-full additionally carries operand-only concepts (profit_before_tax,
+    interest_expense) that exist solely to feed the ebit derivation — no model reads
+    them, and us-gaap needs neither because its filers tag an operating-profit line
+    directly. So the two sets are not required to be equal, only to both cover the
+    model-consumed 18."""
     concepts: dict[str, set[str]] = defaultdict(set)
     for rule in mappings.MAPPING_RULES:
-        per_taxonomy[rule.source_taxonomy] += 1
         concepts[rule.source_taxonomy].add(rule.canonical_concept)
 
-    assert per_taxonomy == {"us-gaap": 30, "ifrs-full": 30}
-    assert len(concepts["us-gaap"]) == 18
-    assert concepts["us-gaap"] == concepts["ifrs-full"]
+    operand_only = {
+        c for d in mappings.DERIVATION_RULES for c in d.operands
+    } - concepts["us-gaap"]
+    model_consumed = concepts["us-gaap"]
+
+    assert len(model_consumed) == 18
+    assert model_consumed <= concepts["ifrs-full"]
+    assert concepts["ifrs-full"] - model_consumed == operand_only
 
 
 def test_priorities_are_contiguous_from_zero() -> None:

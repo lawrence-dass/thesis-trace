@@ -16,7 +16,7 @@ from pathlib import Path
 
 from sqlalchemy import select
 
-from app.models import CanonicalFact, Model, ScoreRun
+from app.models import Applicability, CanonicalFact, Model, ScoreRun
 from canonicalization.mappings import MAPPING_VERSION
 from pipeline.run import run_issuer
 from pipeline.universe import PHASE1_UNIVERSE
@@ -170,8 +170,9 @@ async def test_suncor_resolves_its_by_nature_variant_tags(db_session) -> None:
 
     These variants are NOT like-for-like with a by-function filer's — pre-interest
     operating cash flow, impairment-inclusive D&A, inventories-only cost of sales.
-    That mismatch is documented in ifrs-full_v2.yaml's footer and is a pending
-    product decision, not a mapping error.
+    That is not a mapping error but a consequence of IAS 1 by-nature presentation,
+    and it surfaces as a run caveat (see the comparability test below), never as an
+    altered or suppressed number.
     """
     payload = json.loads(SUNCOR_FIXTURE.read_text())
     await run_issuer(db_session, payload, ticker="SU", is_capital_intensive=True)
@@ -185,14 +186,58 @@ async def test_suncor_resolves_its_by_nature_variant_tags(db_session) -> None:
 
 
 @requires_db
-async def test_neither_filer_fabricates_an_ebit(db_session) -> None:
-    """Neither BCE nor Suncor tags an operating-profit line — IFRS does not mandate
-    one (Cameco voluntarily tags it, which is why Cameco reaches 4 of 4). Until the
-    D8 consequence-3 decision is made in a versioned formula spec, `ebit` stays
-    unresolved for both. `ProfitLossBeforeTax + InterestExpense` and
-    `ProfitLossBeforeTax - FinanceIncomeCost` are both defensible and give different
-    numbers, so choosing one silently inside canonicalization would be ThesisTrace
-    originating a methodology.
+async def test_suncor_runs_are_caveated_for_non_comparable_inputs(db_session) -> None:
+    """Suncor's CFO, cogs and D&A all come from by-nature variant tags that measure
+    something different from a by-function filer's equivalents. The values are
+    correct and are NOT altered — the run is annotated so the comparison view can
+    say the inputs aren't like-for-like.
+
+    Sloan consumes cash_from_operations, so it must carry the caveat.
+    """
+    payload = json.loads(SUNCOR_FIXTURE.read_text())
+    await run_issuer(db_session, payload, ticker="SU", is_capital_intensive=True)
+
+    sloan = (
+        await db_session.execute(
+            select(ScoreRun).where(ScoreRun.issuer_cik == SUNCOR_CIK, ScoreRun.model == Model.sloan)
+        )
+    ).scalars().all()
+    assert sloan, "no Sloan runs for Suncor"
+    caveated = [r for r in sloan if r.applicability is Applicability.computed_with_caveat]
+    assert caveated, "Suncor's Sloan should be caveated for its pre-interest CFO"
+    assert all(r.caveat_reason for r in caveated), "a caveat must say what differs"
+    assert any("interest" in r.caveat_reason.lower() for r in caveated)
+
+    # The caveat annotates; it must never blank the number out.
+    assert any(r.aggregate_value is not None for r in caveated)
+
+
+@requires_db
+async def test_bce_runs_are_not_caveated(db_session) -> None:
+    """The negative case that keeps the flag meaningful. BCE resolves every one of
+    its concepts from primary by-function tags, so nothing about its inputs is
+    non-comparable — if BCE were caveated too, the annotation would be noise."""
+    payload = json.loads(BCE_FIXTURE.read_text())
+    await run_issuer(db_session, payload, ticker="BCE", is_capital_intensive=True)
+
+    runs = (
+        await db_session.execute(select(ScoreRun).where(ScoreRun.issuer_cik == BCE_CIK))
+    ).scalars().all()
+    assert runs
+    non_comparable = [
+        r for r in runs if r.caveat_reason and "by nature" in r.caveat_reason.lower()
+    ]
+    assert not non_comparable, [(r.model, r.caveat_reason) for r in non_comparable]
+
+
+@requires_db
+async def test_ebit_is_derived_and_marked_as_such(db_session) -> None:
+    """The D8 consequence-3 decision, now made in derivations_v2.yaml.
+
+    Neither BCE nor Suncor tags an operating-profit line (IFRS mandates none), so
+    ebit is reconstructed as ProfitLossBeforeTax + InterestExpense. The resulting
+    fact MUST carry the rule name: it is a decision ThesisTrace originated, not a
+    figure either company filed, and a citation must never imply otherwise.
     """
     for fixture, ticker, cik in (
         (BCE_FIXTURE, "BCE", BCE_CIK),
@@ -200,4 +245,42 @@ async def test_neither_filer_fabricates_an_ebit(db_session) -> None:
     ):
         payload = json.loads(fixture.read_text())
         await run_issuer(db_session, payload, ticker=ticker, is_capital_intensive=True)
-        assert "ebit" not in _concepts(await _canonical(db_session, cik)), ticker
+
+        ebit = [f for f in await _canonical(db_session, cik) if f.canonical_concept == "ebit"]
+        assert ebit, f"{ticker} resolved no ebit"
+        assert all(f.derivation == "ebit_pbt_plus_interest" for f in ebit), [
+            (ticker, f.fiscal_year, f.derivation) for f in ebit
+        ]
+
+
+@requires_db
+async def test_bce_ebit_covers_the_years_its_interest_tag_misses(db_session) -> None:
+    """BCE tags InterestExpense for 7 of 9 years, with FY2021 and FY2022 missing, and
+    AdjustmentsForInterestExpense for all 9. Without that fallback BCE would lose
+    Altman for exactly two mid-history years — the same trap as CP's PP&E switch."""
+    payload = json.loads(BCE_FIXTURE.read_text())
+    await run_issuer(db_session, payload, ticker="BCE", is_capital_intensive=True)
+
+    years = {f.fiscal_year for f in await _canonical(db_session, BCE_CIK) if f.canonical_concept == "ebit"}
+    assert {2021, 2022} <= years, f"FY2021/FY2022 missing from {sorted(years)}"
+
+
+@requires_db
+async def test_gross_profit_derives_for_bce_but_not_for_suncor(db_session) -> None:
+    """The requires_source constraint, which is the whole point of that mechanism.
+
+    BCE tags CostOfSales (a true by-function cost of sales), so revenue - cogs is
+    genuine gross profit. Suncor's cogs resolves ONLY from the inventories-only
+    by-nature tag, where the same subtraction would OVERSTATE margin and feed a
+    wrong number into Piotroski's margin signal and Beneish's GMI while wearing
+    correct-looking provenance. Suncor must stay insufficient_data.
+    """
+    bce = json.loads(BCE_FIXTURE.read_text())
+    await run_issuer(db_session, bce, ticker="BCE", is_capital_intensive=True)
+    bce_gp = [f for f in await _canonical(db_session, BCE_CIK) if f.canonical_concept == "gross_profit"]
+    assert bce_gp, "BCE should gain gross_profit from revenue - CostOfSales"
+    assert all(f.derivation == "revenue_minus_cost_of_sales" for f in bce_gp)
+
+    suncor = json.loads(SUNCOR_FIXTURE.read_text())
+    await run_issuer(db_session, suncor, ticker="SU", is_capital_intensive=True)
+    assert "gross_profit" not in _concepts(await _canonical(db_session, SUNCOR_CIK))

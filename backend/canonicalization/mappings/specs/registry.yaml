@@ -20,10 +20,12 @@
 #                that refactor was proven rule-for-rule identical, so the mapping
 #                itself did not change and bumping would have orphaned every stored
 #                canonical fact behind a duplicate rule set.
-#   concepts_v5  us-gaap_v4 + ifrs-full_v2. A real mapping change (D8 step 6): adds
-#                the right-of-use PP&E fallback that BCE and Suncor both switched to
-#                mid-history. us-gaap is untouched and keeps its v4 spec — a
-#                per-taxonomy change does not force a version on the others.
+#   concepts_v5  us-gaap_v4 + ifrs-full_v2 + derivations_v2. A real mapping change
+#                (D8 step 6): the right-of-use PP&E fallback that BCE and Suncor both
+#                switched to mid-history, the two operand concepts behind the IFRS
+#                ebit decision, and the ebit + gross_profit derivations. us-gaap is
+#                untouched and keeps its v4 spec — a per-taxonomy change does not
+#                force a version on the others.
 
 mapping_version: concepts_v5
 
@@ -31,4 +33,4 @@ taxonomies:
   us-gaap: us-gaap_v4
   ifrs-full: ifrs-full_v2
 
-derivations: derivations_v1
+derivations: derivations_v2

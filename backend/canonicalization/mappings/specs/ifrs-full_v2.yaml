@@ -76,6 +76,12 @@ concepts:
     sources:
       - concept: CashFlowsFromUsedInOperatingActivities
       - concept: CashFlowsFromUsedInOperations
+        like_for_like: false
+        mismatch_reason: >-
+          Operating cash flow is reported before interest and taxes paid, which is a
+          different measure from the cash-flow line other filers report. It flatters
+          cash flow, so accrual-based signals read more favourably than a like-for-like
+          comparison would.
         note: >-
           LOAD-BEARING and NOT a clean substitute — verified 2026-08-02. Suncor tags
           ONLY this variant (FY2017-2025) and never the primary, so every Suncor
@@ -99,6 +105,12 @@ concepts:
     sources:
       - concept: CostOfSales
       - concept: CostOfInventoriesRecognisedAsExpenseDuringPeriod
+        like_for_like: false
+        mismatch_reason: >-
+          Cost of sales is reported by nature, covering inventories only and excluding
+          service and labour costs. It understates total cost of sales relative to a
+          filer reporting by function, so margin-based signals are not directly
+          comparable.
         note: >-
           LOAD-BEARING and NOT a clean substitute — verified 2026-08-02. Suncor tags
           ONLY this variant and never CostOfSales, so all of Suncor's cogs comes
@@ -140,6 +152,12 @@ concepts:
     sources:
       - concept: DepreciationAndAmortisationExpense
       - concept: DepreciationAmortisationAndImpairmentLossReversalOfImpairmentLossRecognisedInProfitOrLoss
+        like_for_like: false
+        mismatch_reason: >-
+          Depreciation is reported bundled with impairment losses. In a year with a
+          material impairment the figure is not depreciation alone, so
+          depreciation-rate signals can move for a reason unrelated to depreciation
+          policy.
         note: >-
           LOAD-BEARING and NOT a clean substitute — verified 2026-08-02. Suncor tags
           ONLY this variant (FY2017-2025); Cameco and BCE use the clean
@@ -171,6 +189,30 @@ concepts:
           balance (so it cannot silently substitute a different measurement), but it has
           never fired. Delete it if the next IFRS filer also has no use for it.
 
+  # --- Operands for the `ebit_pbt_plus_interest` derivation ------------------
+  # Not consumed by any model directly. They exist so the IFRS ebit DECISION can be
+  # expressed as a derivation over canonical concepts (keeping it taxonomy-blind and
+  # versioned) rather than as a mapping row, which D8 consequence 3 forbids.
+
+  profit_before_tax:
+    note: >-
+      Verified live 2026-08-02: tagged by BCE and Suncor for all of FY2017-2025.
+      Cameco does not tag it and does not need it — it files an operating-profit line
+      directly, so its ebit is read as filed and never derived.
+    sources:
+      - concept: ProfitLossBeforeTax
+
+  interest_expense:
+    note: >-
+      Verified live 2026-08-02: Suncor tags InterestExpense for all 9 years; BCE for 7,
+      with FY2021 and FY2022 missing. BCE tags AdjustmentsForInterestExpense (the cash
+      flow statement's add-back of the same charge) for all 9, which closes the gap —
+      without it BCE would lose Altman for exactly two mid-history years. The same
+      "the tag exists but does not cover the years you need" trap as CP's PP&E switch.
+    sources:
+      - concept: InterestExpense
+      - concept: AdjustmentsForInterestExpense
+
   shares_outstanding:
     note: >-
       Same trap class as the us-gaap dei/shares bug: `NumberOfSharesOutstanding` can
@@ -200,13 +242,15 @@ concepts:
 # These do not make Suncor unscoreable and they are not mapping errors — they are
 # the honest consequence of IAS 1 letting a filer present by nature. What they do
 # mean is that a Suncor number is not strictly like-for-like against a by-function
-# filer, and ThesisTrace shows models side by side across companies. Whether that
-# warrants a caveat (the mechanism already exists — see beneish_v1.yaml's
-# calibration block and score_runs.caveat_reason) is a product decision, deliberately
-# NOT made unilaterally in this spec. Recorded in sprint-status.yaml.
+# filer, and ThesisTrace shows models side by side across companies. DECIDED
+# 2026-08-02: the three affected sources carry `like_for_like: false` plus a
+# `mismatch_reason`, and any score consuming one is annotated computed_with_caveat
+# with that reason stored as data. The value is never altered or suppressed — the
+# same posture as beneish_v1.yaml's out-of-calibration guard.
 #
 # Unchanged from v1: presentation-driven GAPS are never papered over. Neither BCE
 # nor Suncor tags an SG&A line, so Beneish's SGAI stays insufficient_data for both.
 # Suncor tags no retained earnings at all, so Altman's X2 cannot resolve. Neither
-# tags an operating-profit line (Cameco does), so `ebit` is unresolved for both
-# pending the versioned-spec decision in D8 consequence 3.
+# tags an operating-profit line (Cameco does), so `ebit` is reconstructed by the
+# `ebit_pbt_plus_interest` DECISION rule in derivations_v2.yaml, which records the
+# alternative considered and why it was rejected (D8 consequence 3).

@@ -1,0 +1,114 @@
+# Canonical-concept derivations — values ThesisTrace COMPUTES rather than reads.
+#
+# A derivation only ever fires when the concept is genuinely absent for that fiscal
+# year and every operand resolved; it never overrides a directly-tagged value. The
+# resulting canonical_facts row carries `derivation: <rule>` so the read API and the
+# UI can mark it as a weaker provenance class than a filed figure (D8 consequence 4)
+# — a computed number must never wear a filed-line citation.
+#
+# Derivations are TAXONOMY-BLIND by construction: they operate on canonical concepts,
+# which is why the same accounting identity covers SHOP under us-gaap and every
+# ifrs-full filer without a second rule.
+#
+# TWO CLASSES OF RULE LIVE HERE, and the distinction is the important one:
+#
+#   IDENTITY   — true by definition, verified exact against real filed figures.
+#                assets_minus_equity is one. The bar is NOT "the concept is missing".
+#
+#   DECISION   — a defensible choice among alternatives that give different numbers.
+#                ThesisTrace is originating methodology, so the rationale, the
+#                alternatives considered, and why one was chosen are recorded HERE,
+#                versioned with the rule, and surfaced on the methodology page.
+#                `ebit_pbt_plus_interest` is one. D8 consequence 3 requires exactly
+#                this: such a choice must never be buried in a mapping row.
+#
+# Summing an assumed subset of line items (OTEX's post-FY2019 split D&A tags) is
+# neither, and stays insufficient_data (AD-3).
+#
+# v2 (2026-08-02) adds the IFRS ebit decision and a source-conditional gross_profit.
+
+spec_version: derivations_v2
+
+derivations:
+
+  # --- IDENTITY --------------------------------------------------------------
+
+  - rule: assets_minus_equity
+    canonical_concept: total_liabilities
+    operation: subtract
+    operands: [total_assets, stockholders_equity]
+    # Provenance root for a value that has no single source line. The total_assets
+    # fact carries the same balance-sheet date, making it the faithful anchor for
+    # the accession number and period_end recorded on the derived row.
+    provenance_from: total_assets
+    note: >-
+      The basic accounting identity, Assets = Liabilities + Equity. Needed for filers
+      that never tag a standalone liabilities total: confirmed live 2026-07-22 that
+      SHOP's 10-Ks report LiabilitiesAndStockholdersEquity and StockholdersEquity but
+      never us-gaap:Liabilities. Verified EXACT against SHOP's real FY2024/FY2025
+      figures before being relied on. Also covers Cameco and Suncor, neither of which
+      files an ifrs-full:Liabilities total (D8).
+
+  # --- DECISION --------------------------------------------------------------
+
+  - rule: ebit_pbt_plus_interest
+    canonical_concept: ebit
+    operation: add
+    operands: [profit_before_tax, interest_expense]
+    provenance_from: profit_before_tax
+    note: >-
+      DECISION, not an identity — recorded per D8 consequence 3. IFRS mandates no
+      operating-profit line, so a filer that does not voluntarily tag one leaves
+      Altman's X3 (EBIT / total assets) unresolvable. Confirmed live 2026-08-02:
+      Cameco tags ProfitLossFromOperatingActivities for all 9 years and is read as
+      filed, never reaching this rule; BCE and Suncor tag no operating-profit line at
+      all.
+
+      CHOSEN: earnings before interest and taxes, reconstructed as
+      ProfitLossBeforeTax + InterestExpense. This is the textbook EBIT definition and
+      the standard reconstruction when no operating line is disclosed.
+
+      ALTERNATIVE CONSIDERED AND REJECTED: ProfitLossBeforeTax - FinanceIncomeCost.
+      D8 named it as equally defensible, and it does give a different number because
+      it nets finance INCOME against finance cost. Live data settled it: only Suncor
+      tags FinanceIncomeCost — BCE does not tag it at all, so that route would leave
+      BCE's Altman unresolved while the chosen route serves both.
+
+      KNOWN IMPRECISION, stated rather than hidden: interest expense is not the only
+      component of finance cost, so this reconstruction can differ slightly from an
+      operating profit the filer would itself have reported. It is deliberately the
+      more conservative direction for Altman — under-adding to EBIT lowers X3 and so
+      lowers Z, never flattering the score.
+
+  - rule: revenue_minus_cost_of_sales
+    canonical_concept: gross_profit
+    operation: subtract
+    operands: [revenue, cogs]
+    provenance_from: revenue
+    # The load-bearing constraint. Suncor's cogs resolves ONLY from
+    # CostOfInventoriesRecognisedAsExpenseDuringPeriod, an IAS 1 by-nature disclosure
+    # covering inventories alone and excluding service and labour cost of sales.
+    # Revenue minus that is NOT gross profit — it overstates margin, and the error
+    # would flow straight into Piotroski's margin signal and Beneish's GMI wearing
+    # correct-looking provenance. Constraining the rule to a genuine cost-of-sales
+    # tag means Suncor keeps insufficient_data, which is the honest answer.
+    requires_source:
+      cogs:
+        - CostOfSales                    # ifrs-full, by-function
+    note: >-
+      Gross profit = revenue - cost of sales. Arithmetic once the operands are the
+      right measurements, which is exactly what `requires_source` enforces. Confirmed
+      live 2026-08-02: BCE tags no GrossProfit line but does tag CostOfSales for all
+      9 years, so it gains the concept; Cameco files GrossProfit directly and never
+      reaches this rule; Suncor is correctly excluded by the constraint above.
+
+      DELIBERATELY SCOPED TO ifrs-full. The us-gaap cost tags (CostOfRevenue,
+      CostOfGoodsAndServicesSold) are NOT listed, so no us-gaap filer's behaviour
+      changes. They were tried and reverted: admitting them derives a gross profit for
+      QSR, whose Piotroski margin signal then flips from insufficient_data to pass and
+      moves its F-score from 6 to 7 — a hand-verified golden value (PRD OQ1 / SM-1,
+      closed 2026-07-29). The derived figure looks arithmetically sound, so this is
+      likely a real signal QSR was missing rather than a defect. But changing a closed
+      golden dataset is a decision with a re-verification attached, and it is not this
+      rule's job to make it as a side effect of an IFRS fix. Tracked in
+      sprint-status.yaml.

@@ -29,9 +29,10 @@ from app.models import ConceptMapping
 SPECS_DIR = Path(__file__).parent / "specs"
 
 # Operations a derivation may declare. Deliberately tiny: a derivation must be an
-# identity that holds by definition (see specs/derivations_v1.yaml), and an unknown
-# operation raises rather than silently skipping a concept the pipeline expects.
-DERIVATION_OPERATIONS = frozenset({"subtract"})
+# identity that holds by definition, or a decision recorded with its rationale in
+# the spec (see specs/derivations_v2.yaml). An unknown operation raises rather than
+# silently skipping a concept the pipeline expects.
+DERIVATION_OPERATIONS = frozenset({"subtract", "add"})
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,12 @@ class MappingRule:
     source_concept: str
     priority: int = 0  # lower wins when multiple source concepts map to one canonical
     note: str | None = None
+    # False when this tag measures something meaningfully different from the concept's
+    # primary source — an IAS 1 by-nature variant, say. The value is correct and used;
+    # what it is not is strictly comparable to another filer's. Surfaced as a score
+    # caveat rather than suppressed, since ThesisTrace shows models side by side.
+    like_for_like: bool = True
+    mismatch_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -54,6 +61,11 @@ class DerivationRule:
     operands: tuple[str, ...]
     provenance_from: str
     note: str | None = None
+    # operand -> source concepts it must have resolved from for this rule to fire.
+    # An operand can be canonically correct yet measure the wrong thing: Suncor's
+    # cogs comes from an inventories-only by-nature tag, so deriving gross profit
+    # from it would OVERSTATE margin. Absent = the operand's source is unconstrained.
+    requires_source: tuple[tuple[str, tuple[str, ...]], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -63,6 +75,8 @@ class MappingSpec:
     derivations: tuple[DerivationRule, ...]
     source_to_canonical: dict[tuple[str, str], str]
     source_priority: dict[tuple[str, str], int]
+    # (taxonomy, source concept) -> why a fact from it is not strictly comparable.
+    source_mismatch: dict[tuple[str, str], str]
 
 
 def _load_taxonomy_rules(spec_version: str) -> tuple[MappingRule, ...]:
@@ -86,6 +100,8 @@ def _load_taxonomy_rules(spec_version: str) -> tuple[MappingRule, ...]:
                     source_concept=source["concept"],
                     priority=priority,
                     note=source.get("note") or body.get("note"),
+                    like_for_like=source.get("like_for_like", True),
+                    mismatch_reason=source.get("mismatch_reason"),
                 )
             )
     return tuple(rules)
@@ -103,12 +119,19 @@ def _load_derivations(spec_version: str) -> tuple[DerivationRule, ...]:
         if operation not in DERIVATION_OPERATIONS:
             raise ValueError(f"{path.name}: unknown derivation operation {operation!r}")
         operands = tuple(entry["operands"])
-        if operation == "subtract" and len(operands) != 2:
-            raise ValueError(f"{path.name}: 'subtract' takes exactly 2 operands, got {len(operands)}")
+        if len(operands) != 2:
+            raise ValueError(f"{path.name}: {operation!r} takes exactly 2 operands, got {len(operands)}")
         if entry["provenance_from"] not in operands:
             raise ValueError(
                 f"{path.name}: provenance_from {entry['provenance_from']!r} is not one of "
                 f"the operands {operands} — a derived fact must anchor to a fact it was built from"
+            )
+        requires_source = entry.get("requires_source") or {}
+        unknown = set(requires_source) - set(operands)
+        if unknown:
+            raise ValueError(
+                f"{path.name}: requires_source names {sorted(unknown)}, which are not operands "
+                f"of {entry['rule']!r} — the constraint would never be checked"
             )
         derivations.append(
             DerivationRule(
@@ -118,6 +141,9 @@ def _load_derivations(spec_version: str) -> tuple[DerivationRule, ...]:
                 operands=operands,
                 provenance_from=entry["provenance_from"],
                 note=entry.get("note"),
+                requires_source=tuple(
+                    (operand, tuple(sources)) for operand, sources in sorted(requires_source.items())
+                ),
             )
         )
     return tuple(derivations)
@@ -143,6 +169,11 @@ def load_mapping_spec() -> MappingSpec:
                 "one source concept may map to only one canonical concept"
             )
         seen[key] = rule.canonical_concept
+        if not rule.like_for_like and not rule.mismatch_reason:
+            raise ValueError(
+                f"{key} is marked like_for_like: false without a mismatch_reason — "
+                "the caveat shown to a user has to say what differs"
+            )
 
     return MappingSpec(
         mapping_version=registry["mapping_version"],
@@ -150,6 +181,11 @@ def load_mapping_spec() -> MappingSpec:
         derivations=_load_derivations(registry["derivations"]),
         source_to_canonical=dict(seen),
         source_priority={(r.source_taxonomy, r.source_concept): r.priority for r in rules},
+        source_mismatch={
+            (r.source_taxonomy, r.source_concept): r.mismatch_reason
+            for r in rules
+            if not r.like_for_like and r.mismatch_reason
+        },
     )
 
 
@@ -167,6 +203,10 @@ SOURCE_TO_CANONICAL: dict[tuple[str, str], str] = _SPEC.source_to_canonical
 # fallback chain) the lower-priority-number concept wins outright rather than being compared
 # for value-ambiguity against a fundamentally different measurement.
 SOURCE_PRIORITY: dict[tuple[str, str], int] = _SPEC.source_priority
+
+# Source (taxonomy, concept) -> why a value from it is not strictly comparable across
+# filers. Consulted by scoring to annotate a run, never to alter or suppress a number.
+SOURCE_MISMATCH: dict[tuple[str, str], str] = _SPEC.source_mismatch
 
 
 async def seed_concept_mappings(session: AsyncSession, *, version: str = MAPPING_VERSION) -> int:

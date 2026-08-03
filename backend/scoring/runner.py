@@ -76,11 +76,38 @@ async def _accession_for(session: AsyncSession, issuer_cik: str, fiscal_year: in
     return fact.accession_number if fact else ""
 
 
+
+def _applicability(spec, facts, fiscal_year: int, base_applicability, base_reason=None):
+    """Layer the cross-filer comparability caveat onto a model's own verdict.
+
+    Inputs come from the spec's own `inputs` list, so a newly flagged source tag
+    reaches all four models without a per-model edit. Year t-1 is included because
+    Beneish and Piotroski are year-over-year models.
+
+    Never alters a score — the same posture as Beneish's out-of-calibration guard.
+    An existing caveat is kept and this one appended, so one reason cannot silently
+    replace another, and an excluded_out_of_scope verdict is never downgraded to a
+    mere caveat.
+    """
+    reasons = facts.mismatch_reasons(spec.raw.get("inputs", []), (fiscal_year, fiscal_year - 1))
+    if not reasons or base_applicability is Applicability.excluded_out_of_scope:
+        return base_applicability, base_reason
+    combined = " ".join(reasons)
+    if base_reason:
+        combined = f"{base_reason} {combined}"
+    return Applicability.computed_with_caveat, combined[:512]
+
+def _as_run_fields(pair) -> dict:
+    applicability, caveat_reason = pair
+    return {"applicability": applicability, "caveat_reason": caveat_reason}
+
+
 async def score_piotroski(session: AsyncSession, issuer_cik: str, fiscal_year: int) -> ScoreRun:
     spec = load_spec("piotroski_v1")
     facts = await load_facts(session, issuer_cik, mapping_version=MAPPING_VERSION)
     outcomes = compute_piotroski(facts, fiscal_year, spec)
     score = piotroski_score(outcomes)
+    applicability, caveat_reason = _applicability(spec, facts, fiscal_year, Applicability.computed)
 
     run = ScoreRun(
         issuer_cik=issuer_cik,
@@ -89,7 +116,8 @@ async def score_piotroski(session: AsyncSession, issuer_cik: str, fiscal_year: i
         formula_version=spec.formula_version,
         accession_number=await _accession_for(session, issuer_cik, fiscal_year),
         aggregate_value=score,
-        applicability=Applicability.computed,
+        applicability=applicability,
+        caveat_reason=caveat_reason,
     )
     session.add(run)
     await session.flush()
@@ -169,8 +197,7 @@ async def score_altman(session: AsyncSession, issuer_cik: str, fiscal_year: int)
         formula_version=spec.formula_version,
         accession_number=fact.accession_number if fact else "",
         aggregate_value=result.z_score,
-        applicability=result.applicability,
-        caveat_reason=result.caveat_reason,
+        **_as_run_fields(_applicability(spec, facts, fiscal_year, result.applicability, result.caveat_reason)),
     )
     session.add(run)
     await session.flush()
@@ -218,8 +245,7 @@ async def score_beneish(session: AsyncSession, issuer_cik: str, fiscal_year: int
         formula_version=spec.formula_version,
         accession_number=await _accession_for(session, issuer_cik, fiscal_year),
         aggregate_value=result.m_score,
-        applicability=result.applicability,
-        caveat_reason=result.caveat_reason,
+        **_as_run_fields(_applicability(spec, facts, fiscal_year, result.applicability, result.caveat_reason)),
     )
     session.add(run)
     await session.flush()
@@ -246,6 +272,7 @@ async def score_sloan(session: AsyncSession, issuer_cik: str, fiscal_year: int) 
     facts = await load_facts(session, issuer_cik, mapping_version=MAPPING_VERSION)
     outcome = compute_sloan(facts, fiscal_year, spec)
 
+    applicability, caveat_reason = _applicability(spec, facts, fiscal_year, Applicability.computed)
     run = ScoreRun(
         issuer_cik=issuer_cik,
         model=Model.sloan,
@@ -253,7 +280,8 @@ async def score_sloan(session: AsyncSession, issuer_cik: str, fiscal_year: int) 
         formula_version=spec.formula_version,
         accession_number=await _accession_for(session, issuer_cik, fiscal_year),
         aggregate_value=outcome.value,
-        applicability=Applicability.computed,
+        applicability=applicability,
+        caveat_reason=caveat_reason,
     )
     session.add(run)
     await session.flush()
