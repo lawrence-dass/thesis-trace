@@ -16,6 +16,10 @@ Inline-XBRL conflict on the *same* source concept, AD-4) writes a
 `data_quality_issues` row with status needs_review — never a defaulted guess
 (AD-3). Canonical facts are derived, never mutated in place; a mapping-version
 change produces new rows (AD-2).
+
+Both the source-concept mappings and the derivations this module applies are DATA,
+loaded from `canonicalization/mappings/specs/*.yaml` — this module owns the
+selection algorithm, not the rules it runs on.
 """
 
 from __future__ import annotations
@@ -28,7 +32,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import CanonicalFact, DataQualityIssue, Filing, IssueStatus, RawFact
-from canonicalization.mappings import MAPPING_VERSION, SOURCE_PRIORITY, SOURCE_TO_CANONICAL
+from canonicalization.mappings import (
+    DERIVATION_RULES,
+    MAPPING_VERSION,
+    SOURCE_PRIORITY,
+    SOURCE_TO_CANONICAL,
+)
 from canonicalization.taxonomies import ORIGINAL_ANNUAL_FORM_TYPES
 
 # A 10-K's own accession routinely tags BOTH the true annual duration figure
@@ -56,10 +65,6 @@ _MIN_FULL_YEAR_DAYS = 300  # excludes quarterly (~90d) and half-year (~180d) spa
 # day-of-year (tolerant of the odd few-day shift — e.g. OTEX's 2011 10-K FYE
 # landed on 2011-07-07, not its usual June 30).
 _FYE_DAY_TOLERANCE = 10
-
-# Derivation rule names recorded on CanonicalFact.derivation. A canonical fact
-# carrying one of these was COMPUTED by ThesisTrace, not read from a filed tag.
-DERIVATION_ASSETS_MINUS_EQUITY = "assets_minus_equity"
 
 
 def _is_full_year_duration(rf: RawFact) -> bool:
@@ -198,30 +203,42 @@ async def canonicalize_issuer(
         counts["canonical_facts_added"] += 1
 
     await session.flush()
-    await _derive_total_liabilities(session, issuer_cik, mapping_version=mapping_version)
+    counts["derived_facts_added"] = await _apply_derivations(
+        session, issuer_cik, mapping_version=mapping_version
+    )
     await session.flush()
     return counts
 
 
-async def _derive_total_liabilities(
+async def _apply_derivations(
     session: AsyncSession, issuer_cik: str, *, mapping_version: str
-) -> None:
-    """Fallback for filers that never tag us-gaap:Liabilities directly (confirmed
-    live 2026-07-22: SHOP's 10-Ks report LiabilitiesAndStockholdersEquity and
-    StockholdersEquity but never a standalone Liabilities total). Derives
-    total_liabilities = total_assets - stockholders_equity — the basic accounting
-    identity (Assets = Liabilities + Equity), verified exact against SHOP's real
-    FY2024/FY2025 figures before relying on it. Only fires when total_liabilities
-    is genuinely absent and both operands exist for the same fiscal year; never
-    overrides a directly-tagged value. The derived fact's accession_number/
-    period_end are taken from the total_assets fact — the same balance-sheet
-    date, a faithful provenance root for a value with no single source line."""
+) -> int:
+    """Compute canonical concepts a filer never tagged directly, per the rules
+    declared in `canonicalization/mappings/specs/derivations_v1.yaml`. Returns the
+    number of derived facts added.
+
+    A rule fires only when its target concept is genuinely absent for that fiscal
+    year and every operand resolved — it never overrides a directly-tagged value
+    (AD-3). Each derived row records `derivation=<rule name>` rather than a bare
+    flag, so the read API can say WHAT was computed and the UI never implies a
+    filed line item. Its accession_number/period_end are anchored to the rule's
+    `provenance_from` operand: the same balance-sheet date, a faithful provenance
+    root for a value with no single source line.
+
+    Rules are applied against the facts as SELECTED, not against each other's
+    output — a derivation never consumes another derivation's result. Chaining
+    would compound weak provenance invisibly, so it stays a deliberate decision
+    rather than an emergent one."""
+    if not DERIVATION_RULES:
+        return 0
+
+    needed = {c for r in DERIVATION_RULES for c in (r.canonical_concept, *r.operands)}
     facts = (
         await session.execute(
             select(CanonicalFact).where(
                 CanonicalFact.issuer_cik == issuer_cik,
                 CanonicalFact.mapping_version == mapping_version,
-                CanonicalFact.canonical_concept.in_(("total_assets", "stockholders_equity", "total_liabilities")),
+                CanonicalFact.canonical_concept.in_(needed),
             )
         )
     ).scalars().all()
@@ -230,27 +247,35 @@ async def _derive_total_liabilities(
     for f in facts:
         by_year[f.fiscal_year][f.canonical_concept] = f
 
-    for fiscal_year, concepts in by_year.items():
-        if "total_liabilities" in concepts:
-            continue
-        total_assets = concepts.get("total_assets")
-        equity = concepts.get("stockholders_equity")
-        if total_assets is None or equity is None:
-            continue
+    added = 0
+    for rule in DERIVATION_RULES:
+        for fiscal_year, concepts in by_year.items():
+            if rule.canonical_concept in concepts:
+                continue  # directly tagged — never override a filed value
+            operands = [concepts.get(name) for name in rule.operands]
+            if any(operand is None for operand in operands):
+                continue
 
-        session.add(
-            CanonicalFact(
-                issuer_cik=issuer_cik,
-                accession_number=total_assets.accession_number,
-                canonical_concept="total_liabilities",
-                fiscal_year=fiscal_year,
-                period_end=total_assets.period_end,
-                value=Decimal(str(total_assets.value)) - Decimal(str(equity.value)),
-                unit=total_assets.unit,
-                mapping_version=mapping_version,
-                # Names the rule rather than a bare flag, so the read API can say
-                # WHAT was computed and the UI never implies a filed line item.
-                derivation=DERIVATION_ASSETS_MINUS_EQUITY,
-                selected_from_raw_fact_id=None,
+            if rule.operation == "subtract":
+                left, right = operands
+                value = Decimal(str(left.value)) - Decimal(str(right.value))
+            else:  # pragma: no cover - load_mapping_spec rejects unknown operations
+                raise ValueError(f"unsupported derivation operation: {rule.operation!r}")
+
+            anchor = concepts[rule.provenance_from]
+            session.add(
+                CanonicalFact(
+                    issuer_cik=issuer_cik,
+                    accession_number=anchor.accession_number,
+                    canonical_concept=rule.canonical_concept,
+                    fiscal_year=fiscal_year,
+                    period_end=anchor.period_end,
+                    value=value,
+                    unit=anchor.unit,
+                    mapping_version=mapping_version,
+                    derivation=rule.rule,
+                    selected_from_raw_fact_id=None,
+                )
             )
-        )
+            added += 1
+    return added

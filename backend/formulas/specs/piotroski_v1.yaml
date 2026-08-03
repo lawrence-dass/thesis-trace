@@ -16,7 +16,7 @@ rounding:
 missing_data_policy: insufficient_data   # a signal lacking an input is insufficient_data
 divide_by_zero_policy: insufficient_data # a zero denominator yields insufficient_data
 
-# Canonical concepts consumed (see canonicalization/mappings.py).
+# Canonical concepts consumed (see canonicalization/mappings/specs/).
 inputs:
   - net_income
   - total_assets

@@ -23,9 +23,11 @@ Two regimes are supported:
   Beneish's SGAI unresolvable. That is the same shape as CP's missing COGS under
   us-gaap, and is handled the same way — `insufficient_data`, never a guess.
 
-Adding a regime means appending here, then supplying its `MappingRule`s. It does
-NOT require touching scoring, the formula engine, the read API, or the frontend:
-those consume canonical concepts and are already taxonomy-blind.
+Adding a regime means appending here, then adding its mapping spec under
+`canonicalization/mappings/specs/` and registering it in that directory's
+`registry.yaml`. Both halves are data. It does NOT require touching scoring, the
+formula engine, the read API, or the frontend: those consume canonical concepts
+and are already taxonomy-blind.
 """
 
 from __future__ import annotations
