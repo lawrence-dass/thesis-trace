@@ -173,7 +173,7 @@ d8_ifrs_track:
     status: done
     resolved: 2026-08-02
     evidence: "Both added and verified live (BCE 0000718940, Suncor 0000311337). MAPPING_VERSION concepts_v4 -> concepts_v5. All three D8 consequence-3 decisions made: ebit = ProfitLossBeforeTax + InterestExpense (derivations_v2, with the rejected alternative recorded), gross_profit derived only from a true CostOfSales tag, and non-comparable by-nature inputs annotated computed_with_caveat. 100 passed / 1 skipped."
-    follow_up: "(1) RESOLVED 2026-08-02 — see qsr_gross_profit_reverification below. (2) The ebit DECISION rationale is versioned in derivations_v2.yaml but is NOT yet surfaced on the /methodology page, which D8 consequence 3 requires.
+    follow_up: "(1) RESOLVED 2026-08-02 — see qsr_gross_profit_reverification below. (2) RESOLVED 2026-08-04 by PR #36 — the ebit DECISION rationale, versioned in derivations_v2.yaml, is now published on the /methodology page as D8 consequence 3 requires. NOTE: this value's closing quote was missing until 2026-08-04, which made the whole file unparseable by any YAML reader; if you add prose here, parse the file afterwards."
     note: "Each adds one degradation case. Suncor forces the ebit decision: IFRS mandates no operating-profit line, so ProfitLossBeforeTax + InterestExpense vs - FinanceIncomeCost both defensible and differ. Belongs in a versioned spec, not a mapping row."
   - step: "7. Beneish five-variable model (was: 'Roxas-5 variant')"
     status: blocked
@@ -183,17 +183,36 @@ d8_ifrs_track:
     full_writeup: "_bmad-output/planning-artifacts/research-beneish-five-variable-model.md"
     options: "(1) Buy/borrow the FAJ paper and read the table — the only thing that settles it, recommended if the variant is still wanted. (2) Drop it: SHOP and Suncor stay insufficient_data, which is honest — the variant adds coverage, not correctness. (3) Encode with a caveat — NOT recommended, a caveat cannot make a possibly-wrong coefficient right."
 
-# NOTE FOR THE NEXT PLANNING SESSION (2026-07-29)
+# PHASE 2 PLANNING — UNBLOCKED AND OPENED (2026-08-04)
 #
-# epics.md defines Epics 1-4 only, and all four are done. There is NO Epic 5+.
-# Phase 2 (Value + Growth lenses, Filing Q&A via LangGraph, Thesis Journal FR-18)
-# exists only as PRD prose — no epic breakdown, no stories. Two PRD open questions
-# block that planning and are Lawrence's calls:
-#   OQ8 — universe expansion to 5-10 companies: repeat D6's manual EDGAR
-#         validation, or build an automated screening step?
-#   OQ9 — lens sub-metric depth: are the consolidation review's extra sub-metrics
-#         (debt maturity concentration, receivables-vs-revenue, cash-vs-earnings,
-#         trajectory-over-level) folded into Phase 2 or dropped?
+# Supersedes the 2026-07-29 note that said OQ8/OQ9 blocked this. Both are answered.
+#   OQ8 -> manual universe expansion, on demand only. No automated screening built.
+#          (Partly overtaken by events: D8 already grew the universe 4 -> 7.)
+#   OQ9 -> adopt debt maturity concentration + trajectory-over-level; DROP
+#          receivables-vs-revenue (~= Beneish DSRI) and cash-vs-earnings (~= Sloan)
+#          as duplicates of shipped figures.
+#   Both recorded in prd.md section 8 and SPEC.md Open Questions.
+#
+# Phase 2 shape is decided by NEW foundational decision D9: sequence around one real
+# investment decision, not around the lens list. Reorders D5, does not overturn it.
+# epics.md now defines Epics 5-9. Epic 5 is decomposed into 6 stories; Epics 6-7 are
+# scoped but storyless; Epics 8-9 are headlines only. That unevenness is deliberate —
+# D9's binding selection criterion picks the next feature from the largest OBSERVED
+# research failure, so decomposing further now would commit to an ordering the first
+# decision packet is explicitly permitted to overturn.
+#
+# CONTRACT DRIFT REPAIRED (2026-08-04). SPEC.md and prd.md both still described a
+# 4-company US-GAAP-only universe with IFRS as a non-goal, ~1 week after D8 shipped
+# three IFRS filers. Planning off that would have produced epics for a product that
+# no longer exists. Reconciled. Generalise: a superseding decision (D8) is not fully
+# landed until every document it contradicts is updated in the same change.
+#
+# NEW FR ADDED: FR-22 (latest-filing change detection, prd.md section 4.13). D9 makes
+# it Phase 2 step 1 and no existing FR covered it — FR-18's diff is thesis-scoped and
+# presupposes a saved thesis.
+#
+# NEXT ACTION: Story 5.1 is a live-EDGAR verification spike and gates Story 5.6.
+# It needs approval for company-facts fetches across all 7 universe CIKs.
 #
 # Known tech debt, unowned by any epic: nine test files assert against
 # backend/tests/fixtures/shop_company_facts.json, which is entirely SYNTHETIC

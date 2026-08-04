@@ -290,6 +290,19 @@ When a Deep Research Request is completed, the system emails the requesting addr
 
 **Notes:** Email-only identity capture and email-only delivery channel were chosen deliberately over full auth or in-app-only notifications, to keep the deviation from `foundational-decisions.md` D4's no-auth stance as small as possible while still exercising real queue/worker/notification-delivery engineering. `[NOTE FOR PM]` Revisit whether the same email-capture mechanism should be reused if a future startup-optional pivot needs persistent accounts.
 
+### 4.13 Filing Change Detection *(Phase 2 — added 2026-08-04 by D9)*
+**Description:** Surfaces what actually moved for a company since a given prior point — new filing, changed canonical facts, changed score bands, new or resolved data-quality issues — without requiring a saved Thesis. Distinct from FR-18's Thesis Diff, which is scoped to one user's saved claims and presupposes a Thesis exists. This is the unauthenticated, always-available "what's new since last look" view, and is the first increment of Phase 2 under `foundational-decisions.md` D9.
+
+#### FR-22: Latest-filing change detection
+For any company in the universe, the system identifies and presents what changed between the current non-superseded score run and a prior one.
+
+**Consequences (testable):**
+- Change detection reads only stored, already-computed values — it never recomputes a score to produce a diff, and never originates a figure (deterministic/LLM boundary).
+- Every reported change cites both endpoints — the prior and current values, each with its provenance and accession number — so a change is auditable, not asserted.
+- A band change (e.g. Altman Grey → Distress) is reported distinctly from an input change that left the band intact; a change of `insufficient_data` → a real value is reported as newly-available data, not as an improvement.
+- The append-only supersession model (AD-6) is the source of the comparison; no new mutable "previous value" column is introduced.
+- Absence of change is stated explicitly ("no change since {date}"), never rendered as an empty view indistinguishable from a load failure.
+
 ## 5. Non-Goals (Explicit)
 
 - **Never investment advice.** The system never tells a user what to do — it presents evidence and lets the investor form their own thesis. This is permanent, not a v1 limitation.
@@ -298,7 +311,7 @@ When a Deep Research Request is completed, the system emails the requesting addr
 - **No full market coverage.** Not S&P 500, not broad TSX/TSXV — the Company Universe stays deliberately narrow and honestly labeled.
 - **No user accounts or passwords**, beyond the minimal email-only capture introduced in Phase 3 for Notifications (§4.12). No login, no persistent multi-device sessions.
 - **No off-the-shelf charting widgets** (e.g., TradingView) — visualizations are custom-built over ThesisTrace's own computed data (see `foundational-decisions.md` D7).
-- **No IFRS-reporting companies** in the current Piotroski/Altman/Beneish/Sloan formula set, until (if ever) an IFRS-aware calculation-mapping layer is built. Not scheduled to any phase yet (see `foundational-decisions.md` D6).
+- ~~**No IFRS-reporting companies**~~ — **withdrawn 2026-07-29 by `foundational-decisions.md` D8, and shipped.** The IFRS-aware mapping layer this non-goal made conditional was built: 40-F/`ifrs-full` filers are supported and three are live (CCJ, BCE, SU). What survives is narrower and is a data-coverage fact, not a non-goal — a filer presenting expenses **by nature** under IAS 1 has no SG&A line to tag, so the dependent signal is `insufficient_data`, the same treatment CP's missing COGS already gets under `us-gaap`.
 - **No native mobile app.** Web-only (responsive), confirmed 2026-07-17 as a deliberate product-scope choice, not just a stack side effect — the research-session use case is desktop-leaning.
 - **No broad news/sentiment aggregation via multiple paid data providers.** `[NON-GOAL for MVP]` `[NOTE FOR PM]` A lighter version — notifying on new 8-K material-event filings for a tracked/Thesis company — reuses the existing EDGAR pipeline and is a plausible future add-on; the heavier version (general news, analyst ratings, sentiment) would require new paid data providers (conflicting with the single-provider-first principle in D7) and is fully commoditized by existing ticker apps, so it isn't planned at all. Revisit only if the cheap 8-K version proves valuable and there's appetite for more.
 - **No sector heatmap, no draggable/resizable dashboard UI.** Carried forward from the original consolidation review's defer-list — not planned in any phase, same treatment as full market coverage above.
@@ -310,7 +323,7 @@ When a Deep Research Request is completed, the system emails the requesting addr
 
 ### 6.1 In Scope (Phase 1)
 
-- Company Universe limited to CP, QSR, OTEX, SHOP (FR-1, FR-2).
+- Company Universe limited to a curated, non-financial set — CP, QSR, OTEX, SHOP (10-K/`us-gaap`) plus CCJ, BCE, SU (40-F/`ifrs-full`, added 2026-07-29–08-02 under D8) (FR-1, FR-2). Canonical list: `backend/pipeline/universe.py`.
 - Quality & Health Lens: Piotroski F-Score, Altman Z-Score (FR-3, FR-4, FR-5).
 - Integrity & Evidence Lens: Beneish M-Score, Sloan accruals ratio (FR-6, FR-7, FR-8).
 - Verdict & Company Overview, showing only the two live lenses above, honestly labeled as partial (FR-9, FR-10).
@@ -324,15 +337,15 @@ When a Deep Research Request is completed, the system emails the requesting addr
 - **Value Lens** (FR-16) and **Growth Lens** (FR-17) — deferred to Phase 2, per the lens-sequencing decision in `foundational-decisions.md` D5.
 - **Thesis Journal & Re-verification** (FR-18) — deferred to Phase 2/3; depends on Filing Q&A maturity and browser-local persistence design. `[NOTE FOR PM]` This is the feature most directly tied to the product's name and core differentiation — revisit for earlier scheduling if timeline permits.
 - **Notifications & Deep Research Requests** (FR-19–FR-21) — deferred to Phase 3; depends on Filing Q&A maturity and async queue/worker infrastructure.
-- **Broader Company Universe (5–10 companies)** — deferred to Phase 2.
-- **IFRS company support** — deferred indefinitely, no committed phase; requires a new calculation-mapping layer (see Non-Goals).
+- ~~**Broader Company Universe (5–10 companies)**~~ — **overtaken by events.** D8 grew the universe from 4 to 7 during Phase 1, so it already sits inside the 5–10 band this deferral anticipated. Further growth is governed by the OQ8 resolution (§8): manual, on demand, never on a schedule.
+- ~~**IFRS company support**~~ — **built and shipped 2026-07-29–08-02 under D8**, ahead of this deferral. Three IFRS filers are live.
 - **News/corporate-action notifications** — deferred indefinitely (see Non-Goals `[NOTE FOR PM]`).
 - **Brokerage referral/comparison, auth beyond email capture, native mobile app** — not planned in any phase (see Non-Goals).
 
 ## 7. Success Metrics
 
 **Primary**
-- **SM-1:** Score correctness — 100% of Piotroski, Altman, Beneish, and Sloan scores computed for the Phase 1 Company Universe match a hand-verified or published golden dataset, enforced by regression tests. Validates FR-3, FR-4, FR-6, FR-7.
+- **SM-1:** Score correctness — 100% of Piotroski, Altman, Beneish, and Sloan scores computed for the Phase 1 Company Universe match a hand-verified or published golden dataset, enforced by regression tests. Validates FR-3, FR-4, FR-6, FR-7. **SM-1 is a claim about the universe, so expanding the universe reopens it** — any filer added must extend the golden dataset in the same change or SM-1 silently stops holding. Currently 7 of 7 (extended 2026-08-04).
 - **SM-2:** Real use — ThesisTrace informs at least one real investment decision made by the primary user (user zero) within 3 months of Phase 1 launch (window confirmed 2026-07-17). Validates FR-9.
 
 **Secondary**
@@ -352,8 +365,20 @@ When a Deep Research Request is completed, the system emails the requesting addr
 5. **Deep Research Request SLA** — should the SLA be a fixed window (e.g., 24 hours) for every request, or vary by question complexity/cost? Affects queue design and user-facing copy for FR-19.
 6. **Thesis Journal persistence resilience** — browser-local storage (FR-18) means a cleared cache or a new device loses saved Theses. Acceptable for v1, or does it need lightweight export/import?
 7. **Email data handling** — what retention/deletion policy applies to emails collected for Notifications (FR-19–FR-21), and is an explicit privacy stance needed even at hobby scale?
-8. **Universe expansion process** — when Phase 2 grows the Company Universe to 5–10 companies, does it repeat the manual EDGAR validation done for D6, or become an automated screening step?
-9. **Lens sub-metric depth** — the original consolidation review named additional sub-metrics per lens beyond the four named academic models (e.g., debt maturity concentration, receivables-vs-revenue, cash-vs-earnings, trajectory-over-level rules). Are these folded into Phase 2 lens-depth work, or dropped from the roadmap entirely?
+8. ~~**Universe expansion process**~~ — **resolved 2026-08-04: manual, on demand.** The question was partly overtaken by events — D8 already grew the universe from 4 to 7 during Phase 1, using exactly the manual per-filer EDGAR validation D6 established, so the "when Phase 2 grows it to 5–10" premise had already happened. **Decision:** keep that manual process and add a filer only when a specific research need motivates it, never on a schedule; build no automated screening step.
+
+   **Rationale.** (a) The manual pass earns its cost — it caught BCE switching its PP&E tag to the right-of-use-inclusive variant mid-history (without which BCE would have silently lost 3 of its 9 years) and Suncor tagging no retained earnings at all, so Altman's X2 genuinely cannot resolve. Neither is visible to a coverage-counting screen. (b) An automated screener only pays back well beyond 10 companies, and edges toward the explicitly stated non-goal of being a screener (§5). (c) Counter-metric SM-C1 already says not to grow breadth as a proxy for progress. (d) SM-1 makes each addition non-trivial by design: a new filer must extend the golden dataset in the same change.
+
+9. ~~**Lens sub-metric depth**~~ — **resolved 2026-08-04: adopt the two that are not duplicative; drop the two that are.**
+
+   | Sub-metric | Lens | Decision |
+   |---|---|---|
+   | Debt maturity concentration | Quality/Health | **Adopt** — genuinely new signal, not derivable from any live model |
+   | Trajectory-over-level rules | Quality/Health | **Adopt** — reframes existing computed values, no new data dependency |
+   | Receivables-vs-revenue | Integrity | **Drop** — substantially Beneish's DSRI, already computed and displayed |
+   | Cash-vs-earnings | Integrity | **Drop** — substantially the Sloan accruals ratio, already computed and displayed |
+
+   **Rationale.** Shipping a second, differently-computed view of a figure the product already displays would manufacture precisely the "why do these two numbers disagree?" problem that the provenance invariant and the deterministic/LLM boundary exist to prevent — and it would need UI copy explaining the discrepancy, which is a cost with no offsetting signal. The two adopted metrics add information the four academic models do not carry at all.
 
 ## 9. Assumptions Index
 

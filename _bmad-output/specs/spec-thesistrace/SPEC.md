@@ -21,7 +21,7 @@ Phase 1 is the committed build (CAP-1…CAP-9). CAP-10…CAP-14 are directional 
 
 - **CAP-1** — Company discovery & universe *(FR-1, FR-2)*
   - **intent:** Any visitor browses the Phase-1 Company Universe as cards and searches a ticker, without authentication.
-  - **success:** Landing page renders CP/QSR/OTEX/SHOP cards (name, ticker, last-updated), each linking to its overview; an in-universe ticker navigates to its page; an out-of-universe ticker returns an explicit "not yet covered" — never a silent failure, generic error, or fabricated result.
+  - **success:** Landing page renders a card per Company Universe entry (name, ticker, last-updated), each linking to its overview; an in-universe ticker navigates to its page; an out-of-universe ticker returns an explicit "not yet covered" — never a silent failure, generic error, or fabricated result. The universe is defined in `backend/pipeline/universe.py`, not enumerated here — see the Constraints section.
 
 - **CAP-2** — Quality/Health lens computation: Piotroski F-Score + Altman Z-Score *(FR-3, FR-4)*
   - **intent:** The system computes both scores for each company from XBRL Canonical Facts.
@@ -80,7 +80,7 @@ Phase 1 is the committed build (CAP-1…CAP-9). CAP-10…CAP-14 are directional 
 - **Deterministic/LLM boundary — inviolable (D5, D7).** Deterministic services compute every number, score, threshold, and verdict input. The LLM only explains, summarizes, and answers — always cited, never canonical. An LLM-originated health score is permanently rejected, not deferred.
 - **The 21 architecture ADs are binding** (adopted `ARCHITECTURE-SPINE.md`): batch-pipeline-write / read-only-query CQRS split (AD-1), immutable raw store + versioned canonicalization (AD-2/AD-3), versioned formula specs applied by one shared decimal/rounding engine (AD-5/AD-15), append-only `score_runs` with latest-non-superseded = current (AD-6), tri-state signal status never coerced to a defaulted zero (AD-16), single `data_quality_issues` contract/owner (AD-17), canonical `score_results` shape + `signal_key` vocabulary (AD-18), provenance as a first-class invariant (AD-19), sector-scope applicability state (AD-20).
 - **Data sources (D7 exception).** SEC EDGAR Company Facts API is primary, Inline XBRL is the audit/fallback; Tiingo free tier is the **only** additional provider, solely for Altman's FYE closing price. No other provider in Phase 1. EDGAR access is disciplined: identifying User-Agent, ≤10 req/s, cached, retried, idempotent, replayable (AD-9).
-- **Phase-1 Company Universe is fixed and US-GAAP-only (D6):** CP, QSR, OTEX, SHOP — all 10-K / `us-gaap`, non-financial. IFRS / 40-F filers are excluded from the current formula set.
+- **Phase-1 Company Universe is fixed, curated, and non-financial (D6, narrowed by D8 on 2026-07-29):** seven filers across two reporting regimes — 10-K/`us-gaap` (CP, QSR, OTEX, SHOP) and 40-F/`ifrs-full` (CCJ, BCE, SU). Every CIK is verified live against `data.sec.gov` before entry. D6's blanket IFRS exclusion is **superseded**: supported regimes are declared as data in `backend/canonicalization/taxonomies.py`, and scoring, the formula engine, the read API and the frontend are taxonomy-blind. Coverage varies per **filer**, not per taxonomy — an IAS 1 by-nature filer has no SG&A line to tag, so the affected signal is `insufficient_data`, exactly as CP's missing COGS is under `us-gaap`. The canonical list lives in `backend/pipeline/universe.py`.
 - **No end-user auth in Phase 1 (D4).** Public, read-only. Admin/recompute is operator-only behind a shared-secret header (AD-10). Designs keep clean auth seams for a possible future B2C pivot but build no auth, multi-tenancy, or billing early.
 - **Cost ceiling ~$25/month total** (hosting + data + LLM). Fixed cost ~$8–10/mo: Render web + cron (AD-13) + Supabase free Postgres 17 + Tiingo free + Vercel free. The daily batch ingestion job doubles as the Supabase keep-alive ping.
 - **Phase-1 LLM is a plain, direct API wrapper — no LangChain/LangGraph (D7).** Default Anthropic Claude Haiku 4.5, key via env var, provider swappable, out of the numeric loop (AD-21). LangGraph is reserved for the Phase-2 filing-Q&A self-verifying citation loop only.
@@ -96,7 +96,7 @@ Phase 1 is the committed build (CAP-1…CAP-9). CAP-10…CAP-14 are directional 
 - **No full market coverage** — not the S&P 500, not broad TSX/TSXV; the universe stays deliberately narrow and honestly labeled.
 - **No user accounts or passwords** beyond the minimal Phase-3 email-only capture for notifications.
 - **No off-the-shelf charting widgets** (e.g. TradingView).
-- **No IFRS-reporting companies** in the current Piotroski/Altman/Beneish/Sloan formula set.
+- ~~**No IFRS-reporting companies**~~ — **withdrawn as a non-goal 2026-07-29 by D8.** 40-F/`ifrs-full` filers are supported; see Constraints. What remains true is narrower and belongs to the constraint, not here: a filer presenting expenses by nature yields `insufficient_data` for the signals that need a by-function line.
 - **No native mobile app** — web-only (responsive).
 - **No broad news/sentiment aggregation via paid data providers.**
 - **No sector heatmap, no draggable/resizable dashboard UI.**
@@ -106,12 +106,14 @@ Phase 1 is the committed build (CAP-1…CAP-9). CAP-10…CAP-14 are directional 
 
 ## Success signal
 
-- **SM-1 (correctness):** 100% of Piotroski, Altman, Beneish, and Sloan scores computed for CP/QSR/OTEX/SHOP match a hand-verified or published golden dataset, enforced by regression tests.
+- **SM-1 (correctness):** 100% of Piotroski, Altman, Beneish, and Sloan scores computed for **every filer in the Company Universe** match a hand-verified or published golden dataset, enforced by regression tests. SM-1 is a claim about the universe, so **expanding the universe reopens it** — any filer added must extend `backend/tests/golden/phase1_golden.yaml` in the same change. Currently 7 of 7, hand-verified.
 - **SM-2 (real use):** ThesisTrace informs at least one real investment decision by user zero within 3 months of Phase-1 launch.
 - *(Secondary: SM-3 a technical reviewer engages with the methodology/Q&A and it holds up; SM-4 the primary user returns to Comparison or the Thesis Journal unprompted. Counter-metrics: SM-C1 do not grow universe breadth before correctness is solid; SM-C2 do not optimize notification volume or open rate.)*
 
 ## Open Questions
 
-- **Golden-dataset sourcing (Phase 1, blocks SM-1):** where do the hand-verified/published Piotroski/Altman/Beneish/Sloan values for CP/QSR/OTEX/SHOP come from, and how is the dataset kept current as new filings arrive?
-- **Not-investment-advice disclaimer (Phase 1):** exact wording, placement (every page? footer? first-visit notice?), and whether a Canada-specific legal review is warranted.
-- **Later-phase (tracked, not blocking Phase 1):** deep-research SLA design (FR-19), thesis browser-local persistence resilience (FR-18), email retention/deletion policy (FR-19–21), the Phase-2 universe-expansion process, and lens sub-metric depth beyond the four named models.
+- ~~**Golden-dataset sourcing**~~ — **resolved 2026-07-29, extended 2026-08-04.** Sourced by independent hand-verification against each filer's raw EDGAR company-facts JSON, bypassing the pipeline and DB. The hand-computation imports nothing from `backend/scoring` or `backend/formulas` — that independence is what let it catch its own error (Sloan uses AVERAGE total assets across two years; Beneish's TATA uses year-end). Now covers 7 of 7.
+- **Not-investment-advice disclaimer (Phase 1):** wording and placement shipped 2026-07-22 (site-wide footer + Verdict caption). **Still open:** whether a Canada-specific legal review is warranted.
+- ~~**Phase-2 universe-expansion process (OQ8)**~~ — **resolved 2026-08-04: manual, on demand.** Keep D8's per-filer live EDGAR validation; add a filer only when a specific research need motivates it, never on a schedule. No automated screening is built — it would edge toward the explicitly non-goal "screener", and per-filer semantics need a human read regardless. The manual pass is what caught BCE's mid-history PP&E tag switch and Suncor tagging no retained earnings at all. Honors counter-metric SM-C1.
+- ~~**Lens sub-metric depth (OQ9)**~~ — **resolved 2026-08-04: adopt the two non-duplicative.** Debt maturity concentration and trajectory-over-level join the Quality/Health lens. Receivables-vs-revenue and cash-vs-earnings are **dropped as already covered** — the first is substantially Beneish's DSRI, the second the Sloan accruals ratio. Shipping a second, differently-computed version of a figure already displayed would manufacture exactly the consistency question the provenance invariant exists to prevent.
+- **Later-phase (tracked, not blocking Phase 1):** deep-research SLA design (FR-19), thesis browser-local persistence resilience (FR-18), email retention/deletion policy (FR-19–21).

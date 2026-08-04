@@ -118,6 +118,41 @@ A visitor discovers the Company Universe from the landing page, searches for tic
 
 ---
 
+## Phase 2 Epic List *(added 2026-08-04)*
+
+Sequenced by **`foundational-decisions.md` D9** — around one real investment decision, not around the
+lens list. Epics 1–4 are complete; Phase 2 begins at Epic 5.
+
+> **Decomposition is deliberately uneven, and that is the decision, not an omission.** Epic 5 is
+> fully decomposed into stories because it is next. Epics 6–7 carry intent and scope but no stories.
+> Epics 8–9 are headlines only. D9's binding selection criterion says the feature after each
+> increment is chosen from **the largest observed research failure**, not the next list item — so
+> decomposing Epic 8 today would commit to an ordering the first real decision packet is explicitly
+> allowed to overturn. Decompose each epic at its own planning pass, once the prior one has been
+> used for real research.
+
+### Epic 5: Filing Change Detection & Quality-Lens Depth
+Lawrence opens a company he last looked at weeks ago and sees, immediately and citably, what moved — new filing ingested, canonical facts changed, score bands crossed, data-quality issues opened or resolved — plus the two Quality/Health sub-metrics adopted under PRD OQ9. First increment of the decision workflow: you cannot evaluate a thesis without first knowing what changed.
+**FRs covered:** FR-22 (new), FR-5 (extended)
+
+### Epic 6: Narrow Valuation — Reverse DCF
+Lawrence sees what growth and margin assumptions the *current market price* implies for a company, with every assumption explicit and a sensitivity range — never a bare fair-value point estimate. Deliberately a narrow slice of FR-16, not the full Value lens: reverse DCF only, because it answers "is the price reasonable?" while making the model's assumptions the visible output rather than hiding them behind a single number.
+**FRs covered:** FR-16 (partial — reverse DCF only)
+
+### Epic 7: Thesis Journal & Thesis Diff
+Lawrence writes a thesis for a company, it is auto-attached to the live facts and scores cited at that moment, and on return the system diffs those specific cited claims against current values. The feature most directly tied to the product's name, and the one that closes the decision loop by making a thesis falsifiable.
+**FRs covered:** FR-18
+
+### Epic 8: Growth Trends *(headline only — do not decompose yet)*
+Growth trajectory metrics across each company's genuinely available history, at the depth the decision workflow proves it needs. Trend depth must honestly reflect per-filer coverage — IFRS 40-F filers start ~FY2017 (~9 years) versus OTEX's 24 under `us-gaap`, so no fixed decade-long promise.
+**FRs covered:** FR-17
+
+### Epic 9: Filing Q&A *(headline only — do not decompose yet)*
+Citation-grounded Q&A over a company's filings via LangGraph's self-verifying citation loop. Last by design (D9): it is the heaviest lift in the roadmap and depends on a citation-evaluation framework that does not yet exist.
+**FRs covered:** FR-15
+
+---
+
 ## Epic 1: Foundation & First Evidence (Walking Skeleton)
 
 Prove the entire deterministic batch pipeline end-to-end on live EDGAR data: from a fresh repo to a visitor seeing Shopify's real Piotroski F-Score and Sloan accruals ratio, each traceable to the filing line item. Uses EDGAR only (no Tiingo). Establishes every seam the later epics build on. *(FR-3, FR-7; NFR-1…NFR-8; AD-1…AD-10, AD-13, AD-15, AD-16, AD-17, AD-18.)*
@@ -510,3 +545,108 @@ So that I can decide between them with evidence.
 **Then** it shows each company's Verdict and all currently-live lens scores in parallel columns (FR-14)
 **And** it shows exactly the lenses live in the current phase for each company, consistent with the overview's phase honesty (FR-14, FR-9)
 **And** differences beyond a stated threshold (e.g. diverging pass/fail signals) are visually highlighted (FR-14).
+
+---
+
+## Epic 5: Filing Change Detection & Quality-Lens Depth
+
+First increment of the D9 decision workflow. Lawrence returns to a company after weeks away and sees exactly what moved, with both endpoints cited — then the two Quality/Health sub-metrics adopted under PRD OQ9 deepen the lens the change view reports on. *(FR-22, FR-5 extended; AD-6 supersession is the comparison source; AD-16 tri-state and AD-19 provenance bind throughout.)*
+
+**Story order is deliberate:** 5.1 is a verification spike placed first because it is the only story in this epic whose outcome can change the epic's scope. Do not build 5.6 before 5.1 answers.
+
+### Story 5.1: Debt-maturity coverage spike (live EDGAR verification)
+
+As Lawrence (developer),
+I want to know whether the debt maturity schedule is actually tagged for every filer in the universe, before any story assumes it,
+So that debt maturity concentration is scoped from real coverage rather than from the existence of a tag name.
+
+**Why this is a spike, not an implementation story.** `long_term_debt` is already canonical, but it is a single aggregate — maturity *concentration* needs the year-by-year schedule (due in year 1, 2, 3, 4, 5, thereafter). Under `us-gaap` those are standard tags (`LongTermDebtMaturitiesRepaymentsOfPrincipalInNextTwelveMonths` and its YearTwo…AfterYearFive siblings) but they live in the debt footnote, which filers tag inconsistently. Under `ifrs-full` the equivalent is a liquidity-risk maturity analysis, typically expressed with **axis/member dimensions** rather than flat concepts — which the current canonicalization path may not handle at all. This is precisely the anti-pattern the project has been bitten by twice (the `shares_outstanding` dei bug, CP's PP&E tag switch): *never trust that a tag's existence means it covers the years you need.*
+
+**Acceptance Criteria:**
+
+**Given** live `data.sec.gov` company-facts access for all seven universe CIKs
+**When** the spike completes
+**Then** a written finding records, per filer and per fiscal year, whether a usable maturity schedule is present — not merely whether a tag name appears
+**And** it states explicitly whether the IFRS filers' maturity analysis is reachable as flat facts or only as dimensional facts, and if dimensional, what canonicalization would have to change
+**And** it recommends one of: proceed with Story 5.6 as specified / proceed with reduced scope (e.g. `us-gaap` filers only, IFRS `insufficient_data`) / drop the sub-metric and reopen OQ9 for it
+**And** the finding is recorded in `sprint-status.yaml` with evidence, per the project's action-item convention.
+
+### Story 5.2: Score-run diff engine
+
+As the system,
+I want to compute a structured diff between two non-superseded score runs for a company,
+So that every later change-detection surface reads one deterministic, tested comparison rather than re-deriving its own.
+
+**Acceptance Criteria:**
+
+**Given** a company with at least two score runs under AD-6 supersession
+**When** the diff engine compares a prior run to the current one
+**Then** it returns changed canonical facts, changed signal statuses, changed band labels, and opened/resolved `data_quality_issues`, each carrying **both** endpoints with their provenance and accession numbers
+**And** it reads only stored values — it never invokes `backend/scoring` or `backend/formulas` to produce a diff (deterministic boundary; also keeps the diff independent of formula-version drift)
+**And** a band change is returned distinctly from an input change that left the band intact
+**And** `insufficient_data` → a real value is classified as newly-available data, never as an improvement, and the reverse is classified as lost coverage, never as a decline
+**And** a `mapping_version` or `formula_version` difference between the two runs is surfaced as a caveat on the diff, since a change may then reflect a rule change rather than a filing change
+**And** no new mutable "previous value" column is introduced — supersession is the only source.
+
+### Story 5.3: Change-detection read API
+
+As the frontend,
+I want an endpoint returning a company's changes since a given prior run or date,
+So that the overview page can render "what changed" without computing anything.
+
+**Acceptance Criteria:**
+
+**Given** the diff engine from Story 5.2
+**When** the endpoint is called for a ticker with an optional `since` parameter
+**Then** it returns the structured diff, defaulting to the most recent prior run when `since` is omitted
+**And** it stays read-only per AD-1 — no request can trigger scoring, ingestion, or recomputation
+**And** a company with only one score run returns an explicit "no prior run to compare" state, distinct from both an error and an empty diff
+**And** the response separates "no change since {date}" from "no data", so the UI can never render them identically.
+
+### Story 5.4: "What changed" on the company overview
+
+As Lawrence (investor),
+I want to see what moved for a company since I last looked, with both values cited,
+So that I can re-engage with a thesis without re-reading the whole page.
+
+**Acceptance Criteria:**
+
+**Given** a company with a computable diff
+**When** Lawrence opens its overview page
+**Then** a change summary shows each change as prior → current, each endpoint linking to its provenance record and accession number
+**And** band crossings are visually distinguished from within-band input movements
+**And** newly-available and newly-lost data are labelled as coverage changes, not as directional improvements or declines
+**And** "no change since {date}" renders as an explicit statement, never as an empty region that could be mistaken for a failed load (this is the operational-honesty gap flagged in the 2026-08-02 assessment §3.17)
+**And** a `mapping_version`/`formula_version` caveat from Story 5.2, when present, is shown rather than silently dropped.
+
+### Story 5.5: Trajectory-over-level rules (OQ9)
+
+As Lawrence (investor),
+I want each Quality/Health signal to show its direction of travel, not only its current level,
+So that a company improving from a weak base reads differently from one deteriorating from a strong one.
+
+**Acceptance Criteria:**
+
+**Given** a company with score runs across at least two fiscal years
+**When** the Quality/Health lens renders
+**Then** each applicable signal carries a trajectory classification derived deterministically from already-stored values, with the compared years stated
+**And** trajectory is presented **alongside** the level, never as a replacement for it, and never blended with it into a composite
+**And** a signal with insufficient history for a trajectory shows `insufficient_data` for the trajectory only, leaving its level intact (AD-16)
+**And** the classification rule and its thresholds live in a versioned spec, labelled as a **ThesisTrace-authored** presentation rule and clearly distinguished from the original academic methodology — consistent with the standing rule that a caveat may annotate a score but never alter one.
+
+### Story 5.6: Debt maturity concentration (OQ9) — *conditional on Story 5.1*
+
+As Lawrence (investor),
+I want to see how concentrated a company's debt repayments are in the near term,
+So that leverage reads as a timing risk and not only as a level.
+
+**Scope is set by Story 5.1's finding and may legitimately be reduced to a subset of the universe, or dropped entirely.** Do not begin before that finding exists.
+
+**Acceptance Criteria:**
+
+**Given** Story 5.1 confirmed usable maturity-schedule coverage for a filer
+**When** the metric is computed for that filer
+**Then** a concentration measure is derived deterministically from canonical facts, with its formula in a versioned spec
+**And** every new canonical concept it requires is added with per-year live-verified coverage, and the `MAPPING_VERSION` is bumped only if a mapping rule genuinely changed (per `registry.yaml`'s procedure)
+**And** a filer without a usable schedule is `insufficient_data` — never estimated from the `long_term_debt` aggregate, never defaulted to zero
+**And** the golden dataset is extended in the **same change** for every filer the metric resolves for, since SM-1 is a claim about the universe.
