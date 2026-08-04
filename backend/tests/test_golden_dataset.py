@@ -113,14 +113,37 @@ async def test_active_companies_match_golden(db_session) -> None:
                 select(ScoreRun).where(ScoreRun.model == Model.altman, ScoreRun.issuer_cik == cik)
             )
         ).scalars().one()
-        assert abs(float(altman_run.aggregate_value) - expected["altman"]["z_score"]) < 1e-3, f"{company['ticker']} Altman Z"
 
-        altman_band_result = (
-            await db_session.execute(
-                select(ScoreResult).where(ScoreResult.score_run_id == altman_run.id, ScoreResult.band_label.is_not(None))
+        # A null expected z_score asserts the model genuinely CANNOT compute, the
+        # same contract Beneish has below. Suncor tags no retained-earnings concept
+        # anywhere, so X2 and therefore Z are unresolvable — and its golden entry
+        # still supplies a real price, so this confirms the missing input rather
+        # than withheld market data. Without this branch the entry could not be
+        # expressed at all, and the gap would have stayed silent.
+        if expected["altman"]["z_score"] is None:
+            assert altman_run.aggregate_value is None, f"{company['ticker']} Altman expected insufficient_data"
+            no_band = (
+                await db_session.execute(
+                    select(ScoreResult).where(
+                        ScoreResult.score_run_id == altman_run.id, ScoreResult.band_label.is_not(None)
+                    )
+                )
+            ).scalars().all()
+            assert not no_band, f"{company['ticker']} Altman banded an unresolved Z"
+        else:
+            assert abs(float(altman_run.aggregate_value) - expected["altman"]["z_score"]) < 1e-3, (
+                f"{company['ticker']} Altman Z"
             )
-        ).scalars().one()
-        assert altman_band_result.band_label == expected["altman"]["band"], f"{company['ticker']} Altman band"
+            altman_band_result = (
+                await db_session.execute(
+                    select(ScoreResult).where(
+                        ScoreResult.score_run_id == altman_run.id, ScoreResult.band_label.is_not(None)
+                    )
+                )
+            ).scalars().one()
+            assert altman_band_result.band_label == expected["altman"]["band"], (
+                f"{company['ticker']} Altman band"
+            )
 
         # Beneish M. A null expected m_score means the golden entry asserts the
         # model genuinely CANNOT compute for this company (e.g. CP has no COGS/SGA

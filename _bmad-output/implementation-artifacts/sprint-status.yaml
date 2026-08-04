@@ -109,6 +109,7 @@ action_items:
     status: done
     resolved: 2026-07-29
     evidence: "backend/tests/golden/phase1_golden.yaml — all four companies hand-verified against raw EDGAR company-facts JSON (2026-07-23/25/26/29); no pending_fixture entries remain. Closes PRD OQ1."
+    reopened_and_reclosed: "2026-08-04. The D8 universe expansion to 7 filers left CCJ, BCE and SU scored but NOT hand-verified, so SM-1's 'every score for the Phase 1 universe' no longer held against the universe it was closed on. All three verified 2026-08-04 and added; golden coverage is 7 of 7 again. Lesson: SM-1 is a claim about the universe, so expanding the universe reopens it."
   - epic: 4
     action: "Add a live-data spot-check to the Definition of Done for any story touching real EDGAR/Tiingo integration or concept mapping"
     owner: "Lawrence"
