@@ -122,6 +122,45 @@ identically — `insufficient_data`, never a substitute or a guess.
 **Non-goal unchanged.** The PRD's "no full market coverage" stands. This widens the addressable
 Canadian universe from ~4 to a curated handful; it does not turn ThesisTrace into a screener.
 
+## D9 — Phase 2 is sequenced around one real decision, not around the lens list (2026-08-04)
+
+**Decision.** Phase 2 is built as a **decision workflow**, validated against a company Lawrence is
+genuinely researching, rather than as parallel Value / Growth / Filing-Q&A / Thesis-Journal tracks.
+This **reorders D5, it does not overturn it** — all four lenses still ship, and the Value and Growth
+lenses remain Phase 2. What changes is that they are built in the order and to the depth that one
+complete investment decision actually demands, instead of to their full specified breadth up front.
+
+**Why.** Phase 1 validated a *technical* hypothesis — reliable deterministic scoring from raw filing
+data is achievable — and validated it well: 7 filers, two reporting regimes, 7 of 7 hand-verified
+against real EDGAR data. It did **not** validate the *product* hypothesis, that these scores,
+presented this way, change or improve an investment decision. D3 encodes exactly this by requiring
+both correctness **and** real use; only the first half is met. The 2026-08-02 repository-wide
+direction assessment reached the same conclusion independently (§2, §3.19, §5): the current product
+is closer to "a reliable forensic-score browser" than a thesis-building tool, and building Value,
+Growth, Q&A, journaling and a wider universe in parallel risks "a wide but shallow research
+dashboard" — five simultaneous product bets, none validated.
+
+**Ordering.** Each increment ties to a specific research task, and the next is chosen from what the
+previous one exposed:
+
+1. **Latest-filing change detection** — what moved since last look.
+2. **A narrow valuation capability** — reverse DCF with explicit assumptions, not the full Value lens.
+3. **Thesis journal + thesis diff** (FR-18) — the feature most directly tied to the product's name.
+4. **Growth trends** — only the depth the workflow above actually consumes.
+5. **Filing Q&A** (FR-15) — last, and only once the citation-evaluation framework is ready.
+
+**Selection criterion (binding).** After the first complete decision packet, the next feature is
+chosen by *the largest observed research failure*, not by the next item on this list. If step 1
+reveals that change detection was not the binding constraint, the list is re-derived — it is a
+starting hypothesis, not a commitment.
+
+**Universe posture.** Expansion follows workflow validation rather than preceding it — consistent
+with PRD OQ8's resolution (manual, on demand) and counter-metric SM-C1. Breadth is not progress.
+
+**What this does not change.** D5's four-lens end state, the deterministic/LLM boundary, D4's
+portfolio-complete posture, and the D7 guardrail confining LangGraph to the explain/retrieve/cite
+surface all stand unchanged.
+
 ## Open items before PRD
 
 1. ~~Filing-type validation~~ — **done, see D6**, narrowed by **D8** (40-F/IFRS now supported).
