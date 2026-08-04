@@ -28,6 +28,11 @@ inputs:
   - long_term_debt
   - net_income
   - cash_from_operations
+  # Not a term in Beneish's equation — GMI computes gross margin from revenue and
+  # cogs directly. Listed because the gross_margin_validation guard below reads it,
+  # so it is genuinely consumed by this model and must be visible to the
+  # comparability check and on the methodology page.
+  - gross_profit
 
 constant: -4.84
 coefficients:

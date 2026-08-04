@@ -85,6 +85,19 @@ async def test_methodology_reads_versioned_spec(seeded_app) -> None:
 
 
 @requires_db
+async def test_methodology_route_serves_the_derivation_decisions(seeded_app) -> None:
+    """The page renders what the ROUTE returns, so the contract is checked here and
+    not only at the function that builds it (D8 consequence 3)."""
+    async with AsyncClient(transport=ASGITransport(app=seeded_app), base_url="http://test") as client:
+        body = (await client.get("/api/methodology/altman")).json()
+
+    ebit = next(d for d in body["derivations"] if d["concept"] == "ebit")
+    assert ebit["kind"] == "decision"
+    assert ebit["expression"] == "profit_before_tax + interest_expense"
+    assert ebit["rationale"]
+
+
+@requires_db
 async def test_explanation_is_cited_and_deterministic(seeded_app) -> None:
     async with AsyncClient(transport=ASGITransport(app=seeded_app), base_url="http://test") as client:
         body = (await client.get("/api/companies/SHOP/explanation")).json()

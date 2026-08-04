@@ -6,6 +6,14 @@ import { Card } from "../../components/ui/Card";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 type Signal = { key: string; description: string };
+type Derivation = {
+  concept: string;
+  rule: string;
+  kind: "identity" | "decision";
+  expression: string;
+  rationale: string;
+  only_when: string[];
+};
 type Methodology = {
   state: string;
   model?: string;
@@ -15,6 +23,7 @@ type Methodology = {
   signals?: Signal[];
   source?: string;
   threshold?: Record<string, unknown> | null;
+  derivations?: Derivation[];
 };
 
 async function getMethodology(model: string): Promise<Methodology> {
@@ -89,6 +98,53 @@ export default async function MethodologyPage({ params }: { params: Promise<{ mo
               ))}
             </ul>
           </Card>
+        </section>
+      ) : null}
+
+      {m.derivations && m.derivations.length > 0 ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
+            Computed inputs
+          </h2>
+          <p className="text-sm leading-relaxed text-[var(--color-ink-muted)]">
+            Some filers do not report every input this model needs as a tagged line item. Where that
+            happens, ThesisTrace computes the input rather than reading it, and says so here. A
+            figure computed this way is never presented as a reported one.
+          </p>
+          <div className="space-y-3">
+            {m.derivations.map((d) => (
+              <Card key={d.rule} className="space-y-3">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <span className="font-mono text-sm font-medium text-[var(--color-ink)]">
+                    {d.concept}
+                  </span>
+                  <span
+                    className={`rounded-[var(--radius-control)] border px-2 py-0.5 text-xs font-semibold uppercase tracking-wide ${
+                      d.kind === "decision"
+                        ? "border-[var(--color-signal-caveat-border)] bg-[var(--color-signal-caveat-bg)] text-[var(--color-signal-caveat)]"
+                        : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-ink-faint)]"
+                    }`}
+                  >
+                    {d.kind === "decision" ? "Our judgment" : "Accounting identity"}
+                  </span>
+                </div>
+
+                <p className="font-mono text-sm text-[var(--color-ink-muted)]">
+                  {d.concept} = {d.expression}
+                </p>
+
+                {d.only_when.length > 0 ? (
+                  <p className="text-xs text-[var(--color-ink-faint)]">
+                    Applied only when {d.only_when.join("; ")}.
+                  </p>
+                ) : null}
+
+                <p className="text-sm leading-relaxed text-[var(--color-ink-muted)]">
+                  {d.rationale}
+                </p>
+              </Card>
+            ))}
+          </div>
         </section>
       ) : null}
 

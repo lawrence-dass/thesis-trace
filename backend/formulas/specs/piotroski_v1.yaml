@@ -17,6 +17,13 @@ missing_data_policy: insufficient_data   # a signal lacking an input is insuffic
 divide_by_zero_policy: insufficient_data # a zero denominator yields insufficient_data
 
 # Canonical concepts consumed (see canonicalization/mappings/specs/).
+#
+# This list must match what scoring/piotroski.py actually reads — it is not just
+# documentation. scoring/runner.py checks it to decide whether a run consumed an input
+# that is not comparable across filers, and the methodology page publishes it as the
+# model's inputs. gross_profit, long_term_debt and revenue were missing until
+# 2026-08-02: the leverage, margin and asset-turnover signals read them, so the
+# comparability check could not have fired on any of the three.
 inputs:
   - net_income
   - total_assets
@@ -24,6 +31,9 @@ inputs:
   - current_assets
   - current_liabilities
   - shares_outstanding
+  - gross_profit
+  - long_term_debt
+  - revenue
 
 # The 9 signal_keys (stable vocabulary, AD-18). Some require concepts beyond the
 # Phase-1 fixture (gross margin, long-term debt, revenue); those resolve to
