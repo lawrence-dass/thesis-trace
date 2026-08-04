@@ -1,5 +1,5 @@
 # generated: 2026-07-21
-# last_updated: 2026-08-02
+# last_updated: 2026-08-04
 # project: ThesisTrace
 # project_key: NOKEY
 # tracking_system: file-system
@@ -53,7 +53,7 @@
 # stories. No retrospective has been run for any epic.
 
 generated: 2026-07-21
-last_updated: 2026-08-02
+last_updated: 2026-08-04
 project: ThesisTrace
 project_key: NOKEY
 tracking_system: file-system
@@ -211,8 +211,8 @@ d8_ifrs_track:
 # it Phase 2 step 1 and no existing FR covered it — FR-18's diff is thesis-scoped and
 # presupposes a saved thesis.
 #
-# NEXT ACTION: Story 5.1 is a live-EDGAR verification spike and gates Story 5.6.
-# It needs approval for company-facts fetches across all 7 universe CIKs.
+# NEXT ACTION: Story 5.6 scope is a Lawrence decision — see story_5_1_debt_maturity_spike
+# at the bottom of this file. Story 5.1 is DONE.
 #
 # Known tech debt, unowned by any epic: nine test files assert against
 # backend/tests/fixtures/shop_company_facts.json, which is entirely SYNTHETIC
@@ -238,3 +238,39 @@ qsr_gross_profit_reverification:
       evidence: "New `gross_margin_validation` guard in formulas/specs/beneish_v1.yaml, applied in scoring/beneish.py. QSR and Suncor are flagged computed_with_caveat; SHOP, OTEX, Cameco and BCE are not. The M-score is UNCHANGED — QSR FY2023 still -2.219847, the hand-verified golden value, so no golden re-verification was needed after all. Guarded by tests/test_beneish_gross_margin_guard.py."
       design_note: "The test is filer-level, not year-level: a filer that reports a gross profit line ANYWHERE has demonstrated revenue - cogs is meaningful for its income statement. A year-level test would wrongly flag SHOP, whose fixture carries GrossProfit for FY2024 only. Stated limitation: validation once is validation throughout, so a filer that restructured after last reporting gross profit would not be re-flagged — accepted because the cases caught are structural (business model / presentation basis), not year-specific."
       note: "Suncor's Beneish never resolves anyway (no SG&A line -> SGAI unresolvable), so the guard is real but unreachable for it. Pinned by a test so its absence is not later mistaken for a coverage bug."
+
+# Story 5.1 — debt-maturity coverage spike (2026-08-04). Asked: is the debt maturity
+# schedule actually tagged for every filer, before Story 5.6 assumes it? Answered
+# against live data.sec.gov company-facts for all 7 universe CIKs.
+# ANSWER: No. Only 2 of 7 filers carry a usable ladder. Scope Story 5.6 accordingly.
+story_5_1_debt_maturity_spike:
+  status: done
+  resolved: 2026-08-04
+  question: "Is a year-by-year debt maturity schedule reachable from EDGAR company-facts for every universe filer?"
+  verdict: "NO for the full ladder — 2 of 7. But a narrower NEAR-TERM SHARE metric is reachable for 6 of 7 with usable history, and is genuinely comparable across filers."
+  ladder_coverage:
+    - filer: "CP"
+      finding: "Full years 1-5 for FY2015-2025. 'AfterYearFive' (thereafter) only from FY2022 — so for FY2015-2021 the ladder does NOT sum to total debt and must not be used as its own denominator. Tags no LongTermDebtCurrent/Noncurrent at all; its InNextTwelveMonths bucket IS its current portion."
+    - filer: "QSR"
+      finding: "Best coverage in the universe. Full 5-year ladder + thereafter, FY2014-2024. FY2025 is missing thereafter. Also tags the current/noncurrent split for 13 years."
+    - filer: "OTEX"
+      finding: "NEVER tags years 2-5 — the ladder does not exist for it in any year. Worse, it switched near-term tags mid-history: InNextTwelveMonths (FY2011-2015) -> RemainderOfFiscalYear (FY2016-2020) -> back to InNextTwelveMonths (FY2021-2025), and AfterYearFive only FY2012-2020. Recent years carry a near-term bucket and nothing else."
+    - filer: "SHOP"
+      finding: "No debt maturity ladder at all. Tags the LEASE maturity ladder (LesseeOperatingLeaseLiability...AfterYearFive) but not a debt one — consistent with convertible notes having a single maturity. Current/noncurrent convertible split exists for FY2023-2024 only."
+    - filer: "CCJ / BCE / SU (all ifrs-full)"
+      finding: "ZERO maturity or repayment-of-principal concepts, all three. Not a tagging-quality gap: under IFRS the maturity analysis is a liquidity-risk disclosure expressed with axis/member DIMENSIONS, and the EDGAR company-facts API exposes only non-dimensional facts. It is structurally unreachable by this ingestion path, not merely absent. Reaching it would require dimensional-fact ingestion from Inline XBRL — a real architecture change, not a mapping addition."
+  recommended_scope: >
+    Redefine the metric rather than restrict it. Near-term debt share (debt due within
+    12 months / total debt) is ONE concept, identically defined whether it comes from a
+    ladder's first bucket or from a current/noncurrent split, so it stays comparable
+    across filers with no caveat: CP via its ladder, QSR/OTEX via either, CCJ FY2017-2025,
+    BCE FY2016-2025, SU FY2016-2025 via the split. SHOP resolves for FY2023-2024 only and
+    is honestly insufficient_data elsewhere. The full maturity PROFILE (years 2-5 and
+    thereafter) then becomes a display enrichment available for CP and QSR alone —
+    presented as extra detail where it exists, never as a metric other filers "fail".
+  awaiting: "Lawrence's call between the redefinition above, ladder-only for CP+QSR (2 of 7), or dropping the sub-metric and reopening OQ9 for it."
+  method_note: >
+    Two documented project anti-patterns both reproduced here, which is why the spike
+    was worth running: 'a tag exists but does not cover the years you need' (CP's missing
+    thereafter bucket) and 'a filer switches tags mid-history' (OTEX, twice). Checking
+    tag presence alone would have reported OTEX as covered and CP's ladder as summable.
