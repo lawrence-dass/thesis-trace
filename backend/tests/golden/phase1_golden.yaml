@@ -19,8 +19,20 @@
 # real-world numeric accuracy. Replacing it wholesale would have broken 9
 # other test files' hardcoded characterization assertions for no gain here,
 # so this golden entry uses its own separate, real fixture instead.
+#
+# The three IFRS filers (CCJ, BCE, SU) were added 2026-08-04, hand-verified the
+# same way: every canonical input read straight out of the fixture JSON, all
+# four models recomputed by a script that imports nothing from backend/scoring
+# or backend/formulas, then compared against the pipeline. Agreement is
+# therefore corroboration, not the same code run twice.
+#
+# That pass caught a real error in the hand-computation itself, which is the
+# point of doing it: Sloan uses AVERAGE total assets over the two years, while
+# Beneish's TATA uses year-end. Computing Sloan with year-end assets was wrong
+# by ~1e-4 and would have been recorded as the golden value had the two figures
+# not been compared component by component.
 
-universe: [SHOP, CP, QSR, OTEX]
+universe: [SHOP, CP, QSR, OTEX, CCJ, BCE, SU]
 
 companies:
   - ticker: SHOP
@@ -134,3 +146,96 @@ companies:
       beneish:
         m_score: -2.884422
         band: "No manipulation flag"
+
+  # --- 40-F / ifrs-full filers (D8) -----------------------------------------
+  # Market data is real and fetched live 2026-08-04: Tiingo EOD closes for
+  # 2024-12-31 and the Bank of Canada USD/CAD rate for the same date. All three
+  # report in CAD, so Altman's X4 needs the FX conversion or it silently divides
+  # a USD price by a CAD denominator (AD-11).
+
+  - ticker: CCJ
+    status: active
+    fixture: cameco_company_facts.json
+    fye_close: 51.39
+    fye_date: "2024-12-31"
+    fx_rate:
+      currency_pair: USDCAD
+      rate: 1.4389
+    fiscal_year: 2024
+    expected:
+      # Hand-verified 2026-08-04. The 4-of-4 case: Cameco files an operating-profit
+      # line, so its ebit is read as filed and never derived. Altman matched on all
+      # five components and Beneish on all eight indices.
+      piotroski:
+        f_score: 7
+      sloan:
+        accruals_ratio: -0.073932
+        band: "Low accruals (higher quality)"
+      altman:
+        z_score: 6.465406
+        band: "Safe"
+      beneish:
+        m_score: -2.965792
+        band: "No manipulation flag"
+
+  - ticker: BCE
+    status: active
+    fixture: bce_company_facts.json
+    fye_close: 23.18
+    fye_date: "2024-12-31"
+    fx_rate:
+      currency_pair: USDCAD
+      rate: 1.4389
+    fiscal_year: 2024
+    expected:
+      # Hand-verified 2026-08-04. The 3-of-4 case, and the regression guard for the
+      # ebit DECISION: BCE files no operating-profit line, so X3 comes from
+      # profit_before_tax + interest_expense. X2 is genuinely NEGATIVE (-0.114867
+      # before weighting) — BCE carries an accumulated deficit, which is real and
+      # not a sign error. Nothing else in the golden set exercises that.
+      piotroski:
+        f_score: 4
+      sloan:
+        accruals_ratio: -0.090947
+        band: "Low accruals (higher quality)"
+      altman:
+        z_score: 0.519600
+        band: "Distress"
+      beneish:
+        # No SG&A line at all (IAS 1 by-nature presentation), so SGAI and the
+        # aggregate M are correctly insufficient_data — the same shape as CP's
+        # missing COGS under us-gaap.
+        m_score: null
+        band: null
+
+  - ticker: SU
+    status: active
+    fixture: suncor_company_facts.json
+    # A real price IS supplied so the null Altman below is attributable to the
+    # missing input rather than to withheld market data — without it the entry
+    # would assert nothing.
+    fye_close: 35.68
+    fye_date: "2024-12-31"
+    fx_rate:
+      currency_pair: USDCAD
+      rate: 1.4389
+    fiscal_year: 2024
+    expected:
+      # Hand-verified 2026-08-04. The 2-of-4 case, and deliberately the most
+      # degraded entry in the set: four of Suncor's concepts resolve only through
+      # by-nature variant tags that are not like-for-like with a by-function
+      # filer's, so its Piotroski and Sloan runs are computed_with_caveat.
+      piotroski:
+        f_score: 6
+      sloan:
+        accruals_ratio: -0.111528
+        band: "Low accruals (higher quality)"
+      altman:
+        # Suncor tags NO retained-earnings concept anywhere, so X2 cannot resolve
+        # and neither can Z. There is no defensible substitute.
+        z_score: null
+        band: null
+      beneish:
+        # No SG&A line (by-nature), so SGAI blocks the aggregate, as for BCE.
+        m_score: null
+        band: null
