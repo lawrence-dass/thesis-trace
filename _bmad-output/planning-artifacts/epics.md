@@ -132,7 +132,7 @@ lens list. Epics 1–4 are complete; Phase 2 begins at Epic 5.
 > used for real research.
 
 ### Epic 5: Filing Change Detection & Quality-Lens Depth
-Lawrence opens a company he last looked at weeks ago and sees, immediately and citably, what moved — new filing ingested, canonical facts changed, score bands crossed, data-quality issues opened or resolved — plus the two Quality/Health sub-metrics adopted under PRD OQ9. First increment of the decision workflow: you cannot evaluate a thesis without first knowing what changed.
+Lawrence opens a company he last looked at weeks ago and sees, immediately and citably, what moved — new filing ingested, canonical facts changed, score bands crossed, data-quality issues opened or resolved — plus the two Quality/Health sub-metrics adopted under PRD OQ9. First increment of the decision workflow: you cannot evaluate a thesis without first knowing what changed. *(OQ9's "debt maturity concentration" was redefined to near-term debt share on 2026-08-04 after the Story 5.1 spike found only 2 of 7 filers carry a usable ladder.)*
 **FRs covered:** FR-22 (new), FR-5 (extended)
 
 ### Epic 6: Narrow Valuation — Reverse DCF
@@ -634,19 +634,39 @@ So that a company improving from a weak base reads differently from one deterior
 **And** a signal with insufficient history for a trajectory shows `insufficient_data` for the trajectory only, leaving its level intact (AD-16)
 **And** the classification rule and its thresholds live in a versioned spec, labelled as a **ThesisTrace-authored** presentation rule and clearly distinguished from the original academic methodology — consistent with the standing rule that a caveat may annotate a score but never alter one.
 
-### Story 5.6: Debt maturity concentration (OQ9) — *conditional on Story 5.1*
+### Story 5.6: Near-term debt share (OQ9) — *scoped by Story 5.1, 2026-08-04*
 
 As Lawrence (investor),
-I want to see how concentrated a company's debt repayments are in the near term,
+I want to see how much of a company's debt comes due within twelve months relative to its total debt,
 So that leverage reads as a timing risk and not only as a level.
 
-**Scope is set by Story 5.1's finding and may legitimately be reduced to a subset of the universe, or dropped entirely.** Do not begin before that finding exists.
+**Scope was set by Story 5.1's live-EDGAR finding.** The originally-named "debt maturity concentration" is not buildable as specified — only QSR and CP carry a usable year-by-year ladder, and the three IFRS filers carry none at all for a structural reason (their maturity analysis is dimensional, and the company-facts API exposes only non-dimensional facts). The metric is therefore **redefined, not restricted**: near-term share is a single concept, identically defined whether read from a ladder's first bucket or from a current/noncurrent split, so it stays comparable across filers without a caveat. Full spike record: `sprint-status.yaml`, `story_5_1_debt_maturity_spike`.
+
+**Expected resolution** (from live verification, to be re-confirmed at build time, not trusted from here): CP via its ladder; QSR and OTEX via either source; CCJ FY2017–2025, BCE FY2016–2025, SU FY2016–2025 via the current/noncurrent split; SHOP FY2023–2024 only.
 
 **Acceptance Criteria:**
 
-**Given** Story 5.1 confirmed usable maturity-schedule coverage for a filer
-**When** the metric is computed for that filer
-**Then** a concentration measure is derived deterministically from canonical facts, with its formula in a versioned spec
-**And** every new canonical concept it requires is added with per-year live-verified coverage, and the `MAPPING_VERSION` is bumped only if a mapping rule genuinely changed (per `registry.yaml`'s procedure)
-**And** a filer without a usable schedule is `insufficient_data` — never estimated from the `long_term_debt` aggregate, never defaulted to zero
-**And** the golden dataset is extended in the **same change** for every filer the metric resolves for, since SM-1 is a claim about the universe.
+**Given** a filer with both a near-term debt figure and a total debt figure for a fiscal year
+**When** near-term debt share is computed
+**Then** it is derived deterministically from canonical facts, with its formula and threshold bands in a versioned spec labelled as a **ThesisTrace-authored** presentation rule, not an academic model
+**And** the near-term numerator resolves from either a maturity ladder's first bucket or a current-portion tag, and the spec states explicitly that these are the same concept — the choice of source is recorded on the fact, but does **not** produce a comparability caveat, because unlike the IFRS by-nature inputs the two sources are like-for-like
+**And** CP's total debt is **not** computed by summing its ladder for FY2015–2021, where the "thereafter" bucket is absent and the sum would understate total debt
+**And** OTEX's near-term figure resolves across its tag switches (`InNextTwelveMonths` → `RemainderOfFiscalYear` → back) with per-year coverage verified live, not inferred from tag presence
+**And** a filer-year lacking either operand is `insufficient_data` — never estimated from the `long_term_debt` aggregate alone, never defaulted to zero (AD-16)
+**And** every new canonical concept is added with per-year live-verified coverage, and `MAPPING_VERSION` is bumped only if a mapping rule genuinely changed (per `registry.yaml`'s procedure)
+**And** the golden dataset is extended in the **same change** for every filer-year the metric resolves for, since SM-1 is a claim about the universe.
+
+### Story 5.7: Maturity profile detail for filers that support it — *enrichment, not a metric*
+
+As Lawrence (investor),
+I want to see the full year-by-year repayment schedule where a filer actually publishes one,
+So that I can distinguish a smooth maturity ladder from a cliff.
+
+**Acceptance Criteria:**
+
+**Given** a filer with a usable multi-year ladder (currently QSR FY2014–2024 and CP, with CP's "thereafter" only from FY2022)
+**When** its Quality/Health lens renders
+**Then** the year-by-year profile is shown as supplementary detail beneath near-term share
+**And** a filer without a ladder shows **no gap, blank, or "missing" affordance** — the profile is absent for most of the universe by structure, and rendering it as missing data would misrepresent five of seven filers as deficient
+**And** where the "thereafter" bucket is absent for a year, the profile states that it is truncated rather than implying the displayed buckets are the whole debt
+**And** this story ships **after** 5.6 and may be deferred indefinitely without blocking the epic — it is presentation depth for two filers, not a lens capability.

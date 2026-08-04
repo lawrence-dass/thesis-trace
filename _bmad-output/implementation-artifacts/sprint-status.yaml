@@ -268,7 +268,7 @@ story_5_1_debt_maturity_spike:
     is honestly insufficient_data elsewhere. The full maturity PROFILE (years 2-5 and
     thereafter) then becomes a display enrichment available for CP and QSR alone —
     presented as extra detail where it exists, never as a metric other filers "fail".
-  awaiting: "Lawrence's call between the redefinition above, ladder-only for CP+QSR (2 of 7), or dropping the sub-metric and reopening OQ9 for it."
+  decided: "2026-08-04 — Lawrence chose the redefinition. Story 5.6 is now 'near-term debt share'; the year-by-year profile moves to new Story 5.7 as a CP+QSR display enrichment that may be deferred indefinitely. Recorded in prd.md section 8 OQ9 and epics.md Epic 5."
   method_note: >
     Two documented project anti-patterns both reproduced here, which is why the spike
     was worth running: 'a tag exists but does not cover the years you need' (CP's missing
