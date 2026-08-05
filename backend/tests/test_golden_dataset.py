@@ -18,7 +18,7 @@ import yaml
 
 from app.models import CanonicalFact, Model, ScoreResult, ScoreRun, SignalStatus
 from canonicalization.canonicalize import canonicalize_issuer
-from canonicalization.mappings import seed_concept_mappings
+from canonicalization.mappings import MAPPING_VERSION, seed_concept_mappings
 from debt.engine import compute
 from debt.profile import PROFILE_CONCEPTS, profile_for_facts
 from ingestion.company_facts import parse_company_facts
@@ -186,6 +186,10 @@ async def _assert_maturity_profile(db_session, cik: str, company: dict) -> None:
         await db_session.execute(
             select(CanonicalFact).where(
                 CanonicalFact.issuer_cik == cik,
+                # The production read path filters on mapping_version; without it
+                # here the guard would keep passing against facts canonicalized
+                # under a stale version — exactly the risk a version bump creates.
+                CanonicalFact.mapping_version == MAPPING_VERSION,
                 CanonicalFact.canonical_concept.in_(PROFILE_CONCEPTS),
             )
         )
@@ -193,8 +197,12 @@ async def _assert_maturity_profile(db_session, cik: str, company: dict) -> None:
     profiles = profile_for_facts(facts)
 
     if expected.get("no_profile"):
-        assert fiscal_year not in profiles, (
-            f"{ticker} FY{fiscal_year}: expected NO profile ({expected['reason']}) but one was built"
+        # Asserts the recorded reason, which is a claim about EVERY year, not just
+        # the golden one — "never years 2-5 in any year" is not tested by checking
+        # one year. A spurious profile in any other year must fail too.
+        assert profiles == {}, (
+            f"{ticker}: expected NO profile in any year ({expected['reason']}) but got "
+            f"{sorted(profiles)}"
         )
         return
 

@@ -221,12 +221,6 @@ companies:
         total_debt: 2614878000
         near_term_source: LongTermDebtCurrent
         total_source: LongTermDebt
-
-  # --- 40-F / ifrs-full filers (D8) -----------------------------------------
-  # Market data is real and fetched live 2026-08-04: Tiingo EOD closes for
-  # 2024-12-31 and the Bank of Canada USD/CAD rate for the same date. All three
-  # report in CAD, so Altman's X4 needs the FX conversion or it silently divides
-  # a USD price by a CAD denominator (AD-11).
       # Story 5.7: OTEX yields NO profile, for a specific reason. It tags a
       # next-twelve-months bucket and a thereafter bucket but has NEVER tagged
       # years 2-5 in any year (confirmed live 2026-08-05). Rendering the two ends
@@ -234,8 +228,22 @@ companies:
       # least one middle year.
       debt_maturity_profile:
         no_profile: true
-        reason: "tags year_1 and thereafter but never years 2-5"
+        # NOTE ON WHAT THIS ACTUALLY EXERCISES. Live, OTEX tags year_1 AND
+        # thereafter and never years 2-5 — the two-ended ladder the contiguity
+        # rule exists for. The committed fixture reproduces only the thereafter
+        # end, because OTEX's year_1 facts come from accessions this trimmed
+        # fixture does not carry, and adding one would perturb the hand-verified
+        # scores above. So this entry pins the outcome (no profile) but exercises
+        # a one-ended ladder; the two-ended case is covered by
+        # test_no_middle_years_yields_no_profile_at_all. Stated rather than left
+        # for a reader to assume the fixture matches the reason.
+        reason: "live: tags year_1 and thereafter but never years 2-5; fixture carries the thereafter end only"
 
+  # --- 40-F / ifrs-full filers (D8) -----------------------------------------
+  # Market data is real and fetched live 2026-08-04: Tiingo EOD closes for
+  # 2024-12-31 and the Bank of Canada USD/CAD rate for the same date. All three
+  # report in CAD, so Altman's X4 needs the FX conversion or it silently divides
+  # a USD price by a CAD denominator (AD-11).
   - ticker: CCJ
     status: active
     fixture: cameco_company_facts.json

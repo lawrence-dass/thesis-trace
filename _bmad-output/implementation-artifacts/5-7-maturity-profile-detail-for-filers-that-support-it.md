@@ -194,6 +194,35 @@ claude-opus-5
 ### Change Log
 
 - 2026-08-05 — Implemented Story 5.7. `MAPPING_VERSION` `concepts_v6` -> `concepts_v7`.
+- 2026-08-05 — Addressed code-review findings: 12 items resolved, 4 deferred with reasons.
+
+## Senior Developer Review (AI)
+
+Three cold-context layers (Blind Hunter, Edge Case Hunter, Acceptance Auditor). **Outcome: Changes Requested — all applied.** All three independently found the same two top defects, which is the strongest signal in the run.
+
+### Resolved
+
+- [x] **[High] Earlier-years table columns keyed off `latest.buckets`.** Found by all three. QSR stops tagging a tail bucket after FY2024, so its newest profile has five buckets — which deleted the "After year 5" column from every earlier year, hiding FY2023's 8,566M, the largest figure in the ladder, with no marker. Columns are now the union across displayed years, in ladder order.
+- [x] **[High] `truncated` tracked only a missing tail.** A year missing an interior bucket — CP FY2012 has no year 1, and AD-3 can drop any single bucket as `ambiguous_selection` — rendered as a complete, untruncated schedule. Replaced the "needs a middle year" rule with **contiguity from year one**, which subsumes it and closes the hole. Three new tests.
+- [x] **[High] Truncation note gated on the latest year.** CP's latest years are complete while FY2010–2021 are not, so every historical asterisk pointed at a note that never rendered. Note now shows whenever any displayed year is truncated.
+- [x] **[Med] Provenance carried to the client but never rendered** — AC 6 / AD-19 ("the frontend links to it"). The component was not even passed `cik`, so it structurally could not build a citation. Now renders `CitationChip` per bucket.
+- [x] **[Med] The two debt cards had diverged formatters** (`toFixed(2)` vs `toFixed(1)`), which is what made 3,143M and 3,133M render as "3.1B" and "3.13B". Extracted `ui/format.ts`; also fixed the 999,999,999 → "1000M" boundary.
+- [x] **[Med] `unit` taken from an arbitrary bucket** via `next(iter(...))`, with no `ORDER BY` on the query. Now requires agreement across buckets and returns "" on conflict.
+- [x] **[Med] The no-total guard inspected only the internal dataclass.** `MaturityProfileOut` is a separate Pydantic model, so a `total` added there shipped green. Now pinned on the API surface too.
+- [x] **[Med] Bucket order was assumed from YAML key order** with nothing asserting it — reordering the mapping would silently repoint truncation at the wrong bucket. Loader now pins first and last keys.
+- [x] **[Med] Loader validated presence, not shape.** A missing `truncation.message` would have raised only on truncated filer-years — CP 500s, QSR fine. Now validated up front.
+- [x] **[Med] Golden query omitted the `mapping_version` filter** the production path applies, so it would have passed against stale-version facts — precisely the risk this story's version bump introduces.
+- [x] **[Med] Golden `no_profile` asserted one year** while its recorded reason claimed "never in any year". Now asserts `profiles == {}`.
+- [x] **[Low] Filed zero drew a visible 1.5% bar** — inconsistent with Story 5.6's "a filed zero is a value" handling. Now draws no bar. Real case: QSR and CP both file `InYearFive: 0` in FY2022.
+- [x] **[Low] Absence rationale was false for OTEX.** It claimed companies "do not publish" a schedule; OTEX publishes a partial one that ThesisTrace withholds. Same class as Story 5.6's SHOP copy bug. Reworded.
+- [x] **[Low] Stale cross-reference** to `us-gaap_v5.yaml`, and the golden file's IFRS section banner had been orphaned inside OTEX's `expected:` map.
+
+### Deferred, with reasons
+
+- **`concepts_v7` deploy asymmetry.** The debt queries filter on `mapping_version`; the score queries do not. Deploy without re-canonicalizing and the model cards render while both debt cards silently vanish. Real, but it spans 5.6 and 5.7 and belongs with the deployment work — flagged in the PR, not patched here.
+- **OTEX fixture cannot reproduce its own golden reason.** Its live year-1 facts come from accessions the trimmed fixture does not carry, and adding one would perturb hand-verified scores. The golden entry now states plainly what it does and does not exercise rather than overclaiming.
+- **Truncated path still never seen rendered.** No committed fixture year is truncated. Covered by unit tests; noted as the one gap the browser check could not close.
+- **`us-gaap` spec duplication (v4/v5/v6).** Three near-identical 250-line specs now carry the same live-verification notes with nothing preventing a correction landing in only one. Architectural, pre-existing, needs its own decision.
 
 ## References
 

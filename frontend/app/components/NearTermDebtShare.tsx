@@ -1,5 +1,6 @@
 import { Card } from "./ui/Card";
 import { Badge, type BadgeVariant } from "./ui/Badge";
+import { compactAmount } from "./ui/format";
 
 export type NearTermDebtShare = {
   fiscal_year: number;
@@ -25,17 +26,6 @@ function toneVariant(tone: string | null): BadgeVariant {
   if (tone === "positive") return "pass";
   if (tone === "caution") return "caveat";
   return "neutral";
-}
-
-/** Compact money, in whatever unit the filer reports (CP files in CAD). The
- *  currency is deliberately not asserted here — the figure is shown as a scale
- *  cue beside the ratio, and labelling it USD would be wrong for CP and Suncor. */
-function compact(value: number | null): string {
-  if (value === null) return "—";
-  const abs = Math.abs(value);
-  if (abs >= 1e9) return `${(value / 1e9).toFixed(1)}B`;
-  if (abs >= 1e6) return `${(value / 1e6).toFixed(0)}M`;
-  return value.toLocaleString();
 }
 
 export function NearTermDebtShareCard({ rows }: { rows: NearTermDebtShare[] }) {
@@ -80,7 +70,7 @@ export function NearTermDebtShareCard({ rows }: { rows: NearTermDebtShare[] }) {
             {latest.band_label}
           </Badge>
           <span className="text-xs tabular-nums text-[var(--color-ink-faint)]">
-            {compact(latest.near_term_debt)} of {compact(latest.total_debt)}
+            {compactAmount(latest.near_term_debt ?? 0)} of {compactAmount(latest.total_debt ?? 0)}
           </span>
         </div>
       )}

@@ -14,9 +14,16 @@ rather than by code:
     that no such attribute ever appears — because the natural way to render six
     buckets is a stacked bar summing to 100%, and that would be a lie.
 
-  * A PROFILE NEEDS A MIDDLE YEAR. OTEX tags a next-twelve-months bucket and a
-    thereafter bucket and never the years between. Rendering those two alone
-    would imply a schedule with a hole in it, so OTEX gets no profile at all.
+  * A PROFILE MUST BE CONTIGUOUS FROM YEAR ONE. Anything else is a schedule with
+    a hole in it, and a hole renders as a complete schedule unless it is refused.
+    Three real shapes make this concrete:
+      - OTEX tags year 1 and thereafter and never the years between.
+      - CP FY2012 tags years 2-5 but no year 1, which would render as though
+        nothing at all falls due within twelve months.
+      - AD-3 can drop a single bucket as `ambiguous_selection`, punching an
+        invisible hole into an otherwise well-covered filer-year.
+    A MISSING TAIL is the one permitted absence, and it is reported as
+    `truncated` rather than hidden. Every other pattern yields no profile.
 
   * ABSENCE RENDERS NOTHING. This is a deliberate, scoped exception to the AD-16
     convention that absence is shown rather than hidden. AD-16 governs a signal
@@ -59,20 +66,38 @@ def load_profile_spec() -> dict:
     for required in ("buckets", "basis", "truncation", "absence", "attribution", "spec_version"):
         if required not in data:
             raise MaturityProfileSpecError(f"Maturity profile spec missing {required!r}")
+
+    # Shape checks, not just presence. Without these a malformed spec fails later
+    # and asymmetrically — a missing `truncation.message` raises only on the
+    # filer-years that happen to be truncated, so CP would 500 while QSR was fine.
+    buckets = data["buckets"]
+    if not isinstance(buckets, dict) or not buckets:
+        raise MaturityProfileSpecError("buckets must be a non-empty mapping of concept -> label")
+    if not isinstance(data["truncation"], dict) or not data["truncation"].get("message"):
+        raise MaturityProfileSpecError("truncation.message is required — it is published to readers")
     if data["basis"].get("reconciles_to_total_debt") is not False:
         raise MaturityProfileSpecError(
             "basis.reconciles_to_total_debt must be declared false — the ladder is "
             "undiscounted principal and does not sum to the carrying amount."
         )
+
+    # Bucket ORDER is load-bearing: the last key is the tail whose absence means
+    # truncation, and contiguity is checked by position. Reordering the mapping
+    # would silently repoint truncation detection at the wrong bucket, so the
+    # expected first and last keys are pinned here rather than assumed.
+    keys = list(buckets)
+    if keys[0] != "debt_maturity_year_1" or keys[-1] != "debt_maturity_thereafter":
+        raise MaturityProfileSpecError(
+            f"buckets must run from debt_maturity_year_1 to debt_maturity_thereafter, got "
+            f"{keys[0]!r}..{keys[-1]!r} — order drives truncation and contiguity detection"
+        )
     return data
 
 
-#: Ordered, from the spec. Order is the render order.
+#: Ordered, from the spec. Order is the render order AND the contiguity order.
 PROFILE_CONCEPTS: tuple[str, ...] = tuple(load_profile_spec()["buckets"])
-#: The bucket whose absence means the schedule is truncated.
+#: The bucket whose absence means the schedule is truncated — the ONE permitted gap.
 TAIL_CONCEPT = PROFILE_CONCEPTS[-1]
-#: A schedule needs at least one of these to be a schedule rather than two ends.
-MIDDLE_CONCEPTS = frozenset(PROFILE_CONCEPTS[1:-1])
 
 ATTRIBUTION = load_profile_spec()["attribution"].strip()
 
@@ -132,8 +157,8 @@ def profile_for_facts(facts) -> dict[int, MaturityProfile]:
 
     profiles: dict[int, MaturityProfile] = {}
     for fiscal_year, found in by_year.items():
-        # Two ends without a middle is not a schedule (OTEX). Omit the year.
-        if spec.get("requires_a_middle_year", True) and not (MIDDLE_CONCEPTS & set(found)):
+        present = [c for c in PROFILE_CONCEPTS if c in found]
+        if not _is_contiguous_from_year_one(present):
             continue
 
         buckets = tuple(
@@ -144,18 +169,47 @@ def profile_for_facts(facts) -> dict[int, MaturityProfile]:
                 accession_number=getattr(found[concept], "accession_number", ""),
                 fiscal_year=fiscal_year,
             )
-            for concept in PROFILE_CONCEPTS
-            if concept in found
+            for concept in present
         )
+        # A bucket with no resolvable accession is not shown as fact (AD-19).
+        if any(not b.accession_number for b in buckets):
+            continue
+
         truncated = TAIL_CONCEPT not in found
-        anchor = next(iter(found.values()))
         profiles[fiscal_year] = MaturityProfile(
             fiscal_year=fiscal_year,
             buckets=buckets,
             truncated=truncated,
             truncation_message=spec["truncation"]["message"].strip() if truncated else None,
-            unit=getattr(anchor, "unit", "") or "",
+            unit=_single_unit(found),
             attribution=ATTRIBUTION,
             spec_version=spec["spec_version"],
         )
     return profiles
+
+
+def _is_contiguous_from_year_one(present: list[str]) -> bool:
+    """A schedule must start at year 1 and have no holes; only the tail may be absent.
+
+    Every other shape would render as a complete schedule while omitting a bucket:
+    OTEX's year-1-plus-tail, CP FY2012's missing year 1 (which would read as
+    nothing falling due within twelve months), or a single bucket dropped upstream
+    by an AD-3 ambiguous_selection.
+    """
+    if not present or present[0] != PROFILE_CONCEPTS[0]:
+        return False
+    expected = PROFILE_CONCEPTS[: len(present)]
+    return tuple(present) == expected
+
+
+def _single_unit(found: dict) -> str:
+    """The filer's reporting currency, or "" when the buckets disagree.
+
+    Not `next(iter(...))`: dict order here follows fact-iteration order, which the
+    repository query does not constrain, so an arbitrary bucket would decide the
+    label on the whole card. A genuine disagreement between buckets is reported as
+    unknown rather than guessed — these are absolute amounts, and CP files in CAD.
+    """
+    units = {getattr(f, "unit", "") or "" for f in found.values()}
+    units.discard("")
+    return units.pop() if len(units) == 1 else ""

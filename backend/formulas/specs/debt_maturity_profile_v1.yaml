@@ -52,11 +52,15 @@ buckets:
   debt_maturity_year_5: "Year 5"
   debt_maturity_thereafter: "After year 5"
 
-# A profile needs at least one MIDDLE year (2-5) to be a schedule at all.
-# OTEX tags a next-twelve-months bucket and a thereafter bucket and never the
-# years between; showing those two alone would imply a schedule with a hole in
-# it. Confirmed live 2026-08-05 that OTEX never tags years 2-5 in any year.
-requires_a_middle_year: true
+# A schedule must run CONTIGUOUSLY from year one. Only the tail may be absent,
+# and that case is reported as `truncated` rather than hidden. Every other shape
+# would render as a complete schedule while silently omitting a bucket:
+#   * OTEX tags year 1 and thereafter and never the years between (live 2026-08-05).
+#   * CP FY2012 tags years 2-5 but no year 1, which would read as though nothing
+#     at all falls due within twelve months.
+#   * An upstream AD-3 `ambiguous_selection` can drop one bucket from an
+#     otherwise well-covered filer-year, punching an invisible hole.
+requires_contiguous_from_year_one: true
 
 truncation:
   when: the "After year 5" bucket is absent for that fiscal year
@@ -74,12 +78,21 @@ truncation:
 # rendering a "missing" affordance would assert a deficiency that does not exist.
 absence:
   render: nothing
+  # Deliberately does NOT claim every absent case is the filer's doing. For four
+  # of the six it is; for OTEX it is not — OTEX publishes a partial ladder and
+  # ThesisTrace withholds it under the contiguity rule above, because the two ends
+  # alone would misrepresent the schedule. Asserting "the company does not publish
+  # one" would be false for that filer, the same class of error as Story 5.6's
+  # "this filer does not report the figures this needs", which was true for BCE
+  # and false for SHOP.
   rationale: >
-    Most companies in this universe never publish a year-by-year repayment
-    schedule, either because they report under IFRS — where the disclosure is
-    dimensional and not machine-readable through this data source — or because
-    they have no term debt to schedule. Showing an empty or "missing" panel for
-    them would imply a gap in their reporting that is not there.
+    Most companies here do not publish a year-by-year repayment schedule that can
+    be read from this data source — either because they report under IFRS, where
+    the disclosure is dimensional rather than machine-readable, or because they
+    have no term debt to schedule. In a few cases a company publishes only part of
+    a schedule, and a partial schedule is not shown because it would understate
+    what is owed. Showing an empty or "missing" panel would imply a gap in the
+    company's reporting that is usually not there.
 
 # Displayed verbatim wherever the profile appears. It has to defuse TWO
 # misreadings, not one, and the second was only visible once the panel was

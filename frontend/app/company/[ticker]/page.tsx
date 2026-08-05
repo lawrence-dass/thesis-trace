@@ -359,7 +359,10 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                   <NearTermDebtShareCard rows={data.near_term_debt_share ?? []} />
                   {/* Supplementary detail beneath the share (Story 5.7). Renders
                       nothing at all for a filer without a published schedule. */}
-                  <MaturityProfileCard profiles={data.debt_maturity_profile ?? []} />
+                  <MaturityProfileCard
+                    profiles={data.debt_maturity_profile ?? []}
+                    cik={data.cik}
+                  />
                 </>
               ) : null}
             </div>

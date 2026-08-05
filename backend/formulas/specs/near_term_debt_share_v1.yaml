@@ -30,7 +30,7 @@ formula:
   denominator: total_debt
   # Both operands come from ONE measurement basis: the balance-sheet carrying
   # amount of long-term debt, split current/noncurrent. See the header of
-  # us-gaap_v5.yaml for the live evidence that ruled out the alternative.
+  # us-gaap_v6.yaml for the live evidence that ruled out the alternative.
   basis: balance_sheet_carrying_amount
 
 # WHAT THIS FIGURE DOES NOT COVER, stated rather than hidden.

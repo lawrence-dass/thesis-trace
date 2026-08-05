@@ -128,6 +128,52 @@ def test_no_middle_years_yields_no_profile_at_all():
     assert profile_for_facts(facts) == {}
 
 
+def test_a_missing_year_one_yields_no_profile():
+    """CP FY2012 is this shape. Rendering it would start the schedule at "Year 2"
+    and read as though nothing at all falls due within twelve months."""
+    facts = _full_ladder(debt_maturity_year_1=None)
+    assert profile_for_facts(facts) == {}
+
+
+def test_a_hole_in_the_middle_yields_no_profile():
+    """Reachable in production without any tagging gap: AD-3 drops a bucket as
+    `ambiguous_selection` and continues, punching an invisible hole into an
+    otherwise well-covered filer-year. Before the contiguity rule this rendered as
+    a complete, untruncated schedule."""
+    assert profile_for_facts(_full_ladder(debt_maturity_year_3=None)) == {}
+    assert profile_for_facts(_full_ladder(debt_maturity_year_4=None)) == {}
+
+
+def test_a_bucket_without_provenance_is_not_shown_as_fact():
+    """AD-19 cuts both ways: no resolvable accession means it is not displayed."""
+    facts = _full_ladder()
+    facts[2].accession_number = ""
+    assert profile_for_facts(facts) == {}
+
+
+def test_unit_is_not_taken_from_an_arbitrary_bucket():
+    """Fact iteration order is not constrained by the repository query, so picking
+    the first bucket would let an arbitrary row label the whole card. Buckets that
+    disagree yield no unit rather than a guess — these are absolute amounts."""
+    facts = _full_ladder()
+    for f in facts:
+        f.unit = "CAD"
+    assert profile_for_facts(facts)[2023].unit == "CAD"
+
+    facts[3].unit = "USD"
+    assert profile_for_facts(facts)[2023].unit == ""
+
+
+def test_bucket_order_drives_truncation_and_is_pinned():
+    """TAIL_CONCEPT and the contiguity check are positional, so a reordered
+    `buckets:` mapping would silently repoint truncation at the wrong bucket. The
+    loader rejects that rather than trusting YAML key order."""
+    spec = load_profile_spec()
+    keys = list(spec["buckets"])
+    assert keys[0] == "debt_maturity_year_1"
+    assert keys[-1] == "debt_maturity_thereafter"
+
+
 def test_a_filer_with_no_ladder_yields_no_profile():
     assert profile_for_facts([]) == {}
     assert profile_for_facts([_F("total_debt", 2023, 1)]) == {}
@@ -210,10 +256,32 @@ def test_attribution_defuses_both_misreadings():
     assert "near-term debt share" in attribution, "must defuse the first-bucket misreading"
 
 
-def test_spec_file_parses_and_declares_its_concepts():
+def test_spec_file_declares_exactly_the_six_expected_buckets():
+    """Pins the literal expectation. Comparing the parsed file against
+    PROFILE_CONCEPTS would compare the file with itself — PROFILE_CONCEPTS is
+    derived from this same cached load — and could never fail."""
     data = yaml.safe_load(SPEC_PATH.read_text())
     assert data["rule"] == "debt_maturity_profile"
-    assert list(data["buckets"]) == list(PROFILE_CONCEPTS)
+    assert list(data["buckets"]) == [
+        "debt_maturity_year_1",
+        "debt_maturity_year_2",
+        "debt_maturity_year_3",
+        "debt_maturity_year_4",
+        "debt_maturity_year_5",
+        "debt_maturity_thereafter",
+    ]
+
+
+def test_api_schema_also_refuses_to_expose_a_total():
+    """The dataclass guard is not enough: MaturityProfileOut is a SEPARATE Pydantic
+    model built field-by-field in the repository, so a `total` added there would
+    ship with a green suite. This pins the surface consumers actually receive."""
+    from api.schemas import MaturityBucketOut, MaturityProfileOut
+
+    forbidden = {"total", "sum", "share", "pct", "percent"}
+    for model in (MaturityProfileOut, MaturityBucketOut):
+        for field in model.model_fields:
+            assert not any(f in field.lower() for f in forbidden), f"{model.__name__}.{field}"
 
 
 @pytest.mark.parametrize("concept", PROFILE_CONCEPTS)
