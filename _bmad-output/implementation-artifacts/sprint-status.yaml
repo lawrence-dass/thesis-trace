@@ -328,10 +328,40 @@ canonical_facts_amendment_gap:
     was written first. A rebuild-from-scratch would therefore silently 'fix' the data and
     hide the bug — which also means reproducing it requires simulating arrival ORDER, not
     just the presence of an amendment.
-  verification_next_step: >
-    Compare stored canonical_facts for OTEX FY2012-2015 against AD-3's ranking applied to
-    the full raw_facts set for those years. A disagreement proves live staleness; agreement
-    means this instance was saved by ingestion order and the bug is latent, not biting.
+  verification_result: >
+    DONE 2026-08-04. VERDICT: the gap is LATENT, not biting — no score in the current
+    universe is wrong because of it. Two independent checks agree.
+    (1) ARRIVAL-ORDER REPRODUCTION on the real OTEX payload: ingest originals only ->
+    canonicalize -> ingest amendments -> canonicalize again, versus ingest everything ->
+    canonicalize once. Both orders produced identical values for all 325 canonical facts,
+    0 disagreements. The experiment is valid rather than vacuous: 141 amended facts do
+    survive the duration/FYE filters and 24 (concept, fiscal_year) groups have genuinely
+    competing values.
+    (2) MECHANISM CHECK explains why. The skip can only freeze a wrong value when an
+    amendment carries a value that NO original filing has. OTEX has 0 such cases and
+    SHOP 0 — every amended value is also carried by some original filing, typically a
+    later 10-K's comparative, so the first canonicalization pass already sees the
+    eventual winner. CP has 34 such cases, but all fall in FY2007-2010 while CP is only
+    scored FY2013-2025, so they are outside the scored window.
+  trigger_condition: >
+    An amendment carrying a value no original filing has, in a year that is scored. The
+    dangerous shape is a 10-K/A restating the MOST RECENT fiscal year, filed before the
+    next 10-K exists to carry that year as a comparative — exactly the case none of the
+    seven filers currently exhibits. CP demonstrably produces the condition, just aimed
+    at years predating its scoring window. This is a near-miss, not an all-clear.
+  severity: >
+    Downgraded from the initial reading. Restatements of canonical concepts are real
+    (18 concepts each for CP and OTEX), which is what the first pass established — but
+    restatement alone is not sufficient to move a stored value, and none of them does.
+    Priority is BELOW Story 5.3. Do not treat as won't-fix: OTEX is safe incidentally,
+    because comparatives happen to carry the amended value, not by design, so a new
+    filer or a differently-timed amendment could bite without warning.
+  regression_guard_suggested: >
+    Cheaper than fixing: assert in the pipeline (or a test) that no amendment introduces
+    a candidate value absent from every original filing for a SCORED year. That detects
+    the trigger condition arriving, rather than trying to detect a wrong number after the
+    fact. Would have to run against live payloads, so it fits the existing live-data
+    spot-check action item for Epic 4.
   consequence_for_story_5_2: >
     fact_change is unreachable within a single mapping_version — two runs under one
     mapping_version necessarily reference identical canonical_fact rows. The engine
