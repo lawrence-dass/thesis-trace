@@ -154,22 +154,42 @@ def test_published_formula_matches_what_the_engine_computes():
 # --- the mapping decisions the live verification settled --------------------
 
 
-def test_maturity_ladder_tags_are_not_mapped():
+def test_maturity_ladder_never_feeds_the_near_term_share():
     """Story 5.6 was specified on the premise that a ladder's first bucket and a
     current-portion tag are the same concept. Live EDGAR (2026-08-04) disproved it:
     they differ in 11 of 15 shared years for CP, 10 of 10 for OTEX, 2 of 12 for
     QSR — undiscounted contractual principal vs balance-sheet carrying amount.
-    Mapping either into near_term_debt would mix the two bases."""
+    Mapping either into near_term_debt would mix the two bases.
+
+    REFINED by Story 5.7 (2026-08-05), which maps these tags for the year-by-year
+    maturity profile. The original assertion was that they were unmapped
+    ENTIRELY — the strongest form available when nothing needed them — and 5.7
+    makes that false. The invariant it was actually protecting is unchanged and
+    still live: whatever else the ladder feeds, it must never reach the share's
+    operands. Narrowed rather than deleted, so the guard survives the thing that
+    would otherwise have retired it.
+    """
     ladder_tags = [
         "LongTermDebtMaturitiesRepaymentsOfPrincipalInNextTwelveMonths",
         "LongTermDebtMaturitiesRepaymentsOfPrincipalRemainderOfFiscalYear",
+        "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearTwo",
+        "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearThree",
+        "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFour",
+        "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFive",
         "LongTermDebtMaturitiesRepaymentsOfPrincipalAfterYearFive",
     ]
     for tag in ladder_tags:
-        assert ("us-gaap", tag) not in SOURCE_TO_CANONICAL, (
-            f"{tag} is mapped. The ladder is a different measurement basis from the "
-            "current-portion tag; see us-gaap_v5.yaml's Story 5.6 header."
+        assert SOURCE_TO_CANONICAL.get(("us-gaap", tag)) not in ("near_term_debt", "total_debt"), (
+            f"{tag} feeds the near-term share. The ladder is a different measurement "
+            "basis from the current-portion tag; see us-gaap_v6.yaml's Story 5.6 header."
         )
+
+
+def test_remainder_of_fiscal_year_stays_unmapped():
+    """OTEX uses this as a near-term stub, not a tail bucket, and it belongs to
+    neither the share (wrong basis) nor the profile (wrong position in the
+    ladder). It has no home, and that is the correct answer."""
+    assert ("us-gaap", "LongTermDebtMaturitiesRepaymentsOfPrincipalRemainderOfFiscalYear") not in SOURCE_TO_CANONICAL
 
 
 def test_ifrs_borrowings_total_is_not_mapped():

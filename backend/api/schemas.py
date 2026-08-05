@@ -84,6 +84,36 @@ class NearTermDebtShareOut(BaseModel):
     spec_version: str
 
 
+class MaturityBucketOut(BaseModel):
+    canonical_concept: str
+    label: str
+    value: float
+    #: Provenance (AD-19).
+    accession_number: str
+    fiscal_year: int
+
+
+class MaturityProfileOut(BaseModel):
+    """A filer's own published year-by-year repayment schedule (Story 5.7).
+
+    Deliberately carries NO total and no share-of-total. These buckets are
+    undiscounted contractual principal and do not reconcile to `total_debt`,
+    which is a carrying amount — QSR FY2023's complete ladder sums to 13,043M
+    against a filed 12,921M. Offering a total here would invite the stacked-bar
+    rendering that asserts a reconciliation which does not hold.
+    """
+
+    fiscal_year: int
+    buckets: list[MaturityBucketOut]
+    #: True when no "after year 5" figure was published, so this is part of the debt.
+    truncated: bool
+    truncation_message: str | None
+    #: The filer's own currency — CP reports in CAD and these are absolute amounts.
+    unit: str
+    attribution: str
+    spec_version: str
+
+
 class DataQualityOut(BaseModel):
     issue_type: str
     status: str
@@ -118,6 +148,10 @@ class CompanyOverviewOut(BaseModel):
     scores: list[LensScoreOut]
     #: Newest fiscal year first. Empty when the filer resolves no year at all.
     near_term_debt_share: list[NearTermDebtShareOut] = []
+    #: Newest fiscal year first. EMPTY for most of the universe by structure —
+    #: the frontend must render nothing at all rather than a "missing" state
+    #: (Story 5.7, a deliberate scoped exception to the AD-16 display convention).
+    debt_maturity_profile: list[MaturityProfileOut] = []
     data_quality: list[DataQualityOut]
 
 

@@ -58,6 +58,16 @@ NON_MODEL_CONCEPTS = {
     # borrowings), so all three IFRS filers build it from the derivation instead.
     "near_term_debt",
     "total_debt",
+    # Story 5.7: the year-by-year maturity profile. us-gaap only, and structurally
+    # so — the IFRS maturity analysis is a dimensional disclosure and the
+    # company-facts API exposes only non-dimensional facts, so there is nothing to
+    # map for the three IFRS filers rather than something omitted.
+    "debt_maturity_year_1",
+    "debt_maturity_year_2",
+    "debt_maturity_year_3",
+    "debt_maturity_year_4",
+    "debt_maturity_year_5",
+    "debt_maturity_thereafter",
 }
 
 

@@ -73,6 +73,9 @@ companies:
       near_term_debt_share:
         insufficient_data: true
         reason: "no total_debt — long_term_debt deliberately unmapped for SHOP"
+      debt_maturity_profile:
+        no_profile: true
+        reason: "no debt maturity ladder filed; SHOP tags a LEASE ladder, which is not this"
 
   - ticker: QSR
     status: active
@@ -106,6 +109,21 @@ companies:
         total_debt: 12921000000
         near_term_source: LongTermDebtCurrent
         total_source: LongTermDebt
+      # Story 5.7, hand-verified 2026-08-05 by a script importing nothing from
+      # backend/debt. The buckets sum to 13,043,000,000 against a filed
+      # LongTermDebt of 12,921,000,000 — deliberately NOT recorded as a total,
+      # because they do not reconcile: undiscounted contractual principal vs
+      # balance-sheet carrying amount.
+      debt_maturity_profile:
+        truncated: false
+        unit: USD
+        buckets:
+          debt_maturity_year_1: 67000000
+          debt_maturity_year_2: 706000000
+          debt_maturity_year_3: 84000000
+          debt_maturity_year_4: 115000000
+          debt_maturity_year_5: 3505000000
+          debt_maturity_thereafter: 8566000000
 
   - ticker: CP
     status: active
@@ -150,6 +168,20 @@ companies:
         total_debt: 22494000000
         near_term_source: LongTermDebtAndCapitalLeaseObligationsCurrent
         total_source: LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities
+      # Story 5.7, hand-verified 2026-08-05, in CAD as all CP figures are. FY2023
+      # is one of CP's four complete years — it began tagging a thereafter bucket
+      # only in FY2022, so FY2010-2021 are truncated and the gap is severe
+      # (FY2021's buckets sum to 7,376M against a 20,127M total debt).
+      debt_maturity_profile:
+        truncated: false
+        unit: CAD
+        buckets:
+          debt_maturity_year_1: 3133000000
+          debt_maturity_year_2: 933000000
+          debt_maturity_year_3: 1990000000
+          debt_maturity_year_4: 7000000
+          debt_maturity_year_5: 1868000000
+          debt_maturity_thereafter: 15202000000
 
   - ticker: OTEX
     status: active
@@ -189,13 +221,29 @@ companies:
         total_debt: 2614878000
         near_term_source: LongTermDebtCurrent
         total_source: LongTermDebt
+      # Story 5.7: OTEX yields NO profile, for a specific reason. It tags a
+      # next-twelve-months bucket and a thereafter bucket but has NEVER tagged
+      # years 2-5 in any year (confirmed live 2026-08-05). Rendering the two ends
+      # alone would imply a schedule with a hole in it, so the engine requires at
+      # least one middle year.
+      debt_maturity_profile:
+        no_profile: true
+        # NOTE ON WHAT THIS ACTUALLY EXERCISES. Live, OTEX tags year_1 AND
+        # thereafter and never years 2-5 — the two-ended ladder the contiguity
+        # rule exists for. The committed fixture reproduces only the thereafter
+        # end, because OTEX's year_1 facts come from accessions this trimmed
+        # fixture does not carry, and adding one would perturb the hand-verified
+        # scores above. So this entry pins the outcome (no profile) but exercises
+        # a one-ended ladder; the two-ended case is covered by
+        # test_no_middle_years_yields_no_profile_at_all. Stated rather than left
+        # for a reader to assume the fixture matches the reason.
+        reason: "live: tags year_1 and thereafter but never years 2-5; fixture carries the thereafter end only"
 
   # --- 40-F / ifrs-full filers (D8) -----------------------------------------
   # Market data is real and fetched live 2026-08-04: Tiingo EOD closes for
   # 2024-12-31 and the Bank of Canada USD/CAD rate for the same date. All three
   # report in CAD, so Altman's X4 needs the FX conversion or it silently divides
   # a USD price by a CAD denominator (AD-11).
-
   - ticker: CCJ
     status: active
     fixture: cameco_company_facts.json
@@ -232,6 +280,9 @@ companies:
         total_debt: 1281290000
         near_term_source: CurrentPortionOfLongtermBorrowings
         total_source: "derived: total_debt_current_plus_noncurrent"
+      debt_maturity_profile:
+        no_profile: true
+        reason: "ifrs-full maturity analysis is dimensional; unreachable via company-facts"
 
   - ticker: BCE
     status: active
@@ -272,6 +323,9 @@ companies:
       near_term_debt_share:
         insufficient_data: true
         reason: "CurrentPortionOfLongtermBorrowings not tagged for FY2024"
+      debt_maturity_profile:
+        no_profile: true
+        reason: "ifrs-full maturity analysis is dimensional; unreachable via company-facts"
 
   - ticker: SU
     status: active
@@ -316,3 +370,6 @@ companies:
         total_debt: 10345000000
         near_term_source: CurrentPortionOfLongtermBorrowings
         total_source: "derived: total_debt_current_plus_noncurrent"
+      debt_maturity_profile:
+        no_profile: true
+        reason: "ifrs-full maturity analysis is dimensional; unreachable via company-facts"

@@ -106,17 +106,17 @@ development_status:
   # for two days: it is only ever read, never validated. An epic whose status is
   # a comment is invisible to bmad-sprint-status and to every other tool.
   #
-  # in-progress, not done: 5.7 is deliberately unbuilt. It is display depth for
-  # the two filers that publish a full ladder (QSR, CP) and epics.md permits
-  # deferring it indefinitely without blocking the epic.
-  epic-5: in-progress
+  # CLOSED 2026-08-05. All seven stories done — 5.7 was the deliberately-deferrable
+  # one and was built rather than deferred. The retrospective stays `optional`
+  # until it is actually run; nothing else in this epic is outstanding.
+  epic-5: done
   5-1-debt-maturity-coverage-spike: done
   5-2-score-run-diff-engine: done
   5-3-change-detection-read-api: done
   5-4-what-changed-on-the-company-overview: done
   5-5-trajectory-over-level-rules: done
   5-6-near-term-debt-share: done
-  5-7-maturity-profile-detail-for-filers-that-support-it: backlog
+  5-7-maturity-profile-detail-for-filers-that-support-it: done
   epic-5-retrospective: optional
 
   # Epics 6-9 appear in epics.md's Epic List but are NOT decomposed into stories,

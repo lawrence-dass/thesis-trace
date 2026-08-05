@@ -902,6 +902,174 @@
       }
      ]
     }
+   },
+   "LongTermDebtMaturitiesRepaymentsOfPrincipalInNextTwelveMonths": {
+    "label": "Long-Term Debt, Maturity, Year One",
+    "description": "",
+    "units": {
+     "CAD": [
+      {
+       "end": "2022-12-31",
+       "val": 1504000000,
+       "accn": "0000016875-23-000008",
+       "fy": 2022,
+       "fp": "FY",
+       "form": "10-K",
+       "filed": "2023-02-24",
+       "frame": "CY2022Q4I"
+      },
+      {
+       "end": "2023-12-31",
+       "val": 3133000000,
+       "accn": "0000016875-24-000009",
+       "fy": 2023,
+       "fp": "FY",
+       "form": "10-K",
+       "filed": "2024-02-27",
+       "frame": "CY2023Q4I"
+      }
+     ]
+    }
+   },
+   "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearTwo": {
+    "label": "Long-Term Debt, Maturity, Year Two",
+    "description": "",
+    "units": {
+     "CAD": [
+      {
+       "end": "2022-12-31",
+       "val": 2118000000,
+       "accn": "0000016875-23-000008",
+       "fy": 2022,
+       "fp": "FY",
+       "form": "10-K",
+       "filed": "2023-02-24",
+       "frame": "CY2022Q4I"
+      },
+      {
+       "end": "2023-12-31",
+       "val": 933000000,
+       "accn": "0000016875-24-000009",
+       "fy": 2023,
+       "fp": "FY",
+       "form": "10-K",
+       "filed": "2024-02-27",
+       "frame": "CY2023Q4I"
+      }
+     ]
+    }
+   },
+   "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearThree": {
+    "label": "Long-Term Debt, Maturity, Year Three",
+    "description": "",
+    "units": {
+     "CAD": [
+      {
+       "end": "2022-12-31",
+       "val": 948000000,
+       "accn": "0000016875-23-000008",
+       "fy": 2022,
+       "fp": "FY",
+       "form": "10-K",
+       "filed": "2023-02-24",
+       "frame": "CY2022Q4I"
+      },
+      {
+       "end": "2023-12-31",
+       "val": 1990000000,
+       "accn": "0000016875-24-000009",
+       "fy": 2023,
+       "fp": "FY",
+       "form": "10-K",
+       "filed": "2024-02-27",
+       "frame": "CY2023Q4I"
+      }
+     ]
+    }
+   },
+   "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFour": {
+    "label": "Long-Term Debt, Maturity, Year Four",
+    "description": "",
+    "units": {
+     "CAD": [
+      {
+       "end": "2022-12-31",
+       "val": 1693000000,
+       "accn": "0000016875-23-000008",
+       "fy": 2022,
+       "fp": "FY",
+       "form": "10-K",
+       "filed": "2023-02-24",
+       "frame": "CY2022Q4I"
+      },
+      {
+       "end": "2023-12-31",
+       "val": 7000000,
+       "accn": "0000016875-24-000009",
+       "fy": 2023,
+       "fp": "FY",
+       "form": "10-K",
+       "filed": "2024-02-27",
+       "frame": "CY2023Q4I"
+      }
+     ]
+    }
+   },
+   "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFive": {
+    "label": "Long-Term Debt, Maturity, Year Five",
+    "description": "",
+    "units": {
+     "CAD": [
+      {
+       "end": "2022-12-31",
+       "val": 0,
+       "accn": "0000016875-23-000008",
+       "fy": 2022,
+       "fp": "FY",
+       "form": "10-K",
+       "filed": "2023-02-24",
+       "frame": "CY2022Q4I"
+      },
+      {
+       "end": "2023-12-31",
+       "val": 1868000000,
+       "accn": "0000016875-24-000009",
+       "fy": 2023,
+       "fp": "FY",
+       "form": "10-K",
+       "filed": "2024-02-27",
+       "frame": "CY2023Q4I"
+      }
+     ]
+    }
+   },
+   "LongTermDebtMaturitiesRepaymentsOfPrincipalAfterYearFive": {
+    "label": "Long-Term Debt, Maturity, after Year Five",
+    "description": "",
+    "units": {
+     "CAD": [
+      {
+       "end": "2022-12-31",
+       "val": 13520000000,
+       "accn": "0000016875-23-000008",
+       "fy": 2022,
+       "fp": "FY",
+       "form": "10-K",
+       "filed": "2023-02-24",
+       "frame": "CY2022Q4I"
+      },
+      {
+       "end": "2023-12-31",
+       "val": 15202000000,
+       "accn": "0000016875-24-000009",
+       "fy": 2023,
+       "fp": "FY",
+       "form": "10-K",
+       "filed": "2024-02-27",
+       "frame": "CY2023Q4I"
+      }
+     ]
+    }
    }
   },
   "dei": {

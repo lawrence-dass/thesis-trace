@@ -18,8 +18,9 @@ import yaml
 
 from app.models import CanonicalFact, Model, ScoreResult, ScoreRun, SignalStatus
 from canonicalization.canonicalize import canonicalize_issuer
-from canonicalization.mappings import seed_concept_mappings
+from canonicalization.mappings import MAPPING_VERSION, seed_concept_mappings
 from debt.engine import compute
+from debt.profile import PROFILE_CONCEPTS, profile_for_facts
 from ingestion.company_facts import parse_company_facts
 from raw_store.fx_rates import upsert_fx_rate
 from raw_store.market_prices import upsert_fye_close
@@ -167,6 +168,56 @@ async def test_active_companies_match_golden(db_session) -> None:
         # asserted, not just the ratio: the D8 pass showed that comparing only the
         # aggregate lets a wrong component hide behind a right-looking total.
         await _assert_near_term_debt_share(db_session, cik, company)
+        await _assert_maturity_profile(db_session, cik, company)
+
+
+async def _assert_maturity_profile(db_session, cik: str, company: dict) -> None:
+    """Story 5.7. Every bucket is pinned individually, and the ABSENCE of a profile
+    is pinned too — five of seven filers have none, and that is a fact about the
+    universe worth guarding rather than an untested gap."""
+    expected = company["expected"].get("debt_maturity_profile")
+    assert expected is not None, (
+        f"{company['ticker']} has no debt_maturity_profile golden entry. SM-1 is a claim "
+        "about the universe: every active company needs one, even if it is 'no profile'."
+    )
+    ticker, fiscal_year = company["ticker"], company["fiscal_year"]
+
+    facts = (
+        await db_session.execute(
+            select(CanonicalFact).where(
+                CanonicalFact.issuer_cik == cik,
+                # The production read path filters on mapping_version; without it
+                # here the guard would keep passing against facts canonicalized
+                # under a stale version — exactly the risk a version bump creates.
+                CanonicalFact.mapping_version == MAPPING_VERSION,
+                CanonicalFact.canonical_concept.in_(PROFILE_CONCEPTS),
+            )
+        )
+    ).scalars().all()
+    profiles = profile_for_facts(facts)
+
+    if expected.get("no_profile"):
+        # Asserts the recorded reason, which is a claim about EVERY year, not just
+        # the golden one — "never years 2-5 in any year" is not tested by checking
+        # one year. A spurious profile in any other year must fail too.
+        assert profiles == {}, (
+            f"{ticker}: expected NO profile in any year ({expected['reason']}) but got "
+            f"{sorted(profiles)}"
+        )
+        return
+
+    assert fiscal_year in profiles, f"{ticker} FY{fiscal_year}: expected a profile, got none"
+    profile = profiles[fiscal_year]
+    assert profile.truncated == expected["truncated"], f"{ticker} truncated flag"
+    assert profile.unit == expected["unit"], f"{ticker} unit — CP files in CAD and these are absolute amounts"
+
+    actual = {b.canonical_concept: float(b.value) for b in profile.buckets}
+    assert actual == expected["buckets"], f"{ticker} FY{fiscal_year} maturity buckets"
+
+    # The profile must not offer a total. Its buckets are undiscounted contractual
+    # principal and do not reconcile to total_debt — asserted here against the real
+    # pipeline output, not just the dataclass shape.
+    assert not any("total" in a.lower() for a in vars(profile)), f"{ticker} profile exposes a total"
 
 
 async def _assert_near_term_debt_share(db_session, cik: str, company: dict) -> None:
