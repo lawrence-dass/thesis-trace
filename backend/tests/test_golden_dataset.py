@@ -16,9 +16,10 @@ from pathlib import Path
 
 import yaml
 
-from app.models import Model, ScoreResult, ScoreRun, SignalStatus
+from app.models import CanonicalFact, Model, ScoreResult, ScoreRun, SignalStatus
 from canonicalization.canonicalize import canonicalize_issuer
 from canonicalization.mappings import seed_concept_mappings
+from debt.engine import compute
 from ingestion.company_facts import parse_company_facts
 from raw_store.fx_rates import upsert_fx_rate
 from raw_store.market_prices import upsert_fye_close
@@ -159,3 +160,56 @@ async def test_active_companies_match_golden(db_session) -> None:
             assert beneish_run.aggregate_value is None, f"{company['ticker']} Beneish expected insufficient_data"
         else:
             assert abs(float(beneish_run.aggregate_value) - expected["beneish"]["m_score"]) < 1e-3, f"{company['ticker']} Beneish M"
+
+        # Near-term debt share (Story 5.6). Not a model — a ThesisTrace presentation
+        # rule computed from two canonical facts — so it is checked from the facts
+        # the pipeline canonicalized rather than from a ScoreRun. Both operands are
+        # asserted, not just the ratio: the D8 pass showed that comparing only the
+        # aggregate lets a wrong component hide behind a right-looking total.
+        await _assert_near_term_debt_share(db_session, cik, company)
+
+
+async def _assert_near_term_debt_share(db_session, cik: str, company: dict) -> None:
+    expected = company["expected"].get("near_term_debt_share")
+    assert expected is not None, (
+        f"{company['ticker']} has no near_term_debt_share golden entry. SM-1 is a claim "
+        "about the universe: every active company needs one, even if it is insufficient_data."
+    )
+    ticker, fiscal_year = company["ticker"], company["fiscal_year"]
+
+    facts = (
+        await db_session.execute(
+            select(CanonicalFact).where(
+                CanonicalFact.issuer_cik == cik,
+                CanonicalFact.fiscal_year == fiscal_year,
+                CanonicalFact.canonical_concept.in_(("near_term_debt", "total_debt")),
+            )
+        )
+    ).scalars().all()
+    by_concept = {f.canonical_concept: f for f in facts}
+
+    share = compute(
+        fiscal_year=fiscal_year,
+        near_term_debt=by_concept["near_term_debt"].value if "near_term_debt" in by_concept else None,
+        total_debt=by_concept["total_debt"].value if "total_debt" in by_concept else None,
+    )
+
+    if expected.get("insufficient_data"):
+        assert share.insufficient_data, (
+            f"{ticker} FY{fiscal_year}: expected insufficient_data ({expected['reason']}) but got {share.value}"
+        )
+        return
+
+    assert not share.insufficient_data, f"{ticker} FY{fiscal_year}: expected a share, got insufficient_data"
+    assert float(by_concept["near_term_debt"].value) == expected["near_term_debt"], f"{ticker} near_term_debt"
+    assert float(by_concept["total_debt"].value) == expected["total_debt"], f"{ticker} total_debt"
+    assert abs(float(share.value) - expected["share"]) < 1e-6, f"{ticker} near-term debt share"
+    assert share.label == expected["band"], f"{ticker} near-term debt share band"
+
+    # The denominator's provenance is part of the claim: a filed total and a derived
+    # one are different provenance classes, and the golden entry names which applies.
+    derived = by_concept["total_debt"].derivation
+    if expected["total_source"].startswith("derived:"):
+        assert derived == expected["total_source"].split("derived:")[1].strip(), f"{ticker} total_debt derivation"
+    else:
+        assert derived is None, f"{ticker} total_debt should be filed, not derived"

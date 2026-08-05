@@ -1,0 +1,254 @@
+# us-gaap concept mappings — Form 10-K filers.
+#
+# Every `sources` list is a PRIORITY-ORDERED fallback chain: the first entry wins
+# outright when several source tags resolve for the same (issuer, fiscal year).
+# List position IS the priority, so the ordering cannot drift out of sync with the
+# intent the way a hand-written `priority=N` could.
+#
+# Each `note` records a LIVE verification against real data.sec.gov company-facts
+# JSON. They are not decoration: every fallback below exists because a specific
+# filer was silently resolving to insufficient_data (or to a wrong value) without
+# it. Never add a source tag on the strength of the tag merely existing in the
+# taxonomy — check its per-year coverage for the filers in the universe first.
+
+taxonomy: us-gaap
+spec_version: us-gaap_v5
+
+concepts:
+
+  total_assets:
+    sources:
+      - concept: Assets
+
+  current_assets:
+    sources:
+      - concept: AssetsCurrent
+
+  current_liabilities:
+    sources:
+      - concept: LiabilitiesCurrent
+
+  net_income:
+    note: >-
+      CP tags us-gaap:ProfitLoss for the years its NetIncomeLoss tag omits
+      (confirmed live 2026-07-22 — CP is missing NetIncomeLoss for FY2014-2021).
+    sources:
+      - concept: NetIncomeLoss
+      - concept: ProfitLoss
+
+  cash_from_operations:
+    note: >-
+      QSR's FY2016 10-K tags the ContinuingOperations variant instead of the plain
+      concept (confirmed live 2026-07-23). Without this fallback the originally-filed
+      FY2016 value never enters the candidate pool at all, leaving only two later,
+      mutually-conflicting comparative copies (1,269M vs 1,250M) and a spurious
+      ambiguous_selection where a clean originally-filed figure should win.
+    sources:
+      - concept: NetCashProvidedByUsedInOperatingActivities
+      - concept: NetCashProvidedByUsedInOperatingActivitiesContinuingOperations
+
+  shares_outstanding:
+    note: >-
+      Deliberately NOT sourced from dei:EntityCommonStockSharesOutstanding — that
+      cover-page fact is dated to the 10-K's FILING date (commonly 45-75+ days after
+      fiscal year-end for a December filer), not FYE, so it lands in the wrong
+      fiscal-year bucket during canonicalization (grouped by rf.period_end.year) and
+      silently starves Altman's X4 and Piotroski's shares_not_diluted signal of real
+      production data. Verified live against SEC EDGAR (2026-07-21):
+      us-gaap:CommonStockSharesOutstanding is genuinely FYE-dated for single-class
+      filers (CP, QSR, OTEX all confirmed).
+    sources:
+      - concept: CommonStockSharesOutstanding
+      - concept: WeightedAverageNumberOfSharesOutstandingBasic
+        note: >-
+          SHOP's multi-class share structure means its 10-Ks never tag
+          CommonStockSharesOutstanding at all. Its FYE-dated fallback is the
+          weighted-average basic count — also confirmed live.
+
+  total_liabilities:
+    note: >-
+      SHOP never tags us-gaap:Liabilities at all (confirmed live 2026-07-22) — its
+      balance sheet reports LiabilitiesAndStockholdersEquity and StockholdersEquity
+      instead. Covered by the `assets_minus_equity` rule in derivations_v1.yaml
+      rather than by a substitute tag here.
+    sources:
+      - concept: Liabilities
+
+  stockholders_equity:
+    sources:
+      - concept: StockholdersEquity
+
+  retained_earnings:
+    sources:
+      - concept: RetainedEarningsAccumulatedDeficit
+
+  ebit:
+    sources:
+      - concept: OperatingIncomeLoss
+
+  revenue:
+    note: >-
+      CP's us-gaap:Revenues tag doesn't cover FY2014-2021 (confirmed live
+      2026-07-22) even though it exists as a concept overall.
+      RevenueFromContractWithCustomerExcludingAssessedTax is the ASC-606-era tag
+      most filers (including CP) switched some years to.
+    sources:
+      - concept: Revenues
+      - concept: RevenueFromContractWithCustomerExcludingAssessedTax
+
+  cogs:
+    note: >-
+      Never resolved for ANY of the four companies under the original single-tag
+      mapping (confirmed live 2026-07-22 — zero canonical_facts rows existed).
+      Fallback tags verified live per company. CP has neither tag — a railroad,
+      reporting functional expense categories instead of a single COGS line — and
+      correctly resolves to insufficient_data rather than a guess (AD-3).
+    sources:
+      - concept: CostOfRevenue
+      - concept: CostOfGoodsAndServicesSold
+
+  sga:
+    note: >-
+      Same zero-coverage history as cogs above (confirmed live 2026-07-22). CP tags
+      neither variant and correctly stays insufficient_data (AD-3).
+    sources:
+      - concept: SellingGeneralAndAdministrativeExpense
+      - concept: GeneralAndAdministrativeExpense
+
+  receivables:
+    note: >-
+      QSR tags AccountsNotesAndLoansReceivableNetCurrent (a combined notes+accounts
+      tag), never AccountsReceivableNetCurrent — confirmed live 2026-07-23. This made
+      QSR's Beneish insufficient_data for EVERY year, not just the 2024-2025 window
+      the cogs gap alone would explain. SHOP tags AccountsAndOtherReceivablesNetCurrent
+      instead — also confirmed live; SHOP's Beneish never resolved at all under the
+      original single-tag mapping.
+    sources:
+      - concept: AccountsReceivableNetCurrent
+      - concept: AccountsNotesAndLoansReceivableNetCurrent
+      - concept: AccountsAndOtherReceivablesNetCurrent
+
+  ppe_net:
+    note: >-
+      CP switched to a combined PP&E + finance-lease right-of-use-asset tag starting
+      with its FY2021 10-K (confirmed live 2026-07-29). Its own originally-filed
+      FY2021/2024/2025 accessions never tag the plain PropertyPlantAndEquipmentNet
+      concept for those balance-sheet dates, which was silently starving Beneish's
+      AQI/DEPI indices of a real value.
+    sources:
+      - concept: PropertyPlantAndEquipmentNet
+      - concept: PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization
+
+  depreciation:
+    note: >-
+      QSR never tags the combined DepreciationDepletionAndAmortization concept — it
+      tags the plain Depreciation / DepreciationAndAmortization line instead
+      (confirmed live 2026-07-23). OTEX switches away from a single total D&A tag
+      entirely after FY2019 (splits into DepreciationNonproduction +
+      OtherDepreciationAndAmortization + several Amortization* line items with no
+      single combined tag); deriving a total by summing an assumed subset would be a
+      guess (AD-3), so OTEX's Beneish correctly stays insufficient_data for FY2020
+      onward rather than being forced with an unverified derivation.
+    sources:
+      - concept: DepreciationDepletionAndAmortization
+      - concept: DepreciationAndAmortization
+      - concept: Depreciation
+
+  long_term_debt:
+    note: >-
+      Same zero-coverage history as cogs/sga above (confirmed live 2026-07-22).
+    sources:
+      - concept: LongTermDebtNoncurrent
+      - concept: LongTermDebtAndCapitalLeaseObligations
+        note: >-
+          CP: verified live 2026-07-22 — no "...Noncurrent" variant exists. The tag CP
+          actually uses is LongTermDebtAndCapitalLeaseObligations (a total, not split
+          into current/noncurrent), reported in CAD, as are all of CP's financials.
+
+  gross_profit:
+    sources:
+      - concept: GrossProfit
+
+  # --- Story 5.6: near-term debt share (OQ9) -------------------------------
+  #
+  # The pair below is deliberately sourced on ONE measurement basis — the
+  # balance-sheet carrying amount of long-term debt, split current/noncurrent.
+  # A maturity ladder's first bucket is NOT used, and the reason is empirical.
+  #
+  # Story 5.6 was specified on the premise that a ladder's first bucket and a
+  # current-portion tag "are the same concept". Verified live 2026-08-04 against
+  # real company-facts for all seven filers, they are not:
+  #
+  #   CP    LongTermDebtMaturities...InNextTwelveMonths vs ...ObligationsCurrent
+  #         differs in 11 of 15 shared years (FY2013: 50M vs 189M)
+  #   OTEX  differs in 10 of 10 shared years (FY2022: 168.9M vs 10.0M)
+  #   QSR   differs in 2 of 12 shared years (FY2014: 1,115M vs 61.4M)
+  #
+  # They measure different things: the ladder discloses undiscounted contractual
+  # principal scheduled for repayment, while the current-portion tag is the
+  # carrying amount — net of unamortized discount and issue costs, and reflecting
+  # refinancing classification. Treating them as interchangeable would have
+  # shipped two differently-measured views of one figure.
+  #
+  # It costs nothing to drop the ladder, because every filer that has one also
+  # tags the split, with equal or better per-year coverage. That also dissolves
+  # both traps Story 5.6 asked to be pinned: CP's ladder is never summed because
+  # it is never read, and OTEX's twice-switched ladder tag is never consulted.
+
+  near_term_debt:
+    note: >-
+      Debt due within twelve months, as the filer's own balance sheet classifies
+      it. Per-year coverage confirmed live 2026-08-04 (bucketed by period_end
+      against each issuer's recognized fiscal-year-end, NOT by the payload's `fy`
+      field, which labels a fact with the fiscal year of the report that carried
+      it): QSR FY2013-2025 and OTEX FY2010-2025 from LongTermDebtCurrent, CP
+      FY2009-2025 from the capital-lease variant, SHOP FY2023-2025 from
+      ConvertibleDebtCurrent.
+    sources:
+      - concept: LongTermDebtCurrent
+      - concept: LongTermDebtAndCapitalLeaseObligationsCurrent
+        note: >-
+          CP only. Confirmed live 2026-08-04 that CP tags no LongTermDebtCurrent
+          in any year, but has tagged this variant for 17 consecutive years
+          (FY2009-2025). Story 5.1's spike reported that CP "tags no
+          LongTermDebtCurrent/Noncurrent at all" and built the whole ladder-based
+          design around that: it checked the exact tag name and missed this
+          variant. Ordered BELOW LongTermDebtCurrent so QSR — which tags both, and
+          whose two differ by the finance-lease component in all 12 shared years —
+          takes the pure long-term-debt figure that matches its LongTermDebt
+          denominator. CP is lease-inclusive on BOTH sides of the ratio, so its
+          own number stays internally consistent.
+      - concept: ConvertibleDebtCurrent
+        note: >-
+          SHOP only — its debt is entirely convertible notes. Resolves the
+          numerator for FY2023-2025, but SHOP still yields no ratio because its
+          denominator cannot be built; see total_debt below.
+
+  total_debt:
+    note: >-
+      The denominator, on the same carrying-amount basis as near_term_debt.
+      Short-term borrowings are deliberately EXCLUDED, so this is total long-term
+      debt including its current maturities, not every borrowing outstanding.
+      Confirmed live 2026-08-04 that the exclusion is what keeps the ratio
+      consistent: commercial paper and securitization sit outside the
+      current-portion tag for BCE, Suncor and CP alike, and the short-term tags
+      themselves are too patchy to sum without assuming a subset (QSR tags one
+      year, OTEX six, SHOP none) — which derivations_v3.yaml rules out as neither
+      an identity nor a decision.
+
+      Where no filed total exists the value comes from the total_debt_current_plus_
+      noncurrent derivation. That the two routes agree is verified, not assumed:
+      current + noncurrent reproduces the filed total for OTEX 9/9 years and
+      Cameco 4/4, QSR 12 of 13 and CP 11 of 12.
+    sources:
+      - concept: LongTermDebt
+        note: >-
+          QSR FY2013-2025 and OTEX FY2010-2025, confirmed live 2026-08-04. The
+          us-gaap total already includes current maturities, so it is the whole
+          denominator rather than the noncurrent piece.
+      - concept: LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities
+        note: >-
+          CP FY2014-2025, confirmed live 2026-08-04. Lease-inclusive, matching
+          CP's lease-inclusive numerator. CP's earlier years (FY2009-2013) have no
+          filed total and fall through to the derivation, which sums the same two
+          lease-inclusive tags — so CP's basis does not change mid-history.

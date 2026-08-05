@@ -62,6 +62,17 @@ companies:
         # is correctly insufficient_data rather than a bug to chase.
         m_score: null
         band: null
+      # Story 5.6: SHOP is the one filer with no near-term debt share, and the
+      # reason is a pre-existing deliberate decision rather than a gap here. Its
+      # near_term_debt resolves from ConvertibleDebtCurrent (FY2023-2025), but
+      # `long_term_debt` is unmapped for SHOP because its convertible notes flip
+      # between the Current and Noncurrent tags as they near maturity — so the
+      # total_debt derivation has no second operand. Reversing that would move
+      # SHOP's hand-verified Piotroski and Beneish values and belongs in its own
+      # change. insufficient_data, never a partial figure (AD-16).
+      near_term_debt_share:
+        insufficient_data: true
+        reason: "no total_debt — long_term_debt deliberately unmapped for SHOP"
 
   - ticker: QSR
     status: active
@@ -86,6 +97,15 @@ companies:
       beneish:
         m_score: -2.219847
         band: "No manipulation flag"
+      # Story 5.6, hand-verified 2026-08-04 by a script importing nothing from
+      # backend/debt: 67,000,000 / 12,921,000,000.
+      near_term_debt_share:
+        share: 0.005185
+        band: "Well spread"
+        near_term_debt: 67000000
+        total_debt: 12921000000
+        near_term_source: LongTermDebtCurrent
+        total_source: LongTermDebt
 
   - ticker: CP
     status: active
@@ -118,6 +138,18 @@ companies:
         # is the correct, real outcome here, not a bug to chase.
         m_score: null
         band: null
+      # Story 5.6, hand-verified 2026-08-04, in CAD as all CP figures are:
+      # 3,143,000,000 / 22,494,000,000. Lease-inclusive on BOTH sides — CP reports
+      # debt and capital-lease obligations on one combined line and never splits
+      # them, so the ratio is internally consistent and slightly wider than a filer
+      # that reports the two separately.
+      near_term_debt_share:
+        share: 0.139726
+        band: "Moderate near-term load"
+        near_term_debt: 3143000000
+        total_debt: 22494000000
+        near_term_source: LongTermDebtAndCapitalLeaseObligationsCurrent
+        total_source: LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities
 
   - ticker: OTEX
     status: active
@@ -146,6 +178,17 @@ companies:
       beneish:
         m_score: -2.884422
         band: "No manipulation flag"
+      # Story 5.6, hand-verified 2026-08-04: 10,000,000 / 2,614,878,000.
+      # OTEX switched its maturity-ladder near-term tag twice mid-history, which
+      # Story 5.6 asked to be handled. It is handled by not reading the ladder at
+      # all: LongTermDebtCurrent covers FY2010-2025 without a gap.
+      near_term_debt_share:
+        share: 0.003824
+        band: "Well spread"
+        near_term_debt: 10000000
+        total_debt: 2614878000
+        near_term_source: LongTermDebtCurrent
+        total_source: LongTermDebt
 
   # --- 40-F / ifrs-full filers (D8) -----------------------------------------
   # Market data is real and fetched live 2026-08-04: Tiingo EOD closes for
@@ -177,6 +220,18 @@ companies:
       beneish:
         m_score: -2.965792
         band: "No manipulation flag"
+      # Story 5.6, hand-verified 2026-08-04: 285,707,000 / 1,281,290,000, the
+      # denominator derived as 285,707,000 + 995,583,000. Cameco files a
+      # `Borrowings` total that agrees exactly, and it is deliberately NOT mapped —
+      # see ifrs-full_v3.yaml for why (Suncor's same-named total is not on this
+      # basis).
+      near_term_debt_share:
+        share: 0.222984
+        band: "Moderate near-term load"
+        near_term_debt: 285707000
+        total_debt: 1281290000
+        near_term_source: CurrentPortionOfLongtermBorrowings
+        total_source: "derived: total_debt_current_plus_noncurrent"
 
   - ticker: BCE
     status: active
@@ -207,6 +262,16 @@ companies:
         # missing COGS under us-gaap.
         m_score: null
         band: null
+      # Story 5.6: BCE resolves FY2016-2023 and NOT FY2024 — it stopped tagging
+      # CurrentPortionOfLongtermBorrowings after FY2023, confirmed live 2026-08-04.
+      # It does tag the wider CurrentBorrowingsAndCurrentPortionOfNoncurrentBorrowings
+      # through FY2025, which is deliberately not mapped: that measure sweeps in
+      # commercial paper and securitization, 1.4-4.1bn more than the current portion
+      # in every shared year. Using it here would inflate BCE against every other
+      # filer. insufficient_data is the honest answer (AD-16).
+      near_term_debt_share:
+        insufficient_data: true
+        reason: "CurrentPortionOfLongtermBorrowings not tagged for FY2024"
 
   - ticker: SU
     status: active
@@ -239,3 +304,15 @@ companies:
         # No SG&A line (by-nature), so SGAI blocks the aggregate, as for BCE.
         m_score: null
         band: null
+      # Story 5.6, hand-verified 2026-08-04: 997,000,000 / 10,345,000,000, the
+      # denominator derived as 997,000,000 + 9,348,000,000. Suncor's filed
+      # `Borrowings` is NOT used: it includes short-term borrowings, which the
+      # numerator excludes. Verified live that the gap equals its ShorttermBorrowings
+      # to the dollar in FY2016-2018.
+      near_term_debt_share:
+        share: 0.096375
+        band: "Well spread"
+        near_term_debt: 997000000
+        total_debt: 10345000000
+        near_term_source: CurrentPortionOfLongtermBorrowings
+        total_source: "derived: total_debt_current_plus_noncurrent"

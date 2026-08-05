@@ -297,6 +297,29 @@ story_5_1_debt_maturity_spike:
     was worth running: 'a tag exists but does not cover the years you need' (CP's missing
     thereafter bucket) and 'a filer switches tags mid-history' (OTEX, twice). Checking
     tag presence alone would have reported OTEX as covered and CP's ladder as summable.
+  corrected_by_story_5_6: >
+    2026-08-04, during Story 5.6 implementation. Two findings above are WRONG and the
+    live re-verification the story mandated caught both.
+
+    (1) "CP tags no LongTermDebtCurrent/Noncurrent at all" — CP tags no concept by that
+    exact name, but has tagged LongTermDebtAndCapitalLeaseObligationsCurrent for 17
+    consecutive years (FY2009-2025) and the matching noncurrent and including-current
+    -maturities variants. CP never needed its ladder. This spike checked one tag name
+    rather than the family, which is the same failure mode it correctly warns about.
+
+    (2) "CCJ FY2017-2025" — Cameco does not tag CurrentPortionOfLongtermBorrowings in
+    FY2020 or FY2021. A real two-year gap, now insufficient_data.
+
+    Also disproved, and it was the spike's central recommendation: a maturity ladder's
+    first bucket and a current-portion tag are NOT one concept. They differ in 11 of 15
+    shared years for CP, 10 of 10 for OTEX, 2 of 12 for QSR — undiscounted contractual
+    principal vs balance-sheet carrying amount. Story 5.6 shipped on the current/
+    noncurrent split alone, which is available for every filer that has a ladder and
+    gives one measurement basis across the universe. The maturity ladder is not mapped.
+
+    The lesson is not that the spike was careless — it is that a spike's finding is a
+    hypothesis until the build re-checks it, which is exactly why the story carried
+    "to be re-confirmed at build time, not trusted from here".
 
 # Found 2026-08-04 while building Story 5.2's diff engine. NOT a Story 5.2 defect —
 # the engine handles it correctly; this is an upstream canonicalization gap that the
@@ -405,3 +428,29 @@ canonical_facts_amendment_gap:
     Option 3 supersedes the earlier '(3) accept and document' — accepting is no longer
     defensible now that restatement of canonical concepts is confirmed rather than
     hypothetical.
+
+# Opened 2026-08-04 by Story 5.6. Not a 5.6 defect — 5.6 correctly reports
+# insufficient_data — but it is the only reason SHOP has no near-term debt share.
+shop_convertible_debt_unmapped:
+  status: open
+  found: 2026-08-04
+  found_by: "Story 5.6 (near-term debt share) — SHOP is the one filer the metric cannot resolve"
+  issue: >
+    SHOP's convertible notes are its entire debt load, and `long_term_debt` is unmapped
+    for SHOP: ConvertibleDebtNoncurrent is deliberately not a source, because the notes
+    flip between the Current and Noncurrent tags as they approach maturity and mapping
+    only the noncurrent side would make leverage appear to fall to zero while the debt
+    is still outstanding.
+  why_it_matters: >
+    Story 5.6 now maps ConvertibleDebtCurrent, so BOTH halves are available for the
+    first time — which is precisely the condition under which the original objection
+    stops applying. Mapping the noncurrent half would give SHOP a near-term debt share
+    for FY2023-2024, and would also resolve Piotroski's leverage signal and Beneish's
+    LVGI for SHOP, which currently read as insufficient_data.
+  why_not_fixed_here: >
+    It changes SHOP's hand-verified Piotroski F-score and Beneish M-score, both golden
+    values. That needs its own change with its own hand-verification pass, not a
+    side-effect of a presentation-rule story.
+  reachability: >
+    CONFIRMED. Verified live 2026-08-04: ConvertibleDebtCurrent covers FY2023-2025 and
+    ConvertibleDebtNoncurrent FY2019-2024, overlapping in FY2023 and FY2024.

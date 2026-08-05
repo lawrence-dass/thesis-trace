@@ -1,0 +1,102 @@
+# ============================================================================
+# THESISTRACE-AUTHORED PRESENTATION RULE — NOT AN ACADEMIC MODEL.
+# ============================================================================
+# Piotroski, Altman, Beneish and Sloan publish their own thresholds; those live
+# in the four model specs beside this file and are theirs. NOTHING HERE IS.
+# Every band below is a ThesisTrace judgment, recorded here rather than buried in
+# code so it can be read, cited and disagreed with.
+#
+# THIS RULE NEVER ALTERS A SCORE. It is a standalone Quality-lens figure shown
+# beside the models, never blended into one and never used to adjust one.
+#
+# `kind` is checked by the loader: this file is deliberately NOT loadable as a
+# model formula spec, so it can never be mistaken for one.
+
+kind: thesistrace_presentation_rule
+authored_by: thesistrace
+rule: near_term_debt_share
+spec_version: near_term_debt_share_v1
+
+description: >
+  The share of a company's long-term debt that falls due within twelve months.
+  Answers a timing question the leverage ratios do not: two companies can carry
+  identical total debt while one must refinance a quarter of it this year and the
+  other almost none of it (PRD OQ9, resolved 2026-08-04; scoped by Story 5.1's
+  live-EDGAR spike and corrected by Story 5.6's re-verification).
+
+formula:
+  expression: near_term_debt / total_debt
+  numerator: near_term_debt
+  denominator: total_debt
+  # Both operands come from ONE measurement basis: the balance-sheet carrying
+  # amount of long-term debt, split current/noncurrent. See the header of
+  # us-gaap_v5.yaml for the live evidence that ruled out the alternative.
+  basis: balance_sheet_carrying_amount
+
+# WHAT THIS FIGURE DOES NOT COVER, stated rather than hidden.
+scope:
+  excludes_short_term_borrowings: true
+  note: >
+    Commercial paper, revolver draws and securitized-receivable programmes are
+    excluded from BOTH the numerator and the denominator, so the ratio measures
+    the maturity profile of TERM debt rather than of every borrowing outstanding.
+    Verified live 2026-08-04 that including them was not available on consistent
+    terms: BCE, Suncor and CP each tag short-term borrowings under filer-specific
+    concepts with patchy year coverage, so admitting them would have meant summing
+    an assumed subset for some filers and not others — the exact practice
+    derivations_v3.yaml rules out. A company that funds itself heavily on
+    commercial paper therefore has that activity outside this figure.
+  includes_finance_leases_where_combined: >
+    Some filers report debt and finance-lease obligations on a single combined
+    line and never split them (CP does, for all 17 of its years). Where that
+    happens the lease obligations are inside both the numerator and the
+    denominator, because the filer's own disclosure offers no way to remove them.
+    The ratio stays internally consistent; it is a slightly wider measure of
+    obligations than a filer that reports the two separately.
+
+# Below is a ThesisTrace presentation choice, NOT a published threshold — no
+# source states these figures and none is implied. Chosen so that a routine
+# amortization schedule is not dressed up as a refinancing cliff, and deliberately
+# conservative: a band boundary should not move a company into "concentrated"
+# on a single ordinary maturity. Revisit against real multi-year data once
+# deployed.
+bands:
+  note: >
+    ThesisTrace presentation bands, not published figures. They must never be
+    cited as Piotroski's, Altman's, Beneish's or Sloan's, and they classify a
+    disclosure — they do not score it.
+  # Ordered, and read in order: the first tier whose `max` the value does not
+  # exceed wins. The final tier's null max is the open-ended top.
+  tiers:
+    - { max: 0.10, label: "Well spread", tone: positive }
+    - { max: 0.25, label: "Moderate near-term load", tone: neutral }
+    - { max: null, label: "Concentrated near term", tone: caution }
+
+# LOWER is better, but only weakly, and the spec says so rather than letting the
+# UI imply a verdict. A high share is a question to ask, not a failure: a company
+# may hold cash to repay the maturity outright, or have an undrawn facility
+# already in place. This figure surfaces the timing; it does not judge it.
+polarity:
+  better: lower
+  strength: weak
+  caution: >
+    A high near-term share raises a refinancing question; it does not answer one.
+    It is not evidence of distress on its own, and it must never be presented as
+    a pass/fail signal.
+
+# A genuinely filed zero is a VALUE, not an absence (AD-16 cuts both ways).
+# Cameco files a current portion of exactly zero in FY2017, FY2019, FY2022 and
+# FY2025 — years in which none of its debt matured within twelve months. That is
+# a real 0.0% and is displayed as one; only a MISSING operand is insufficient_data.
+zero_handling:
+  filed_zero_is_a_value: true
+
+labels:
+  insufficient_data: "Not disclosed"
+
+# Displayed verbatim wherever this figure appears, so a reader is never left to
+# infer whose judgment the bands represent.
+attribution: >
+  Near-term debt share and its bands are a ThesisTrace presentation rule, not part
+  of any published model. It measures term debt only and excludes short-term
+  borrowings.
