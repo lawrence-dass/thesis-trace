@@ -211,8 +211,10 @@ d8_ifrs_track:
 # it Phase 2 step 1 and no existing FR covered it — FR-18's diff is thesis-scoped and
 # presupposes a saved thesis.
 #
-# NEXT ACTION: Story 5.6 scope is a Lawrence decision — see story_5_1_debt_maturity_spike
-# at the bottom of this file. Story 5.1 is DONE.
+# STORY STATUS: 5.1 DONE (spike). 5.6 scope DECIDED (near-term debt share).
+# 5.2 DONE — diff/engine.py + tests/test_diff_engine.py, 19 tests. It surfaced an
+# upstream bug: see canonical_facts_amendment_gap at the bottom of this file.
+# NEXT: Story 5.3 (change-detection read API) consumes diff_company_since().
 #
 # Known tech debt, unowned by any epic: nine test files assert against
 # backend/tests/fixtures/shop_company_facts.json, which is entirely SYNTHETIC
@@ -274,3 +276,47 @@ story_5_1_debt_maturity_spike:
     was worth running: 'a tag exists but does not cover the years you need' (CP's missing
     thereafter bucket) and 'a filer switches tags mid-history' (OTEX, twice). Checking
     tag presence alone would have reported OTEX as covered and CP's ladder as summable.
+
+# Found 2026-08-04 while building Story 5.2's diff engine. NOT a Story 5.2 defect —
+# the engine handles it correctly; this is an upstream canonicalization gap that the
+# diff work exposed. Needs its own decision, so it is recorded rather than fixed here.
+canonical_facts_amendment_gap:
+  status: open
+  found: 2026-08-04
+  found_by: "Story 5.2 (diff engine) — a test asserting a restated fact produced a UniqueViolationError instead"
+  issue: >
+    A 10-K/A that restates a fiscal year's figures never reaches canonical_facts.
+    canonical_facts is UNIQUE on (issuer_cik, canonical_concept, fiscal_year,
+    mapping_version), and canonicalize_issuer skips any key already present under the
+    current mapping_version to keep the pass idempotent (canonicalize.py, the `existing`
+    set). That guard keys on the fiscal year and ignores the accession entirely, so once
+    a year is canonicalized from the original 10-K, the amendment's restated values are
+    skipped — and the unique constraint would reject them anyway.
+  why_it_matters: >
+    AD-6 and PRD open question 2 both say an amendment triggers a new append-only
+    score_run "referencing the new canonical_facts". The run is genuinely new, but the
+    facts it references are the stale pre-restatement ones, so the new run recomputes
+    the same numbers. The amendment is invisible below the filing layer.
+  note: >
+    The ranking function DOES handle amendments correctly (it prefers as-originally-filed
+    per AD-3) — but only when writing a key for the first time. The skip runs first, so
+    re-selection never happens. This is a gap in the idempotency guard, not in AD-3.
+  reachability: >
+    Real but not confirmed biting. CP is known to file 10-K/A rows (taxonomies.py cites
+    live confirmation 2026-07-23). Many 10-K/A filings only add exhibits and restate
+    nothing, so no wrong number is currently proven to be live. Worth checking against
+    the four filers' actual amendment history before deciding urgency.
+  consequence_for_story_5_2: >
+    fact_change is unreachable within a single mapping_version — two runs under one
+    mapping_version necessarily reference identical canonical_fact rows. The engine
+    reports fact changes correctly when the mapping version moves, which is currently
+    the only way inputs can differ. Pinned by
+    tests/test_diff_engine.py::test_restatement_under_one_mapping_version_yields_no_fact_change,
+    which asserts CURRENT behaviour and is designed to fail when this gap is fixed.
+  options: >
+    (1) Include accession_number in the canonical_facts unique key and supersede facts on
+    amendment, mirroring AD-6's score_run pattern — most correct, needs a migration and a
+    supersession column. (2) Re-canonicalize a fiscal year when a superseding filing
+    arrives, deleting the prior rows — simpler but breaks the append-only/audit posture
+    AD-2 exists to protect. (3) Accept and document, if amendment restatements turn out
+    not to occur in the universe. Recommend (1), gated on the reachability check above.
