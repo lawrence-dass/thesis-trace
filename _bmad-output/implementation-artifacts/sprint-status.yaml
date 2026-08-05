@@ -117,7 +117,22 @@ development_status:
   5-5-trajectory-over-level-rules: done
   5-6-near-term-debt-share: done
   5-7-maturity-profile-detail-for-filers-that-support-it: backlog
-  epic-5-retrospective: backlog
+  epic-5-retrospective: optional
+
+  # Epics 6-9 appear in epics.md's Epic List but are NOT decomposed into stories,
+  # and deliberately so: D9's selection criterion picks the next feature from the
+  # largest OBSERVED research failure, so decomposing now would commit to an
+  # ordering the first decision packet is explicitly permitted to overturn.
+  # Tracked here as bare epics so they are visible to sprint-status without
+  # implying stories exist. Epics 8-9 are headlines only.
+  epic-6: backlog          # Narrow Valuation — Reverse DCF
+  epic-6-retrospective: optional
+  epic-7: backlog          # Thesis Journal & Thesis Diff
+  epic-7-retrospective: optional
+  epic-8: backlog          # Growth Trends (headline only — do not decompose yet)
+  epic-8-retrospective: optional
+  epic-9: backlog          # Filing Q&A (headline only — do not decompose yet)
+  epic-9-retrospective: optional
 
 # Action-item statuses reconciled 2026-07-29 against the actual repo state.
 # Four of the five were already satisfied but still recorded as open, which
