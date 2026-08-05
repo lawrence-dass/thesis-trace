@@ -4,6 +4,7 @@
 // no scoring logic (AD-8).
 
 import AddToCompare from "../../components/AddToCompare";
+import { WhatChanged, type Changes } from "../../components/WhatChanged";
 import { Badge, applicabilityLabel, applicabilityVariant, bandTone, signalVariant } from "../../components/ui/Badge";
 import { Card } from "../../components/ui/Card";
 import { CitationChip } from "../../components/ui/CitationChip";
@@ -130,12 +131,27 @@ async function getOverview(ticker: string): Promise<Overview> {
   }
 }
 
+// FR-22. `since` is omitted so the API applies its default pivot — the instant
+// before the most recent filing landed — which makes this section answer "what
+// did the latest filing change?". A failure here must not take the page down:
+// change detection is supplementary to the scores, so it degrades to absent
+// rather than blocking the Verdict from rendering.
+async function getChanges(ticker: string): Promise<Changes> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/companies/${ticker}/changes`, { cache: "no-store" });
+    return (await res.json()) as Changes;
+  } catch {
+    return { state: "unreachable" };
+  }
+}
+
 export default async function CompanyPage({ params }: { params: Promise<{ ticker: string }> }) {
   const { ticker } = await params;
   const data = await getOverview(ticker);
   const explanations = data.state === "ok" ? await getExplanations(ticker) : [];
   const explanationByModel = new Map(explanations.map((e) => [e.model, e]));
   const bandsByModel = data.state === "ok" ? await getAllBands() : {};
+  const changes = data.state === "ok" ? await getChanges(ticker) : { state: "skipped" };
 
   if (data.state !== "ok") {
     return (
@@ -161,6 +177,11 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
         </div>
         <AddToCompare ticker={data.ticker ?? ticker.toUpperCase()} />
       </section>
+
+      {/* What changed since the latest filing (FR-22). Placed above the Verdict
+          deliberately: on a return visit the first question is "what moved?",
+          and the Verdict is the standing answer rather than the new news. */}
+      <WhatChanged changes={changes} cik={data.cik ?? ""} />
 
       {/* Verdict: each live model's own cited classification, side by side (FR-9, AD-12). */}
       {data.verdict && data.verdict.length > 0 ? (

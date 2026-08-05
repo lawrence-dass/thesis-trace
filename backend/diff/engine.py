@@ -195,7 +195,17 @@ def _provenance(fact: CanonicalFact | None, form_type: str | None) -> Provenance
 async def _runs_current_at(
     session: AsyncSession, cik: str, at: datetime
 ) -> dict[tuple[str, int], ScoreRun]:
-    """The run that was current for each (model, fiscal_year) at instant `at`.
+    """The run that was current for each (model, fiscal_year) just BEFORE `at`.
+
+    The comparison is strict (`<`, not `<=`) and that matters. The default pivot
+    is a filing's ingestion instant, and the pipeline ingests a filing and scores
+    it in the same run, so the runs produced BY that filing carry
+    `computed_at >= created_at`. Under `<=` a company's first-ever run would be
+    selected as its own predecessor: the diff would compare a state against
+    itself, find nothing, and the page would report "No change since {date}"
+    about a comparison that never happened. Strict `<` reads the pivot as "the
+    state as of just before this instant", which is what both the default and an
+    explicit `since` actually mean.
 
     DISTINCT ON keeps this one query rather than dragging back every historical
     run — the daily cron accumulates one row per model/year/night, so an
@@ -204,7 +214,7 @@ async def _runs_current_at(
     rows = (
         await session.execute(
             select(ScoreRun)
-            .where(ScoreRun.issuer_cik == cik, ScoreRun.computed_at <= at)
+            .where(ScoreRun.issuer_cik == cik, ScoreRun.computed_at < at)
             .order_by(ScoreRun.model, ScoreRun.fiscal_year, ScoreRun.computed_at.desc())
             .distinct(ScoreRun.model, ScoreRun.fiscal_year)
         )
