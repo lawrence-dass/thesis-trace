@@ -27,6 +27,24 @@ class SignalOut(BaseModel):
     provenance: list[Provenance]
 
 
+class TrajectoryOut(BaseModel):
+    """Direction of travel for an already-computed score.
+
+    A ThesisTrace presentation rule (PRD OQ9), NOT part of the academic model —
+    `attribution` carries that statement and is displayed wherever a direction
+    is. Shown alongside the level, never instead of it, and never blended in.
+    """
+
+    direction: str  # improving | stable | deteriorating | insufficient_history
+    label: str
+    from_fiscal_year: int | None
+    to_fiscal_year: int
+    from_value: float | None
+    to_value: float | None
+    attribution: str
+    spec_version: str
+
+
 class LensScoreOut(BaseModel):
     model: str
     category: str  # quality_health | integrity
@@ -38,6 +56,9 @@ class LensScoreOut(BaseModel):
     signals: list[SignalOut]
     # Why the caveat applies, when applicability is computed_with_caveat.
     caveat_reason: str | None = None
+    # Direction of travel vs the immediately preceding fiscal year (Story 5.5).
+    # None only if the rule could not be applied at all.
+    trajectory: TrajectoryOut | None = None
 
 
 class DataQualityOut(BaseModel):

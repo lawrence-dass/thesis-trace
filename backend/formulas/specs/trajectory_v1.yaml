@@ -1,0 +1,80 @@
+# ============================================================================
+# THESISTRACE-AUTHORED PRESENTATION RULE — NOT AN ACADEMIC MODEL.
+# ============================================================================
+# Piotroski, Altman, Beneish and Sloan each publish their own thresholds and
+# bands; those live in the four model specs beside this file and are theirs.
+# NOTHING HERE IS. Every threshold below is a ThesisTrace judgment about when a
+# move is large enough to be worth showing as a direction, and it is recorded
+# here rather than buried in code so it can be read, cited and disagreed with.
+#
+# THIS RULE NEVER ALTERS A SCORE. It annotates an already-computed value with a
+# direction of travel and is displayed ALONGSIDE the level, never instead of it
+# and never blended into a composite. A company improving from a weak base and
+# one deteriorating from a strong base must stay visibly different, which is the
+# whole point of showing trajectory at all (PRD OQ9, resolved 2026-08-04).
+#
+# `kind` is checked by the loader: this file is deliberately NOT loadable as a
+# model formula spec, so it can never be mistaken for one.
+
+kind: thesistrace_presentation_rule
+authored_by: thesistrace
+rule: trajectory_over_level
+spec_version: trajectory_v1
+
+description: >
+  Classifies the direction of travel of a model's aggregate score between two
+  consecutive fiscal years as improving, stable or deteriorating. Requires the
+  immediately preceding fiscal year; a gap in history yields insufficient_history
+  rather than a comparison across a skipped year, which would silently compare
+  values two or more years apart.
+
+# POLARITY IS THE LOAD-BEARING FIELD. "Improving" is NOT "the number went up".
+# Piotroski and Altman are higher-is-better; Beneish and Sloan are LOWER-is-
+# better, because both measure a risk (manipulation likelihood, accrual-driven
+# earnings-quality erosion) rather than a strength. Inverting either would tell a
+# reader that rising manipulation risk is good news. The direction is taken from
+# each model's OWN published interpretation, not chosen here.
+polarity:
+  piotroski:
+    better: higher
+    citation: "Piotroski (2000) — F-Score 8-9 strong, 0-1 weak."
+  altman:
+    better: higher
+    citation: "Altman (1968) — higher Z is further from distress."
+  beneish:
+    better: lower
+    citation: "Beneish (1999) — a less negative / higher M-score raises manipulation likelihood."
+  sloan:
+    better: lower
+    citation: "Sloan (1996) — higher accruals ratio indicates lower earnings quality."
+
+# Below this absolute move, the direction is reported as `stable` rather than as
+# a trend. Per model because the scales are not comparable: Piotroski is a 0-9
+# integer count where one point is a real signal flipping, while Sloan is a ratio
+# that routinely moves by hundredths. These are ThesisTrace presentation choices,
+# NOT published thresholds — no source states them, and none is implied.
+materiality:
+  note: >
+    These are ThesisTrace presentation thresholds, not published figures — no
+    source states them and none is implied, so they must never be cited as
+    Piotroski's, Altman's, Beneish's or Sloan's. They are chosen so that a move
+    too small to change any underlying signal is not dressed up as a trend, and
+    are deliberately conservative: better to call a marginal move `stable` than
+    to imply a trajectory the filing does not support. Revisit against real
+    multi-year data once deployed.
+  piotroski: 1.0      # one full signal flipping; the score is an integer count
+  altman: 0.30
+  beneish: 0.20
+  sloan: 0.02
+
+labels:
+  improving: Improving
+  stable: Broadly stable
+  deteriorating: Deteriorating
+  insufficient_history: No prior year
+
+# Displayed verbatim wherever a trajectory appears, so a reader is never left to
+# infer whose judgment the direction represents.
+attribution: >
+  Direction of travel is a ThesisTrace presentation rule, not part of the
+  original model. The score itself is unchanged.

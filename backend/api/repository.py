@@ -32,12 +32,14 @@ from api.schemas import (
     FactChangeOut,
     LensScoreOut,
     Provenance,
+    TrajectoryOut,
     RunChangeOut,
     SignalChangeOut,
     SignalOut,
     VerdictItem,
 )
 from diff.engine import diff_company_since, latest_filing_pivot
+from trajectory.engine import trajectories_for_scores
 
 # Lens category per model (FR-5 Quality/Health vs FR-8 Integrity).
 LENS_CATEGORY = {
@@ -134,6 +136,27 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
                 signals=signals,
                 caveat_reason=run.caveat_reason,
             )
+        )
+
+    # Trajectory-over-level (PRD OQ9, Story 5.5). Computed from the runs already
+    # fetched above — no extra query, so this cannot become an N+1. A ThesisTrace
+    # presentation rule: it annotates each score with a direction and never
+    # changes one, and `attribution` travels with it so the UI cannot render a
+    # direction without saying whose judgment it is.
+    traj = trajectories_for_scores(scores)
+    for s_ in scores:
+        t = traj.get((s_.model, s_.fiscal_year))
+        if t is None:
+            continue
+        s_.trajectory = TrajectoryOut(
+            direction=t.direction.value,
+            label=t.label,
+            from_fiscal_year=t.from_fiscal_year,
+            to_fiscal_year=t.to_fiscal_year,
+            from_value=float(t.from_value) if t.from_value is not None else None,
+            to_value=float(t.to_value) if t.to_value is not None else None,
+            attribution=t.attribution,
+            spec_version=t.spec_version,
         )
 
     # Open data-quality warnings for this issuer's filings (AD-17, FR-8) — never hidden.
