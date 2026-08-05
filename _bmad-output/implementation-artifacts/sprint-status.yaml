@@ -220,7 +220,15 @@ d8_ifrs_track:
 # nightly cron makes useless (that is last night). It pivots on the latest
 # filing's ingestion instant instead, so the endpoint answers the question FR-22
 # is named for. `since_basis` reports which rule produced the pivot.
-# NEXT: Story 5.4 ("what changed" on the company overview page) consumes it.
+# 5.4 DONE — WhatChanged.tsx on the company page, above the Verdict. Rendering it
+# in a browser found a REAL ENGINE BUG that 27 passing tests had missed: with the
+# boundary at `computed_at <= pivot`, a company whose first scoring happened at the
+# pivot instant selected its own current run as its predecessor, compared a state
+# against itself, and reported "No change since {date}" about a comparison that
+# never happened. Fixed to a strict `<`; two regression tests added. Confirms the
+# standing rule that anything user-visible gets looked at in a browser before it
+# ships — the bug was invisible to the API contract and to every unit test.
+# NEXT: Story 5.5 (trajectory-over-level rules).
 #
 # Known tech debt, unowned by any epic: nine test files assert against
 # backend/tests/fixtures/shop_company_facts.json, which is entirely SYNTHETIC

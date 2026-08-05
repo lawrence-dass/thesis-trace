@@ -479,3 +479,38 @@ def test_coverage_kinds_are_not_directional() -> None:
         assert not any(
             word in kind.value for word in ("improve", "decline", "better", "worse", "up", "down")
         )
+
+
+@requires_db
+async def test_first_scoring_at_the_pivot_is_no_prior_state_not_no_change(db_session) -> None:
+    """Regression: a state compared against ITSELF is not 'no change'.
+
+    Found by rendering the page (Story 5.4). The default pivot is the filing's
+    ingestion instant, and the pipeline scores a filing in the same run that
+    ingests it, so a company's first-ever run routinely has
+    `computed_at <= pivot`. `_runs_current_at` then returns that very row as
+    its own predecessor, the comparison trivially finds nothing, and the UI
+    would have said "No change since {date}" about a comparison that never
+    happened.
+    """
+    cik = await _seed_issuer(db_session)
+    await _add_run(db_session, cik, computed_at=SINCE)  # first and only run, at the pivot
+    await db_session.commit()
+
+    diff = await diff_company_since(db_session, "TEST", SINCE)
+    assert diff.no_prior_state is True
+    assert diff.has_changes is False
+
+
+@requires_db
+async def test_a_genuine_predecessor_is_still_compared(db_session) -> None:
+    """The strict boundary must not swallow a real run predating the pivot."""
+    cik = await _seed_issuer(db_session)
+    await _add_run(db_session, cik, aggregate=Decimal("2.5"), band="Grey",
+                   computed_at=T0, superseded=True)
+    await _add_run(db_session, cik, aggregate=Decimal("1.1"), band="Distress", computed_at=T1)
+    await db_session.commit()
+
+    diff = await diff_company_since(db_session, "TEST", SINCE)
+    assert diff.no_prior_state is False
+    assert diff.has_changes is True
