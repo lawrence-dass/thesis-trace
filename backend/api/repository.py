@@ -7,6 +7,8 @@ provenance of each input.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,14 +23,21 @@ from app.models import (
     ScoreRun,
 )
 from api.schemas import (
+    ChangeProvenance,
     CompanyCardOut,
+    CompanyChangesOut,
     CompanyOverviewOut,
+    DataQualityChangeOut,
     DataQualityOut,
+    FactChangeOut,
     LensScoreOut,
     Provenance,
+    RunChangeOut,
+    SignalChangeOut,
     SignalOut,
     VerdictItem,
 )
+from diff.engine import diff_company_since, latest_filing_pivot
 
 # Lens category per model (FR-5 Quality/Health vs FR-8 Integrity).
 LENS_CATEGORY = {
@@ -204,4 +213,137 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
         verdict=verdict,
         scores=scores,
         data_quality=data_quality,
+    )
+
+
+def _f(v) -> float | None:
+    """Decimal -> float at the presentation boundary only.
+
+    Computation and storage stay NUMERIC (AD-15); this conversion happens once,
+    here, because the response is JSON. Consistent with the rest of this module.
+    """
+    return float(v) if v is not None else None
+
+
+def _change_provenance(p) -> ChangeProvenance | None:
+    if p is None:
+        return None
+    return ChangeProvenance(
+        accession_number=p.accession_number,
+        canonical_concept=p.canonical_concept,
+        fiscal_year=p.fiscal_year,
+        period_end=p.period_end,
+        source_filing_form=p.source_filing_form,
+        derivation=p.derivation,
+    )
+
+
+async def get_company_changes(
+    session: AsyncSession, ticker: str, since: datetime | None = None
+) -> CompanyChangesOut | None:
+    """What moved for a company since `since` (FR-22).
+
+    Read-only per AD-1: delegates to the Story 5.2 diff engine, which reads
+    stored values only. No request on this path can trigger scoring, ingestion
+    or recomputation.
+
+    DEFAULT PIVOT. When `since` is omitted this does NOT compare against the
+    immediately-superseded run, which the story text suggested — `pipeline/run.py`
+    is a daily cron that supersedes every night, so that would compare against
+    last night and report nothing. It defaults instead to the instant the most
+    recent filing was ingested, so the endpoint answers the question FR-22 is
+    named for: what did the latest filing change? `since_basis` tells the caller
+    which rule produced the pivot, so the UI never has to guess.
+    """
+    issuer = await get_issuer_by_ticker(session, ticker)
+    if issuer is None:
+        return None
+
+    since_accession: str | None = None
+    if since is None:
+        pivot = await latest_filing_pivot(session, issuer.cik)
+        if pivot is None:
+            # Company exists but has no ingested filing — nothing to pivot on.
+            return CompanyChangesOut(
+                cik=issuer.cik, ticker=issuer.ticker, name=issuer.name,
+                since="", since_basis="latest_filing",
+                comparison_state="no_prior_state",
+            )
+        since, since_accession = pivot
+        basis = "latest_filing"
+    else:
+        basis = "explicit"
+
+    diff = await diff_company_since(session, issuer.ticker, since)
+    if diff is None:  # unreachable — issuer was resolved above
+        return None
+
+    if diff.no_prior_state:
+        state = "no_prior_state"
+    elif diff.has_changes:
+        state = "changes"
+    else:
+        state = "no_change"
+
+    return CompanyChangesOut(
+        cik=diff.cik,
+        ticker=diff.ticker,
+        name=diff.name,
+        since=since.isoformat(),
+        since_basis=basis,
+        since_accession=since_accession,
+        comparison_state=state,
+        run_changes=[
+            RunChangeOut(
+                model=rd.model,
+                fiscal_year=rd.fiscal_year,
+                kinds=[k.value for k in rd.kinds],
+                prior_accession_number=rd.prior_accession_number,
+                current_accession_number=rd.current_accession_number,
+                prior_aggregate=_f(rd.prior_aggregate),
+                current_aggregate=_f(rd.current_aggregate),
+                prior_band_label=rd.prior_band_label,
+                current_band_label=rd.current_band_label,
+                prior_applicability=rd.prior_applicability,
+                current_applicability=rd.current_applicability,
+                version_caveat=rd.version_caveat,
+                signal_changes=[
+                    SignalChangeOut(
+                        kind=sc.kind.value,
+                        signal_key=sc.signal_key,
+                        prior_status=sc.prior_status,
+                        current_status=sc.current_status,
+                        prior_value=_f(sc.prior_value),
+                        current_value=_f(sc.current_value),
+                        prior_band_label=sc.prior_band_label,
+                        current_band_label=sc.current_band_label,
+                    )
+                    for sc in rd.signal_changes
+                ],
+                fact_changes=[
+                    FactChangeOut(
+                        kind=fc.kind.value,
+                        signal_key=fc.signal_key,
+                        canonical_concept=fc.canonical_concept,
+                        prior_value=_f(fc.prior_value),
+                        current_value=_f(fc.current_value),
+                        prior_provenance=_change_provenance(fc.prior_provenance),
+                        current_provenance=_change_provenance(fc.current_provenance),
+                    )
+                    for fc in rd.fact_changes
+                ],
+            )
+            for rd in diff.run_diffs
+        ],
+        data_quality_changes=[
+            DataQualityChangeOut(
+                kind=dq.kind.value,
+                issue_type=dq.issue_type,
+                status=dq.status,
+                raised_by=dq.raised_by,
+                accession_number=dq.accession_number,
+                detail=dq.detail,
+            )
+            for dq in diff.data_quality_changes
+        ],
     )

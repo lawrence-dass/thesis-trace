@@ -345,6 +345,31 @@ def _version_caveat(
     )
 
 
+async def latest_filing_pivot(session: AsyncSession, cik: str) -> tuple[datetime, str] | None:
+    """When the most recent filing was ingested, and which one it was.
+
+    The default pivot for FR-22, and the reason is in the FR's own name: the
+    question "latest-filing change detection" asks what THE NEW FILING changed,
+    so the natural comparison point is the instant before it landed. Runs
+    computed at or before this timestamp reflect the pre-filing state.
+
+    Deliberately NOT "the immediately superseded run" — the daily cron makes
+    that last night, which is almost never what a reader means. See the module
+    docstring.
+    """
+    row = (
+        await session.execute(
+            select(Filing.created_at, Filing.accession_number)
+            .where(Filing.issuer_cik == cik, Filing.created_at.is_not(None))
+            .order_by(Filing.created_at.desc())
+            .limit(1)
+        )
+    ).first()
+    if row is None:
+        return None
+    return row[0], row[1]
+
+
 async def diff_company_since(
     session: AsyncSession, ticker: str, since: datetime
 ) -> CompanyDiff | None:
