@@ -228,7 +228,14 @@ d8_ifrs_track:
 # never happened. Fixed to a strict `<`; two regression tests added. Confirms the
 # standing rule that anything user-visible gets looked at in a browser before it
 # ships — the bug was invisible to the API contract and to every unit test.
-# NEXT: Story 5.5 (trajectory-over-level rules).
+# 5.5 DONE — trajectory_v1.yaml (ThesisTrace presentation rule, explicitly NOT an
+# academic model spec — the loader refuses to load one as the other), trajectory/
+# engine.py, TrajectoryChip.tsx. 21 tests. POLARITY is the load-bearing part and is
+# DATA, not code: Piotroski/Altman are higher-is-better, Beneish/Sloan LOWER-is-
+# better because both measure a risk. Verified in-browser that Beneish falling
+# -1.6 -> -2.9 renders as IMPROVING; naive "did the number rise" logic would have
+# told the reader that rising manipulation risk is good news.
+# NEXT: Story 5.6 (near-term debt share) — scope already settled by the 5.1 spike.
 #
 # Known tech debt, unowned by any epic: nine test files assert against
 # backend/tests/fixtures/shop_company_facts.json, which is entirely SYNTHETIC

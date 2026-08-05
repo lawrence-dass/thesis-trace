@@ -9,6 +9,7 @@ import { Badge, applicabilityLabel, applicabilityVariant, bandTone, signalVarian
 import { Card } from "../../components/ui/Card";
 import { CitationChip } from "../../components/ui/CitationChip";
 import { Gauge, type BandClass } from "../../components/ui/Gauge";
+import { TrajectoryChip, type Trajectory } from "../../components/ui/TrajectoryChip";
 import { AlertIcon, ChevronIcon } from "../../components/ui/icons";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
@@ -29,6 +30,9 @@ type LensScore = {
   band_label: string | null;
   applicability: string;
   signals: Signal[];
+  // ThesisTrace presentation rule (PRD OQ9) — shown next to the level, never
+  // in place of it.
+  trajectory?: Trajectory | null;
 };
 type DataQuality = { issue_type: string; status: string; raised_by: string };
 type VerdictItem = {
@@ -285,6 +289,11 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                               {lens.band_label}
                             </Badge>
                           ) : null}
+                          {/* Alongside the level and the band, never replacing
+                              either — and visually quieter than both, because
+                              this is our annotation rather than the model's
+                              own classification (Story 5.5). */}
+                          <TrajectoryChip trajectory={lens.trajectory} />
                         </span>
                         <ChevronIcon className="h-4 w-4 flex-shrink-0 text-[var(--color-ink-faint)] transition-transform group-open:rotate-180" />
                       </summary>
