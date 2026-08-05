@@ -27,10 +27,16 @@
 #                untouched and keeps its v4 spec — a per-taxonomy change does not
 #                force a version on the others.
 
-mapping_version: concepts_v5
+#   concepts_v6  us-gaap_v5 + ifrs-full_v3 + derivations_v3. A real mapping change
+#                (Story 5.6): the near_term_debt and total_debt concepts behind the
+#                near-term debt share, plus the total_debt identity derivation. All
+#                three taxonomy specs move because the concept pair spans both
+#                regimes and the derivation ties them together.
+
+mapping_version: concepts_v6
 
 taxonomies:
-  us-gaap: us-gaap_v4
-  ifrs-full: ifrs-full_v2
+  us-gaap: us-gaap_v5
+  ifrs-full: ifrs-full_v3
 
-derivations: derivations_v2
+derivations: derivations_v3

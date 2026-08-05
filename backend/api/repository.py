@@ -31,6 +31,7 @@ from api.schemas import (
     DataQualityOut,
     FactChangeOut,
     LensScoreOut,
+    NearTermDebtShareOut,
     Provenance,
     TrajectoryOut,
     RunChangeOut,
@@ -38,6 +39,8 @@ from api.schemas import (
     SignalOut,
     VerdictItem,
 )
+from canonicalization.mappings import MAPPING_VERSION
+from debt.engine import DENOMINATOR_CONCEPT, NUMERATOR_CONCEPT, shares_for_facts
 from diff.engine import diff_company_since, latest_filing_pivot
 from trajectory.engine import trajectories_for_scores
 
@@ -159,6 +162,34 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
             spec_version=t.spec_version,
         )
 
+    # Near-term debt share (PRD OQ9, Story 5.6). One query for both operands across
+    # every fiscal year, then a pure computation — same shape as the trajectory pass
+    # above, and it cannot become an N+1. A ThesisTrace presentation rule: it stands
+    # beside the scores and never adjusts one.
+    debt_facts = (
+        await session.execute(
+            select(CanonicalFact).where(
+                CanonicalFact.issuer_cik == issuer.cik,
+                CanonicalFact.mapping_version == MAPPING_VERSION,
+                CanonicalFact.canonical_concept.in_((NUMERATOR_CONCEPT, DENOMINATOR_CONCEPT)),
+            )
+        )
+    ).scalars().all()
+    near_term_debt_share = [
+        NearTermDebtShareOut(
+            fiscal_year=share.fiscal_year,
+            share=float(share.value) if share.value is not None else None,
+            band_label=share.label,
+            tone=share.tone,
+            near_term_debt=float(share.near_term_debt) if share.near_term_debt is not None else None,
+            total_debt=float(share.total_debt) if share.total_debt is not None else None,
+            insufficient_data=share.insufficient_data,
+            attribution=share.attribution,
+            spec_version=share.spec_version,
+        )
+        for _, share in sorted(shares_for_facts(debt_facts).items(), reverse=True)
+    ]
+
     # Open data-quality warnings for this issuer's filings (AD-17, FR-8) — never hidden.
     dq_rows = (
         await session.execute(
@@ -235,6 +266,7 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
         lenses_pending=PENDING_LENSES,
         verdict=verdict,
         scores=scores,
+        near_term_debt_share=near_term_debt_share,
         data_quality=data_quality,
     )
 

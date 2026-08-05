@@ -61,6 +61,29 @@ class LensScoreOut(BaseModel):
     trajectory: TrajectoryOut | None = None
 
 
+class NearTermDebtShareOut(BaseModel):
+    """Share of long-term debt falling due within twelve months (Story 5.6).
+
+    A ThesisTrace presentation rule, not a model — it sits alongside the scores and
+    is never blended into one, which is why it is its own field rather than another
+    entry in `scores`.
+    """
+
+    fiscal_year: int
+    #: None exactly when insufficient_data. A genuinely filed zero is 0.0, not None
+    #: (Cameco reports exactly zero in four fiscal years).
+    share: float | None
+    band_label: str
+    tone: str | None
+    near_term_debt: float | None
+    total_debt: float | None
+    insufficient_data: bool
+    #: Travels with the figure so the UI cannot render the bands without saying
+    #: whose judgment they are, and states the short-term-borrowings exclusion.
+    attribution: str
+    spec_version: str
+
+
 class DataQualityOut(BaseModel):
     issue_type: str
     status: str
@@ -93,6 +116,8 @@ class CompanyOverviewOut(BaseModel):
     lenses_pending: list[str]
     verdict: list[VerdictItem]
     scores: list[LensScoreOut]
+    #: Newest fiscal year first. Empty when the filer resolves no year at all.
+    near_term_debt_share: list[NearTermDebtShareOut] = []
     data_quality: list[DataQualityOut]
 
 

@@ -642,19 +642,38 @@ So that leverage reads as a timing risk and not only as a level.
 
 **Scope was set by Story 5.1's live-EDGAR finding.** The originally-named "debt maturity concentration" is not buildable as specified — only QSR and CP carry a usable year-by-year ladder, and the three IFRS filers carry none at all for a structural reason (their maturity analysis is dimensional, and the company-facts API exposes only non-dimensional facts). The metric is therefore **redefined, not restricted**: near-term share is a single concept, identically defined whether read from a ladder's first bucket or from a current/noncurrent split, so it stays comparable across filers without a caveat. Full spike record: `sprint-status.yaml`, `story_5_1_debt_maturity_spike`.
 
-**Expected resolution** (from live verification, to be re-confirmed at build time, not trusted from here): CP via its ladder; QSR and OTEX via either source; CCJ FY2017–2025, BCE FY2016–2025, SU FY2016–2025 via the current/noncurrent split; SHOP FY2023–2024 only.
+> **CORRECTED 2026-08-04 during implementation, by the live re-verification this story
+> itself demanded.** The ACs below are the shipped ones. The original set was written on
+> Story 5.1's premise that a maturity ladder's first bucket and a current-portion tag are
+> the same concept and so need no caveat. Measured against real filed figures they are
+> not: they differ in 11 of 15 shared years for CP (FY2013: 50M vs 189M), 10 of 10 for
+> OTEX (FY2022: 168.9M vs 10.0M) and 2 of 12 for QSR. The ladder discloses undiscounted
+> contractual principal; the current-portion tag is balance-sheet carrying amount.
+>
+> The ladder turned out to be unnecessary. Every filer that has one also tags the
+> current/noncurrent split with equal or better coverage — including CP, which the spike
+> reported as having none because it checked `LongTermDebtCurrent` and missed the
+> `...AndCapitalLeaseObligationsCurrent` variant CP has tagged for 17 consecutive years.
+> Using the split universally gives ONE measurement basis, which is what the original
+> no-caveat goal actually required.
+
+**Expected resolution** (live-verified 2026-08-04 at build time): CP FY2009–2025, QSR
+FY2013–2025, OTEX FY2010–2025, BCE FY2016–2023, SU FY2016–2020 + FY2024–2025, CCJ
+FY2017–2019 + FY2022–2025. 68 filer-years across 6 of 7 filers. SHOP does **not** resolve
+— see the last AC.
 
 **Acceptance Criteria:**
 
 **Given** a filer with both a near-term debt figure and a total debt figure for a fiscal year
 **When** near-term debt share is computed
 **Then** it is derived deterministically from canonical facts, with its formula and threshold bands in a versioned spec labelled as a **ThesisTrace-authored** presentation rule, not an academic model
-**And** the near-term numerator resolves from either a maturity ladder's first bucket or a current-portion tag, and the spec states explicitly that these are the same concept — the choice of source is recorded on the fact, but does **not** produce a comparability caveat, because unlike the IFRS by-nature inputs the two sources are like-for-like
-**And** CP's total debt is **not** computed by summing its ladder for FY2015–2021, where the "thereafter" bucket is absent and the sum would understate total debt
-**And** OTEX's near-term figure resolves across its tag switches (`InNextTwelveMonths` → `RemainderOfFiscalYear` → back) with per-year coverage verified live, not inferred from tag presence
-**And** a filer-year lacking either operand is `insufficient_data` — never estimated from the `long_term_debt` aggregate alone, never defaulted to zero (AD-16)
-**And** every new canonical concept is added with per-year live-verified coverage, and `MAPPING_VERSION` is bumped only if a mapping rule genuinely changed (per `registry.yaml`'s procedure)
-**And** the golden dataset is extended in the **same change** for every filer-year the metric resolves for, since SM-1 is a claim about the universe.
+**And** both operands sit on ONE measurement basis — the balance-sheet carrying amount of long-term debt, split current/noncurrent — so the figure is comparable across filers with no caveat; maturity-ladder tags are **not** mapped at all, and a test asserts they never become so
+**And** short-term borrowings (commercial paper, revolver draws, securitization) are excluded from **both** numerator and denominator, because their tag coverage is too filer-specific to include without summing an assumed subset; the spec states this limitation and it travels with every rendering of the figure
+**And** `ifrs-full:Borrowings` is **not** used as a denominator: Suncor's includes short-term borrowings, verified live to equal its `ShorttermBorrowings` to the dollar in FY2016–2018, so all IFRS filers derive the total from the two halves instead
+**And** a filer-year lacking either operand is `insufficient_data` — never estimated from the `long_term_debt` aggregate alone, never defaulted to zero (AD-16) — while a genuinely **filed** zero is a real value and displays as 0.0% (Cameco files exactly zero in FY2017, FY2019, FY2022 and FY2025)
+**And** every new canonical concept is added with per-year live-verified coverage, and `MAPPING_VERSION` is bumped because a mapping rule genuinely changed (per `registry.yaml`'s procedure)
+**And** the golden dataset is extended in the **same change** for every active company — including the two that resolve to `insufficient_data`, since SM-1 is a claim about the universe and a silent gap is what it exists to prevent
+**And** SHOP is `insufficient_data` throughout: its numerator resolves from `ConvertibleDebtCurrent`, but `long_term_debt` is deliberately unmapped for SHOP (its convertible notes flip between the Current and Noncurrent tags near maturity), so the denominator has no second operand. Reversing that would move SHOP's hand-verified Piotroski and Beneish golden values and belongs in its own change.
 
 ### Story 5.7: Maturity profile detail for filers that support it — *enrichment, not a metric*
 

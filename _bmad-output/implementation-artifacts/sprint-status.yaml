@@ -1,5 +1,5 @@
 # generated: 2026-07-21
-# last_updated: 2026-08-04
+# last_updated: 2026-08-05
 # project: ThesisTrace
 # project_key: NOKEY
 # tracking_system: file-system
@@ -53,7 +53,7 @@
 # stories. No retrospective has been run for any epic.
 
 generated: 2026-07-21
-last_updated: 2026-08-04
+last_updated: 2026-08-05
 project: ThesisTrace
 project_key: NOKEY
 tracking_system: file-system
@@ -97,6 +97,42 @@ development_status:
   4-3-add-to-comparison-session-scoped: done
   4-4-side-by-side-comparison-view: done
   epic-4-retrospective: done
+
+  # Epic 5 tracked here from 2026-08-05. It had NO structured entry until then —
+  # its status lived only in a prose comment further down this file, because the
+  # epic was written straight into epics.md during Phase 2 planning and
+  # bmad-sprint-planning was never run over it to generate these keys. Nothing
+  # caught that, for the same reason nothing caught this file being unparseable
+  # for two days: it is only ever read, never validated. An epic whose status is
+  # a comment is invisible to bmad-sprint-status and to every other tool.
+  #
+  # in-progress, not done: 5.7 is deliberately unbuilt. It is display depth for
+  # the two filers that publish a full ladder (QSR, CP) and epics.md permits
+  # deferring it indefinitely without blocking the epic.
+  epic-5: in-progress
+  5-1-debt-maturity-coverage-spike: done
+  5-2-score-run-diff-engine: done
+  5-3-change-detection-read-api: done
+  5-4-what-changed-on-the-company-overview: done
+  5-5-trajectory-over-level-rules: done
+  5-6-near-term-debt-share: done
+  5-7-maturity-profile-detail-for-filers-that-support-it: backlog
+  epic-5-retrospective: optional
+
+  # Epics 6-9 appear in epics.md's Epic List but are NOT decomposed into stories,
+  # and deliberately so: D9's selection criterion picks the next feature from the
+  # largest OBSERVED research failure, so decomposing now would commit to an
+  # ordering the first decision packet is explicitly permitted to overturn.
+  # Tracked here as bare epics so they are visible to sprint-status without
+  # implying stories exist. Epics 8-9 are headlines only.
+  epic-6: backlog          # Narrow Valuation — Reverse DCF
+  epic-6-retrospective: optional
+  epic-7: backlog          # Thesis Journal & Thesis Diff
+  epic-7-retrospective: optional
+  epic-8: backlog          # Growth Trends (headline only — do not decompose yet)
+  epic-8-retrospective: optional
+  epic-9: backlog          # Filing Q&A (headline only — do not decompose yet)
+  epic-9-retrospective: optional
 
 # Action-item statuses reconciled 2026-07-29 against the actual repo state.
 # Four of the five were already satisfied but still recorded as open, which
@@ -211,31 +247,36 @@ d8_ifrs_track:
 # it Phase 2 step 1 and no existing FR covered it — FR-18's diff is thesis-scoped and
 # presupposes a saved thesis.
 #
-# STORY STATUS: 5.1 DONE (spike). 5.6 scope DECIDED (near-term debt share).
-# 5.2 DONE — diff/engine.py + tests/test_diff_engine.py, 19 tests. It surfaced an
-# upstream bug: see canonical_facts_amendment_gap at the bottom of this file
-# (VERIFIED LATENT 2026-08-04 — real, but no current score is wrong).
-# 5.3 DONE — GET /api/companies/{ticker}/changes, 8 tests. Its default `since`
-# DEVIATES from the story text: the AC said "most recent prior run", which the
-# nightly cron makes useless (that is last night). It pivots on the latest
-# filing's ingestion instant instead, so the endpoint answers the question FR-22
-# is named for. `since_basis` reports which rule produced the pivot.
-# 5.4 DONE — WhatChanged.tsx on the company page, above the Verdict. Rendering it
-# in a browser found a REAL ENGINE BUG that 27 passing tests had missed: with the
-# boundary at `computed_at <= pivot`, a company whose first scoring happened at the
-# pivot instant selected its own current run as its predecessor, compared a state
+# EPIC 5 FINDINGS WORTH CARRYING. Per-story status now lives in
+# development_status above, where it can actually be parsed. What is kept here is
+# only what a status flag cannot express — the places where the built thing
+# differs from the story, or where something was learned the hard way.
+#
+# 5.3 DEVIATES FROM ITS OWN AC, deliberately. The story said the default `since`
+# is the "most recent prior run"; the nightly cron makes that useless, because it
+# means last night. It pivots on the latest filing's ingestion instant instead, so
+# the endpoint answers the question FR-22 is actually named for. `since_basis`
+# reports which rule produced the pivot.
+#
+# 5.4 FOUND A REAL ENGINE BUG THAT 27 PASSING TESTS MISSED. With the boundary at
+# `computed_at <= pivot`, a company whose first scoring happened AT the pivot
+# instant selected its own current run as its own predecessor, compared a state
 # against itself, and reported "No change since {date}" about a comparison that
-# never happened. Fixed to a strict `<`; two regression tests added. Confirms the
-# standing rule that anything user-visible gets looked at in a browser before it
-# ships — the bug was invisible to the API contract and to every unit test.
-# 5.5 DONE — trajectory_v1.yaml (ThesisTrace presentation rule, explicitly NOT an
-# academic model spec — the loader refuses to load one as the other), trajectory/
-# engine.py, TrajectoryChip.tsx. 21 tests. POLARITY is the load-bearing part and is
-# DATA, not code: Piotroski/Altman are higher-is-better, Beneish/Sloan LOWER-is-
-# better because both measure a risk. Verified in-browser that Beneish falling
-# -1.6 -> -2.9 renders as IMPROVING; naive "did the number rise" logic would have
-# told the reader that rising manipulation risk is good news.
-# NEXT: Story 5.6 (near-term debt share) — scope already settled by the 5.1 spike.
+# never happened. Fixed to a strict `<`. Invisible to the API contract and to
+# every unit test — it took rendering the page.
+#
+# 5.5 POLARITY IS DATA, NOT CODE. Piotroski/Altman are higher-is-better;
+# Beneish/Sloan are LOWER-is-better because both measure a risk. Verified
+# in-browser that Beneish moving -1.6 -> -2.9 renders as IMPROVING. Naive "did the
+# number go up" logic would have told the reader that rising manipulation risk is
+# good news.
+#
+# 5.6 OVERTURNED THE 5.1 SPIKE THAT SCOPED IT. The spike's central claim — that a
+# maturity ladder's first bucket and a current-portion tag are one concept — is
+# false against real filed figures, and two of its coverage findings were wrong.
+# Full correction in story_5_1_debt_maturity_spike below. The transferable lesson:
+# a spike's finding is a HYPOTHESIS until the build re-checks it, which is why the
+# story carried "to be re-confirmed at build time, not trusted from here".
 #
 # Known tech debt, unowned by any epic: nine test files assert against
 # backend/tests/fixtures/shop_company_facts.json, which is entirely SYNTHETIC
@@ -297,6 +338,29 @@ story_5_1_debt_maturity_spike:
     was worth running: 'a tag exists but does not cover the years you need' (CP's missing
     thereafter bucket) and 'a filer switches tags mid-history' (OTEX, twice). Checking
     tag presence alone would have reported OTEX as covered and CP's ladder as summable.
+  corrected_by_story_5_6: >
+    2026-08-04, during Story 5.6 implementation. Two findings above are WRONG and the
+    live re-verification the story mandated caught both.
+
+    (1) "CP tags no LongTermDebtCurrent/Noncurrent at all" — CP tags no concept by that
+    exact name, but has tagged LongTermDebtAndCapitalLeaseObligationsCurrent for 17
+    consecutive years (FY2009-2025) and the matching noncurrent and including-current
+    -maturities variants. CP never needed its ladder. This spike checked one tag name
+    rather than the family, which is the same failure mode it correctly warns about.
+
+    (2) "CCJ FY2017-2025" — Cameco does not tag CurrentPortionOfLongtermBorrowings in
+    FY2020 or FY2021. A real two-year gap, now insufficient_data.
+
+    Also disproved, and it was the spike's central recommendation: a maturity ladder's
+    first bucket and a current-portion tag are NOT one concept. They differ in 11 of 15
+    shared years for CP, 10 of 10 for OTEX, 2 of 12 for QSR — undiscounted contractual
+    principal vs balance-sheet carrying amount. Story 5.6 shipped on the current/
+    noncurrent split alone, which is available for every filer that has a ladder and
+    gives one measurement basis across the universe. The maturity ladder is not mapped.
+
+    The lesson is not that the spike was careless — it is that a spike's finding is a
+    hypothesis until the build re-checks it, which is exactly why the story carried
+    "to be re-confirmed at build time, not trusted from here".
 
 # Found 2026-08-04 while building Story 5.2's diff engine. NOT a Story 5.2 defect —
 # the engine handles it correctly; this is an upstream canonicalization gap that the
@@ -405,3 +469,29 @@ canonical_facts_amendment_gap:
     Option 3 supersedes the earlier '(3) accept and document' — accepting is no longer
     defensible now that restatement of canonical concepts is confirmed rather than
     hypothetical.
+
+# Opened 2026-08-04 by Story 5.6. Not a 5.6 defect — 5.6 correctly reports
+# insufficient_data — but it is the only reason SHOP has no near-term debt share.
+shop_convertible_debt_unmapped:
+  status: open
+  found: 2026-08-04
+  found_by: "Story 5.6 (near-term debt share) — SHOP is the one filer the metric cannot resolve"
+  issue: >
+    SHOP's convertible notes are its entire debt load, and `long_term_debt` is unmapped
+    for SHOP: ConvertibleDebtNoncurrent is deliberately not a source, because the notes
+    flip between the Current and Noncurrent tags as they approach maturity and mapping
+    only the noncurrent side would make leverage appear to fall to zero while the debt
+    is still outstanding.
+  why_it_matters: >
+    Story 5.6 now maps ConvertibleDebtCurrent, so BOTH halves are available for the
+    first time — which is precisely the condition under which the original objection
+    stops applying. Mapping the noncurrent half would give SHOP a near-term debt share
+    for FY2023-2024, and would also resolve Piotroski's leverage signal and Beneish's
+    LVGI for SHOP, which currently read as insufficient_data.
+  why_not_fixed_here: >
+    It changes SHOP's hand-verified Piotroski F-score and Beneish M-score, both golden
+    values. That needs its own change with its own hand-verification pass, not a
+    side-effect of a presentation-rule story.
+  reachability: >
+    CONFIRMED. Verified live 2026-08-04: ConvertibleDebtCurrent covers FY2023-2025 and
+    ConvertibleDebtNoncurrent FY2019-2024, overlapping in FY2023 and FY2024.

@@ -1,0 +1,211 @@
+# Canonical-concept derivations — values ThesisTrace COMPUTES rather than reads.
+#
+# A derivation only ever fires when the concept is genuinely absent for that fiscal
+# year and every operand resolved; it never overrides a directly-tagged value. The
+# resulting canonical_facts row carries `derivation: <rule>` so the read API and the
+# UI can mark it as a weaker provenance class than a filed figure (D8 consequence 4)
+# — a computed number must never wear a filed-line citation.
+#
+# Derivations are TAXONOMY-BLIND by construction: they operate on canonical concepts,
+# which is why the same accounting identity covers SHOP under us-gaap and every
+# ifrs-full filer without a second rule.
+#
+# TWO CLASSES OF RULE LIVE HERE, and the distinction is the important one:
+#
+#   IDENTITY   — true by definition, verified exact against real filed figures.
+#                assets_minus_equity is one. The bar is NOT "the concept is missing".
+#
+#   DECISION   — a defensible choice among alternatives that give different numbers.
+#                Declared with `kind: decision`, which is what makes it surface on the
+#                public methodology page: a judgment ThesisTrace made is something a
+#                user is entitled to see and disagree with, not an implementation
+#                detail. `kind: identity` rules are shown too, but framed as
+#                arithmetic rather than as a choice.
+#                ThesisTrace is originating methodology, so the rationale, the
+#                alternatives considered, and why one was chosen are recorded HERE,
+#                versioned with the rule, and surfaced on the methodology page.
+#                `ebit_pbt_plus_interest` is one. D8 consequence 3 requires exactly
+#                this: such a choice must never be buried in a mapping row.
+#
+# Summing an assumed subset of line items (OTEX's post-FY2019 split D&A tags) is
+# neither, and stays insufficient_data (AD-3).
+#
+# TWO AUDIENCES, TWO FIELDS. `note` is for whoever maintains this file — it may cite
+# decision records, filers and file paths. `rationale` is PUBLISHED verbatim on the
+# public methodology page, so it must stand alone for a reader who has never seen this
+# repository: no internal references, no jargon. Both are required; the loader refuses a
+# rule missing either, because a derivation nobody can explain should not run.
+#
+# v2 (2026-08-02) adds the IFRS ebit decision and a source-conditional gross_profit.
+# v3 (2026-08-04) adds the total_debt identity behind Story 5.6's near-term share.
+
+spec_version: derivations_v3
+
+derivations:
+
+  # --- IDENTITY --------------------------------------------------------------
+
+  - rule: assets_minus_equity
+    rationale: >-
+      Some companies report total assets and shareholders' equity but no single
+      total-liabilities line. Where that happens, total liabilities is computed from the
+      accounting identity that assets equal liabilities plus equity. It was checked
+      against companies that do report the total and reproduces their figure exactly.
+    kind: identity
+    canonical_concept: total_liabilities
+    operation: subtract
+    operands: [total_assets, stockholders_equity]
+    # Provenance root for a value that has no single source line. The total_assets
+    # fact carries the same balance-sheet date, making it the faithful anchor for
+    # the accession number and period_end recorded on the derived row.
+    provenance_from: total_assets
+    note: >-
+      The basic accounting identity, Assets = Liabilities + Equity. Needed for filers
+      that never tag a standalone liabilities total: confirmed live 2026-07-22 that
+      SHOP's 10-Ks report LiabilitiesAndStockholdersEquity and StockholdersEquity but
+      never us-gaap:Liabilities. Verified EXACT against SHOP's real FY2024/FY2025
+      figures before being relied on. Also covers Cameco and Suncor, neither of which
+      files an ifrs-full:Liabilities total (D8).
+
+  - rule: total_debt_current_plus_noncurrent
+    rationale: >-
+      Total debt is the sum of the part due within twelve months and the part due
+      later. Some companies report both halves but no combined total; where that
+      happens the total is computed by adding them. It was checked against
+      companies that do report a combined total and reproduces their figure
+      exactly.
+    kind: identity
+    canonical_concept: total_debt
+    operation: add
+    operands: [near_term_debt, long_term_debt]
+    # The near-term half is the anchor: it is the half that must exist for the
+    # ratio to mean anything, and a filer can carry long_term_debt for years in
+    # which it tags no current portion at all (Cameco FY2020-2021).
+    provenance_from: near_term_debt
+    note: >-
+      An exhaustive split, not a summed subset — a debt balance is classified
+      either current or noncurrent, never neither — which is what keeps this an
+      identity rather than the "sum an assumed subset of line items" this file
+      rules out above. Distinct from that anti-pattern precisely because it is
+      verifiable, and it was verified live 2026-08-04 against filers that DO file
+      a combined total: current + noncurrent reproduces it for OTEX in all 9
+      shared years and Cameco in all 4, QSR in 12 of 13 (FY2014 off 10.4%, its
+      Tim Hortons acquisition year, where the filed total and the split were
+      tagged from different statements) and CP in 11 of 12 (FY2014 off 0.6%).
+
+      Serves CP FY2009-2013, Cameco, BCE and Suncor. Deliberately does NOT rescue
+      SHOP: its near_term_debt resolves from ConvertibleDebtCurrent, but
+      `long_term_debt` is unmapped for SHOP by an EXISTING decision — its
+      convertible notes flip between the Current and Noncurrent tags as they near
+      maturity, and mapping only the noncurrent side would make leverage appear to
+      swing to zero while the debt is still outstanding. Reversing that would move
+      SHOP's hand-verified Piotroski and Beneish golden values, which belongs in
+      its own change. SHOP is therefore the one filer with no near-term share, and
+      it is insufficient_data rather than a partial figure (AD-16). Tracked in
+      sprint-status.yaml.
+
+  # --- DECISION --------------------------------------------------------------
+
+  - rule: ebit_pbt_plus_interest
+    rationale: >-
+      IFRS does not require companies to report an operating profit line, and some do
+      not. Where it is missing, this input is reconstructed as pre-tax profit plus
+      interest expense — the standard definition of earnings before interest and taxes.
+      An alternative approach subtracts net finance costs instead and gives a different
+      figure; it was not used because several companies do not report that item at all.
+      Interest expense is not the only component of finance cost, so this reconstruction
+      can differ slightly from an operating profit the company would itself have
+      reported. Where it differs it understates the figure, which lowers this score
+      rather than flattering it.
+    kind: decision
+    canonical_concept: ebit
+    operation: add
+    operands: [profit_before_tax, interest_expense]
+    provenance_from: profit_before_tax
+    note: >-
+      DECISION, not an identity — recorded per D8 consequence 3. IFRS mandates no
+      operating-profit line, so a filer that does not voluntarily tag one leaves
+      Altman's X3 (EBIT / total assets) unresolvable. Confirmed live 2026-08-02:
+      Cameco tags ProfitLossFromOperatingActivities for all 9 years and is read as
+      filed, never reaching this rule; BCE and Suncor tag no operating-profit line at
+      all.
+
+      CHOSEN: earnings before interest and taxes, reconstructed as
+      ProfitLossBeforeTax + InterestExpense. This is the textbook EBIT definition and
+      the standard reconstruction when no operating line is disclosed.
+
+      ALTERNATIVE CONSIDERED AND REJECTED: ProfitLossBeforeTax - FinanceIncomeCost.
+      D8 named it as equally defensible, and it does give a different number because
+      it nets finance INCOME against finance cost. Live data settled it: only Suncor
+      tags FinanceIncomeCost — BCE does not tag it at all, so that route would leave
+      BCE's Altman unresolved while the chosen route serves both.
+
+      KNOWN IMPRECISION, stated rather than hidden: interest expense is not the only
+      component of finance cost, so this reconstruction can differ slightly from an
+      operating profit the filer would itself have reported. It is deliberately the
+      more conservative direction for Altman — under-adding to EBIT lowers X3 and so
+      lowers Z, never flattering the score.
+
+  - rule: revenue_minus_cost_of_sales
+    rationale: >-
+      Some companies do not report a gross profit line. Where the company reports a cost
+      of sales covering the same revenue, gross profit is computed as revenue minus cost
+      of sales. It is deliberately not computed when the only available cost figure
+      covers just part of that revenue — a cost of inventories that excludes service and
+      labour costs, for example — because subtracting it would overstate the margin.
+    kind: identity
+    canonical_concept: gross_profit
+    operation: subtract
+    operands: [revenue, cogs]
+    provenance_from: revenue
+    # The load-bearing constraint. Suncor's cogs resolves ONLY from
+    # CostOfInventoriesRecognisedAsExpenseDuringPeriod, an IAS 1 by-nature disclosure
+    # covering inventories alone and excluding service and labour cost of sales.
+    # Revenue minus that is NOT gross profit — it overstates margin, and the error
+    # would flow straight into Piotroski's margin signal and Beneish's GMI wearing
+    # correct-looking provenance. Constraining the rule to a genuine cost-of-sales
+    # tag means Suncor keeps insufficient_data, which is the honest answer.
+    requires_source:
+      cogs:
+        - CostOfSales                    # ifrs-full, by-function
+    note: >-
+      Gross profit = revenue - cost of sales. Arithmetic once the operands are the
+      right measurements, which is exactly what `requires_source` enforces. Confirmed
+      live 2026-08-02: BCE tags no GrossProfit line but does tag CostOfSales for all
+      9 years, so it gains the concept; Cameco files GrossProfit directly and never
+      reaches this rule; Suncor is correctly excluded by the constraint above.
+
+      DELIBERATELY SCOPED TO ifrs-full, and the us-gaap cost tags (CostOfRevenue,
+      CostOfGoodsAndServicesSold) are deliberately NOT listed. Admitting them derives a
+      gross profit for QSR and moves its Piotroski F-score from 6 to 7. That was
+      re-verified against live EDGAR on 2026-08-02 and the derived figure is WRONG —
+      the golden 6 is correct and stands:
+
+        * QSR is primarily a franchisor. `Revenues` bundles franchise royalties,
+          property income and advertising revenue alongside supply-chain and
+          company-restaurant sales, while CostOfGoodsAndServicesSold covers only the
+          latter. It is 49% of QSR's total costs and expenses — advertising expense
+          alone (FY2023: $1,201M) sits entirely outside it while the matching revenue
+          sits inside `Revenues`. Revenue minus half the cost base is not a margin.
+        * The apparent year-over-year IMPROVEMENT is a mix artefact, which is what
+          would actually have flipped the signal. FY2022 -> FY2023: revenue +7.9%,
+          cost of sales +5.3%, advertising expense +16.4%. A zero-cogs revenue stream
+          growing at twice the rate of revenue lifts the ratio by 0.87pp with no
+          change in any underlying margin.
+        * Structurally identical to Suncor's inventories-only cogs, from the revenue
+          side instead of the cost side: a partial cost base against a full revenue
+          base. Both are excluded by this same constraint.
+
+      The check that makes this safe elsewhere: SHOP and OTEX both file GrossProfit
+      directly AND revenue - cogs reproduces it to the dollar, so the arithmetic is
+      sound wherever there is something to validate it against. QSR files no
+      GrossProfit line at all — and that absence is the filer telling you the
+      subtraction is not meaningful for its income statement, not an omission to fill
+      in. CP tags no cogs whatsoever and is unaffected either way.
+
+      KNOWN AND NOT ADDRESSED HERE: Beneish's GMI already computes QSR's gross margin
+      from this same (revenue - cogs) / revenue ratio, so the distortion is live in
+      production for QSR's M-score today. It is a ratio OF the two years' margins, so
+      the mix effect largely divides out (0.988 for FY2023) rather than exploding.
+      Correcting it would change another hand-verified golden value and belongs in its
+      own change. Tracked in sprint-status.yaml.

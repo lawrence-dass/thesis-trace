@@ -44,25 +44,61 @@ def test_mapping_version_is_the_registry_version() -> None:
     assert mappings.MAPPING_VERSION == registry["mapping_version"]
 
 
+#: Concepts that exist for something other than the four models, so they are NOT
+#: required to be mappable under both regimes. Each needs a reason, because an
+#: entry here is an exemption from the both-regimes rule below.
+NON_MODEL_CONCEPTS = {
+    # Operand-only: feed the ebit derivation for IFRS filers that tag no
+    # operating-profit line. us-gaap filers tag one directly and need neither.
+    "profit_before_tax",
+    "interest_expense",
+    # Story 5.6: feed the near-term debt share presentation rule, not a model.
+    # `total_debt` is mapped under us-gaap only BY DESIGN — no ifrs-full total is
+    # on the right measurement basis (Suncor's `Borrowings` includes short-term
+    # borrowings), so all three IFRS filers build it from the derivation instead.
+    "near_term_debt",
+    "total_debt",
+}
+
+
 def test_both_taxonomies_cover_every_model_consumed_concept() -> None:
-    """The 18 canonical concepts the four models consume must be mappable under both
-    regimes. ifrs-full additionally carries operand-only concepts (profit_before_tax,
-    interest_expense) that exist solely to feed the ebit derivation — no model reads
-    them, and us-gaap needs neither because its filers tag an operating-profit line
-    directly. So the two sets are not required to be equal, only to both cover the
-    model-consumed 18."""
+    """Every canonical concept the four models consume must be mappable under both
+    regimes, or a filer would score differently purely because of its taxonomy.
+
+    Concepts that serve a derivation or a presentation rule rather than a model are
+    exempt and enumerated in NON_MODEL_CONCEPTS — the exemption is a listed set
+    rather than a count, so adding a concept cannot quietly satisfy the assertion
+    by moving a number."""
     concepts: dict[str, set[str]] = defaultdict(set)
     for rule in mappings.MAPPING_RULES:
         concepts[rule.source_taxonomy].add(rule.canonical_concept)
 
-    operand_only = {
-        c for d in mappings.DERIVATION_RULES for c in d.operands
-    } - concepts["us-gaap"]
-    model_consumed = concepts["us-gaap"]
-
+    model_consumed = concepts["us-gaap"] - NON_MODEL_CONCEPTS
     assert len(model_consumed) == 18
-    assert model_consumed <= concepts["ifrs-full"]
-    assert concepts["ifrs-full"] - model_consumed == operand_only
+    assert model_consumed <= concepts["ifrs-full"], (
+        f"not mappable under ifrs-full: {sorted(model_consumed - concepts['ifrs-full'])}"
+    )
+
+    # Nothing may drift into a regime without being either model-consumed or a
+    # declared exemption.
+    for taxonomy, mapped in concepts.items():
+        unexplained = mapped - model_consumed - NON_MODEL_CONCEPTS
+        assert not unexplained, f"{taxonomy} maps {sorted(unexplained)} with no declared purpose"
+
+
+def test_declared_non_model_concepts_are_actually_unused_by_models() -> None:
+    """The exemption list above is only safe if it is true. A concept a model does
+    read must not sit in it, or the both-regimes guarantee is silently waived for
+    something that genuinely needs it."""
+    model_inputs: set[str] = set()
+    for spec_path in (SPECS_DIR.parent.parent.parent / "formulas" / "specs").glob("*.yaml"):
+        spec = yaml.safe_load(spec_path.read_text())
+        if spec.get("kind") == "thesistrace_presentation_rule":
+            continue  # not a model
+        model_inputs.update(spec.get("inputs") or [])
+
+    overlap = NON_MODEL_CONCEPTS & model_inputs
+    assert not overlap, f"declared non-model but consumed by a model: {sorted(overlap)}"
 
 
 def test_priorities_are_contiguous_from_zero() -> None:
