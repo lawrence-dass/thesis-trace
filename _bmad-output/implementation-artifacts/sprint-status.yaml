@@ -1,5 +1,5 @@
 # generated: 2026-07-21
-# last_updated: 2026-08-04
+# last_updated: 2026-08-05
 # project: ThesisTrace
 # project_key: NOKEY
 # tracking_system: file-system
@@ -53,7 +53,7 @@
 # stories. No retrospective has been run for any epic.
 
 generated: 2026-07-21
-last_updated: 2026-08-04
+last_updated: 2026-08-05
 project: ThesisTrace
 project_key: NOKEY
 tracking_system: file-system
@@ -97,6 +97,27 @@ development_status:
   4-3-add-to-comparison-session-scoped: done
   4-4-side-by-side-comparison-view: done
   epic-4-retrospective: done
+
+  # Epic 5 tracked here from 2026-08-05. It had NO structured entry until then —
+  # its status lived only in a prose comment further down this file, because the
+  # epic was written straight into epics.md during Phase 2 planning and
+  # bmad-sprint-planning was never run over it to generate these keys. Nothing
+  # caught that, for the same reason nothing caught this file being unparseable
+  # for two days: it is only ever read, never validated. An epic whose status is
+  # a comment is invisible to bmad-sprint-status and to every other tool.
+  #
+  # in-progress, not done: 5.7 is deliberately unbuilt. It is display depth for
+  # the two filers that publish a full ladder (QSR, CP) and epics.md permits
+  # deferring it indefinitely without blocking the epic.
+  epic-5: in-progress
+  5-1-debt-maturity-coverage-spike: done
+  5-2-score-run-diff-engine: done
+  5-3-change-detection-read-api: done
+  5-4-what-changed-on-the-company-overview: done
+  5-5-trajectory-over-level-rules: done
+  5-6-near-term-debt-share: done
+  5-7-maturity-profile-detail-for-filers-that-support-it: backlog
+  epic-5-retrospective: backlog
 
 # Action-item statuses reconciled 2026-07-29 against the actual repo state.
 # Four of the five were already satisfied but still recorded as open, which
@@ -211,31 +232,36 @@ d8_ifrs_track:
 # it Phase 2 step 1 and no existing FR covered it — FR-18's diff is thesis-scoped and
 # presupposes a saved thesis.
 #
-# STORY STATUS: 5.1 DONE (spike). 5.6 scope DECIDED (near-term debt share).
-# 5.2 DONE — diff/engine.py + tests/test_diff_engine.py, 19 tests. It surfaced an
-# upstream bug: see canonical_facts_amendment_gap at the bottom of this file
-# (VERIFIED LATENT 2026-08-04 — real, but no current score is wrong).
-# 5.3 DONE — GET /api/companies/{ticker}/changes, 8 tests. Its default `since`
-# DEVIATES from the story text: the AC said "most recent prior run", which the
-# nightly cron makes useless (that is last night). It pivots on the latest
-# filing's ingestion instant instead, so the endpoint answers the question FR-22
-# is named for. `since_basis` reports which rule produced the pivot.
-# 5.4 DONE — WhatChanged.tsx on the company page, above the Verdict. Rendering it
-# in a browser found a REAL ENGINE BUG that 27 passing tests had missed: with the
-# boundary at `computed_at <= pivot`, a company whose first scoring happened at the
-# pivot instant selected its own current run as its predecessor, compared a state
+# EPIC 5 FINDINGS WORTH CARRYING. Per-story status now lives in
+# development_status above, where it can actually be parsed. What is kept here is
+# only what a status flag cannot express — the places where the built thing
+# differs from the story, or where something was learned the hard way.
+#
+# 5.3 DEVIATES FROM ITS OWN AC, deliberately. The story said the default `since`
+# is the "most recent prior run"; the nightly cron makes that useless, because it
+# means last night. It pivots on the latest filing's ingestion instant instead, so
+# the endpoint answers the question FR-22 is actually named for. `since_basis`
+# reports which rule produced the pivot.
+#
+# 5.4 FOUND A REAL ENGINE BUG THAT 27 PASSING TESTS MISSED. With the boundary at
+# `computed_at <= pivot`, a company whose first scoring happened AT the pivot
+# instant selected its own current run as its own predecessor, compared a state
 # against itself, and reported "No change since {date}" about a comparison that
-# never happened. Fixed to a strict `<`; two regression tests added. Confirms the
-# standing rule that anything user-visible gets looked at in a browser before it
-# ships — the bug was invisible to the API contract and to every unit test.
-# 5.5 DONE — trajectory_v1.yaml (ThesisTrace presentation rule, explicitly NOT an
-# academic model spec — the loader refuses to load one as the other), trajectory/
-# engine.py, TrajectoryChip.tsx. 21 tests. POLARITY is the load-bearing part and is
-# DATA, not code: Piotroski/Altman are higher-is-better, Beneish/Sloan LOWER-is-
-# better because both measure a risk. Verified in-browser that Beneish falling
-# -1.6 -> -2.9 renders as IMPROVING; naive "did the number rise" logic would have
-# told the reader that rising manipulation risk is good news.
-# NEXT: Story 5.6 (near-term debt share) — scope already settled by the 5.1 spike.
+# never happened. Fixed to a strict `<`. Invisible to the API contract and to
+# every unit test — it took rendering the page.
+#
+# 5.5 POLARITY IS DATA, NOT CODE. Piotroski/Altman are higher-is-better;
+# Beneish/Sloan are LOWER-is-better because both measure a risk. Verified
+# in-browser that Beneish moving -1.6 -> -2.9 renders as IMPROVING. Naive "did the
+# number go up" logic would have told the reader that rising manipulation risk is
+# good news.
+#
+# 5.6 OVERTURNED THE 5.1 SPIKE THAT SCOPED IT. The spike's central claim — that a
+# maturity ladder's first bucket and a current-portion tag are one concept — is
+# false against real filed figures, and two of its coverage findings were wrong.
+# Full correction in story_5_1_debt_maturity_spike below. The transferable lesson:
+# a spike's finding is a HYPOTHESIS until the build re-checks it, which is why the
+# story carried "to be re-confirmed at build time, not trusted from here".
 #
 # Known tech debt, unowned by any epic: nine test files assert against
 # backend/tests/fixtures/shop_company_facts.json, which is entirely SYNTHETIC
