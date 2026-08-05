@@ -4,7 +4,7 @@ baseline_commit: b11fbf59cc9db3c503e75653f28014fd3d91a8cd
 
 # Story 5.7: Maturity profile detail for filers that support it
 
-Status: review
+Status: done
 
 *Enrichment, not a metric. Ships after 5.6 and may be deferred indefinitely without blocking the epic.*
 
