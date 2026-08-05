@@ -211,8 +211,10 @@ d8_ifrs_track:
 # it Phase 2 step 1 and no existing FR covered it — FR-18's diff is thesis-scoped and
 # presupposes a saved thesis.
 #
-# NEXT ACTION: Story 5.6 scope is a Lawrence decision — see story_5_1_debt_maturity_spike
-# at the bottom of this file. Story 5.1 is DONE.
+# STORY STATUS: 5.1 DONE (spike). 5.6 scope DECIDED (near-term debt share).
+# 5.2 DONE — diff/engine.py + tests/test_diff_engine.py, 19 tests. It surfaced an
+# upstream bug: see canonical_facts_amendment_gap at the bottom of this file.
+# NEXT: Story 5.3 (change-detection read API) consumes diff_company_since().
 #
 # Known tech debt, unowned by any epic: nine test files assert against
 # backend/tests/fixtures/shop_company_facts.json, which is entirely SYNTHETIC
@@ -274,3 +276,81 @@ story_5_1_debt_maturity_spike:
     was worth running: 'a tag exists but does not cover the years you need' (CP's missing
     thereafter bucket) and 'a filer switches tags mid-history' (OTEX, twice). Checking
     tag presence alone would have reported OTEX as covered and CP's ladder as summable.
+
+# Found 2026-08-04 while building Story 5.2's diff engine. NOT a Story 5.2 defect —
+# the engine handles it correctly; this is an upstream canonicalization gap that the
+# diff work exposed. Needs its own decision, so it is recorded rather than fixed here.
+canonical_facts_amendment_gap:
+  status: open
+  found: 2026-08-04
+  found_by: "Story 5.2 (diff engine) — a test asserting a restated fact produced a UniqueViolationError instead"
+  issue: >
+    A 10-K/A that restates a fiscal year's figures never reaches canonical_facts.
+    canonical_facts is UNIQUE on (issuer_cik, canonical_concept, fiscal_year,
+    mapping_version), and canonicalize_issuer skips any key already present under the
+    current mapping_version to keep the pass idempotent (canonicalize.py, the `existing`
+    set). That guard keys on the fiscal year and ignores the accession entirely, so once
+    a year is canonicalized from the original 10-K, the amendment's restated values are
+    skipped — and the unique constraint would reject them anyway.
+  why_it_matters: >
+    AD-6 and PRD open question 2 both say an amendment triggers a new append-only
+    score_run "referencing the new canonical_facts". The run is genuinely new, but the
+    facts it references are the stale pre-restatement ones, so the new run recomputes
+    the same numbers. The amendment is invisible below the filing layer.
+  note: >
+    The ranking function DOES handle amendments correctly (it prefers as-originally-filed
+    per AD-3) — but only when writing a key for the first time. The skip runs first, so
+    re-selection never happens. This is a gap in the idempotency guard, not in AD-3.
+  reachability: >
+    CONFIRMED REACHABLE, verified 2026-08-04 against live company-facts for all 7 filers.
+    Amendments exist for CP (650 amended fact rows across 8 accessions, 40-F/A + 10-K/A),
+    OTEX (1660 rows, 3 accessions) and SHOP (2 rows). QSR, CCJ, BCE and SU file none.
+    More importantly the amendments RESTATE canonical values, not just exhibits: 18
+    canonical concepts for CP and 18 for OTEX carry a different value under the amended
+    form than under the original.
+  severity_by_filer: >
+    OTEX is the live concern — its restated canonical concepts land in FY2010 and
+    FY2012-2015, squarely inside its 24-year scored history, and they touch total_assets,
+    current_assets, current_liabilities, cogs, sga, gross_profit, long_term_debt and
+    shares_outstanding, i.e. inputs to all four models. CP's restatements are FY2008-2010,
+    which predate its scoring window (its 10-K history starts 2016), so CP is very likely
+    unaffected in practice. SHOP's single conflict is EntityPublicFloat, a dei cover-page
+    fact that is not canonical. Net: OTEX needs checking against stored values; CP and
+    SHOP almost certainly do not.
+  crucial_nuance: >
+    The bug is an INCREMENTAL-OPERATION bug, not a backfill bug, and this determines both
+    severity and the fix. Within a SINGLE canonicalization pass, all of an issuer's raw
+    facts — original and amended alike — are grouped together and resolved by AD-3's
+    ranking, which handles the conflict correctly. The `existing` skip only takes effect
+    ACROSS passes. So a clean backfill (ingest everything, then canonicalize once) produces
+    correct values, while the production path (daily pipeline canonicalizes FY-N, a 10-K/A
+    arrives months later, the next pass skips the year) permanently keeps whichever value
+    was written first. A rebuild-from-scratch would therefore silently 'fix' the data and
+    hide the bug — which also means reproducing it requires simulating arrival ORDER, not
+    just the presence of an amendment.
+  verification_next_step: >
+    Compare stored canonical_facts for OTEX FY2012-2015 against AD-3's ranking applied to
+    the full raw_facts set for those years. A disagreement proves live staleness; agreement
+    means this instance was saved by ingestion order and the bug is latent, not biting.
+  consequence_for_story_5_2: >
+    fact_change is unreachable within a single mapping_version — two runs under one
+    mapping_version necessarily reference identical canonical_fact rows. The engine
+    reports fact changes correctly when the mapping version moves, which is currently
+    the only way inputs can differ. Pinned by
+    tests/test_diff_engine.py::test_restatement_under_one_mapping_version_yields_no_fact_change,
+    which asserts CURRENT behaviour and is designed to fail when this gap is fixed.
+  options: >
+    (1) Include accession_number in the canonical_facts unique key and supersede facts on
+    amendment, mirroring AD-6's score_run pattern — most correct, needs a migration and a
+    supersession column. (2) Re-canonicalize a fiscal year when a superseding filing
+    arrives, deleting the prior rows — simpler but breaks the append-only/audit posture
+    AD-2 exists to protect. (3) Narrow the `existing` skip so it re-resolves a
+    (concept, fiscal_year) whose candidate raw_facts now include an accession not present
+    when it was last written — smallest change, no migration, keeps append-only, but needs
+    care not to rewrite history on every pass. Option 3 was NOT considered before the
+    reachability data came in and now looks the best value; recommend (3), with (1) if the
+    audit trail for superseded facts is judged worth a migration.
+  status_note: >
+    Option 3 supersedes the earlier '(3) accept and document' — accepting is no longer
+    defensible now that restatement of canonical concepts is confirmed rather than
+    hypothetical.
