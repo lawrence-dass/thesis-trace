@@ -4,6 +4,8 @@ a company outside the universe / with no scores yet returns a success-envelope
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,6 +34,37 @@ async def company_overview(ticker: str, session: AsyncSession = Depends(get_sess
             content={"state": "not_available", "ticker": ticker.upper(), "message": "Company not yet covered."},
         )
     return {"state": "ok", **overview.model_dump()}
+
+
+@router.get("/companies/{ticker}/changes")
+async def company_changes(
+    ticker: str,
+    since: datetime | None = None,
+    session: AsyncSession = Depends(get_session),
+):
+    """What moved for a company (FR-22).
+
+    `since` is an optional ISO-8601 instant. Omitted, it defaults to when the
+    most recent filing was ingested, so the endpoint answers "what did the
+    latest filing change?" — see `repository.get_company_changes` for why that
+    beats comparing against the immediately-superseded run.
+
+    CALLER NOTE: a `+00:00` offset must be percent-encoded (`%2B00:00`), because
+    a bare `+` in a query string decodes to a space and the timestamp then fails
+    to parse. JavaScript's `toISOString()` emits the `Z` form and is unaffected;
+    Python's `datetime.isoformat()` emits the `+00:00` form and is. The request
+    is rejected with 422 rather than silently falling back to the default pivot,
+    which would answer a different question than the caller asked.
+
+    Read-only (AD-1): nothing on this path can trigger scoring or ingestion.
+    """
+    changes = await repository.get_company_changes(session, ticker, since)
+    if changes is None:
+        return JSONResponse(
+            status_code=200,
+            content={"state": "not_available", "ticker": ticker.upper(), "message": "Company not yet covered."},
+        )
+    return {"state": "ok", **changes.model_dump()}
 
 
 @router.get("/methodology/{model}")

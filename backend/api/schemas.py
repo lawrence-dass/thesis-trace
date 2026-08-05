@@ -80,3 +80,90 @@ class CompanyCardOut(BaseModel):
     ticker: str
     name: str
     last_updated: str | None
+
+
+# --- Change detection (FR-22, Story 5.3) ---------------------------------
+
+
+class ChangeProvenance(BaseModel):
+    """Provenance for one ENDPOINT of a change.
+
+    Separate from `Provenance` above because a change endpoint's accession can
+    legitimately be absent — a value that did not exist at the prior endpoint
+    has nothing to cite — whereas `Provenance` requires one.
+    """
+
+    accession_number: str | None
+    canonical_concept: str | None = None
+    fiscal_year: int | None = None
+    period_end: str | None = None
+    source_filing_form: str | None = None
+    derivation: str | None = None
+
+
+class SignalChangeOut(BaseModel):
+    kind: str
+    signal_key: str
+    prior_status: str | None
+    current_status: str | None
+    prior_value: float | None
+    current_value: float | None
+    prior_band_label: str | None = None
+    current_band_label: str | None = None
+
+
+class FactChangeOut(BaseModel):
+    kind: str
+    signal_key: str
+    canonical_concept: str
+    prior_value: float | None
+    current_value: float | None
+    prior_provenance: ChangeProvenance | None
+    current_provenance: ChangeProvenance | None
+
+
+class DataQualityChangeOut(BaseModel):
+    kind: str
+    issue_type: str
+    status: str
+    raised_by: str
+    accession_number: str | None
+    detail: dict | None
+
+
+class RunChangeOut(BaseModel):
+    model: str
+    fiscal_year: int
+    #: Every kind of movement in this run. A band crossing and a within-band
+    #: value move are distinct entries, never collapsed (FR-22).
+    kinds: list[str]
+    prior_accession_number: str | None
+    current_accession_number: str
+    prior_aggregate: float | None
+    current_aggregate: float | None
+    prior_band_label: str | None
+    current_band_label: str | None
+    prior_applicability: str | None
+    current_applicability: str | None
+    signal_changes: list[SignalChangeOut] = []
+    fact_changes: list[FactChangeOut] = []
+    #: Set when the two endpoints span a formula/mapping version change, meaning
+    #: a moved number may be OUR doing rather than the company's.
+    version_caveat: str | None = None
+
+
+class CompanyChangesOut(BaseModel):
+    cik: str
+    ticker: str
+    name: str
+    since: str
+    #: "explicit" when the caller passed `since`; "latest_filing" when defaulted
+    #: to the instant before the most recent filing landed.
+    since_basis: str
+    since_accession: str | None = None
+    #: Three-way and deliberately not a boolean. "no_prior_state" (nothing to
+    #: compare against) must never render like "no_change" (compared, nothing
+    #: moved), and neither may look like a failed load (FR-22).
+    comparison_state: str  # changes | no_change | no_prior_state
+    run_changes: list[RunChangeOut] = []
+    data_quality_changes: list[DataQualityChangeOut] = []
