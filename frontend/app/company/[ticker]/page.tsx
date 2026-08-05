@@ -14,6 +14,10 @@ import {
   NearTermDebtShareCard,
   type NearTermDebtShare,
 } from "../../components/NearTermDebtShare";
+import {
+  MaturityProfileCard,
+  type MaturityProfile,
+} from "../../components/MaturityProfile";
 import { AlertIcon, ChevronIcon } from "../../components/ui/icons";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
@@ -56,6 +60,9 @@ type Overview = {
   scores?: LensScore[];
   // ThesisTrace presentation rule (PRD OQ9, Story 5.6). Newest year first.
   near_term_debt_share?: NearTermDebtShare[];
+  // Story 5.7. Empty for most of the universe by structure — the component
+  // renders nothing rather than a "missing" state.
+  debt_maturity_profile?: MaturityProfile[];
   data_quality?: DataQuality[];
   verdict?: VerdictItem[];
   lenses_pending?: string[];
@@ -348,7 +355,12 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                   (Story 5.6), beneath the model cards — it is a standalone
                   figure shown beside the scores, never blended into one. */}
               {cat === "quality_health" ? (
-                <NearTermDebtShareCard rows={data.near_term_debt_share ?? []} />
+                <>
+                  <NearTermDebtShareCard rows={data.near_term_debt_share ?? []} />
+                  {/* Supplementary detail beneath the share (Story 5.7). Renders
+                      nothing at all for a filer without a published schedule. */}
+                  <MaturityProfileCard profiles={data.debt_maturity_profile ?? []} />
+                </>
               ) : null}
             </div>
           </section>

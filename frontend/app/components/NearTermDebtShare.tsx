@@ -110,7 +110,7 @@ export function NearTermDebtShareCard({ rows }: { rows: NearTermDebtShare[] }) {
       {/* Travels with the figure, never optional: it names whose judgment the
           bands are AND states the short-term-borrowings exclusion, which is the
           single most likely way to misread this number. */}
-      <p className="border-t border-[var(--color-rule)] pt-2 text-xs text-[var(--color-ink-faint)]">
+      <p className="border-t border-[var(--color-border)] pt-2 text-xs text-[var(--color-ink-faint)]">
         {latest.attribution}
       </p>
     </Card>

@@ -33,10 +33,16 @@
 #                three taxonomy specs move because the concept pair spans both
 #                regimes and the derivation ties them together.
 
-mapping_version: concepts_v6
+#   concepts_v7  us-gaap_v6 + ifrs-full_v3 + derivations_v3. A real mapping change
+#                (Story 5.7): the six year-by-year debt maturity buckets behind the
+#                maturity profile. us-gaap ONLY — under IFRS the maturity analysis is
+#                dimensional and unreachable through company-facts — so ifrs-full and
+#                derivations keep their v3 specs, per the per-taxonomy rule above.
+
+mapping_version: concepts_v7
 
 taxonomies:
-  us-gaap: us-gaap_v5
+  us-gaap: us-gaap_v6
   ifrs-full: ifrs-full_v3
 
 derivations: derivations_v3

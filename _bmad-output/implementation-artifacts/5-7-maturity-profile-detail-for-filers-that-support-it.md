@@ -1,6 +1,10 @@
+---
+baseline_commit: b11fbf59cc9db3c503e75653f28014fd3d91a8cd
+---
+
 # Story 5.7: Maturity profile detail for filers that support it
 
-Status: ready-for-dev
+Status: review
 
 *Enrichment, not a metric. Ships after 5.6 and may be deferred indefinitely without blocking the epic.*
 
@@ -32,42 +36,42 @@ so that I can distinguish a smooth maturity ladder from a cliff.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — Live-verify ladder coverage** (AC: 7)
-  - [ ] Fetch company-facts for all 7 filers; the cached payloads from Story 5.6 are in the session scratchpad, otherwise re-fetch (**ask Lawrence once, naming every CIK** — standing preference).
-  - [ ] Confirm per-year coverage of the six ladder buckets, bucketing by `period_end` against each issuer's own FYE, **not** the payload's `fy` field.
-  - [ ] Confirm the expected shape: QSR full ladder FY2014–2024 (FY2025 missing thereafter), CP years 1–5 FY2010–2025 with thereafter only FY2022–2025, OTEX never tags years 2–5, SHOP/CCJ/BCE/SU none at all.
+- [x] **Task 1 — Live-verify ladder coverage** (AC: 7)
+  - [x] Fetch company-facts for all 7 filers; the cached payloads from Story 5.6 are in the session scratchpad, otherwise re-fetch (**ask Lawrence once, naming every CIK** — standing preference).
+  - [x] Confirm per-year coverage of the six ladder buckets, bucketing by `period_end` against each issuer's own FYE, **not** the payload's `fy` field.
+  - [x] Confirm the expected shape: QSR full ladder FY2014–2024 (FY2025 missing thereafter), CP years 1–5 FY2010–2025 with thereafter only FY2022–2025, OTEX never tags years 2–5, SHOP/CCJ/BCE/SU none at all.
 
-- [ ] **Task 2 — Map the six ladder buckets** (AC: 7, 9)
-  - [ ] Add `us-gaap_v6.yaml` + `derivations_v4.yaml` if needed; bump registry to `concepts_v7`. **Never edit a spec a stored `mapping_version` points at** (AD-2).
-  - [ ] New concepts: `debt_maturity_year_1` … `debt_maturity_year_5`, `debt_maturity_thereafter`.
-  - [ ] `ifrs-full`: map nothing. The IFRS maturity analysis is dimensional and structurally unreachable via company-facts (Story 5.1 finding, still true).
-  - [ ] Refine `test_maturity_ladder_tags_are_not_mapped` per AC 9.
-  - [ ] Update `NON_MODEL_CONCEPTS` in `test_concept_mappings.py` — these feed a presentation rule, not a model, so the both-regimes rule does not apply.
+- [x] **Task 2 — Map the six ladder buckets** (AC: 7, 9)
+  - [x] Add `us-gaap_v6.yaml` + `derivations_v4.yaml` if needed; bump registry to `concepts_v7`. **Never edit a spec a stored `mapping_version` points at** (AD-2).
+  - [x] New concepts: `debt_maturity_year_1` … `debt_maturity_year_5`, `debt_maturity_thereafter`.
+  - [x] `ifrs-full`: map nothing. The IFRS maturity analysis is dimensional and structurally unreachable via company-facts (Story 5.1 finding, still true).
+  - [x] Refine `test_maturity_ladder_tags_are_not_mapped` per AC 9.
+  - [x] Update `NON_MODEL_CONCEPTS` in `test_concept_mappings.py` — these feed a presentation rule, not a model, so the both-regimes rule does not apply.
 
-- [ ] **Task 3 — Profile engine** (AC: 3, 4, 5)
-  - [ ] Extend `backend/debt/` (do **not** create a parallel module — reuse the existing package).
-  - [ ] Return an ordered bucket list plus an explicit `truncated: bool` when `thereafter` is absent.
-  - [ ] A filer-year with no year-2..5 buckets yields **no profile at all** — not an empty list rendered as a profile.
-  - [ ] `Decimal` throughout, never `float` (AD-15).
-  - [ ] Spec: extend `near_term_debt_share_v1.yaml` **or** add a sibling `kind: thesistrace_presentation_rule` spec. Either way the basis warning must be a machine-readable field, not a YAML comment (this trap has now recurred three times — D8 `derivations_v2`, 5.5 `trajectory_v1`, and it is called out again here).
+- [x] **Task 3 — Profile engine** (AC: 3, 4, 5)
+  - [x] Extend `backend/debt/` (do **not** create a parallel module — reuse the existing package).
+  - [x] Return an ordered bucket list plus an explicit `truncated: bool` when `thereafter` is absent.
+  - [x] A filer-year with no year-2..5 buckets yields **no profile at all** — not an empty list rendered as a profile.
+  - [x] `Decimal` throughout, never `float` (AD-15).
+  - [x] Spec: extend `near_term_debt_share_v1.yaml` **or** add a sibling `kind: thesistrace_presentation_rule` spec. Either way the basis warning must be a machine-readable field, not a YAML comment (this trap has now recurred three times — D8 `derivations_v2`, 5.5 `trajectory_v1`, and it is called out again here).
 
-- [ ] **Task 4 — API** (AC: 1, 6)
-  - [ ] Add to `CompanyOverviewOut`. One query for all six concepts across all years, then a pure computation — mirror the `near_term_debt_share` pass; **must not** become an N+1 (AD-1).
-  - [ ] Provenance per bucket (AD-19).
+- [x] **Task 4 — API** (AC: 1, 6)
+  - [x] Add to `CompanyOverviewOut`. One query for all six concepts across all years, then a pure computation — mirror the `near_term_debt_share` pass; **must not** become an N+1 (AD-1).
+  - [x] Provenance per bucket (AD-19).
 
-- [ ] **Task 5 — UI** (AC: 1, 2, 3, 5)
-  - [ ] New component under `frontend/app/components/`, rendered beneath `NearTermDebtShareCard`, inside `quality_health` only.
-  - [ ] Return `null` when there is no profile — no wrapper, no heading, no badge.
-  - [ ] Truncation notice when `truncated`.
-  - [ ] Custom visualization only — **no TradingView or off-the-shelf charting** (standing project rule).
-  - [ ] Theme-aware, and horizontal overflow must scroll inside its own container.
+- [x] **Task 5 — UI** (AC: 1, 2, 3, 5)
+  - [x] New component under `frontend/app/components/`, rendered beneath `NearTermDebtShareCard`, inside `quality_health` only.
+  - [x] Return `null` when there is no profile — no wrapper, no heading, no badge.
+  - [x] Truncation notice when `truncated`.
+  - [x] Custom visualization only — **no TradingView or off-the-shelf charting** (standing project rule).
+  - [x] Theme-aware, and horizontal overflow must scroll inside its own container.
 
-- [ ] **Task 6 — Golden + verification** (AC: 8)
-  - [ ] Extend fixtures with the six tags, reusing **only accessions already present** so existing hand-verified values cannot shift.
-  - [ ] Extend `phase1_golden.yaml` for QSR FY2023 and CP FY2023 (both active golden years with a complete ladder).
-  - [ ] Hand-compute independently — **import nothing** from `backend/debt`.
-  - [ ] Confirm the guard bites by corrupting an expected value.
-  - [ ] **Render it in a browser.** Mandatory, not diligence — it found 4 real bugs in 5.4 and 1 in 5.6 that tests could not.
+- [x] **Task 6 — Golden + verification** (AC: 8)
+  - [x] Extend fixtures with the six tags, reusing **only accessions already present** so existing hand-verified values cannot shift.
+  - [x] Extend `phase1_golden.yaml` for QSR FY2023 and CP FY2023 (both active golden years with a complete ladder).
+  - [x] Hand-compute independently — **import nothing** from `backend/debt`.
+  - [x] Confirm the guard bites by corrupting an expected value.
+  - [x] **Render it in a browser.** Mandatory, not diligence — it found 4 real bugs in 5.4 and 1 in 5.6 that tests could not.
 
 ## Dev Notes
 
@@ -148,9 +152,48 @@ claude-opus-5
 
 ### Debug Log References
 
+- Live coverage verified from the Story 5.6 cached company-facts payloads (same session, fetched 2026-08-04 under the approval Lawrence gave then). No new EDGAR fetch was required.
+- Task 1 output confirmed the story's predicted shape exactly: CP complete FY2022-2025 / truncated FY2010-2021, QSR complete FY2014-2024 / truncated FY2025, OTEX no usable profile, SHOP+CCJ+BCE+SU none.
+
 ### Completion Notes List
 
+**Two real defects found, one of them pre-existing on `main`.**
+
+1. **Undefined CSS tokens.** The component used `--color-surface-sunken`, `--radius-sm` and `--color-rule`, none of which exist in `globals.css`. `tsc` and `next build` both pass on these — an unresolvable `var()` is valid CSS. The bar track would have rendered invisible. Fixed to `--color-canvas`, `--radius-chip`, `--color-border`, and an audit of every `var()` in `app/**/*.tsx` now shows all resolve.
+   **`--color-rule` was already live on `main`** via `NearTermDebtShare.tsx` (Story 5.6, PR #46) — its attribution divider was drawing in `currentColor` rather than the intended rule colour. Fixed here too.
+
+2. **AC 5 violated in the rendered page, not in the data.** CP FY2023 shows "3.1B of 22.5B" in the near-term share card and `3.13B` as the first row of the schedule directly beneath it — 3,143M carrying amount vs 3,133M undiscounted principal, which at display precision read as one figure restated. Worse on QSR, where the two are *numerically identical* (67M) by coincidence. The attribution now defuses both misreadings explicitly, and a test asserts it covers each.
+
+**Deliberate design choices, from the story's open questions:** bar row with values alongside (a cliff is what the reader is looking for); latest year leading with earlier years behind a disclosure, mirroring the near-term share card; golden pinned for QSR FY2023 and CP FY2023 only.
+
+**Not exercised in the browser:** the truncation notice. The committed CP fixture carries only FY2022-2023, both of which are complete years, so no seeded filer-year is truncated. Covered by unit test (`test_missing_thereafter_is_reported_as_truncated`) and by the per-row `*` marker in the earlier-years table, but not seen rendered. Worth a look if the fixture ever gains a pre-FY2022 CP year.
+
+**Guard refined, not deleted:** `test_maturity_ladder_tags_are_not_mapped` became `test_maturity_ladder_never_feeds_the_near_term_share`, narrowed to the invariant it was actually protecting. A second test pins `RemainderOfFiscalYear` as belonging to neither rule.
+
+230 passed, 1 skipped. `ruff`, `tsc`, `next build` clean.
+
 ### File List
+
+- `backend/canonicalization/mappings/specs/us-gaap_v6.yaml` (new)
+- `backend/canonicalization/mappings/specs/registry.yaml` (modified — `concepts_v7`)
+- `backend/formulas/specs/debt_maturity_profile_v1.yaml` (new)
+- `backend/debt/profile.py` (new)
+- `backend/api/schemas.py` (modified)
+- `backend/api/repository.py` (modified)
+- `backend/tests/test_maturity_profile.py` (new)
+- `backend/tests/test_near_term_debt_share.py` (modified — guard refined)
+- `backend/tests/test_concept_mappings.py` (modified — `NON_MODEL_CONCEPTS`)
+- `backend/tests/test_golden_dataset.py` (modified — profile assertions)
+- `backend/tests/golden/phase1_golden.yaml` (modified — all 7 companies)
+- `backend/tests/fixtures/{qsr,cp,otex}_company_facts.json` (modified)
+- `frontend/app/components/MaturityProfile.tsx` (new)
+- `frontend/app/components/NearTermDebtShare.tsx` (modified — token fix)
+- `frontend/app/company/[ticker]/page.tsx` (modified)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` (modified)
+
+### Change Log
+
+- 2026-08-05 — Implemented Story 5.7. `MAPPING_VERSION` `concepts_v6` -> `concepts_v7`.
 
 ## References
 

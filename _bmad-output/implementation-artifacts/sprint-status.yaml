@@ -116,7 +116,7 @@ development_status:
   5-4-what-changed-on-the-company-overview: done
   5-5-trajectory-over-level-rules: done
   5-6-near-term-debt-share: done
-  5-7-maturity-profile-detail-for-filers-that-support-it: ready-for-dev
+  5-7-maturity-profile-detail-for-filers-that-support-it: review
   epic-5-retrospective: optional
 
   # Epics 6-9 appear in epics.md's Epic List but are NOT decomposed into stories,

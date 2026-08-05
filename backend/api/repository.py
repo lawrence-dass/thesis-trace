@@ -31,6 +31,8 @@ from api.schemas import (
     DataQualityOut,
     FactChangeOut,
     LensScoreOut,
+    MaturityBucketOut,
+    MaturityProfileOut,
     NearTermDebtShareOut,
     Provenance,
     TrajectoryOut,
@@ -41,6 +43,7 @@ from api.schemas import (
 )
 from canonicalization.mappings import MAPPING_VERSION
 from debt.engine import DENOMINATOR_CONCEPT, NUMERATOR_CONCEPT, shares_for_facts
+from debt.profile import PROFILE_CONCEPTS, profile_for_facts
 from diff.engine import diff_company_since, latest_filing_pivot
 from trajectory.engine import trajectories_for_scores
 
@@ -162,16 +165,22 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
             spec_version=t.spec_version,
         )
 
-    # Near-term debt share (PRD OQ9, Story 5.6). One query for both operands across
-    # every fiscal year, then a pure computation — same shape as the trajectory pass
-    # above, and it cannot become an N+1. A ThesisTrace presentation rule: it stands
-    # beside the scores and never adjusts one.
+    # ONE fetch serving both debt presentation rules — the near-term share (Story
+    # 5.6) and the maturity profile (Story 5.7). They read disjoint concepts out of
+    # the same rows, so a second query would double the read for nothing. Each rule
+    # is then a pure computation over the already-fetched facts, the same shape as
+    # the trajectory pass above, so neither can become an N+1 (AD-1).
+    #
+    # Both are ThesisTrace presentation rules: they stand beside the scores and
+    # never adjust one.
     debt_facts = (
         await session.execute(
             select(CanonicalFact).where(
                 CanonicalFact.issuer_cik == issuer.cik,
                 CanonicalFact.mapping_version == MAPPING_VERSION,
-                CanonicalFact.canonical_concept.in_((NUMERATOR_CONCEPT, DENOMINATOR_CONCEPT)),
+                CanonicalFact.canonical_concept.in_(
+                    (NUMERATOR_CONCEPT, DENOMINATOR_CONCEPT, *PROFILE_CONCEPTS)
+                ),
             )
         )
     ).scalars().all()
@@ -188,6 +197,36 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
             spec_version=share.spec_version,
         )
         for _, share in sorted(shares_for_facts(debt_facts).items(), reverse=True)
+    ]
+
+    # Year-by-year maturity profile (Story 5.7). Folded into the SAME query as the
+    # near-term share above rather than issuing a second one — both read
+    # canonical_facts for this issuer at the current mapping version, so one pass
+    # serves both (AD-1).
+    #
+    # Empty for most of the universe, and that is not a gap: the profile is
+    # supplementary disclosure detail, not a signal, so the frontend renders
+    # NOTHING rather than an insufficient_data affordance.
+    debt_maturity_profile = [
+        MaturityProfileOut(
+            fiscal_year=p.fiscal_year,
+            buckets=[
+                MaturityBucketOut(
+                    canonical_concept=b.canonical_concept,
+                    label=b.label,
+                    value=float(b.value),
+                    accession_number=b.accession_number,
+                    fiscal_year=b.fiscal_year,
+                )
+                for b in p.buckets
+            ],
+            truncated=p.truncated,
+            truncation_message=p.truncation_message,
+            unit=p.unit,
+            attribution=p.attribution,
+            spec_version=p.spec_version,
+        )
+        for _, p in sorted(profile_for_facts(debt_facts).items(), reverse=True)
     ]
 
     # Open data-quality warnings for this issuer's filings (AD-17, FR-8) — never hidden.
@@ -267,6 +306,7 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
         verdict=verdict,
         scores=scores,
         near_term_debt_share=near_term_debt_share,
+        debt_maturity_profile=debt_maturity_profile,
         data_quality=data_quality,
     )
 

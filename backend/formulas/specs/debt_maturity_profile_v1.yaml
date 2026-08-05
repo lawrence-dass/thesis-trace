@@ -1,0 +1,97 @@
+# ============================================================================
+# THESISTRACE-AUTHORED PRESENTATION RULE — NOT AN ACADEMIC MODEL.
+# ============================================================================
+# This one is thinner than its siblings on purpose: it applies NO thresholds and
+# NO bands, because it classifies nothing. It relays a filer's own published
+# repayment schedule, labelled and ordered. The only judgments here are which
+# buckets to show, what to call them, and when to say the schedule is truncated.
+#
+# `kind` is checked by the loader: this file is deliberately NOT loadable as a
+# model formula spec, so it can never be mistaken for one.
+
+kind: thesistrace_presentation_rule
+authored_by: thesistrace
+rule: debt_maturity_profile
+spec_version: debt_maturity_profile_v1
+
+description: >
+  The year-by-year schedule of long-term debt repayments a filer publishes in
+  its maturity-analysis note. Shown where it exists and omitted entirely where
+  it does not — which is most of the universe, for structural reasons.
+
+# THE LOAD-BEARING FIELD. This is a DIFFERENT MEASUREMENT from the near-term
+# debt share's operands, and the two must never be mixed, summed, or presented
+# as reconciling. It is stated here as machine-readable data rather than as a
+# YAML comment because that exact mistake has now been made three times in this
+# repository (D8's derivations_v2 `note`, Story 5.5's trajectory_v1 thresholds,
+# and it was flagged again in this story's own dev notes). A comment is not a
+# published field.
+basis:
+  measurement: undiscounted contractual principal scheduled for repayment
+  contrasted_with: >
+    near_term_debt and total_debt are balance-sheet carrying amounts, net of
+    unamortized discount and issue costs.
+  reconciles_to_total_debt: false
+  evidence: >
+    Verified live 2026-08-05 that even a COMPLETE ladder does not reconcile.
+    QSR FY2023's six buckets sum to 13,043M against a filed LongTermDebt of
+    12,921M; CP FY2023 sums to 23,133M against 22,494M. The gap is the
+    discount/issue-cost difference, not a tagging error.
+  consequence: >
+    No consumer may present these buckets as a total, as a percentage of total
+    debt, or as a breakdown of the near-term debt share. The first bucket and
+    the near-term share are not the same figure — they differ in 11 of 15
+    shared years for CP and 10 of 10 for OTEX.
+
+# Ordered. The engine renders them in exactly this sequence.
+buckets:
+  debt_maturity_year_1: "Within 1 year"
+  debt_maturity_year_2: "Year 2"
+  debt_maturity_year_3: "Year 3"
+  debt_maturity_year_4: "Year 4"
+  debt_maturity_year_5: "Year 5"
+  debt_maturity_thereafter: "After year 5"
+
+# A profile needs at least one MIDDLE year (2-5) to be a schedule at all.
+# OTEX tags a next-twelve-months bucket and a thereafter bucket and never the
+# years between; showing those two alone would imply a schedule with a hole in
+# it. Confirmed live 2026-08-05 that OTEX never tags years 2-5 in any year.
+requires_a_middle_year: true
+
+truncation:
+  when: the "After year 5" bucket is absent for that fiscal year
+  # Not a cosmetic caveat. CP FY2010-2021 is this case, and FY2021's visible
+  # buckets sum to 7,376M against a filed total debt of 20,127M — 63% of the
+  # debt is outside the schedule shown.
+  message: >
+    This filer did not publish a figure for repayments after year five in this
+    year, so the schedule below is only part of its debt.
+
+# Absence here is NOT the AD-16 `insufficient_data` case, and the distinction is
+# deliberate. AD-16 governs a signal inside a model that was ATTEMPTED, where the
+# absence explains why a score did not compute. This is supplementary disclosure
+# detail: five of seven filers cannot produce it for structural reasons, so
+# rendering a "missing" affordance would assert a deficiency that does not exist.
+absence:
+  render: nothing
+  rationale: >
+    Most companies in this universe never publish a year-by-year repayment
+    schedule, either because they report under IFRS — where the disclosure is
+    dimensional and not machine-readable through this data source — or because
+    they have no term debt to schedule. Showing an empty or "missing" panel for
+    them would imply a gap in their reporting that is not there.
+
+# Displayed verbatim wherever the profile appears. It has to defuse TWO
+# misreadings, not one, and the second was only visible once the panel was
+# rendered next to the near-term share (browser check, 2026-08-05):
+#
+#   CP FY2023 shows "3.1B of 22.5B" in the share card and "3.13B" as the first
+#   row of the schedule directly beneath it. Those are different measurements —
+#   3,143M carrying amount vs 3,133M undiscounted principal — but at display
+#   precision they read as the same number restated, which is exactly the
+#   "why do these disagree?" confusion AC 5 exists to prevent.
+attribution: >
+  This is the company's own published repayment schedule, relayed as filed. It
+  shows undiscounted contractual principal, so it does not add up to the total
+  debt above, and its first row is not the same measurement as the near-term
+  debt share above — that one is a balance-sheet carrying amount.

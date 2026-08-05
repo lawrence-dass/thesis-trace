@@ -1072,6 +1072,34 @@
       }
      ]
     }
+   },
+   "LongTermDebtMaturitiesRepaymentsOfPrincipalAfterYearFive": {
+    "label": "Long-Term Debt, Maturity, after Year Five",
+    "description": "",
+    "units": {
+     "USD": [
+      {
+       "end": "2018-06-30",
+       "val": 2815530000,
+       "accn": "0001002638-18-000022",
+       "fy": 2018,
+       "fp": "FY",
+       "form": "10-K",
+       "filed": "2018-08-02",
+       "frame": "CY2018Q2I"
+      },
+      {
+       "end": "2019-06-30",
+       "val": 1923783000,
+       "accn": "0001002638-19-000014",
+       "fy": 2019,
+       "fp": "FY",
+       "form": "10-K",
+       "filed": "2019-08-01",
+       "frame": "CY2019Q2I"
+      }
+     ]
+    }
    }
   },
   "dei": {
