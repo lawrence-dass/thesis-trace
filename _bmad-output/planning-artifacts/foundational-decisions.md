@@ -22,6 +22,13 @@ Phase 1 has "worked" when **both** hold:
 1. **Correctness:** every deterministic score (Piotroski, Altman, Beneish, Sloan) for the Phase 1 company universe matches a hand-verified or published golden dataset, enforced by regression tests.
 2. **Real use:** ThesisTrace informs at least one real investment decision by user zero.
 
+**Status (2026-08-05).** D3.1 **closed** 2026-07-29 and was reopened and re-closed 2026-08-04 when D8
+grew the universe to 7 — a claim about the universe reopens when the universe grows. D3.2 is **still
+open** and has never been met, so Phase 1 has not met its own success definition, and Epics 5-9 were
+planned and Epic 5 shipped on top of a half-met Phase 1. This is not a bookkeeping detail: D3.2 and
+D9's binding gate are the *same* condition, so one decision packet (**D10**) closes D3.2 and unblocks
+Phase 2 decomposition together. Nothing technical blocks it.
+
 ## D4 — End-state posture: portfolio-complete, startup-optional architecture
 
 - **Governing exit criterion:** a polished, hosted, well-engineered tool that is genuinely used and can be shown. No payments, subscriptions, or growth features planned.
@@ -160,6 +167,63 @@ with PRD OQ8's resolution (manual, on demand) and counter-metric SM-C1. Breadth 
 **What this does not change.** D5's four-lens end state, the deterministic/LLM boundary, D4's
 portfolio-complete posture, and the D7 guardrail confining LangGraph to the explain/retrieve/cite
 surface all stand unchanged.
+
+## D10 — What a decision packet is (2026-08-05)
+
+**Decision.** A **decision packet** is a single written record of one real investment decision in
+which ThesisTrace was used. It is the unit D9's binding selection criterion operates on and the
+evidence that closes D3's second condition. It is a manual artifact kept at
+`_bmad-output/decision-packets/YYYY-MM-DD-<TICKER>.md`, using the template committed alongside this
+decision — **not** a product feature. FR-18's thesis journal (Epic 7) may later automate part of it;
+until then, automating it is out of scope and would invert the ordering D9 exists to protect.
+
+**Why this needs a decision at all.** "Decision packet" was load-bearing in three documents —
+`foundational-decisions.md` (D9's selection criterion, marked *binding*), `epics.md` (the
+decomposition note for Epics 6-9) and `sprint-status.yaml` — and was defined in none of them. A gate
+that is simultaneously binding and unfalsifiable has exactly two outcomes and no third: it blocks
+forever because nothing clearly satisfies it, or it is waved through because nothing clearly does
+not. Epics 6-9 have been undecomposed since 2026-08-04 on a criterion nobody could evaluate.
+
+It is also the same condition as **D3.2** ("ThesisTrace informs at least one real investment decision
+by user zero"), which has been open since Phase 1. D3.1 closed on 2026-07-29 with the golden dataset;
+D3.2 never closed, so Phase 1 has never met its own success definition and Epic 5 shipped on top of a
+half-met Phase 1. One packet closes D3.2 and unblocks D9 — they are not two pieces of work.
+
+**A packet is complete when it records all six of these, for ONE company and ONE question:**
+
+1. **The decision and its stake.** Written *before* opening the app. A real hold/sell/pass/size
+   judgment on real money — not a rehearsal, and not "let me see what it says about X".
+2. **What ThesisTrace was asked to contribute.** Which pages and which figures were actually
+   consulted, not which exist.
+3. **What it settled.** Each question it answered, with the figure that answered it.
+4. **Where it ran out.** Each blocking gap, phrased as *a question the product could not answer*.
+   Must be non-empty — see the re-derivation clause below.
+5. **What was done instead.** Every place the work left ThesisTrace — raw EDGAR, a spreadsheet, a
+   competitor, a napkin. This is usually where (4) is really discovered, because a gap you routed
+   around is easy to forget and a tool you opened is not.
+6. **The verdict.** Did it inform the decision — yes or no, plainly. This is D3.2, and a "no" is a
+   valid, informative packet, not a failed one.
+
+**The selection input.** The packet must name **one** largest research failure, not a ranked list.
+D9 selects on a single item; a list defers the judgment the packet exists to force.
+
+**Falsifiability clauses**, without which this definition would repeat the problem it fixes:
+
+- **A packet with an empty (4) does not select anything, and is itself a finding.** If a real decision
+  was reached with nothing missing, D9's roadmap is not evidence-led — it is unnecessary. Re-derive
+  the list from scratch rather than defaulting to Epic 6.
+- **One packet is one company and one decision.** Several shallow looks do not aggregate into one.
+  The failure that matters is the one that surfaces at decision depth, and breadth is explicitly not
+  progress (D9's universe posture, counter-metric SM-C1).
+- **Check the named failure against the roadmap, and be suspicious of agreement.** If the largest
+  failure happens to be the next list item, confirm it is genuinely the largest rather than the
+  expected. D9's list is a starting hypothesis; a packet that only ever confirms it is not testing it.
+- **Written during, not reconstructed after.** Item 1 before, items 2-6 during or immediately after.
+  A reconstructed packet records what you now believe you needed, which is the roadmap talking back.
+
+**What this does not change.** D9's ordering and its selection criterion stand exactly as written;
+this defines the unit D9 already referred to. D3 is unchanged — this makes its second condition
+measurable, not easier. D5, D4 and D7 are untouched.
 
 ## Open items before PRD
 
