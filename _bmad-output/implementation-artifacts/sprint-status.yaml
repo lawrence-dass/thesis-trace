@@ -119,14 +119,21 @@ development_status:
   5-7-maturity-profile-detail-for-filers-that-support-it: done
   epic-5-retrospective: optional
 
-  # Epics 6-9 carry no story keys because epics.md declares no stories for them.
-  # That is deliberate, and as of 2026-08-05 it is recorded as DATA in the
-  # `epic_catalog` section below (`decomposition: deferred`, with the governing
-  # decision and the condition that would end the deferral) rather than in a
-  # comment like this one, which no parser can see. Epic titles likewise moved
-  # to the catalog — they used to live in trailing `#` comments here, which made
-  # every epic in this file nameless to `yaml.safe_load`.
-  epic-6: backlog
+  # Epic 6 decomposed 2026-08-06. Epics 7-9 still carry no story keys, because
+  # epics.md declares no stories for them. That remains deliberate and is recorded
+  # as DATA in the `epic_catalog` section below (`decomposition: deferred`, with
+  # the governing decision and the condition that would end the deferral) rather
+  # than in a comment like this one, which no parser can see. Epic titles likewise
+  # live in the catalog — they used to sit in trailing `#` comments here, which
+  # made every epic in this file nameless to `yaml.safe_load`.
+  epic-6: in-progress
+  6-1-reverse-dcf-input-coverage-spike: done
+  6-2-free-cash-flow-canonical-concepts: backlog
+  6-3-versioned-reverse-dcf-spec-and-deterministic-solver: backlog
+  6-4-sensitivity-range-over-discount-rate-and-terminal-growth: backlog
+  6-5-implied-assumptions-read-api: backlog
+  6-6-reverse-dcf-on-the-company-overview: backlog
+  6-7-golden-dataset-coverage-for-the-implied-growth-rate: backlog
   epic-6-retrospective: optional
   epic-7: backlog
   epic-7-retrospective: optional
@@ -182,23 +189,33 @@ epic_catalog:
     decomposition: decomposed
   epic-6:
     title: "Narrow Valuation — Reverse DCF"
-    decomposition: deferred
-    deferred_under: D9
-    reason: >
-      D9's selection criterion is binding: the feature after each increment is chosen
-      from the largest OBSERVED research failure, not from the next item on the list.
-      Epic 6 is only the list's next item, and D9 states in terms that the list is "a
-      starting hypothesis, not a commitment". Writing acceptance criteria now would
-      make an unvalidated ordering look settled.
-    decompose_when: >
-      A complete decision packet exists (D10 defines the six sections and the
-      falsifiability clauses; template at _bmad-output/decision-packets/TEMPLATE.md),
-      and the single largest research failure it names is a valuation gap. If it names
-      something else, D9 requires the list be re-derived and another epic takes this
-      slot; if it names nothing, the roadmap is not evidence-led and is re-derived from
-      scratch. Nothing technical blocks the packet — all 7 filers are live at
-      concepts_v7 as of 2026-08-05. The same packet closes D3's second condition, open
-      since Phase 1.
+    decomposition: decomposed
+    decomposed_on: 2026-08-06
+    note: >
+      Decomposed WITHOUT a decision packet, deliberately, and the reasoning is recorded
+      because it reverses this file's own earlier position. D9's binding criterion
+      governs BUILD order — which feature is built next — not planning order. The "do
+      not decompose" rule was an inference stated in epics.md, not a clause in D9, and
+      it does not hold: acceptance criteria commit nothing, since a story can sit in
+      the backlog unbuilt. Deferring Epics 6-9 as a block treated four epics with four
+      different blockers as one case.
+
+      The test applied instead is per-epic: can the acceptance criteria be written
+      truthfully today? Epic 6's could, once Story 6.1's spike (2026-08-06) answered
+      the data question. Its five remaining product questions are judgement calls, not
+      evidence questions, and are recorded in epics.md as assumptions A-1..A-5 —
+      horizon, terminal method, discount-rate treatment, solve-target and sensitivity
+      axes — each explicitly reversible rather than presented as a finding.
+    d9_still_governs: >
+      What gets BUILT next is still chosen from the largest observed research failure,
+      per D10's decision packet. A planned backlog is what that choice selects from.
+      Decomposition is not a commitment to build.
+    known_gap: >
+      Suncor resolves no capex and is insufficient_data for the whole epic. Story 6.2
+      must also settle an interest-classification decision: US GAAP mandates interest
+      paid inside operating activities while IAS 7 permits operating or financing, so
+      cash_from_operations is not comparable across regimes as filed. Same shape as D8
+      consequence 3.
   epic-7:
     title: "Thesis Journal & Thesis Diff"
     decomposition: deferred

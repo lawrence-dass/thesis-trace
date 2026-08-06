@@ -123,13 +123,25 @@ A visitor discovers the Company Universe from the landing page, searches for tic
 Sequenced by **`foundational-decisions.md` D9** — around one real investment decision, not around the
 lens list. Epics 1–4 are complete; Phase 2 begins at Epic 5.
 
-> **Decomposition is deliberately uneven, and that is the decision, not an omission.** Epic 5 is
-> fully decomposed into stories because it is next. Epics 6–7 carry intent and scope but no stories.
-> Epics 8–9 are headlines only. D9's binding selection criterion says the feature after each
-> increment is chosen from **the largest observed research failure**, not the next list item — so
-> decomposing Epic 8 today would commit to an ordering the first real decision packet is explicitly
-> allowed to overturn. Decompose each epic at its own planning pass, once the prior one has been
-> used for real research.
+> **Decomposition is deliberately uneven, and that is the decision, not an omission.** Epics 5 and 6
+> are fully decomposed. Epic 7 carries intent and scope but no stories. Epics 8–9 are headlines only.
+>
+> **Corrected 2026-08-06.** This note previously read that decomposing an epic "would commit to an
+> ordering the first real decision packet is explicitly allowed to overturn," and used that to defer
+> Epics 6–9 as a block. That inference does not hold. **D9's binding criterion governs BUILD order —
+> which feature is built next — not planning order.** Acceptance criteria commit nothing; a story can
+> sit in the backlog unbuilt indefinitely. Conflating "we planned it" with "we committed to it"
+> treated four epics with four different blockers as one case.
+>
+> The honest test is per-epic: **can its acceptance criteria be written truthfully today?** Epic 6's
+> could, once Story 6.1's spike answered the data question and its five remaining product questions
+> were recorded as assumptions rather than findings. Epic 7's cannot until the thesis-storage
+> contradiction is resolved — "on return the system diffs" requires persistence, and Phase 1 has no
+> auth. Epic 8's need a metric selection and an unequal-history display rule, both makeable but not
+> yet made. Epic 9's would reference a citation-evaluation framework that does not exist.
+>
+> D9 is unchanged and still binding: **what gets built next is still chosen from the largest observed
+> research failure.** A planned backlog is what that choice selects *from*.
 
 ### Epic 5: Filing Change Detection & Quality-Lens Depth
 Lawrence opens a company he last looked at weeks ago and sees, immediately and citably, what moved — new filing ingested, canonical facts changed, score bands crossed, data-quality issues opened or resolved — plus the two Quality/Health sub-metrics adopted under PRD OQ9. First increment of the decision workflow: you cannot evaluate a thesis without first knowing what changed. *(OQ9's "debt maturity concentration" was redefined to near-term debt share on 2026-08-04 after the Story 5.1 spike found only 2 of 7 filers carry a usable ladder.)*
@@ -689,3 +701,141 @@ So that I can distinguish a smooth maturity ladder from a cliff.
 **And** a filer without a ladder shows **no gap, blank, or "missing" affordance** — the profile is absent for most of the universe by structure, and rendering it as missing data would misrepresent five of seven filers as deficient
 **And** where the "thereafter" bucket is absent for a year, the profile states that it is truncated rather than implying the displayed buckets are the whole debt
 **And** this story ships **after** 5.6 and may be deferred indefinitely without blocking the epic — it is presentation depth for two filers, not a lens capability.
+
+---
+
+## Epic 6: Narrow Valuation — Reverse DCF
+
+Lawrence sees what growth the *current market price* implies for a company, with every assumption explicit and a sensitivity range — never a bare fair-value point estimate. Deliberately a narrow slice of FR-16, not the full Value lens: reverse DCF only, because it answers "is the price reasonable?" while making the model's assumptions the visible output rather than hiding them behind a single number.
+
+**Decomposed 2026-08-06.** Story 6.1's spike answered the data question: the inputs are reachable for 6 of 7 filers. What remained were five product decisions, which are recorded below as **assumptions rather than findings** — each is a judgement call, each is reversible, and each should be challenged before the story that depends on it is built.
+
+> **A-1 — Horizon: five explicit years plus a terminal value.** Ten explicit years implies a precision nobody has, and most filers carry only 9–14 years of history, so a ten-year forecast extrapolates further than the record supports.
+>
+> **A-2 — Terminal value: perpetuity growth, not an exit multiple.** An exit multiple imports a peer comparable, which is a second source of truth ThesisTrace does not have and would sit awkwardly beside the "never blend into a composite" discipline. Perpetuity growth is one explicit assumption the reader can see and argue with.
+>
+> **A-3 — Discount rate: user-supplied, with a stated default.** WACC needs beta and an equity risk premium, neither of which is in EDGAR and both of which are judgements. Computing one would make ThesisTrace originate the single most consequential assumption in the model and present it as derived. The epic's own promise is that assumptions are the visible output — so this one is an input.
+>
+> **A-4 — Solve backward for implied revenue growth, holding operating margin at its trailing level.** Growth is the assumption investors most often over-extrapolate, and it is the one ThesisTrace can check against something it already holds deterministically: the filer's own 9–24 years of revenue history. Solving for margin instead would produce a number with no comparable.
+>
+> **A-5 — Sensitivity across discount rate × terminal growth.** These two move a DCF most and are least observable. Revenue growth cannot be an axis because it is the output.
+
+**FRs covered:** FR-16 (partial — reverse DCF only)
+
+### Story 6.1: Reverse-DCF input coverage spike
+
+As Lawrence (developer),
+I want to know which reverse-DCF inputs are actually reachable for each filer before any story assumes them,
+So that the metric is scoped to what the data supports rather than redefined mid-build.
+
+**Acceptance Criteria:**
+
+**Given** the seven-filer universe
+**When** coverage is checked against ingested raw facts, and live company-facts wherever local history is suspect
+**Then** per-filer, per-year coverage is recorded for every candidate input, not merely tag presence
+**And** any filer that cannot support the metric is named, with the structural reason
+**And** every finding is recorded as a hypothesis to be re-confirmed at build time, per Story 5.1's precedent
+**And** the record states what the spike could **not** establish.
+
+*Status: DONE 2026-08-06. Findings in `sprint-status.yaml` → `story_6_1_reverse_dcf_coverage_spike`. Verdict: reachable for 6 of 7; Suncor tags no PP&E purchase flow and must read `insufficient_data`.*
+
+### Story 6.2: Free-cash-flow canonical concepts — interest classification decided
+
+As the system,
+I want free cash flow assembled from canonical concepts that mean the same thing in both reporting regimes,
+So that an implied growth rate computed for Cameco is comparable with one computed for CP.
+
+**The decision this story exists to force.** Free cash flow is `cash_from_operations − capex`, and both operands are available. But **`cash_from_operations` is not comparable across regimes as filed**: US GAAP mandates interest paid inside operating activities, while IAS 7 permits operating *or* financing. Two filers with identical economics can therefore report different CFO. This is the same shape as D8 consequence 3, where IFRS's absent operating-profit line forced an explicit `ebit` derivation — and it must be settled in the versioned spec, not in a mapping row.
+
+**Acceptance Criteria:**
+
+**Given** the `us-gaap` and `ifrs-full` taxonomies
+**When** the new concepts are mapped
+**Then** `capex` and `cash_and_equivalents` exist as canonical concepts with per-year coverage verified live, never inferred from tag presence
+**And** `capex` maps `PaymentsToAcquirePropertyPlantAndEquipment`, OTEX's `PaymentsToAcquireProductiveAssets` variant, and the `ifrs-full` purchase tag — and does **not** map QSR's `CapitalExpendituresIncurredButNotYetPaid`, which is an accrual disclosure rather than cash capex
+**And** `cash_and_equivalents` excludes restricted cash, because restricted cash cannot service debt; the two tags are recorded as distinct concepts and QSR's mid-history switch between them is handled by per-year coverage, not by treating them as equivalent
+**And** each filer's actual interest classification is verified live, and where a filer places interest in financing the run is annotated `computed_with_caveat` with the reason stored as data — reusing the existing caveat mechanism rather than inventing one
+**And** `MAPPING_VERSION` is bumped to `concepts_v8` per AD-2, and no spec an existing stored version points at is edited
+**And** Suncor resolves no `capex` and is therefore `insufficient_data` for the whole epic — substituting its intangibles-additions tag is explicitly rejected, being a partial base against a full one, the same error the QSR gross-profit re-verification refused.
+
+### Story 6.3: Versioned reverse-DCF spec and deterministic solver
+
+As the system,
+I want the reverse DCF expressed as a versioned ThesisTrace specification and solved deterministically,
+So that the implied growth rate is reproducible and every judgement in it is published rather than buried in code.
+
+**Acceptance Criteria:**
+
+**Given** a filer-year with free cash flow, market capitalisation, total debt and cash
+**When** the solver runs
+**Then** enterprise value is `market cap + total_debt − cash_and_equivalents`, each operand citable
+**And** the solver returns the constant five-year revenue growth rate (A-1) that equates the discounted free-cash-flow stream plus a perpetuity terminal value (A-2) to enterprise value, holding operating margin at its trailing level (A-4)
+**And** the spec is `thesistrace_presentation_rule`-kind, carries `spec_version`, and states in a machine-readable field — not a comment — that the horizon, terminal method, discount-rate treatment and solve-target are ThesisTrace's choices and not a published academic model
+**And** the discount rate is an input with a declared default (A-3), and the default's value and origin are published on `/methodology`
+**And** every figure is `Decimal`, never float (AD-15)
+**And** where the solver cannot converge, or an operand is absent, the result is `insufficient_data` with the reason — never a clamped, defaulted or extrapolated value
+**And** the solver never returns a fair-value point estimate, and a test asserts no such field is exposed, mirroring the maturity profile's no-total guard.
+
+### Story 6.4: Sensitivity range over discount rate and terminal growth
+
+As Lawrence (investor),
+I want the implied growth rate shown as a range across the two assumptions that move it most,
+So that I read it as a band of plausibility rather than a single number that looks like a fact.
+
+**Acceptance Criteria:**
+
+**Given** a filer-year the solver resolves
+**When** the sensitivity is computed
+**Then** the implied growth rate is solved across a declared grid of discount rate × terminal growth (A-5), with the grid's bounds and step declared in the spec
+**And** the rendered output leads with the range, not the midpoint
+**And** a cell that fails to converge is shown as such rather than omitted, so the grid cannot silently misrepresent its own coverage
+**And** the grid is computed deterministically in Python and stored, so a read cannot trigger computation (AD-1).
+
+### Story 6.5: Implied-assumptions read API
+
+As the frontend,
+I want the implied growth rate, its sensitivity grid, and every operand behind it in one response,
+So that the page can show the reader how the number was reached without a second round trip.
+
+**Acceptance Criteria:**
+
+**Given** a company with a resolved reverse DCF
+**When** the overview is requested
+**Then** the response carries the implied growth rate, the sensitivity grid, the discount rate used, and each operand — free cash flow, market cap, total debt, cash — with provenance (AD-19)
+**And** every operand is independently recomputable from the response, closing risk-assessment finding 3.5 for this feature
+**And** the response states the filer's own historical revenue CAGR over its available history alongside the implied rate, because the comparison is the point of A-4
+**And** the historical window adapts to the filer's actual coverage and is labelled with it — no fixed decade promise, since IFRS filers start ~FY2017
+**And** the query folds into the existing single-pass overview read rather than adding round trips (AD-1).
+
+### Story 6.6: Reverse DCF on the company overview
+
+As Lawrence (investor),
+I want the implied growth rate presented beside what the company has actually achieved,
+So that I can judge whether the price is asking for something the business has ever done.
+
+**Acceptance Criteria:**
+
+**Given** a company whose reverse DCF resolves
+**When** the company page renders
+**Then** the implied growth rate appears with its sensitivity range and the discount rate that produced it, all visible without interaction
+**And** the filer's own historical revenue CAGR is shown adjacent, labelled with the window it covers
+**And** the assumptions are labelled as ThesisTrace's, distinctly from the four academic models, so the page cannot read as though a published model produced them
+**And** a filer that cannot resolve — Suncor — shows `insufficient_data` with its reason, following AD-16 rather than the maturity profile's render-nothing exception, because this is a lens capability rather than supplementary disclosure detail
+**And** custom visualisation only; no off-the-shelf charting library
+**And** the page is verified in a browser against real `concepts_v8` data before the story closes — the standing rule, which found four defects in Story 5.4 and two more in 5.7.
+
+### Story 6.7: Golden-dataset coverage for the implied growth rate
+
+As Lawrence (developer),
+I want the implied growth rate hand-verified for every filer that resolves it,
+So that SM-1 continues to hold over the capability, not only over the four academic models.
+
+**Acceptance Criteria:**
+
+**Given** the filers that resolve a reverse DCF
+**When** the golden dataset is extended
+**Then** each expected implied growth rate is computed independently, without importing `backend/scoring`, `backend/formulas` or the solver itself — the constraint that let the IFRS golden pass catch its own averaging error
+**And** every operand is compared, not only the final rate, because two wrong operands can agree on an aggregate
+**And** Suncor's `insufficient_data` and its reason are asserted, so its absence can never later be mistaken for a coverage bug
+**And** the golden entries are added in the **same change** as the capability — SM-1 is a claim about the universe, and shipping the feature first would silently break it
+**And** corrupting an expected value fails the suite, confirming the guard bites.
