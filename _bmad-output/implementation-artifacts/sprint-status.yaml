@@ -191,10 +191,14 @@ epic_catalog:
       starting hypothesis, not a commitment". Writing acceptance criteria now would
       make an unvalidated ordering look settled.
     decompose_when: >
-      Epic 5 (change detection) has been used on a company Lawrence is genuinely
-      researching, and that use has produced a named research failure. If the failure
-      is a valuation gap, decompose this epic; if it is something else, D9 requires
-      the list be re-derived and another epic may take this slot.
+      A complete decision packet exists (D10 defines the six sections and the
+      falsifiability clauses; template at _bmad-output/decision-packets/TEMPLATE.md),
+      and the single largest research failure it names is a valuation gap. If it names
+      something else, D9 requires the list be re-derived and another epic takes this
+      slot; if it names nothing, the roadmap is not evidence-led and is re-derived from
+      scratch. Nothing technical blocks the packet — all 7 filers are live at
+      concepts_v7 as of 2026-08-05. The same packet closes D3's second condition, open
+      since Phase 1.
   epic-7:
     title: "Thesis Journal & Thesis Diff"
     decomposition: deferred
@@ -204,8 +208,8 @@ epic_catalog:
       FR coverage) but not decomposed, because its position depends on what Epic 6's
       decision packet exposes.
     decompose_when: >
-      The increment before it has been used for real research and this epic is what
-      the observed failure selects.
+      The increment before it has produced its own decision packet (D10) and this epic
+      is what that packet's single largest research failure selects.
   epic-8:
     title: "Growth Trends"
     decomposition: deferred
