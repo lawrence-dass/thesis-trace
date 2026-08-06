@@ -119,20 +119,119 @@ development_status:
   5-7-maturity-profile-detail-for-filers-that-support-it: done
   epic-5-retrospective: optional
 
-  # Epics 6-9 appear in epics.md's Epic List but are NOT decomposed into stories,
-  # and deliberately so: D9's selection criterion picks the next feature from the
-  # largest OBSERVED research failure, so decomposing now would commit to an
-  # ordering the first decision packet is explicitly permitted to overturn.
-  # Tracked here as bare epics so they are visible to sprint-status without
-  # implying stories exist. Epics 8-9 are headlines only.
-  epic-6: backlog          # Narrow Valuation — Reverse DCF
+  # Epics 6-9 carry no story keys because epics.md declares no stories for them.
+  # That is deliberate, and as of 2026-08-05 it is recorded as DATA in the
+  # `epic_catalog` section below (`decomposition: deferred`, with the governing
+  # decision and the condition that would end the deferral) rather than in a
+  # comment like this one, which no parser can see. Epic titles likewise moved
+  # to the catalog — they used to live in trailing `#` comments here, which made
+  # every epic in this file nameless to `yaml.safe_load`.
+  epic-6: backlog
   epic-6-retrospective: optional
-  epic-7: backlog          # Thesis Journal & Thesis Diff
+  epic-7: backlog
   epic-7-retrospective: optional
-  epic-8: backlog          # Growth Trends (headline only — do not decompose yet)
+  epic-8: backlog
   epic-8-retrospective: optional
-  epic-9: backlog          # Filing Q&A (headline only — do not decompose yet)
+  epic-9: backlog
   epic-9-retrospective: optional
+
+# EPIC CATALOG — the human-meaningful half of `development_status`, in a form a
+# parser can actually read. Added 2026-08-05.
+#
+# WHY IT IS A SEPARATE SECTION. `development_status` is a flat map of scalars because
+# that is the shape bmad-sprint-planning generates and regenerates
+# (.agents/skills/bmad-sprint-planning/sprint-status-template.yaml). A scalar holds a
+# status and nothing else, so an epic's TITLE had nowhere to go: Epics 6-9 kept theirs
+# in a trailing `#` comment and Epics 1-5 had none at all. Nesting the epics into
+# sub-mappings would have carried the title but broken the generator, so the metadata
+# lives here instead, pinned to `development_status` by tests rather than by hope.
+#
+# THE FIELD THAT MATTERS is `decomposition`, which answers the question the old prose
+# comment answered — and which, being a comment, was invisible to every tool:
+#
+#   decomposed  Stories exist in epics.md and are tracked in development_status.
+#   deferred    NO stories, deliberately, under a named decision. `deferred_under`
+#               names the decision and `decompose_when` states what would end it.
+#
+# An epic with no tracked stories MUST declare `deferred` with both fields;
+# test_sprint_status.py enforces it. Before this existed, an epic nobody had gotten
+# around to decomposing was indistinguishable from one deliberately left alone —
+# which is the same class of failure as Epic 5's status living in a prose comment
+# while five of its stories shipped.
+#
+# `title` must match the epic's heading in epics.md (the italic
+# `*(headline only — ...)*` aside is a decomposition marker, not part of the name,
+# and is stripped before comparison). Also tested, because a title duplicated across
+# two files with nothing checking them is the same drift the header-comment metadata
+# already demonstrated.
+epic_catalog:
+  epic-1:
+    title: "Foundation & First Evidence (Walking Skeleton)"
+    decomposition: decomposed
+  epic-2:
+    title: "Complete the Four Lenses"
+    decomposition: decomposed
+  epic-3:
+    title: "Verdict, Methodology & Explanation"
+    decomposition: decomposed
+  epic-4:
+    title: "Discovery & Comparison"
+    decomposition: decomposed
+  epic-5:
+    title: "Filing Change Detection & Quality-Lens Depth"
+    decomposition: decomposed
+  epic-6:
+    title: "Narrow Valuation — Reverse DCF"
+    decomposition: deferred
+    deferred_under: D9
+    reason: >
+      D9's selection criterion is binding: the feature after each increment is chosen
+      from the largest OBSERVED research failure, not from the next item on the list.
+      Epic 6 is only the list's next item, and D9 states in terms that the list is "a
+      starting hypothesis, not a commitment". Writing acceptance criteria now would
+      make an unvalidated ordering look settled.
+    decompose_when: >
+      Epic 5 (change detection) has been used on a company Lawrence is genuinely
+      researching, and that use has produced a named research failure. If the failure
+      is a valuation gap, decompose this epic; if it is something else, D9 requires
+      the list be re-derived and another epic may take this slot.
+  epic-7:
+    title: "Thesis Journal & Thesis Diff"
+    decomposition: deferred
+    deferred_under: D9
+    reason: >
+      Same criterion as Epic 6, one step further out. Scoped in epics.md (intent and
+      FR coverage) but not decomposed, because its position depends on what Epic 6's
+      decision packet exposes.
+    decompose_when: >
+      The increment before it has been used for real research and this epic is what
+      the observed failure selects.
+  epic-8:
+    title: "Growth Trends"
+    decomposition: deferred
+    deferred_under: D9
+    reason: >
+      Headline only in epics.md — deliberately the least specified, because it is
+      furthest from evidence. Its depth is explicitly meant to be set by "the depth
+      the decision workflow proves it needs", which cannot be known yet. A further
+      constraint is already recorded: trend depth must honestly reflect per-filer
+      coverage (IFRS 40-F filers start ~FY2017, ~9 years, against OTEX's 24 under
+      us-gaap), so no fixed decade-long promise can be written into a story.
+    decompose_when: >
+      The workflow has demonstrated which trends it actually consumes. Do not
+      decompose from the FR alone.
+  epic-9:
+    title: "Filing Q&A"
+    decomposition: deferred
+    deferred_under: D9
+    reason: >
+      Headline only, and last by design. D9 places it last because it is the heaviest
+      lift in the roadmap and depends on a citation-evaluation framework that does not
+      yet exist; D7 additionally confines LangGraph to the explain/retrieve/cite
+      surface. Both constraints have to be satisfied before stories are meaningful.
+    decompose_when: >
+      A citation-evaluation framework exists, and the earlier increments have been used
+      for real research.
 
 # Action-item statuses reconciled 2026-07-29 against the actual repo state.
 # Four of the five were already satisfied but still recorded as open, which

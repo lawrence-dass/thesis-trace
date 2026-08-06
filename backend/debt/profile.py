@@ -14,10 +14,14 @@ rather than by code:
     that no such attribute ever appears — because the natural way to render six
     buckets is a stacked bar summing to 100%, and that would be a lie.
 
-  * A PROFILE MUST BE CONTIGUOUS FROM YEAR ONE. Anything else is a schedule with
-    a hole in it, and a hole renders as a complete schedule unless it is refused.
-    Three real shapes make this concrete:
-      - OTEX tags year 1 and thereafter and never the years between.
+  * A PROFILE MUST BE CONTIGUOUS FROM YEAR ONE AND REACH AT LEAST YEAR 2. Any
+    other shape is a schedule with a hole in it or a single figure dressed as a
+    schedule, and both render as complete unless refused. Four real shapes make
+    this concrete:
+      - OTEX tags year 1 and thereafter and never the years between (FY2012-2020).
+      - OTEX tags year 1 and NOTHING else once its thereafter tag stops
+        (FY2011, FY2021-2025) — the length-one case, which contiguity alone
+        admits. See `_is_a_renderable_schedule` for why that is not redundant.
       - CP FY2012 tags years 2-5 but no year 1, which would render as though
         nothing at all falls due within twelve months.
       - AD-3 can drop a single bucket as `ambiguous_selection`, punching an
@@ -41,7 +45,7 @@ from pathlib import Path
 
 import yaml
 
-SPEC_PATH = Path(__file__).resolve().parent.parent / "formulas" / "specs" / "debt_maturity_profile_v1.yaml"
+SPEC_PATH = Path(__file__).resolve().parent.parent / "formulas" / "specs" / "debt_maturity_profile_v2.yaml"
 
 
 class MaturityProfileSpecError(Exception):
@@ -80,6 +84,19 @@ def load_profile_spec() -> dict:
             "basis.reconciles_to_total_debt must be declared false — the ladder is "
             "undiscounted principal and does not sum to the carrying amount."
         )
+
+    # Both admission rules are declared in the spec AND implemented in
+    # `_is_a_renderable_schedule`. Pinning them here keeps the two from drifting:
+    # a spec that quietly dropped one would otherwise still load while the code
+    # went on enforcing it, leaving the published rule and the actual behaviour
+    # disagreeing with nothing to say which is right. v1 shipped only the first of
+    # these and rendered a one-row schedule for OTEX in six fiscal years.
+    for rule in ("requires_contiguous_from_year_one", "requires_at_least_one_middle_year"):
+        if data.get(rule) is not True:
+            raise MaturityProfileSpecError(
+                f"{rule} must be declared true — it is enforced by "
+                "_is_a_renderable_schedule and the spec is what publishes it."
+            )
 
     # Bucket ORDER is load-bearing: the last key is the tail whose absence means
     # truncation, and contiguity is checked by position. Reordering the mapping
@@ -158,7 +175,7 @@ def profile_for_facts(facts) -> dict[int, MaturityProfile]:
     profiles: dict[int, MaturityProfile] = {}
     for fiscal_year, found in by_year.items():
         present = [c for c in PROFILE_CONCEPTS if c in found]
-        if not _is_contiguous_from_year_one(present):
+        if not _is_a_renderable_schedule(present):
             continue
 
         buckets = tuple(
@@ -188,15 +205,29 @@ def profile_for_facts(facts) -> dict[int, MaturityProfile]:
     return profiles
 
 
-def _is_contiguous_from_year_one(present: list[str]) -> bool:
-    """A schedule must start at year 1 and have no holes; only the tail may be absent.
+def _is_a_renderable_schedule(present: list[str]) -> bool:
+    """Two conditions, and BOTH are load-bearing (spec v2).
 
-    Every other shape would render as a complete schedule while omitting a bucket:
-    OTEX's year-1-plus-tail, CP FY2012's missing year 1 (which would read as
-    nothing falling due within twelve months), or a single bucket dropped upstream
-    by an AD-3 ambiguous_selection.
+    1. CONTIGUOUS FROM YEAR ONE. Only the tail may be absent. Every other shape
+       renders as a complete schedule while omitting a bucket: CP FY2012's missing
+       year 1 (which would read as nothing falling due within twelve months), or a
+       single bucket dropped upstream by an AD-3 ambiguous_selection.
+
+    2. REACHES AT LEAST YEAR 2. A lone year-1 bucket satisfies (1) — it is a
+       contiguous prefix of length one — but it is not a schedule, and it renders
+       as a one-row table restating the near-term debt card above it with a
+       different measurement basis.
+
+    Condition 2 is not redundant, and the history matters: it was removed during
+    Story 5.7's code review on the grounds that contiguity subsumed it. It does
+    not. The two rules disagree on exactly one shape, length one, and that shape
+    is live — OTEX hits it in six fiscal years and rendered a bogus schedule in
+    every one of them until 2026-08-05. A subsumption claim needs a test at the
+    boundary where the two rules differ, which is why one now exists.
     """
     if not present or present[0] != PROFILE_CONCEPTS[0]:
+        return False
+    if len(present) < 2:
         return False
     expected = PROFILE_CONCEPTS[: len(present)]
     return tuple(present) == expected

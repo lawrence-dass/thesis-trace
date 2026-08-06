@@ -1,24 +1,4 @@
 # ============================================================================
-# SUPERSEDED 2026-08-05 BY debt_maturity_profile_v2.yaml — DO NOT EDIT.
-# ============================================================================
-# Nothing loads this file: `debt/profile.py` points at v2, and no stored row
-# references a profile spec version (the profile is computed on read and its
-# spec_version is only echoed to the client), so this is history rather than a
-# live contract. It is kept because a superseded spec is the audit trail for how
-# a published rule changed.
-#
-# WHY IT WAS SUPERSEDED. `requires_contiguous_from_year_one` below is true but
-# INSUFFICIENT on its own: a lone year-1 bucket is a contiguous prefix of length
-# one, so this version rendered a one-row "schedule" for OTEX in six fiscal
-# years. v2 adds `requires_at_least_one_middle_year`. See v2's header for the
-# full account.
-#
-# If you are here to correct something, correct it in v2. This is exactly the
-# hazard Story 5.7's review flagged for the us-gaap v4/v5/v6 specs — near-
-# identical files where a fix can land in only one — and this banner is the
-# cheap mitigation for it.
-#
-# ============================================================================
 # THESISTRACE-AUTHORED PRESENTATION RULE — NOT AN ACADEMIC MODEL.
 # ============================================================================
 # This one is thinner than its siblings on purpose: it applies NO thresholds and
@@ -28,11 +8,35 @@
 #
 # `kind` is checked by the loader: this file is deliberately NOT loadable as a
 # model formula spec, so it can never be mistaken for one.
+#
+# ---------------------------------------------------------------------------
+# WHY v2 EXISTS (2026-08-05). v1 rendered a ONE-ROW "schedule" for OTEX in six
+# fiscal years, under a note blaming only the missing after-year-five figure
+# while years 2-5 were equally absent. Found by re-canonicalizing to concepts_v7
+# and rendering the page against real facts.
+#
+# v1's rule was `requires_contiguous_from_year_one` alone. That rule had replaced
+# an earlier "needs at least one middle year" rule during Story 5.7's code
+# review, on the stated grounds that contiguity "subsumes it and closes the
+# hole". It does not: a lone year-1 bucket is a contiguous prefix of length one,
+# so it passes contiguity while the rule it replaced would have rejected it. The
+# two rules disagree on exactly one input shape, and nothing tested that shape.
+#
+# v2 requires BOTH conditions. Contiguity still closes the interior-hole cases
+# that motivated it; the middle-year requirement restores the floor. The
+# behaviour change is confined to schedules of length one — every shape v1
+# accepted with two or more contiguous buckets is unchanged.
+#
+# Recorded here rather than in a commit message because it is the second time
+# this rule's boundary has moved, and the next reader needs to know that
+# "contiguity" alone was tried and was insufficient.
+# ---------------------------------------------------------------------------
 
 kind: thesistrace_presentation_rule
 authored_by: thesistrace
 rule: debt_maturity_profile
-spec_version: debt_maturity_profile_v1
+spec_version: debt_maturity_profile_v2
+supersedes: debt_maturity_profile_v1
 
 description: >
   The year-by-year schedule of long-term debt repayments a filer publishes in
@@ -82,11 +86,34 @@ buckets:
 #     otherwise well-covered filer-year, punching an invisible hole.
 requires_contiguous_from_year_one: true
 
+# ...AND it must reach at least year 2. Contiguity alone admits a schedule of
+# length one, which is not a schedule: it is a single figure wearing the
+# furniture of one. Live shapes this rejects, all OTEX, all previously rendered:
+#   * FY2021-2025 and FY2011 — year 1 tagged, nothing else, because OTEX's
+#     `thereafter` tag stops at FY2020. Six fiscal years in the current universe.
+# Two further reasons beyond "one row is not a schedule":
+#   * It duplicates the near-term debt share card sitting directly above it,
+#     while showing a DIFFERENT number for what reads as the same thing (370.4M
+#     undiscounted principal against 35.9M carrying amount for OTEX FY2025) —
+#     the precise "why do these disagree?" confusion `attribution` below exists
+#     to prevent, with none of the surrounding context that defuses it.
+#   * The truncation message below can only name the tail, so a length-one
+#     schedule is annotated with a reason that is true but radically incomplete.
+requires_at_least_one_middle_year: true
+
 truncation:
   when: the "After year 5" bucket is absent for that fiscal year
   # Not a cosmetic caveat. CP FY2010-2021 is this case, and FY2021's visible
   # buckets sum to 7,376M against a filed total debt of 20,127M — 63% of the
   # debt is outside the schedule shown.
+  #
+  # KNOWN LIMITATION, narrowed but not eliminated by v2. This message names the
+  # tail specifically, but it fires whenever the tail is absent — including
+  # shapes where interior years are missing too. v2 removes the worst case
+  # (length one, where four buckets are missing and only one is named). A
+  # length-two or -three schedule can still under-report what is absent. Left as
+  # a known limitation rather than fixed here, because making the message name
+  # the actual first-missing bucket is a copy change with its own review.
   message: >
     This filer did not publish a figure for repayments after year five in this
     year, so the schedule below is only part of its debt.
@@ -100,8 +127,10 @@ absence:
   render: nothing
   # Deliberately does NOT claim every absent case is the filer's doing. For four
   # of the six it is; for OTEX it is not — OTEX publishes a partial ladder and
-  # ThesisTrace withholds it under the contiguity rule above, because the two ends
-  # alone would misrepresent the schedule. Asserting "the company does not publish
+  # ThesisTrace withholds it, because a partial schedule misrepresents what is
+  # owed. Under v2 that withholding covers BOTH of OTEX's shapes: the two-ended
+  # ladder of FY2012-2020 (contiguity) and the lone year-1 bucket of FY2011 and
+  # FY2021-2025 (middle-year floor). Asserting "the company does not publish
   # one" would be false for that filer, the same class of error as Story 5.6's
   # "this filer does not report the figures this needs", which was true for BCE
   # and false for SHOP.

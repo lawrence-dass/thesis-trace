@@ -128,6 +128,51 @@ def test_no_middle_years_yields_no_profile_at_all():
     assert profile_for_facts(facts) == {}
 
 
+def test_a_lone_year_one_bucket_yields_no_profile():
+    """THE BOUNDARY THE TWO RULES DISAGREE ON, and the one nothing tested.
+
+    Story 5.7's review removed a "needs at least one middle year" rule in favour of
+    "contiguous from year one", stating the latter subsumed it. It does not: a lone
+    year-1 bucket IS a contiguous prefix of length one, so v1 accepted it.
+
+    Live, OTEX hits this in six fiscal years — FY2011 and FY2021-2025, where its
+    `thereafter` tag has stopped and years 2-5 were never tagged at all. Each
+    rendered a one-row "Repayment schedule" restating the near-term debt card above
+    it with a different measurement basis (370.4M undiscounted principal against
+    35.9M carrying amount for FY2025), annotated with a truncation note blaming
+    only the absent tail while four buckets were missing.
+
+    The golden dataset asserted `no_profile` for OTEX throughout and still passed,
+    because the trimmed fixture does not carry OTEX's year-1 facts — so the guard
+    that should have caught this was structurally unable to.
+    """
+    facts = [_F("debt_maturity_year_1", 2023, 370_421_000)]
+    assert profile_for_facts(facts) == {}
+
+
+def test_two_contiguous_buckets_are_still_a_schedule():
+    """The floor is exactly two, not "most of a ladder". A filer that tags years 1
+    and 2 and stops has published a real, if short, schedule — refusing it would
+    withhold something genuinely disclosed. Pins the accepting side of the boundary
+    so a later tightening cannot drift upward unnoticed."""
+    facts = [
+        _F("debt_maturity_year_1", 2023, 10_000_000),
+        _F("debt_maturity_year_2", 2023, 25_000_000),
+    ]
+    profile = profile_for_facts(facts)[2023]
+    assert [b.label for b in profile.buckets] == ["Within 1 year", "Year 2"]
+    assert profile.truncated is True
+
+
+def test_both_admission_rules_are_declared_in_the_spec():
+    """The spec publishes the rules and the code enforces them, so the loader pins
+    both. v1 declared only contiguity, which is how the published rule and the
+    actual behaviour came apart in the first place."""
+    spec = load_profile_spec()
+    assert spec["requires_contiguous_from_year_one"] is True
+    assert spec["requires_at_least_one_middle_year"] is True
+
+
 def test_a_missing_year_one_yields_no_profile():
     """CP FY2012 is this shape. Rendering it would start the schedule at "Year 2"
     and read as though nothing at all falls due within twelve months."""

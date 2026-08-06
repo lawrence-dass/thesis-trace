@@ -18,7 +18,7 @@ from sqlalchemy import select
 from app.models import Filing
 from canonicalization.canonicalize import canonicalize_issuer
 from canonicalization.mappings import MAPPING_VERSION, seed_concept_mappings
-from canonicalization.taxonomies import supersedes
+from canonicalization.taxonomies import FINANCIAL_TAXONOMIES, supersedes
 from ingestion.company_facts import parse_company_facts
 from raw_store.fx_rates import upsert_fx_rate
 from raw_store.market_prices import get_fye_close, upsert_fye_close
@@ -172,12 +172,33 @@ async def _fye_prices_for(payload: dict, ticker: str) -> dict[int, float]:
 
 
 def _payload_reporting_currency(payload: dict) -> str | None:
-    """The currency unit the issuer's own us-gaap:Assets fact is reported in
-    (e.g. 'USD', 'CAD') — confirmed live 2026-07-23 that this varies (CP reports
-    entirely in CAD). None if Assets isn't present at all."""
-    units = payload.get("facts", {}).get("us-gaap", {}).get("Assets", {}).get("units", {})
-    for unit in units:
-        return unit
+    """The currency unit the issuer's own Assets fact is reported in (e.g. 'USD',
+    'CAD') — confirmed live 2026-07-23 that this varies (CP reports entirely in
+    CAD). None if no financial taxonomy carries Assets at all.
+
+    READS EVERY FINANCIAL TAXONOMY, not just `us-gaap`. Both use the concept name
+    `Assets`, but a 40-F/IFRS filer has no `us-gaap` block whatsoever, so the
+    original us-gaap-only lookup returned None for all three IFRS filers and no FX
+    rate was ever fetched for them (observed live 2026-08-05: CCJ, BCE and SU each
+    reported `currency=None` while every one of their canonical facts carries
+    `unit=CAD`).
+
+    That was masked rather than harmless. `scoring/runner.py` derives the currency
+    from the CANONICAL facts instead of the payload, so it correctly asked for a
+    USDCAD rate and found one — but only because CP had already stored rates for
+    the same Dec-31 fiscal-year ends. Remove CP from the universe, give an IFRS
+    filer a non-Dec-31 year end, or build a database IFRS-first, and Altman's X4
+    would silently divide a USD market cap by CAD liabilities, which is the exact
+    failure AD-11's currency fix exists to prevent.
+
+    Sorted for determinism: a payload carrying both taxonomies (a filer mid-
+    transition) must not resolve its currency by set-iteration order.
+    """
+    facts = payload.get("facts", {})
+    for taxonomy in sorted(FINANCIAL_TAXONOMIES):
+        units = facts.get(taxonomy, {}).get("Assets", {}).get("units", {})
+        for unit in units:
+            return unit
     return None
 
 

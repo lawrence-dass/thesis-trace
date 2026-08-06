@@ -11,6 +11,10 @@ was caught by a human happening to look rather than by anything automatic:
     solved problems.
   * Epic 5 had NO structured entry at all while five of its stories shipped. Its
     status lived in a prose comment, invisible to every tool (fixed 2026-08-05).
+  * Every epic in the file was NAMELESS to a parser: Epics 6-9 carried their titles
+    in trailing `#` comments and Epics 1-5 carried none at all, while the reason
+    Epics 6-9 had no stories was a prose comment. `epic_catalog` moved all three
+    into data (added 2026-08-05).
 
 The common cause is that the file is read by humans and agents but validated by
 nothing. These tests are deliberately cheap and structural — they do not judge
@@ -37,6 +41,7 @@ EPICS_PATH = REPO_ROOT / "_bmad-output" / "planning-artifacts" / "epics.md"
 EPIC_STATUSES = frozenset({"backlog", "in-progress", "done"})
 STORY_STATUSES = frozenset({"backlog", "ready-for-dev", "in-progress", "review", "done"})
 RETRO_STATUSES = frozenset({"optional", "done"})
+DECOMPOSITION_STATES = frozenset({"decomposed", "deferred"})
 
 #: Sections carrying findings that are NOT derivable from epics.md. Named
 #: explicitly because bmad-sprint-planning regenerates this file from a template
@@ -46,6 +51,7 @@ RETRO_STATUSES = frozenset({"optional", "done"})
 #: reviewed decision rather than an accident.
 CURATED_SECTIONS = (
     "action_items",
+    "epic_catalog",
     "post_epic_work",
     "d8_ifrs_track",
     "qsr_gross_profit_reverification",
@@ -68,6 +74,18 @@ def _kebab(title: str) -> str:
     """
     title = title.split("—")[0].split("(")[0]
     return re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+
+
+def _epic_title(heading: str) -> str:
+    """`epics.md` epic heading -> the title `epic_catalog` should carry.
+
+    Strips only the italic `*(headline only — do not decompose yet)*` aside, which
+    is a decomposition marker rather than part of the epic's name. Deliberately does
+    NOT strip parentheses in general: Epic 1 really is called "Foundation & First
+    Evidence (Walking Skeleton)". This is why it cannot reuse `_kebab`'s cruder
+    split, which exists for story keys where the aside is always droppable.
+    """
+    return re.sub(r"\*\([^)]*\)\*", "", heading).strip()
 
 
 @pytest.fixture(scope="module")
@@ -177,7 +195,10 @@ def test_epic_status_agrees_with_its_stories(status, declared):
     for epic in sorted(epics):
         own = {k: v for k, v in dev.items() if k.startswith(f"{epic}-")}
         if not own:
-            continue  # deliberately undecomposed (Epics 6-9 under D9)
+            # No stories to agree with. Whether that is deliberate is not this test's
+            # question — `test_decomposition_state_matches_whether_stories_actually_exist`
+            # requires the catalog to declare it, so the case is no longer unexamined.
+            continue
         epic_status = dev.get(f"epic-{epic}")
         all_done = all(v == "done" for v in own.values())
         if epic_status == "done" and not all_done:
@@ -188,6 +209,91 @@ def test_epic_status_agrees_with_its_stories(status, declared):
         if epic_status == "backlog" and any(v != "backlog" for v in own.values()):
             problems.append(f"epic-{epic} is 'backlog' but has started stories")
     assert not problems, "epic/story status disagreement:\n  " + "\n  ".join(problems)
+
+
+@pytest.fixture(scope="module")
+def epic_titles() -> dict[int, set[str]]:
+    """{epic_number: every title epics.md gives it}.
+
+    An epic is headed twice — once in the Phase 2 Epic List (`### Epic N:`) and once
+    as its own detailed section (`## Epic N:`) — so a rename applied in only one place
+    surfaces here as a set of size 2, which the catalog test then rejects.
+    """
+    text = EPICS_PATH.read_text()
+    titles: dict[int, set[str]] = {}
+    for m in re.finditer(r"^#{2,3} Epic (\d+):\s*(.+)$", text, re.M):
+        titles.setdefault(int(m.group(1)), set()).add(_epic_title(m.group(2)))
+    return titles
+
+
+def test_epic_catalog_covers_exactly_the_tracked_epics(status, declared):
+    """The catalog and `development_status` are two views of one set of epics. An epic
+    in one and not the other is how the old trailing-comment titles went stale."""
+    _, epics = declared
+    catalog = status["epic_catalog"]
+    missing = sorted(e for e in epics if f"epic-{e}" not in catalog)
+    orphaned = sorted(set(catalog) - {f"epic-{e}" for e in epics})
+    assert not missing, f"epic_catalog has no entry for Epic(s) {missing}"
+    assert not orphaned, f"epic_catalog describes {orphaned}, which epics.md does not declare"
+
+
+def test_epic_catalog_titles_match_epics_md(status, epic_titles):
+    """The title is duplicated across two files, so something has to hold them
+    together — the same reason `test_comment_header_metadata_matches_the_parsed_fields`
+    exists for the duplicated header block."""
+    problems = []
+    for key, entry in status["epic_catalog"].items():
+        number = int(key.removeprefix("epic-"))
+        declared_titles = epic_titles.get(number, set())
+        if entry.get("title") not in declared_titles:
+            problems.append(
+                f"{key}: catalog says {entry.get('title')!r}, epics.md heading(s) say "
+                f"{sorted(declared_titles)}"
+            )
+    assert not problems, "epic title drift between sprint-status.yaml and epics.md:\n  " + "\n  ".join(
+        problems
+    )
+
+
+def test_decomposition_state_matches_whether_stories_actually_exist(status, declared):
+    """The point of the whole section: an epic with no stories must SAY it is deferred,
+    so a decomposition nobody got round to can no longer masquerade as a deliberate one.
+
+    Before `decomposition` existed, the only record that Epics 6-9 were deliberately
+    storyless was a prose comment, and the epic/story agreement test simply skipped any
+    epic with no stories — meaning a genuine oversight and a deliberate deferral were
+    byte-for-byte identical to every reader, human or otherwise.
+    """
+    dev = status["development_status"]
+    problems = []
+    for key, entry in status["epic_catalog"].items():
+        state = entry.get("decomposition")
+        if state not in DECOMPOSITION_STATES:
+            problems.append(f"{key}: decomposition={state!r} (allowed: {sorted(DECOMPOSITION_STATES)})")
+            continue
+        number = key.removeprefix("epic-")
+        has_stories = any(k.startswith(f"{number}-") for k in dev)
+        if has_stories and state != "decomposed":
+            problems.append(f"{key}: has tracked stories but is marked {state!r}")
+        if not has_stories and state != "deferred":
+            problems.append(
+                f"{key}: marked {state!r} but no story is tracked for it — either the "
+                "stories were never mirrored from epics.md, or this should be 'deferred'"
+            )
+    assert not problems, "decomposition state disagrees with reality:\n  " + "\n  ".join(problems)
+
+
+def test_deferred_epics_name_a_decision_and_an_exit_condition(status):
+    """A deferral with no named decision is indistinguishable from procrastination, and
+    one with no exit condition never ends — nothing would ever prompt a re-check."""
+    problems = []
+    for key, entry in status["epic_catalog"].items():
+        if entry.get("decomposition") != "deferred":
+            continue
+        for field in ("deferred_under", "reason", "decompose_when"):
+            if not str(entry.get(field, "")).strip():
+                problems.append(f"{key}: deferred but has no {field}")
+    assert not problems, "incomplete deferral(s):\n  " + "\n  ".join(problems)
 
 
 def test_curated_sections_survive(status):
