@@ -18,11 +18,51 @@ from app.models import (
     ScoreResult,
     ScoreRun,
 )
-from pipeline.run import run_issuer, scoreable_years
+from pipeline.run import _payload_reporting_currency, run_issuer, scoreable_years
 from pipeline.universe import PHASE1_UNIVERSE
 from tests.conftest import requires_db
 
 FIXTURE = Path(__file__).parent / "fixtures" / "shop_company_facts.json"
+
+
+def _assets_payload(taxonomy: str, unit: str) -> dict:
+    return {"facts": {taxonomy: {"Assets": {"units": {unit: [{"val": 1}]}}}}}
+
+
+def test_reporting_currency_is_read_from_every_financial_taxonomy() -> None:
+    """THE GUARD THAT WAS MISSING. `_payload_reporting_currency` decides whether the
+    pipeline fetches an FX rate at all, and it used to read `us-gaap` only. A 40-F
+    filer has no `us-gaap` block, so all three IFRS filers resolved to None and no
+    USDCAD rate was ever fetched for them (observed live 2026-08-05: CCJ, BCE and SU
+    each reported `currency=None` while every canonical fact they own carries CAD).
+
+    It was masked, not harmless. `scoring/runner.py` reads the currency from the
+    canonical facts instead, so it asked for USDCAD and found one — but only because
+    CP had already stored rates for the same Dec-31 year ends. The IFRS filers were
+    correct by coincidence, which is the same "safe incidentally, not by design"
+    shape as the canonical_facts amendment gap.
+    """
+    assert _payload_reporting_currency(_assets_payload("us-gaap", "USD")) == "USD"
+    assert _payload_reporting_currency(_assets_payload("us-gaap", "CAD")) == "CAD"
+    # The case that regressed: ifrs-full only, no us-gaap block anywhere.
+    assert _payload_reporting_currency(_assets_payload("ifrs-full", "CAD")) == "CAD"
+    # A payload with no financial taxonomy at all still resolves to None, so a
+    # filer we cannot read a currency for degrades rather than guessing USD.
+    assert _payload_reporting_currency({"facts": {"dei": {"Assets": {"units": {"USD": []}}}}}) is None
+    assert _payload_reporting_currency({}) is None
+
+
+def test_reporting_currency_is_deterministic_when_both_taxonomies_are_present() -> None:
+    """A filer mid-transition can carry both blocks. Resolution must not depend on
+    set-iteration order, or the same payload could yield different currencies —
+    and therefore a different Altman X4 — across runs."""
+    payload = {
+        "facts": {
+            "us-gaap": {"Assets": {"units": {"USD": [{"val": 1}]}}},
+            "ifrs-full": {"Assets": {"units": {"CAD": [{"val": 1}]}}},
+        }
+    }
+    assert len({_payload_reporting_currency(payload) for _ in range(20)}) == 1
 
 
 def test_universe_covers_both_reporting_regimes() -> None:
