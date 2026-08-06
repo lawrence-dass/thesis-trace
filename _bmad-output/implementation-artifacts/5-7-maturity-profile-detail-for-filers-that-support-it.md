@@ -220,9 +220,12 @@ Three cold-context layers (Blind Hunter, Edge Case Hunter, Acceptance Auditor). 
 ### Deferred, with reasons
 
 - **`concepts_v7` deploy asymmetry.** The debt queries filter on `mapping_version`; the score queries do not. Deploy without re-canonicalizing and the model cards render while both debt cards silently vanish. Real, but it spans 5.6 and 5.7 and belongs with the deployment work — flagged in the PR, not patched here.
+  - **RESOLVED for local dev 2026-08-05.** Needed no EDGAR fetch and no new tooling: `canonicalize_issuer` reads stored `raw_facts` and its skip guard is scoped per mapping version, so one pass writes the v7 rows. Still outstanding for any deployed environment.
 - **OTEX fixture cannot reproduce its own golden reason.** Its live year-1 facts come from accessions the trimmed fixture does not carry, and adding one would perturb hand-verified scores. The golden entry now states plainly what it does and does not exercise rather than overclaiming.
-- **Truncated path still never seen rendered.** No committed fixture year is truncated. Covered by unit tests; noted as the one gap the browser check could not close.
+  - **This was not merely cosmetic, confirmed 2026-08-05.** That gap is exactly why `assert profiles == {}` kept passing while production rendered six spurious OTEX profiles: a fixture with no year-1 facts cannot produce the shape that broke, so the guard was structurally unable to fail. Both live shapes are now covered by unit tests instead.
+- **~~Truncated path still never seen rendered.~~ CLOSED 2026-08-05, and it found a bug.** Rendering it against real `concepts_v7` facts showed OTEX displaying a one-row "schedule" in six fiscal years, annotated with a truncation note naming only the absent tail while years 2–5 were equally missing. Cause: the `has a middle year` → `contiguous from year one` replacement above was recorded as a subsumption, but the two rules disagree on schedules of length one. Fixed in spec v2, which requires both. The deferral reasoning was sound and the gap was real — it simply had to be closed with live data, since no fixture year could produce the shape.
 - **`us-gaap` spec duplication (v4/v5/v6).** Three near-identical 250-line specs now carry the same live-verification notes with nothing preventing a correction landing in only one. Architectural, pre-existing, needs its own decision.
+  - 2026-08-05: `debt_maturity_profile` v1/v2 now joins the same pattern. Mitigated cheaply for that pair with a do-not-edit banner on v1 pointing at v2; the general decision is still open.
 
 ## References
 
