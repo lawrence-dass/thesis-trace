@@ -221,23 +221,40 @@ companies:
         total_debt: 2614878000
         near_term_source: LongTermDebtCurrent
         total_source: LongTermDebt
-      # Story 5.7: OTEX yields NO profile, for a specific reason. It tags a
-      # next-twelve-months bucket and a thereafter bucket but has NEVER tagged
-      # years 2-5 in any year (confirmed live 2026-08-05). Rendering the two ends
-      # alone would imply a schedule with a hole in it, so the engine requires at
-      # least one middle year.
+      # Story 5.7: OTEX yields NO profile, and live it does so for TWO distinct
+      # reasons in different fiscal years. It has NEVER tagged years 2-5 in any
+      # year (confirmed live 2026-08-05), so:
+      #   * FY2012-2020 — year_1 AND thereafter, the two-ended ladder. Refused by
+      #     contiguity: rendering the two ends alone implies a schedule with a
+      #     hole in it.
+      #   * FY2011, FY2021-2025 — year_1 alone, once the thereafter tag stops.
+      #     Refused by the middle-year floor.
+      #
+      # THIS COMMENT WAS ONCE WRONG IN AN INSTRUCTIVE WAY. It said "the engine
+      # requires at least one middle year" while the engine had stopped doing so:
+      # Story 5.7's code review replaced that rule with contiguity alone, on the
+      # grounds that contiguity subsumed it. It does not, and the six length-one
+      # years above rendered a bogus one-row schedule until spec v2 restored the
+      # floor on 2026-08-05. The comment described the intended rule correctly and
+      # the implemented one incorrectly, and nothing connected the two.
       debt_maturity_profile:
         no_profile: true
-        # NOTE ON WHAT THIS ACTUALLY EXERCISES. Live, OTEX tags year_1 AND
-        # thereafter and never years 2-5 — the two-ended ladder the contiguity
-        # rule exists for. The committed fixture reproduces only the thereafter
-        # end, because OTEX's year_1 facts come from accessions this trimmed
-        # fixture does not carry, and adding one would perturb the hand-verified
-        # scores above. So this entry pins the outcome (no profile) but exercises
-        # a one-ended ladder; the two-ended case is covered by
-        # test_no_middle_years_yields_no_profile_at_all. Stated rather than left
-        # for a reader to assume the fixture matches the reason.
-        reason: "live: tags year_1 and thereafter but never years 2-5; fixture carries the thereafter end only"
+        # NOTE ON WHAT THIS ACTUALLY EXERCISES — AND WHAT IT CANNOT. The committed
+        # fixture reproduces only the thereafter end, because OTEX's year_1 facts
+        # come from accessions this trimmed fixture does not carry, and adding one
+        # would perturb the hand-verified scores above.
+        #
+        # That gap is not cosmetic: it is exactly why this entry kept passing while
+        # production rendered six spurious profiles. `assert profiles == {}` is a
+        # claim about every year, but a fixture with no year_1 facts cannot produce
+        # the shape that broke it, so the guard was structurally unable to fail.
+        # Both live shapes are covered by unit tests instead —
+        # test_no_middle_years_yields_no_profile_at_all (two-ended) and
+        # test_a_lone_year_one_bucket_yields_no_profile (length one).
+        #
+        # Generalises: a golden entry whose fixture cannot reproduce its own stated
+        # reason is pinning an outcome, not verifying it. Say so where it happens.
+        reason: "live: never tags years 2-5; yields no profile via contiguity (FY2012-2020) or the middle-year floor (FY2011, FY2021-2025). Fixture carries the thereafter end only and cannot exercise either."
 
   # --- 40-F / ifrs-full filers (D8) -----------------------------------------
   # Market data is real and fetched live 2026-08-04: Tiingo EOD closes for
