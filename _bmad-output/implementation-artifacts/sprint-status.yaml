@@ -128,7 +128,10 @@ development_status:
   # made every epic in this file nameless to `yaml.safe_load`.
   epic-6: in-progress
   6-1-reverse-dcf-input-coverage-spike: done
-  6-2-free-cash-flow-canonical-concepts: backlog
+  # in-progress, not backlog: the live EDGAR verification half is DONE and recorded
+  # in story_6_2_live_verification below. What remains is spec files + tests, and it
+  # needs no further EDGAR access.
+  6-2-free-cash-flow-canonical-concepts: in-progress
   6-3-versioned-reverse-dcf-spec-and-deterministic-solver: backlog
   6-4-sensitivity-range-over-discount-rate-and-terminal-growth: backlog
   6-5-implied-assumptions-read-api: backlog
@@ -596,6 +599,86 @@ canonical_facts_amendment_gap:
 # and because Story 5.1 established that this class of question must be answered
 # from data, not assumed. Epic 6 stays `deferred` in epic_catalog: this produces
 # the evidence for decomposition, it does not perform it.
+# Story 6.2 live verification, 2026-08-07. The EDGAR work is DONE and recorded here
+# so the implementation does not need to re-fetch: all seven CIKs were fetched from
+# data.sec.gov and bucketed by PERIOD_END against each issuer's own recognised
+# fiscal-year-end, never by the payload's `fy` field. Story 6.2 itself is NOT done —
+# no spec files were written. This is its first half.
+story_6_2_live_verification:
+  status: done
+  resolved: 2026-08-07
+  story: "6.2 — free-cash-flow canonical concepts, interest classification decided"
+  what_remains: >
+    Write us-gaap_v7, ifrs-full_v4, derivations_v4; bump registry to concepts_v8;
+    add the tests named under `tests_required` below. No further EDGAR access needed.
+  coverage_verified_live:
+    capex:
+      SHOP: "PaymentsToAcquirePropertyPlantAndEquipment — 11y FY2015-2025"
+      CP: "PaymentsToAcquirePropertyPlantAndEquipment — 18y FY2008-2025"
+      QSR: "PaymentsToAcquirePropertyPlantAndEquipment — 14y FY2012-2025"
+      OTEX: "PaymentsToAcquireProductiveAssets (VARIANT) — 20y FY2007-2026"
+      CCJ: "PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities — 10y FY2016-2025"
+      BCE: "PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities — 10y FY2016-2025"
+      SU: "NONE — confirmed live. Suncor is insufficient_data for all of Epic 6."
+    cash_and_equivalents:
+      SHOP: "CashAndCashEquivalentsAtCarryingValue — 12y FY2014-2025"
+      CP: "CashAndCashEquivalentsAtCarryingValue — 19y FY2007-2025"
+      QSR: "plain tag 8y FY2011-2018 ONLY; restricted-inclusive tag 10y FY2016-2025 — see qsr_restricted_cash_proof"
+      OTEX: "CashAndCashEquivalentsAtCarryingValue — 21y FY2006-2026"
+      CCJ: "CashAndCashEquivalents — 11y FY2015-2025"
+      BCE: "NO combined tag — tags Cash and CashEquivalents SEPARATELY, 11y each. Needs a derivation."
+      SU: "CashAndCashEquivalents — 11y FY2015-2025"
+  corrects_the_6_1_spike: >
+    SHOP's capex and cash are 11y and 12y, not the 9y the spike reported. The spike
+    bucketed on the payload's `fy` field; bucketing on period_end recovers the extra
+    years. This is the correction the spike itself flagged as its own method error.
+  interest_classification_verified: >
+    IFRS gives filers explicit classification tags and the two IFRS filers CHOSE
+    DIFFERENTLY, so this is proven from real tags rather than inferred from IAS 7.
+    BCE: InterestPaidClassifiedAsOperatingActivities, 10y.
+    CCJ: InterestPaidClassifiedAsFinancingActivities, 10y.
+    CP / OTEX / QSR / SHOP: InterestPaid / InterestPaidNet — operating, mandated by
+    US GAAP. SU: no interest-paid tag, and moot since it has no capex.
+
+    CONSEQUENCE: Cameco's cash_from_operations EXCLUDES interest paid while every
+    other filer's includes it, so `CFO - capex` is not the same measurement for
+    Cameco and its free cash flow reads systematically high.
+  qsr_restricted_cash_proof: >
+    QSR files BOTH cash tags in FY2016, FY2017 and FY2018, and they are IDENTICAL to
+    the dollar in all three years (1,476M / 1,097M / 913M, difference exactly 0). QSR
+    therefore carries no restricted cash and the restricted-inclusive tag IS its
+    unrestricted cash. That makes it an admissible priority-1 fallback — but the proof
+    is FILER-SPECIFIC, not general, so it must be guarded by a test. Same overlap-year
+    technique that validated `revenue - cogs` against filers who file GrossProfit
+    directly. QSR does not disclose restricted cash separately after FY2014, so
+    subtracting it is not an option.
+  decisions_made:
+    - "capex maps the us-gaap primary + OTEX's ProductiveAssets variant + the ifrs-full purchase tag."
+    - >
+      capex does NOT map CapitalExpendituresIncurredButNotYetPaid — an accrual
+      disclosure, not cash capex. Confirmed live that SHOP (8y) and QSR (4y) both tag
+      it, so the exclusion is load-bearing rather than theoretical.
+    - >
+      cash_and_equivalents for BCE is a DERIVATION, not a fallback:
+      Cash + CashEquivalents, `kind: identity` because it is true by definition under
+      IFRS. Belongs beside assets_minus_equity in derivations_v4.
+    - >
+      THE INTEREST CAVEAT MOVES TO STORY 6.3, deliberately. 6.2's AC says to annotate
+      runs `computed_with_caveat`, but there are no runs yet — the solver is 6.3. The
+      classification is recorded as versioned spec data here and 6.3 applies the
+      caveat when it computes. Same shape as Story 5.3 departing from its own `since` AC.
+  tests_required:
+    - "Reject-list: CapitalExpendituresIncurredButNotYetPaid is never a capex source."
+    - >
+      QSR equality guard: for every universe filer that files BOTH cash tags, they must
+      be equal. Fails loudly the day a filer with real restricted cash is added, instead
+      of silently inflating cash and understating enterprise value.
+    - "Suncor resolves no capex, pinned so its absence is never mistaken for a coverage bug."
+    - "BCE's cash resolves via derivation and carries `derivation:` provenance, not a filed-line citation."
+  carry_forward: >
+    Per Story 5.1's lesson these remain hypotheses until the build re-checks them —
+    though unlike 5.1 this pass WAS live, per-year, and bucketed correctly.
+
 # Found 2026-08-06 while running the Epic 6 spike. Not a product defect — a dev
 # ENVIRONMENT gap that will mislead any session that reasons from the local DB.
 shop_local_history_is_not_edgar_coverage:

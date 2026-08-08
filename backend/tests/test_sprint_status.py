@@ -57,6 +57,7 @@ CURATED_SECTIONS = (
     "qsr_gross_profit_reverification",
     "story_5_1_debt_maturity_spike",
     "story_6_1_reverse_dcf_coverage_spike",
+    "story_6_2_live_verification",
     "shop_local_history_is_not_edgar_coverage",
     "canonical_facts_amendment_gap",
     "shop_convertible_debt_unmapped",
