@@ -692,6 +692,37 @@ story_6_2_live_verification:
     Per Story 5.1's lesson these remain hypotheses until the build re-checks them —
     though unlike 5.1 this pass WAS live, per-year, and bucketed correctly.
 
+# Found by Codex's review of Story 6.5 (2026-08-11), confirmed and sharpened here.
+market_price_dates_labelled_as_fiscal_year_end:
+  status: open
+  found: 2026-08-11
+  found_by: "Codex code review of Story 6.5; consequence traced during verification"
+  issue: >
+    Ingestion stored Tiingo closes and Bank of Canada rates under the filer's
+    FISCAL-YEAR-END date rather than the date the observation was actually made.
+    Confirmed reachable: BCE, Cameco, CP and OTEX all carry Saturday- and
+    Sunday-dated market_prices rows — quotes on days the market was shut.
+  fixed_going_forward: >
+    pipeline/run.py now accepts (observed_date, value) tuples and live ingestion
+    supplies them. Backward compatible: a bare float still dates to the
+    fiscal-year-end, so fixtures and older callers are unaffected.
+  why_the_backfill_matters_more_than_tidiness: >
+    uq_market_prices_key is (issuer_cik, price_date, source), so re-ingesting under
+    the corrected date writes a SECOND row rather than updating the first. The
+    lookup then takes the most recent row on or before the fiscal-year-end — and the
+    mislabelled weekend row is LATER than the true Friday observation, so it wins.
+    Until the legacy rows are removed the fix is INERT: correct dates are written
+    and never read.
+  severity: >
+    No numerical impact today. Both rows carry the same Friday close; the date label
+    was wrong, not the price. So this is a data-hygiene and correctness-of-provenance
+    issue, not a wrong-score issue.
+  fix: >
+    One-time deletion of market_prices and fx_rates rows whose date falls on a
+    non-trading day, followed by a re-ingest. Needs its own change: it touches the
+    ingestion path and should carry a guard asserting no stored observation lands on
+    a weekend.
+
 # TWO OPEN ITEMS FROM STORY 6.5, both recorded rather than silently accepted.
 story_6_5_open_deviations:
   status: open
