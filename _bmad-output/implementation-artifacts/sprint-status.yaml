@@ -129,7 +129,7 @@ development_status:
   epic-6: in-progress
   6-1-reverse-dcf-input-coverage-spike: done
   6-2-free-cash-flow-canonical-concepts: done
-  6-3-versioned-reverse-dcf-spec-and-deterministic-solver: backlog
+  6-3-versioned-reverse-dcf-spec-and-deterministic-solver: done
   6-4-sensitivity-range-over-discount-rate-and-terminal-growth: backlog
   6-5-implied-assumptions-read-api: backlog
   6-6-reverse-dcf-on-the-company-overview: backlog
@@ -691,6 +691,39 @@ story_6_2_live_verification:
   carry_forward: >
     Per Story 5.1's lesson these remain hypotheses until the build re-checks them —
     though unlike 5.1 this pass WAS live, per-year, and bucketed correctly.
+
+# Found 2026-08-11 while building Story 6.3's solver, by running it over real data
+# rather than fixtures. Not a 6.3 defect — the solver is correct; this is a property
+# of an FCF-based DCF that the universe makes visible.
+reverse_dcf_capital_intensity_distortion:
+  status: open
+  found: 2026-08-11
+  found_by: "Story 6.3 — first run of the solver against real concepts_v8 facts"
+  finding: >
+    The two capital-intensive filers that resolve are the two extremes, and the
+    separation is clean: CP 37.2% and Cameco 36.8% implied growth, against OTEX 9.7%
+    and QSR 17.0%. Their ACTUAL revenue CAGRs run the other way — CP 7.8%, Cameco
+    4.1%, OTEX 12.8%, QSR 12.8% — so the filers implying the most growth are the ones
+    that have delivered the least.
+  mechanism: >
+    Free cash flow is cash_from_operations - capex. Heavy capex depresses the
+    numerator, so a smaller stream must be grown harder to reach the same enterprise
+    value. It is arithmetic, not a bug.
+  same_shape_as: >
+    D6 already recorded this distortion for Altman, whose X3 and X5 are similarly
+    depressed by a large asset base — which is why `issuers.is_capital_intensive`
+    already exists. Story 6.3 reuses that flag rather than introducing a second
+    notion of capital intensity.
+  decision: >
+    ANNOTATE, DO NOT CORRECT. Adjusting for it would mean ThesisTrace inventing a
+    normalised capex — originating a figure, which the deterministic boundary forbids
+    for our own code as much as for the LLM. A caveat is attached instead, with the
+    reason stored as data (reverse_dcf_v1.yaml `caveats`), and a test asserts the
+    caveat never alters the value.
+  open_question_for_story_6_6: >
+    Whether a caveat is sufficient presentation, or whether a capital-intensive
+    filer's implied growth should be visually de-emphasised relative to a
+    non-intensive one. That is a display decision, not a computation one.
 
 # Found 2026-08-06 while running the Epic 6 spike. Not a product defect — a dev
 # ENVIRONMENT gap that will mislead any session that reasons from the local DB.
