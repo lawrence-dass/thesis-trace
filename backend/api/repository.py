@@ -40,10 +40,14 @@ from api.schemas import (
     SignalChangeOut,
     SignalOut,
     VerdictItem,
+    ReverseDcfOperandOut,
+    ReverseDcfOut,
+    SensitivityCellOut,
 )
 from canonicalization.mappings import MAPPING_VERSION
 from debt.engine import DENOMINATOR_CONCEPT, NUMERATOR_CONCEPT, shares_for_facts
 from debt.profile import PROFILE_CONCEPTS, profile_for_facts
+from valuation.overview import DCF_CONCEPTS, reverse_dcf_for_issuer
 from diff.engine import diff_company_since, latest_filing_pivot
 from trajectory.engine import trajectories_for_scores
 
@@ -179,7 +183,7 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
                 CanonicalFact.issuer_cik == issuer.cik,
                 CanonicalFact.mapping_version == MAPPING_VERSION,
                 CanonicalFact.canonical_concept.in_(
-                    (NUMERATOR_CONCEPT, DENOMINATOR_CONCEPT, *PROFILE_CONCEPTS)
+                    (NUMERATOR_CONCEPT, DENOMINATOR_CONCEPT, *PROFILE_CONCEPTS, *DCF_CONCEPTS)
                 ),
             )
         )
@@ -228,6 +232,93 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
         )
         for _, p in sorted(profile_for_facts(debt_facts).items(), reverse=True)
     ]
+
+    # Reverse DCF (Epic 6). Reads the SAME `debt_facts` rows widened by DCF_CONCEPTS
+    # above rather than issuing its own query, so the single-pass read holds (AD-1).
+    # Only a market price and an FX rate for one fiscal year are fetched beyond it.
+    #
+    # LATEST RESOLVABLE YEAR ONLY, not a per-year series: the sensitivity grid is 35
+    # solves, a different cost class from the ratio-per-year the debt cards compute.
+    reverse_dcf = None
+    dcf = await reverse_dcf_for_issuer(
+        session,
+        issuer_cik=issuer.cik,
+        is_capital_intensive=bool(issuer.is_capital_intensive),
+        facts=debt_facts,
+    )
+    if dcf is not None:
+        base, grid, (cagr, cagr_from, cagr_to) = dcf
+        operands = []
+        if base.free_cash_flow is not None:
+            operands.append(
+                ReverseDcfOperandOut(
+                    name="free_cash_flow",
+                    value=float(base.free_cash_flow),
+                    derived_from=["cash_from_operations", "capex"],
+                )
+            )
+        if base.market_cap is not None:
+            operands.append(
+                ReverseDcfOperandOut(
+                    name="market_cap",
+                    value=float(base.market_cap),
+                    derived_from=["shares_outstanding", "market_price"],
+                )
+            )
+        # These two ARE filed figures, so they cite an accession. A derived operand
+        # above deliberately does not (AD-19): a computed number must never wear a
+        # filed-line citation.
+        for name, value in (
+            ("total_debt", base.total_debt),
+            ("cash_and_equivalents", base.cash_and_equivalents),
+        ):
+            if value is None:
+                continue
+            fact = next(
+                (
+                    f
+                    for f in debt_facts
+                    if f.canonical_concept == name and f.fiscal_year == base.fiscal_year
+                ),
+                None,
+            )
+            operands.append(
+                ReverseDcfOperandOut(
+                    name=name,
+                    value=float(value),
+                    accession_number=fact.accession_number if fact is not None else None,
+                    derived_from=[fact.derivation] if fact is not None and fact.derivation else [],
+                )
+            )
+        reverse_dcf = ReverseDcfOut(
+            fiscal_year=base.fiscal_year,
+            implied_growth=float(base.implied_growth) if base.implied_growth is not None else None,
+            insufficient_data=base.insufficient_data,
+            reason=base.reason,
+            range_low=float(grid.low) if grid is not None and grid.low is not None else None,
+            range_high=float(grid.high) if grid is not None and grid.high is not None else None,
+            sensitivity=[
+                SensitivityCellOut(
+                    discount_rate=float(c.discount_rate),
+                    terminal_growth=float(c.terminal_growth),
+                    implied_growth=float(c.implied_growth) if c.implied_growth is not None else None,
+                    reason=c.reason,
+                )
+                for c in (grid.cells if grid is not None else ())
+            ],
+            resolved_cells=grid.resolved_cells if grid is not None else 0,
+            total_cells=grid.total_cells if grid is not None else 0,
+            discount_rate=float(base.discount_rate),
+            terminal_growth=float(base.terminal_growth),
+            horizon_years=base.horizon_years,
+            operands=operands,
+            historical_revenue_cagr=float(cagr) if cagr is not None else None,
+            historical_from_fiscal_year=cagr_from,
+            historical_to_fiscal_year=cagr_to,
+            caveats=list(base.caveats),
+            attribution=base.attribution,
+            spec_version=base.spec_version,
+        )
 
     # Open data-quality warnings for this issuer's filings (AD-17, FR-8) — never hidden.
     dq_rows = (
@@ -307,6 +398,7 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
         scores=scores,
         near_term_debt_share=near_term_debt_share,
         debt_maturity_profile=debt_maturity_profile,
+        reverse_dcf=reverse_dcf,
         data_quality=data_quality,
     )
 
