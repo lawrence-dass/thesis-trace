@@ -39,10 +39,18 @@
 #                dimensional and unreachable through company-facts — so ifrs-full and
 #                derivations keep their v3 specs, per the per-taxonomy rule above.
 
-mapping_version: concepts_v7
+#   concepts_v8  us-gaap_v7 + ifrs-full_v4 + derivations_v4. A real mapping change
+#                (Story 6.2): the capex and cash_and_equivalents concepts behind the
+#                reverse DCF, plus the cash/cash_equivalents operands and the
+#                cash_plus_cash_equivalents identity that give BCE a cash figure at
+#                all. All three specs move because the concept pair spans both
+#                regimes and the derivation ties them together — same reasoning as
+#                concepts_v6.
+
+mapping_version: concepts_v8
 
 taxonomies:
-  us-gaap: us-gaap_v6
-  ifrs-full: ifrs-full_v3
+  us-gaap: us-gaap_v7
+  ifrs-full: ifrs-full_v4
 
-derivations: derivations_v3
+derivations: derivations_v4
