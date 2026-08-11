@@ -130,7 +130,7 @@ development_status:
   6-1-reverse-dcf-input-coverage-spike: done
   6-2-free-cash-flow-canonical-concepts: done
   6-3-versioned-reverse-dcf-spec-and-deterministic-solver: done
-  6-4-sensitivity-range-over-discount-rate-and-terminal-growth: backlog
+  6-4-sensitivity-range-over-discount-rate-and-terminal-growth: done
   6-5-implied-assumptions-read-api: backlog
   6-6-reverse-dcf-on-the-company-overview: backlog
   6-7-golden-dataset-coverage-for-the-implied-growth-rate: backlog
@@ -724,6 +724,13 @@ reverse_dcf_capital_intensity_distortion:
     Whether a caveat is sufficient presentation, or whether a capital-intensive
     filer's implied growth should be visually de-emphasised relative to a
     non-intensive one. That is a display decision, not a computation one.
+  partly_answered_by_story_6_4: >
+    The sensitivity band narrows this question but does not close it. Real bands at
+    concepts_v8, FY2025: CP 16.4-51.6%, Cameco 16.0-51.1%, QSR -0.4-29.0%, OTEX
+    -6.5-20.7%, all 35/35 cells resolved. Every band is ~30 percentage points wide
+    and two CROSS ZERO, so leading with the range rather than the point figure
+    already stops the capital-intensive filers reading as precise. What remains for
+    6.6 is whether the caveat needs visual weight beyond that.
 
 # Found 2026-08-06 while running the Epic 6 spike. Not a product defect — a dev
 # ENVIRONMENT gap that will mislead any session that reasons from the local DB.

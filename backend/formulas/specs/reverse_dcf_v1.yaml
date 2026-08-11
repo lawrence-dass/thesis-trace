@@ -189,10 +189,44 @@ assumptions:
     axes: [discount_rate, terminal_growth]
     rationale: >
       The result is shown across a range of discount rates and long-run growth rates,
-      because those two assumptions move it most and are the least observable.
+      because those two assumptions move it most and are the least observable. The
+      range is the answer; any single figure inside it is only one choice of
+      assumptions among many that are equally defensible.
     note: >-
-      Revenue growth cannot be an axis: it is the output. Grid bounds and step belong
-      to Story 6.4, which renders the range.
+      Revenue growth cannot be an axis: it is the output.
+
+# --- SENSITIVITY GRID (Story 6.4) --------------------------------------------
+# Bounds and step are declared here rather than in code so the searched space is
+# publishable and arguable — a reader who thinks 7-13% is the wrong band for this
+# company can say so precisely.
+sensitivity_grid:
+  discount_rate:
+    from: "0.07"
+    to: "0.13"
+    step: "0.01"
+  terminal_growth:
+    from: "0.015"
+    to: "0.035"
+    step: "0.005"
+  # 7 x 5. Wide enough to show the assumption's leverage, small enough to read at a
+  # glance and to compute on the write path without a budget.
+  note: >-
+    Every combination keeps terminal growth strictly below the discount rate, so no
+    cell fails on that condition. Cells CAN still fail — a high discount rate demands
+    more growth to justify the same price, which pushes some filers past the solver's
+    search range. That is a real outcome in this universe, not a hypothetical.
+  unresolved_cells:
+    render: shown_with_reason
+    rationale: >
+      Where a combination of assumptions produces no answer, the grid says so rather
+      than leaving a gap. A grid with holes silently quietly implies its own coverage
+      is complete when it is not.
+  leads_with: range
+  exposes_midpoint: false
+  midpoint_note: >-
+    Deliberately no midpoint, central estimate or "most likely" cell. Any such field
+    becomes the headline and undoes the reason for showing a range at all — the same
+    reasoning that keeps a fair value off the single result.
 
 # --- SOLVER ------------------------------------------------------------------
 solver:
