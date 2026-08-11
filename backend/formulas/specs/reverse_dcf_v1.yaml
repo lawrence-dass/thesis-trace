@@ -1,0 +1,243 @@
+# ============================================================================
+# THESISTRACE-AUTHORED PRESENTATION RULE — NOT AN ACADEMIC MODEL.
+# ============================================================================
+# Piotroski, Altman, Beneish and Sloan are published models with published
+# thresholds, and those live in the four model specs beside this file. NOTHING
+# HERE IS PUBLISHED BY ANYONE. A discounted cash flow is a standard technique, but
+# every parameter below — the horizon, the terminal method, the discount-rate
+# treatment, and which variable is solved backward for — is a ThesisTrace choice.
+#
+# That distinction is the whole point of this file. A reader is entitled to
+# disagree with any of these, so they are recorded as data rather than buried in
+# the solver.
+#
+# `kind` is checked by the loader: this file is deliberately NOT loadable as a
+# model formula spec, so it can never be mistaken for one.
+
+kind: thesistrace_presentation_rule
+authored_by: thesistrace
+rule: reverse_dcf
+spec_version: reverse_dcf_v1
+
+description: >
+  What constant rate of growth the CURRENT MARKET PRICE implies, if you accept the
+  assumptions below. It is deliberately not a valuation: it produces no fair value
+  and no target price. It turns the question around — instead of asking what a
+  company is worth, it asks what you would have to believe for today's price to be
+  right, so the belief can be compared against what the company has actually done.
+
+# MACHINE-READABLE AUTHORSHIP. Required by Story 6.3's acceptance criteria, and
+# stated as a field rather than a comment for the reason recorded three times in
+# this repository already: a comment is not a published rationale, and the
+# methodology page renders fields.
+authorship:
+  is_published_academic_model: false
+  authored_by: thesistrace
+  thesistrace_chose:
+    - forecast_horizon
+    - terminal_value_method
+    - discount_rate_treatment
+    - solve_target
+    - margin_treatment
+  statement: >
+    Discounted cash flow is a standard technique, but the specific assumptions used
+    here were chosen by ThesisTrace, not taken from any published model. Reasonable
+    analysts choose differently and get different answers. Every assumption is shown
+    alongside the result so it can be changed or disputed.
+
+enterprise_value:
+  expression: market_cap + total_debt - cash_and_equivalents
+  operands: [market_cap, total_debt, cash_and_equivalents]
+  note: >-
+    market_cap is shares_outstanding x the fiscal-year-end close (AD-11/AD-14), so
+    it carries the same currency handling as Altman's X4 — a non-USD filer's price
+    is converted at the Bank of Canada rate for its year end before use.
+
+free_cash_flow:
+  expression: cash_from_operations - capex
+  operands: [cash_from_operations, capex]
+  note: >-
+    Chosen over the EBIT-based construction because it needs two inputs rather than
+    five and neither is estimated: an EBIT route requires an effective tax rate and a
+    change in working capital, and working capital is not cleanly derivable from the
+    canonical model (current assets and liabilities both include items that do not
+    belong in it).
+  known_limitation: >-
+    NOT COMPARABLE ACROSS REGIMES AS FILED. US GAAP mandates interest paid inside
+    operating activities; IAS 7 permits operating OR financing, and the two IFRS
+    filers in this universe chose DIFFERENTLY — BCE operating, Cameco financing
+    (verified live 2026-08-07 from their explicit classification tags). Cameco's
+    cash_from_operations therefore excludes interest paid and its free cash flow
+    reads systematically high. Story 6.3 does not correct this; the caveat is applied
+    where the figure is computed, per the same mechanism used for the out-of-
+    calibration Beneish annotation.
+
+# --- CAVEATS: annotate the result, NEVER alter it ----------------------------
+# Both reuse the mechanism the out-of-calibration Beneish annotation established:
+# the value is unchanged and the reason is stored as DATA, not inferred later from
+# a shared enum. Story 6.6 renders them; nothing here suppresses or adjusts a figure.
+caveats:
+
+  - id: interest_classification
+    applies_when: the filer classifies interest paid outside operating activities
+    rationale: >
+      This company reports interest payments outside its operating cash flow, while
+      most companies report them inside it. Its cash flow therefore looks higher than
+      a directly comparable company's would, and the growth implied by its price
+      looks correspondingly lower.
+    note: >-
+      IAS 7 permits either classification and the two IFRS filers chose differently
+      (verified live 2026-08-07): BCE operating, Cameco financing. US GAAP mandates
+      operating, so no us-gaap filer triggers this. Deferred to this story by Story
+      6.2, which had no computed run to annotate.
+
+  - id: capital_intensity
+    applies_when: the issuer is flagged capital-intensive
+    rationale: >
+      This company spends heavily on long-lived assets, which reduces the cash left
+      over today. A model based on that leftover cash will therefore imply a high
+      growth rate for it, and that number says as much about how the business is
+      built as about how expensive the shares are.
+    note: >-
+      FOUND WHILE BUILDING THIS STORY, 2026-08-11, and the pattern is exact: the only
+      two capital-intensive filers that resolve are the two extremes — CP 37.2% and
+      Cameco 36.8% implied, against OTEX 9.7% and QSR 17.0%, whose actual revenue
+      CAGRs are 7.8% / 4.1% / 12.8% / 12.8%. Heavy capex depresses free cash flow, so
+      an FCF-based DCF demands implausible growth to justify any price.
+
+      SAME DISTORTION D6 ALREADY RECORDED FOR ALTMAN, and it reuses the same
+      `issuers.is_capital_intensive` flag rather than introducing a second notion of
+      capital intensity. Not corrected here: adjusting for it would mean ThesisTrace
+      inventing a normalised capex, which is exactly the kind of origination the
+      deterministic boundary exists to prevent. Annotated instead.
+
+# --- THE FIVE ASSUMPTIONS (A-1..A-5 in epics.md) ----------------------------
+# Each is reversible and each is published. `rationale` is rendered verbatim on
+# /methodology and must stand alone for a reader who has never seen this repo;
+# `note` is for whoever maintains the file.
+assumptions:
+
+  forecast_horizon:
+    id: A-1
+    years: 5
+    rationale: >
+      Cash flows are projected five years out, then a long-run value is added for
+      everything after that. Five years is a common convention. A longer explicit
+      forecast would imply a confidence about distant years that nobody has.
+    note: >-
+      Most filers here carry 9-14 years of history, so a ten-year explicit forecast
+      would extrapolate further than the record supports.
+
+  terminal_value_method:
+    id: A-2
+    method: perpetuity_growth
+    default_terminal_growth: "0.025"
+    rationale: >
+      After year five, the company is assumed to grow forever at a slow, steady rate.
+      The alternative — assuming it is sold at a multiple of its earnings — was not
+      used because it would import a judgement about what other companies are worth,
+      and this tool does not compare companies to their peers.
+    note: >-
+      An exit multiple needs peer data ThesisTrace does not hold, and it would sit
+      badly against the "never blend into a composite" discipline. 2.5% is a
+      convention roughly in line with long-run inflation; it is NOT derived from the
+      filer. Must be strictly below the discount rate or the terminal value diverges.
+
+  discount_rate:
+    id: A-3
+    treatment: user_supplied
+    default: "0.10"
+    default_origin: convention_not_computed
+    rationale: >
+      The discount rate — how much less a future pound is worth than one today — is
+      set by you, not calculated by ThesisTrace. It starts at 10%, which is a round
+      convention rather than a figure derived from this company. It is the single
+      most powerful assumption here, and small changes to it move the answer a lot,
+      which is why it is yours to set and why a range is always shown alongside.
+    note: >-
+      Computing a WACC needs a beta and an equity risk premium. Neither is in EDGAR
+      and both are judgements, so deriving one would mean ThesisTrace originating the
+      most consequential number in the model and presenting it as though it were
+      read from a filing. The epic's promise is that assumptions are the visible
+      OUTPUT, which makes this an input. Consequence accepted: the page cannot show a
+      result until a rate is chosen, so the default exists to give it a starting
+      point rather than to be authoritative.
+
+  solve_target:
+    id: A-4
+    target: implied_revenue_growth
+    margin_treatment: held_at_trailing_free_cash_flow_margin
+    rationale: >
+      The figure produced is the rate of revenue growth implied by today's price,
+      assuming the company keeps converting revenue into cash at the same rate it
+      does now. It is shown next to the growth the company has actually achieved,
+      because the useful question is whether the price is asking for something this
+      business has ever done.
+    note: >-
+      Solving for margin instead would give a number with nothing to compare it
+      against; revenue growth can be checked against 9-24 years of the filer's own
+      history, which ThesisTrace already holds deterministically.
+
+      STATED PLAINLY RATHER THAN DRESSED UP: because the free-cash-flow margin is
+      held constant, free cash flow grows at exactly the revenue growth rate, so the
+      implied revenue growth and the implied free-cash-flow growth are the SAME
+      NUMBER. Modelling revenue and margin separately would add a parameter without
+      adding information — it would require inventing a margin path.
+
+  sensitivity_axes:
+    id: A-5
+    axes: [discount_rate, terminal_growth]
+    rationale: >
+      The result is shown across a range of discount rates and long-run growth rates,
+      because those two assumptions move it most and are the least observable.
+    note: >-
+      Revenue growth cannot be an axis: it is the output. Grid bounds and step belong
+      to Story 6.4, which renders the range.
+
+# --- SOLVER ------------------------------------------------------------------
+solver:
+  method: bisection
+  # Bisection rather than Newton: no derivative, no starting-point sensitivity, and
+  # a fixed iteration count makes it deterministic to the last digit. Speed is
+  # irrelevant here — this runs on the write path over a handful of filer-years.
+  lower_bound: "-0.50"
+  upper_bound: "1.00"
+  tolerance: "0.0000001"
+  max_iterations: 200
+  note: >-
+    The bounds are a declared search range, NOT a clamp. A price implying growth
+    outside -50%..+100% yields insufficient_data naming the bound it exceeded — it
+    never returns the bound itself, which would present a search limit as a finding.
+
+# --- WHEN THERE IS NO ANSWER (AD-16) -----------------------------------------
+# Every one of these is reachable in the current universe. None is defaulted,
+# clamped or extrapolated: the honest output is that the model does not apply.
+insufficient_data_when:
+  - condition: missing_operand
+    reason: "an operand is absent for that fiscal year"
+  - condition: non_positive_free_cash_flow
+    reason: >-
+      free cash flow is zero or negative, so growing it produces no positive value
+      to discount and the question "what growth justifies this price" has no answer
+  - condition: non_positive_enterprise_value
+    reason: "enterprise value is zero or negative — net cash exceeds market cap plus debt"
+  - condition: terminal_growth_not_below_discount_rate
+    reason: "the perpetuity diverges unless terminal growth is strictly below the discount rate"
+  - condition: no_root_in_search_range
+    reason: "the implied growth lies outside the declared search range"
+
+# THE GUARD THAT DEFINES WHAT THIS IS NOT. Mirrors the maturity profile's no-total
+# rule: the natural thing to do with a DCF is print a fair value, and printing one
+# would turn an assumption-exposing tool into a price target.
+output:
+  exposes_fair_value: false
+  exposes_target_price: false
+  note: >-
+    A fair value would be read as ThesisTrace's opinion of what the company is
+    worth. The entire point of running the model backwards is to avoid producing
+    one. A test asserts no such field exists on the result or the API surface.
+
+attribution: >
+  This is not a valuation and not a price target. It shows what rate of growth
+  today's price implies, under assumptions ThesisTrace chose and you can change.
+  The discount rate in particular is a setting, not a fact about this company.
