@@ -8,7 +8,7 @@ cases where it declines, and the fair value it must never produce.
 from __future__ import annotations
 
 from dataclasses import fields
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 import pytest
 
@@ -66,6 +66,16 @@ def test_the_solver_is_deterministic() -> None:
     """Fixed bounds, fixed tolerance, fixed iteration cap — the same inputs must give
     the same digits, or a stored figure could change without any input changing."""
     assert len({str(_solve().implied_growth) for _ in range(5)}) == 1
+
+
+def test_the_solver_is_independent_of_process_decimal_precision() -> None:
+    with localcontext() as context:
+        context.prec = 6
+        low_precision = _solve().implied_growth
+    with localcontext() as context:
+        context.prec = 40
+        high_precision = _solve().implied_growth
+    assert low_precision == high_precision
 
 
 def test_every_figure_is_decimal_never_float() -> None:

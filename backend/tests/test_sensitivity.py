@@ -110,6 +110,20 @@ def test_no_grid_when_the_base_does_not_resolve() -> None:
     assert grid_for(base) is None
 
 
+def test_grid_keeps_cells_when_only_default_growth_is_out_of_range() -> None:
+    """A search-bound failure at the default assumptions is not missing data.
+
+    Lower discount rates can bring the same enterprise value back into the search
+    range, so discarding the grid would hide exactly the sensitivity evidence the
+    feature exists to show.
+    """
+    base = _base(growth="1.20")
+    assert base.insufficient_data
+    grid = grid_for(base)
+    assert grid is not None
+    assert grid.resolved_cells > 0
+
+
 # --- the axes are the spec's, not the code's ----------------------------------
 
 

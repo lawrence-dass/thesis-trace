@@ -37,13 +37,17 @@ async def upsert_fx_rate(
 
 
 async def get_fx_rate_on_or_before(
-    session: AsyncSession, currency_pair: str, target_date: date
+    session: AsyncSession, currency_pair: str, target_date: date, *, source: str = "bank_of_canada"
 ) -> FxRate | None:
     """Most recent persisted rate on or before `target_date` — never a live fetch."""
     return (
         await session.execute(
             select(FxRate)
-            .where(FxRate.currency_pair == currency_pair, FxRate.rate_date <= target_date)
+            .where(
+                FxRate.currency_pair == currency_pair,
+                FxRate.rate_date <= target_date,
+                FxRate.source == source,
+            )
             .order_by(FxRate.rate_date.desc())
             .limit(1)
         )
