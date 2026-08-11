@@ -68,6 +68,18 @@ NON_MODEL_CONCEPTS = {
     "debt_maturity_year_4",
     "debt_maturity_year_5",
     "debt_maturity_thereafter",
+    # Story 6.2: free-cash-flow operands for the reverse DCF (Epic 6), a
+    # ThesisTrace presentation rule rather than one of the four academic models.
+    # Mapped under BOTH regimes — the exemption is about which consumer they serve,
+    # not about coverage.
+    "capex",
+    "cash_and_equivalents",
+    # Operand-only, ifrs-full only, and never a usable cash figure on their own:
+    # they exist solely to be summed by the cash_plus_cash_equivalents derivation
+    # for BCE, which tags the two halves separately and the combined concept never.
+    # Every us-gaap filer tags the combined concept directly and needs neither.
+    "cash",
+    "cash_equivalents",
 }
 
 

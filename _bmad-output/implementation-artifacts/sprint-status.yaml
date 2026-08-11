@@ -128,10 +128,7 @@ development_status:
   # made every epic in this file nameless to `yaml.safe_load`.
   epic-6: in-progress
   6-1-reverse-dcf-input-coverage-spike: done
-  # in-progress, not backlog: the live EDGAR verification half is DONE and recorded
-  # in story_6_2_live_verification below. What remains is spec files + tests, and it
-  # needs no further EDGAR access.
-  6-2-free-cash-flow-canonical-concepts: in-progress
+  6-2-free-cash-flow-canonical-concepts: done
   6-3-versioned-reverse-dcf-spec-and-deterministic-solver: backlog
   6-4-sensitivity-range-over-discount-rate-and-terminal-growth: backlog
   6-5-implied-assumptions-read-api: backlog
@@ -609,8 +606,24 @@ story_6_2_live_verification:
   resolved: 2026-08-07
   story: "6.2 — free-cash-flow canonical concepts, interest classification decided"
   what_remains: >
-    Write us-gaap_v7, ifrs-full_v4, derivations_v4; bump registry to concepts_v8;
-    add the tests named under `tests_required` below. No further EDGAR access needed.
+    NOTHING — completed 2026-08-11. us-gaap_v7, ifrs-full_v4 and derivations_v4
+    written, registry bumped to concepts_v8, eight guards added in
+    tests/test_free_cash_flow_concepts.py.
+  build_time_reconfirmation: >
+    Re-checked against real data at build time per Story 5.1's lesson, by
+    canonicalizing the dev DB to concepts_v8. Every prediction held: capex resolves
+    for 6 of 7 and Suncor has none; cash_and_equivalents resolves for 7 of 7; BCE's
+    11 cash rows are 100% DERIVED, so the rule is what gives it a cash figure at all;
+    QSR now covers FY2011-2025 with a clean switch from the plain tag at FY2018 to
+    the fallback at FY2019. BCE's identity is exact in every year (FY2023: 547 + 225
+    = 772), including years where it tags CashEquivalents as 0.
+
+    ONE THING THE SPEC WORK CHANGED. The recorded plan said BCE's cash would be "a
+    derivation", which was right, but the engine takes CANONICAL CONCEPTS as
+    operands, not source tags — so `cash` and `cash_equivalents` had to become
+    canonical concepts to be summable. They are ifrs-full-only and are operands, not
+    metrics: neither is a usable cash figure alone, and a test pins them out of
+    us-gaap so no filer can resolve a partial value that reads like its cash.
   coverage_verified_live:
     capex:
       SHOP: "PaymentsToAcquirePropertyPlantAndEquipment — 11y FY2015-2025"

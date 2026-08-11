@@ -1,0 +1,348 @@
+# ifrs-full concept mappings — Form 40-F, Canadian MJDS filers (D8).
+#
+# Verified live against data.sec.gov 2026-07-29. Cameco (CIK 0001009001) resolves
+# 17 of 18 canonical concepts from directly-filed tags, every one with the full
+# FY2017-2025 span. total_liabilities is the single gap and needs no IFRS-specific
+# rule: the `assets_minus_equity` derivation in derivations_v1.yaml already covers
+# it, and is taxonomy-blind because it operates on canonical concepts rather than
+# source tags.
+#
+# IFRS filings are NOT less comprehensive than us-gaap ones — 234-288 tagged
+# concepts across BCE/Cameco/Suncor is dense disclosure. What varies is IAS 1's
+# allowance of expenses by NATURE instead of by FUNCTION, which is a presentation
+# difference, not a tagging-quality one. Coverage therefore varies per FILER, not
+# per taxonomy (D8). Presentation-driven gaps are deliberately NOT papered over.
+#
+# As in us-gaap_v4.yaml, `sources` order IS priority order.
+
+taxonomy: ifrs-full
+spec_version: ifrs-full_v4
+
+concepts:
+
+  total_assets:
+    sources:
+      - concept: Assets
+
+  current_assets:
+    sources:
+      - concept: CurrentAssets
+
+  current_liabilities:
+    sources:
+      - concept: CurrentLiabilities
+
+  total_liabilities:
+    sources:
+      - concept: Liabilities
+
+  stockholders_equity:
+    sources:
+      - concept: Equity
+      - concept: EquityAttributableToOwnersOfParent
+        note: >-
+          Verified 2026-08-02: tagged by Cameco and BCE (FY2017-2025), absent for
+          Suncor. Never actually fires — both filers that carry it also carry `Equity`,
+          which wins. Excludes non-controlling interests, so it is a genuinely
+          different measurement and must stay strictly below `Equity`; BCE reports
+          real NCI, so the ordering is load-bearing rather than cosmetic.
+
+  retained_earnings:
+    sources:
+      - concept: RetainedEarnings
+
+  net_income:
+    sources:
+      - concept: ProfitLoss
+      - concept: ProfitLossAttributableToOwnersOfParent
+        note: >-
+          Verified 2026-08-02: Cameco FY2017-2025, Suncor FY2017 only, BCE never.
+          Never fires — `ProfitLoss` covers every year for all three. Parent-only, so
+          it mirrors the equity fallback above and stays below the group measure.
+
+  ebit:
+    note: >-
+      IFRS mandates no operating-profit line, but a filer MAY tag one. Where it does
+      (Cameco, all 9 years) ebit is read AS FILED, never derived — so no judgment
+      enters the number. Filers that omit it get insufficient_data until the
+      derivation decision is made in a versioned formula spec (D8 consequence 3):
+      ProfitLossBeforeTax + InterestExpense and ProfitLossBeforeTax -
+      FinanceIncomeCost are both defensible and give different numbers, so that
+      choice belongs on the methodology page, not in a mapping row.
+    sources:
+      - concept: ProfitLossFromOperatingActivities
+
+  cash_from_operations:
+    sources:
+      - concept: CashFlowsFromUsedInOperatingActivities
+      - concept: CashFlowsFromUsedInOperations
+        like_for_like: false
+        mismatch_reason: >-
+          Operating cash flow is reported before interest and taxes paid, which is a
+          different measure from the cash-flow line other filers report. It flatters
+          cash flow, so accrual-based signals read more favourably than a like-for-like
+          comparison would.
+        note: >-
+          LOAD-BEARING and NOT a clean substitute — verified 2026-08-02. Suncor tags
+          ONLY this variant (FY2017-2025) and never the primary, so every Suncor
+          cash-flow figure comes through here. But this tag is cash generated from
+          operations BEFORE interest and taxes paid, which is a different measurement
+          from the primary: it flatters CFO, and Sloan's accruals ratio is
+          (net income - CFO) / total assets, so Suncor's Sloan reads more
+          accrual-heavy than a like-for-like comparison with Cameco or BCE would.
+          See the measurement-mismatch note in the footer.
+
+  revenue:
+    note: >-
+      IFRS naming trap, confirmed live on Suncor: `Revenue` exists but can carry only
+      a single year, while `RevenueFromContractsWithCustomers` (IFRS 15, mandatory
+      from 2018) carries the rest. Taking the obvious tag alone costs real coverage.
+    sources:
+      - concept: Revenue
+      - concept: RevenueFromContractsWithCustomers
+
+  cogs:
+    sources:
+      - concept: CostOfSales
+      - concept: CostOfInventoriesRecognisedAsExpenseDuringPeriod
+        like_for_like: false
+        mismatch_reason: >-
+          Cost of sales is reported by nature, covering inventories only and excluding
+          service and labour costs. It understates total cost of sales relative to a
+          filer reporting by function, so margin-based signals are not directly
+          comparable.
+        note: >-
+          LOAD-BEARING and NOT a clean substitute — verified 2026-08-02. Suncor tags
+          ONLY this variant and never CostOfSales, so all of Suncor's cogs comes
+          through here. It is an IFRS by-nature disclosure covering inventories only,
+          excluding service and labour cost of sales, so it UNDERSTATES cost of sales
+          for a filer with material non-inventory cost. Cameco and BCE tag both and
+          correctly take CostOfSales. See the footer before deriving gross profit from
+          this.
+
+  gross_profit:
+    sources:
+      - concept: GrossProfit
+
+  sga:
+    note: >-
+      IAS 1 permits expenses by NATURE (raw materials, employee benefits, energy)
+      instead of by FUNCTION, so a by-nature filer such as Suncor has no SG&A line to
+      tag at all and Beneish's SGAI correctly stays insufficient_data. That is the
+      same shape as CP's missing COGS under us-gaap and gets the same treatment — a
+      gap, never a substitute.
+    sources:
+      - concept: AdministrativeExpense
+      - concept: SellingGeneralAndAdministrativeExpense
+
+  ppe_net:
+    note: >-
+      BCE and Suncor both switched to the right-of-use-inclusive tag mid-history
+      (confirmed live 2026-08-02): BCE's plain PropertyPlantAndEquipment stops after
+      FY2022 and Suncor's after FY2024, with ...IncludingRightofuseAssets carrying
+      FY2023-2025 for both. Without the fallback, BCE loses 3 of 9 years and Suncor 1,
+      silently starving Beneish's AQI/DEPI. Exactly the CP mid-history PP&E switch
+      under us-gaap, one taxonomy over. Cameco tags the plain concept for all 9 years
+      and is unaffected.
+    sources:
+      - concept: PropertyPlantAndEquipment
+      - concept: PropertyPlantAndEquipmentIncludingRightofuseAssets
+
+  depreciation:
+    sources:
+      - concept: DepreciationAndAmortisationExpense
+      - concept: DepreciationAmortisationAndImpairmentLossReversalOfImpairmentLossRecognisedInProfitOrLoss
+        like_for_like: false
+        mismatch_reason: >-
+          Depreciation is reported bundled with impairment losses. In a year with a
+          material impairment the figure is not depreciation alone, so
+          depreciation-rate signals can move for a reason unrelated to depreciation
+          policy.
+        note: >-
+          LOAD-BEARING and NOT a clean substitute — verified 2026-08-02. Suncor tags
+          ONLY this variant (FY2017-2025); Cameco and BCE use the clean
+          DepreciationAndAmortisationExpense. It bundles impairment INTO D&A, so in an
+          impairment year the figure is not depreciation at all. Beneish's DEPI is a
+          year-over-year depreciation-rate ratio, so a one-off impairment propagates
+          into an integrity signal as if it were a depreciation-policy change. Suncor
+          took multi-billion-dollar impairments in FY2020. See the footer.
+
+  receivables:
+    sources:
+      - concept: TradeAndOtherCurrentReceivables
+      - concept: CurrentTradeReceivables
+        note: >-
+          LOAD-BEARING — verified 2026-08-02. Suncor tags only this variant; Cameco
+          carries both and BCE only the primary. Trade receivables only, excluding the
+          "other" component, which is the narrower and arguably cleaner input for
+          Beneish's DSRI (a days-sales-in-receivables ratio) than a combined
+          trade-and-other balance.
+
+  long_term_debt:
+    sources:
+      - concept: LongtermBorrowings
+      - concept: NoncurrentPortionOfLongtermBorrowings
+        note: >-
+          STILL UNVERIFIED and currently unused — checked 2026-08-02 against Cameco,
+          BCE and Suncor: none tags it, and all three resolve long_term_debt from
+          LongtermBorrowings. Kept because it is the exact noncurrent split of the same
+          balance (so it cannot silently substitute a different measurement), but it has
+          never fired. Delete it if the next IFRS filer also has no use for it.
+
+  # --- Story 5.6: near-term debt share (OQ9) --------------------------------
+  #
+  # No total_debt source is mapped for ifrs-full, and that is deliberate. All
+  # three filers' denominators come from the derivation in derivations_v3.yaml.
+  #
+  # ifrs-full:Borrowings looks like the obvious total and is NOT used, because for
+  # Suncor it is a DIFFERENT measurement: verified live 2026-08-04, Suncor's filed
+  # Borrowings minus (CurrentPortionOfLongtermBorrowings + LongtermBorrowings)
+  # equals its ShorttermBorrowings to the dollar in FY2016, FY2017 and FY2018. Its
+  # total sweeps in short-term debt that the numerator excludes, so using it would
+  # understate the ratio for Suncor alone. Cameco's Borrowings carries no such
+  # component (the sum reproduces it exactly for all 4 shared years), so Cameco
+  # loses nothing by deriving instead — and the universe keeps one basis.
+  #
+  # Same shape as the CostOfSales constraint on the gross_profit derivation: a tag
+  # can be canonically correct and still measure the wrong thing.
+
+  near_term_debt:
+    note: >-
+      Confirmed live 2026-08-04, per-year: Cameco FY2017-2019 and FY2022-2025 (a
+      real two-year gap at FY2020-2021 — Story 5.1's spike recorded Cameco as
+      covering FY2017-2025 continuously, which the live check disproves), BCE
+      FY2016-2023, Suncor FY2016-2020 and FY2024-2025. Absent years stay
+      insufficient_data (AD-16); none is inferred from the surrounding years.
+    sources:
+      - concept: CurrentPortionOfLongtermBorrowings
+        note: >-
+          Deliberately NOT CurrentBorrowingsAndCurrentPortionOfNoncurrentBorrowings,
+          which BCE and Suncor both also tag. Verified live 2026-08-04 that it is a
+          wider measure: for BCE it exceeds CurrentPortionOfLongtermBorrowings by
+          1.4-4.1 billion in every one of its 8 shared years, the difference being
+          commercial paper and securitized receivables. Admitting it would put
+          short-term borrowings in the numerator while the denominator excludes
+          them, inflating BCE's ratio against every other filer's.
+
+  # --- Operands for the `ebit_pbt_plus_interest` derivation ------------------
+  # Not consumed by any model directly. They exist so the IFRS ebit DECISION can be
+  # expressed as a derivation over canonical concepts (keeping it taxonomy-blind and
+  # versioned) rather than as a mapping row, which D8 consequence 3 forbids.
+
+  profit_before_tax:
+    note: >-
+      Verified live 2026-08-02: tagged by BCE and Suncor for all of FY2017-2025.
+      Cameco does not tag it and does not need it — it files an operating-profit line
+      directly, so its ebit is read as filed and never derived.
+    sources:
+      - concept: ProfitLossBeforeTax
+
+  interest_expense:
+    note: >-
+      Verified live 2026-08-02: Suncor tags InterestExpense for all 9 years; BCE for 7,
+      with FY2021 and FY2022 missing. BCE tags AdjustmentsForInterestExpense (the cash
+      flow statement's add-back of the same charge) for all 9, which closes the gap —
+      without it BCE would lose Altman for exactly two mid-history years. The same
+      "the tag exists but does not cover the years you need" trap as CP's PP&E switch.
+    sources:
+      - concept: InterestExpense
+      - concept: AdjustmentsForInterestExpense
+
+  shares_outstanding:
+    note: >-
+      Same trap class as the us-gaap dei/shares bug: `NumberOfSharesOutstanding` can
+      be sparse where `NumberOfSharesIssued` is complete. Always check per-year
+      coverage, never mere tag presence.
+    sources:
+      - concept: NumberOfSharesOutstanding
+      - concept: NumberOfSharesIssued
+      - concept: WeightedAverageShares
+
+# --- Fallback verification status, 2026-08-02 --------------------------------
+#
+# Every fallback above has now been checked per-year against real company-facts
+# JSON for all three IFRS filers in the universe (Cameco, BCE, Suncor). The seven
+# that v1 carried as UNVERIFIED VARIANT resolved as follows: five are LOAD-BEARING
+# (four of them are Suncor's ONLY source for their concept), one never fires but
+# guards a real measurement difference, and one has still never been used.
+#
+# Keeping them was right. But four are NOT clean substitutes, and that matters for
+# cross-filer comparison rather than for coverage:
+#
+#   MEASUREMENT MISMATCHES (all Suncor, all load-bearing)
+#     cash_from_operations  pre-interest-and-tax  -> flatters CFO, moves Sloan
+#     depreciation          impairment-inclusive  -> distorts Beneish DEPI
+#     cogs                  inventories-only      -> understates cost of sales
+#
+# These do not make Suncor unscoreable and they are not mapping errors — they are
+# the honest consequence of IAS 1 letting a filer present by nature. What they do
+# mean is that a Suncor number is not strictly like-for-like against a by-function
+# filer, and ThesisTrace shows models side by side across companies. DECIDED
+# 2026-08-02: the three affected sources carry `like_for_like: false` plus a
+# `mismatch_reason`, and any score consuming one is annotated computed_with_caveat
+# with that reason stored as data. The value is never altered or suppressed — the
+# same posture as beneish_v1.yaml's out-of-calibration guard.
+#
+# Unchanged from v1: presentation-driven GAPS are never papered over. Neither BCE
+# nor Suncor tags an SG&A line, so Beneish's SGAI stays insufficient_data for both.
+# Suncor tags no retained earnings at all, so Altman's X2 cannot resolve. Neither
+# tags an operating-profit line (Cameco does), so `ebit` is reconstructed by the
+# `ebit_pbt_plus_interest` DECISION rule in derivations_v2.yaml, which records the
+# alternative considered and why it was rejected (D8 consequence 3).
+
+  # --- Story 6.2: free-cash-flow operands (concepts_v8) ----------------------
+
+  capex:
+    note: >-
+      Cash paid to acquire property, plant and equipment. Confirmed live 2026-08-07,
+      bucketed by period_end: Cameco FY2016-2025 and BCE FY2016-2025, both 10 years.
+
+      SUNCOR TAGS NO CAPEX OF ANY KIND and is therefore insufficient_data for the
+      whole reverse-DCF capability. It tags
+      AdditionsOtherThanThroughBusinessCombinationsIntangibleAssetsOtherThanGoodwill
+      (intangibles only) and balance-sheet PP&E stock, but no PP&E purchase FLOW.
+      Substituting the intangibles tag is explicitly rejected: it is a partial base
+      against a full one, the same error the QSR gross-profit re-verification refused,
+      and it would understate capex and so overstate free cash flow.
+
+      Note this is a FILER gap, not a taxonomy gap — Cameco and BCE both carry the
+      tag for 10 years each. D8's rule holds: never conclude a taxonomy is
+      unsupported from one filer.
+    sources:
+      - concept: PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities
+
+  cash_and_equivalents:
+    note: >-
+      Unrestricted cash and cash equivalents. Confirmed live 2026-08-07: Cameco
+      FY2015-2025 and Suncor FY2015-2025, 11 years each.
+
+      BCE TAGS NO COMBINED CONCEPT and is served by the cash_plus_cash_equivalents
+      derivation instead — it tags `Cash` and `CashEquivalents` as SEPARATE facts,
+      11 years each. That is a derivation rather than a fallback because the two sum
+      to the concept by definition; see derivations_v4.yaml. Another instance of
+      coverage varying per FILER rather than per taxonomy.
+    sources:
+      - concept: CashAndCashEquivalents
+
+  # Operands for the cash_plus_cash_equivalents derivation, and ONLY that. IFRS
+  # presents these as separable and BCE reports them separately; the engine takes
+  # canonical concepts as derivation operands, so they must be canonical to be
+  # summable. Deliberately ifrs-full only — every us-gaap filer tags the combined
+  # concept directly and never needs these.
+  #
+  # NEITHER IS A USABLE CASH FIGURE ON ITS OWN. `cash` excludes equivalents and
+  # `cash_equivalents` excludes cash; a consumer that reads either as "the company's
+  # cash" understates it. Only cash_and_equivalents is a complete measure.
+  cash:
+    note: >-
+      Cash excluding equivalents. Confirmed live 2026-08-07: BCE FY2015-2025, 11
+      years. An operand, not a metric — see the block comment above.
+    sources:
+      - concept: Cash
+
+  cash_equivalents:
+    note: >-
+      Cash equivalents excluding cash. Confirmed live 2026-08-07: BCE FY2015-2025,
+      11 years. An operand, not a metric — see the block comment above.
+    sources:
+      - concept: CashEquivalents
