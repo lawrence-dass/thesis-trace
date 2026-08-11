@@ -11,8 +11,6 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from decimal import Decimal
-
 from app.models import (
     Applicability,
     CanonicalFact,
@@ -24,8 +22,7 @@ from app.models import (
 )
 from canonicalization.mappings import MAPPING_VERSION
 from formulas.engine import load_spec
-from raw_store.fx_rates import get_fx_rate_on_or_before
-from raw_store.market_prices import get_fye_close
+from raw_store.market_prices import resolve_fye_price
 from scoring.altman import compute_altman
 from scoring.beneish import compute_beneish
 from scoring.facts import load_facts
@@ -155,31 +152,18 @@ async def score_altman(session: AsyncSession, issuer_cik: str, fiscal_year: int)
     market_price_id = None
     fx_rate_id = None
     if fact is not None:
-        mp = await get_fye_close(session, issuer_cik, fact.period_end)
-        if mp is not None:
-            market_close = Decimal(str(mp.close_price))
-            market_price_id = mp.id
-
-            # Currency fix (2026-07-23, confirmed live against real filings): Tiingo's
-            # close price is always USD, but some filers (e.g. CP) report every
-            # financial-statement figure in a different currency (CAD) — X1/X2/X3/X5
-            # are automatically internally consistent (all raw XBRL facts share one
-            # currency), but X4 would silently divide a USD numerator by a non-USD
-            # denominator without this. Convert into the issuer's own reporting
-            # currency using the Bank of Canada's own rate; if no rate is available
-            # for the date, X4 is insufficient_data rather than silently wrong.
-            reporting_currency = facts.unit("total_assets", fiscal_year)
-            if reporting_currency and reporting_currency != "USD":
-                fx = await get_fx_rate_on_or_before(session, f"USD{reporting_currency}", fact.period_end)
-                if fx is not None:
-                    market_close = market_close * Decimal(str(fx.rate))
-                    fx_rate_id = fx.id
-                else:
-                    # No FX rate for this date — market_price_id must also clear, or
-                    # the ScoreInput link below would misleadingly point to a USD
-                    # price that was never actually used in the (insufficient_data) X4.
-                    market_close = None
-                    market_price_id = None
+        # Tiingo is USD while some filers report in CAD.  Keep this conversion in
+        # one shared resolver so Altman and reverse DCF cannot drift apart.
+        resolution = await resolve_fye_price(
+            session,
+            issuer_cik=issuer_cik,
+            fiscal_year_end=fact.period_end,
+            reporting_currency=facts.unit("total_assets", fiscal_year),
+        )
+        if resolution.price is not None:
+            market_close = resolution.price
+            market_price_id = resolution.market_price.id if resolution.market_price else None
+            fx_rate_id = resolution.fx_rate.id if resolution.fx_rate else None
 
     result = compute_altman(
         facts,

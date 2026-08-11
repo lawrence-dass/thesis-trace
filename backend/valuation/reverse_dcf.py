@@ -29,7 +29,8 @@ fixed tolerance and a fixed iteration cap, so the same inputs give the same digi
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
+from datetime import date
+from decimal import Decimal, localcontext
 from functools import lru_cache
 from pathlib import Path
 
@@ -92,6 +93,7 @@ LOWER_BOUND: Decimal = Decimal(_SPEC["solver"]["lower_bound"])
 UPPER_BOUND: Decimal = Decimal(_SPEC["solver"]["upper_bound"])
 TOLERANCE: Decimal = Decimal(_SPEC["solver"]["tolerance"])
 MAX_ITERATIONS: int = int(_SPEC["solver"]["max_iterations"])
+DECIMAL_PRECISION = 50
 ATTRIBUTION: str = _SPEC["attribution"].strip()
 SPEC_VERSION: str = _SPEC["spec_version"]
 
@@ -128,6 +130,13 @@ class ReverseDcf:
     caveats: tuple[str, ...]
     attribution: str
     spec_version: str
+    # The overview attaches the exact persisted market/FX rows used to derive
+    # market capitalisation. The pure solver leaves these unset.
+    market_price_date: date | None = None
+    market_price_source: str | None = None
+    fx_rate: Decimal | None = None
+    fx_rate_date: date | None = None
+    fx_rate_source: str | None = None
 
 
 def _insufficient(fiscal_year: int, reason: str, rate: Decimal, terminal: Decimal, **operands) -> ReverseDcf:
@@ -163,13 +172,19 @@ def present_value(
     it back through the forward model, which is a real check rather than a
     restatement of the solver's own arithmetic.
     """
-    total = Decimal(0)
-    discount = Decimal(1) + discount_rate
-    for year in range(1, HORIZON_YEARS + 1):
-        total += free_cash_flow * (Decimal(1) + growth) ** year / discount**year
-    terminal_flow = free_cash_flow * (Decimal(1) + growth) ** HORIZON_YEARS * (Decimal(1) + terminal_growth)
-    terminal_value = terminal_flow / (discount_rate - terminal_growth)
-    return total + terminal_value / discount**HORIZON_YEARS
+    with localcontext() as context:
+        context.prec = DECIMAL_PRECISION
+        total = Decimal(0)
+        discount = Decimal(1) + discount_rate
+        for year in range(1, HORIZON_YEARS + 1):
+            total += free_cash_flow * (Decimal(1) + growth) ** year / discount**year
+        terminal_flow = (
+            free_cash_flow
+            * (Decimal(1) + growth) ** HORIZON_YEARS
+            * (Decimal(1) + terminal_growth)
+        )
+        terminal_value = terminal_flow / (discount_rate - terminal_growth)
+        return +(total + terminal_value / discount**HORIZON_YEARS)
 
 
 def compute(
@@ -218,7 +233,9 @@ def compute(
     if missing:
         return fail(f"no {', '.join(missing)} for this fiscal year")
 
-    enterprise_value = market_cap + total_debt - cash_and_equivalents
+    with localcontext() as context:
+        context.prec = DECIMAL_PRECISION
+        enterprise_value = market_cap + total_debt - cash_and_equivalents
     carried = {
         "enterprise_value": enterprise_value,
         "free_cash_flow": free_cash_flow,
@@ -241,33 +258,38 @@ def compute(
         )
 
     # The present value is strictly increasing in growth for a positive cash flow,
-    # so a sign change across the declared range brackets exactly one root.
-    low, high = LOWER_BOUND, UPPER_BOUND
-    if present_value(free_cash_flow, low, discount_rate, terminal_growth) > enterprise_value:
-        return fail(
-            f"the implied growth is below the search range ({low}) — the price is lower than "
-            "even that rate would justify",
-            **carried,
-        )
-    if present_value(free_cash_flow, high, discount_rate, terminal_growth) < enterprise_value:
-        return fail(
-            f"the implied growth is above the search range ({high}) — the price implies more "
-            "growth than this model will search for",
-            **carried,
-        )
+    # so a sign change across the declared range brackets exactly one root. Keep
+    # the whole bisection in a fixed context; otherwise a caller changing the
+    # process-wide Decimal precision could change the stored implied rate.
+    with localcontext() as context:
+        context.prec = DECIMAL_PRECISION
+        low, high = LOWER_BOUND, UPPER_BOUND
+        if present_value(free_cash_flow, low, discount_rate, terminal_growth) > enterprise_value:
+            return fail(
+                f"the implied growth is below the search range ({low}) — the price is lower than "
+                "even that rate would justify",
+                **carried,
+            )
+        if present_value(free_cash_flow, high, discount_rate, terminal_growth) < enterprise_value:
+            return fail(
+                f"the implied growth is above the search range ({high}) — the price implies more "
+                "growth than this model will search for",
+                **carried,
+            )
 
-    for _ in range(MAX_ITERATIONS):
-        midpoint = (low + high) / 2
-        if high - low < TOLERANCE:
-            break
-        if present_value(free_cash_flow, midpoint, discount_rate, terminal_growth) < enterprise_value:
-            low = midpoint
-        else:
-            high = midpoint
+        for _ in range(MAX_ITERATIONS):
+            midpoint = (low + high) / 2
+            if high - low < TOLERANCE:
+                break
+            if present_value(free_cash_flow, midpoint, discount_rate, terminal_growth) < enterprise_value:
+                low = midpoint
+            else:
+                high = midpoint
+        implied_growth = +(low + high) / 2
 
     return ReverseDcf(
         fiscal_year=fiscal_year,
-        implied_growth=(low + high) / 2,
+        implied_growth=implied_growth,
         insufficient_data=False,
         reason=None,
         **carried,

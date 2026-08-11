@@ -10,6 +10,7 @@ fixtures. `main` performs the live universe run and is gated behind the standing
 from __future__ import annotations
 
 import asyncio
+from datetime import date
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -62,15 +63,16 @@ async def run_issuer(
     sector: str | None = None,
     is_financial_sector: bool = False,
     is_capital_intensive: bool = False,
-    fye_prices: dict[int, float] | None = None,
-    fx_rates: dict[int, float] | None = None,
+    fye_prices: dict[int, float | tuple[date, float]] | None = None,
+    fx_rates: dict[int, float | tuple[date, float]] | None = None,
     reporting_currency: str | None = None,
 ) -> dict:
     """Full write-path pipeline for one issuer from a Company Facts payload.
 
-    `fye_prices` maps fiscal_year -> period-end close (from Tiingo); when present
-    for a year, Altman is also scored for that year (AD-11/AD-14). `fx_rates`
-    (fiscal_year -> USD/`reporting_currency` rate) is only needed for filers that
+    `fye_prices` maps fiscal_year -> period-end close (or `(observed_date, close)`)
+    from Tiingo; when present for a year, Altman is also scored for that year
+    (AD-11/AD-14). `fx_rates` has the analogous value or dated tuple for the
+    USD/`reporting_currency` rate and is only needed for filers that
     report in a non-USD currency (e.g. CP reports in CAD) — see AD-11's currency
     fix (2026-07-23): Tiingo's price is always USD, so a non-USD filer's Altman
     X4 needs this conversion or it would silently divide mismatched currencies.
@@ -94,23 +96,34 @@ async def run_issuer(
     # one year should not suppress every other year's valid scores.
     validation = await run_validation(session, parsed.cik)
 
-    # Persist any provided FYE market prices at the filing's fiscal-year-end.
+    # Persist any provided FYE market prices at the selected observation date.
     fye_prices = fye_prices or {}
     all_filings = (await session.execute(select(Filing).where(Filing.issuer_cik == parsed.cik))).scalars().all()
     filings = _primary_filing_per_year(all_filings)
-    for fy, close in fye_prices.items():
+    for fy, supplied in fye_prices.items():
         if fy in filings:
+            if isinstance(supplied, tuple):
+                price_date, close = supplied
+            else:
+                # Backward-compatible fixture/caller form. Live ingestion uses
+                # the tuple form so a weekend FYE does not masquerade as a quote
+                # observed on the Sunday itself.
+                price_date, close = filings[fy].fiscal_year_end, supplied
             await upsert_fye_close(
-                session, issuer_cik=parsed.cik, price_date=filings[fy].fiscal_year_end, close_price=close
+                session, issuer_cik=parsed.cik, price_date=price_date, close_price=close
             )
 
     if reporting_currency and reporting_currency != "USD":
-        for fy, rate in (fx_rates or {}).items():
+        for fy, supplied in (fx_rates or {}).items():
             if fy in filings:
+                if isinstance(supplied, tuple):
+                    rate_date, rate = supplied
+                else:
+                    rate_date, rate = filings[fy].fiscal_year_end, supplied
                 await upsert_fx_rate(
                     session,
                     currency_pair=f"USD{reporting_currency}",
-                    rate_date=filings[fy].fiscal_year_end,
+                    rate_date=rate_date,
                     rate=rate,
                 )
 
@@ -137,7 +150,7 @@ async def run_issuer(
     }
 
 
-async def _fye_prices_for(payload: dict, ticker: str) -> dict[int, float]:
+async def _fye_prices_for(payload: dict, ticker: str) -> dict[int, tuple[date, float]]:
     """Fetch Tiingo EOD prices covering every filed fiscal-year-end and resolve
     the FYE close per year (AD-11, AD-14). Returns {} — never raises — when
     TIINGO_API_KEY is unset, so Altman degrades to insufficient_data rather
@@ -162,12 +175,12 @@ async def _fye_prices_for(payload: dict, ticker: str) -> dict[int, float]:
     end = _date.fromisoformat(fye_dates[-1])
     prices = await fetch_eod_prices(ticker, start, end)
 
-    fye_prices: dict[int, float] = {}
+    fye_prices: dict[int, tuple[date, float]] = {}
     for fy, f in primary.items():
         fye = _date.fromisoformat(f.fiscal_year_end)
         row = select_fye_close(prices, fye)
         if row is not None:
-            fye_prices[fy] = row["close"]
+            fye_prices[fy] = (date.fromisoformat(row["date"][:10]), row["close"])
     return fye_prices
 
 
@@ -202,7 +215,7 @@ def _payload_reporting_currency(payload: dict) -> str | None:
     return None
 
 
-async def _fx_rates_for(payload: dict, reporting_currency: str | None) -> dict[int, float]:
+async def _fx_rates_for(payload: dict, reporting_currency: str | None) -> dict[int, tuple[date, float]]:
     """Fetch USD/{reporting_currency} rates covering every filed fiscal-year-end
     (AD-11 currency fix). Only Bank of Canada USD/CAD is supported; any other
     non-USD currency returns {} and Altman degrades to insufficient_data for
@@ -228,12 +241,12 @@ async def _fx_rates_for(payload: dict, reporting_currency: str | None) -> dict[i
     end = _date.fromisoformat(fye_dates[-1])
     rates = await fetch_usd_cad_rates(start, end)
 
-    fx_rates: dict[int, float] = {}
+    fx_rates: dict[int, tuple[date, float]] = {}
     for fy, f in primary.items():
         fye = _date.fromisoformat(f.fiscal_year_end)
         row = select_rate_on_or_before(rates, fye)
         if row is not None:
-            fx_rates[fy] = row["rate"]
+            fx_rates[fy] = (date.fromisoformat(row["date"]), row["rate"])
     return fx_rates
 
 

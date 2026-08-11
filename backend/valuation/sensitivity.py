@@ -83,14 +83,23 @@ class SensitivityGrid:
 def grid_for(base: ReverseDcf, **operands) -> SensitivityGrid | None:
     """Solve the grid around an already-computed base result.
 
-    Returns None when the base itself is `insufficient_data`: if the model does not
-    apply at the default assumptions it does not apply at any of them, and a grid of
-    35 identical refusals is noise rather than information.
+    Returns None only when the operands are unavailable or the model has no positive
+    stream to solve. A base can be insufficient because its implied growth is
+    outside the search bounds while some other assumption cells still resolve; those
+    cells are valuable evidence and must remain visible.
 
     `operands` are the same values the base was computed from — passed rather than
     re-derived so this cannot silently disagree with the figure it is a range around.
     """
-    if base.insufficient_data:
+    if (
+        base.free_cash_flow is None
+        or base.market_cap is None
+        or base.total_debt is None
+        or base.cash_and_equivalents is None
+        or base.enterprise_value is None
+        or base.free_cash_flow <= 0
+        or base.enterprise_value <= 0
+    ):
         return None
 
     cells: list[SensitivityCell] = []

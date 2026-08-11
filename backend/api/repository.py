@@ -8,6 +8,7 @@ provenance of each input.
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,12 +45,55 @@ from api.schemas import (
     ReverseDcfOut,
     SensitivityCellOut,
 )
-from canonicalization.mappings import MAPPING_VERSION
+from canonicalization.mappings import DERIVATION_RULES, MAPPING_VERSION
 from debt.engine import DENOMINATOR_CONCEPT, NUMERATOR_CONCEPT, shares_for_facts
 from debt.profile import PROFILE_CONCEPTS, profile_for_facts
 from valuation.overview import DCF_CONCEPTS, reverse_dcf_for_issuer
 from diff.engine import diff_company_since, latest_filing_pivot
 from trajectory.engine import trajectories_for_scores
+
+_DERIVATION_OPERANDS = {rule.rule: rule.operands for rule in DERIVATION_RULES}
+_DERIVATION_OPERATIONS = {rule.rule: rule.operation for rule in DERIVATION_RULES}
+
+
+def _append_reverse_dcf_fact_operand(
+    operands: list[ReverseDcfOperandOut],
+    facts_by_name: dict[str, CanonicalFact],
+    name: str,
+    fiscal_year: int,
+    seen: set[str],
+) -> None:
+    """Append one canonical operand and recursively expose its dependencies.
+
+    CanonicalFact keeps an accession as an internal provenance anchor even for a
+    derived value. That anchor is useful for the scoring audit trail, but it must
+    not be emitted as though the filing contained the derived line item (AD-19).
+    The public reverse-DCF surface therefore carries the actual spec operands and
+    only filed leaves carry an accession.
+    """
+    if name in seen:
+        return
+    fact = facts_by_name.get(name)
+    if fact is None or fact.fiscal_year != fiscal_year:
+        return
+    seen.add(name)
+    dependencies = (
+        _DERIVATION_OPERANDS.get(fact.derivation, ()) if fact.derivation is not None else ()
+    )
+    operands.append(
+        ReverseDcfOperandOut(
+            name=name,
+            value=float(Decimal(str(fact.value))),
+            accession_number=fact.accession_number if fact.derivation is None else None,
+            derived_from=list(dependencies),
+            derivation=fact.derivation,
+            operation=_DERIVATION_OPERATIONS.get(fact.derivation),
+            unit=fact.unit,
+            period_end=fact.period_end.isoformat() if fact.period_end else None,
+        )
+    )
+    for dependency in dependencies:
+        _append_reverse_dcf_fact_operand(operands, facts_by_name, dependency, fiscal_year, seen)
 
 # Lens category per model (FR-5 Quality/Health vs FR-8 Integrity).
 LENS_CATEGORY = {
@@ -235,7 +279,7 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
 
     # Reverse DCF (Epic 6). Reads the SAME `debt_facts` rows widened by DCF_CONCEPTS
     # above rather than issuing its own query, so the single-pass read holds (AD-1).
-    # Only a market price and an FX rate for one fiscal year are fetched beyond it.
+    # Only bounded market-price and FX reads for candidate years are fetched beyond it.
     #
     # LATEST RESOLVABLE YEAR ONLY, not a per-year series: the sensitivity grid is 35
     # solves, a different cost class from the ratio-per-year the debt cards compute.
@@ -248,46 +292,126 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
     )
     if dcf is not None:
         base, grid, (cagr, cagr_from, cagr_to) = dcf
-        operands = []
+        facts_by_name = {
+            fact.canonical_concept: fact
+            for fact in debt_facts
+            if fact.fiscal_year == base.fiscal_year
+        }
+        operands: list[ReverseDcfOperandOut] = []
+        seen_operands: set[str] = set()
+        reporting_currency = next(
+            (
+                facts_by_name[concept].unit.strip().upper()
+                for concept in (
+                    "total_assets",
+                    "cash_and_equivalents",
+                    "cash",
+                    "revenue",
+                    "cash_from_operations",
+                    "capex",
+                    "total_debt",
+                )
+                if concept in facts_by_name and facts_by_name[concept].unit
+            ),
+            None,
+        )
         if base.free_cash_flow is not None:
+            cash_from_operations_fact = facts_by_name.get("cash_from_operations")
+            capex_fact = facts_by_name.get("capex")
             operands.append(
                 ReverseDcfOperandOut(
                     name="free_cash_flow",
                     value=float(base.free_cash_flow),
                     derived_from=["cash_from_operations", "capex"],
+                    derivation="reverse_dcf_v1.free_cash_flow",
+                    operation="subtract",
+                    unit=(cash_from_operations_fact or capex_fact).unit
+                    if cash_from_operations_fact or capex_fact
+                    else None,
+                    period_end=(cash_from_operations_fact or capex_fact).period_end.isoformat()
+                    if cash_from_operations_fact or capex_fact
+                    else None,
                 )
             )
+            _append_reverse_dcf_fact_operand(
+                operands, facts_by_name, "cash_from_operations", base.fiscal_year, seen_operands
+            )
+            _append_reverse_dcf_fact_operand(
+                operands, facts_by_name, "capex", base.fiscal_year, seen_operands
+            )
+        else:
+            # Preserve whichever filed leaves existed even when the aggregate is
+            # insufficient; hiding available evidence behind a generic reason makes
+            # an honest failure impossible to audit.
+            for name in ("cash_from_operations", "capex"):
+                _append_reverse_dcf_fact_operand(
+                    operands, facts_by_name, name, base.fiscal_year, seen_operands
+                )
         if base.market_cap is not None:
             operands.append(
                 ReverseDcfOperandOut(
                     name="market_cap",
                     value=float(base.market_cap),
                     derived_from=["shares_outstanding", "market_price"],
+                    derivation="reverse_dcf_v1.market_cap",
+                    operation="multiply",
+                    unit=reporting_currency,
+                    observed_on=base.market_price_date.isoformat()
+                    if base.market_price_date
+                    else None,
+                    source=base.market_price_source or "persisted market_prices",
                 )
             )
-        # These two ARE filed figures, so they cite an accession. A derived operand
-        # above deliberately does not (AD-19): a computed number must never wear a
-        # filed-line citation.
+            shares_fact = facts_by_name.get("shares_outstanding")
+            shares_value = (
+                Decimal(str(shares_fact.value)) if shares_fact is not None else None
+            )
+            if shares_value is not None and shares_value > 0:
+                # This is the converted price actually used by market cap. Keeping
+                # it in the response makes the market-cap multiplication
+                # independently reproducible for both USD and CAD filers.
+                market_price = base.market_cap / shares_value
+                operands.append(
+                    ReverseDcfOperandOut(
+                        name="market_price",
+                        value=float(market_price),
+                        unit=reporting_currency,
+                        source=base.market_price_source or "persisted market_prices",
+                        observed_on=base.market_price_date.isoformat()
+                        if base.market_price_date
+                        else None,
+                        conversion_rate=float(base.fx_rate) if base.fx_rate is not None else None,
+                        conversion_rate_date=base.fx_rate_date.isoformat()
+                        if base.fx_rate_date
+                        else None,
+                        conversion_rate_source=base.fx_rate_source,
+                    )
+                )
+        _append_reverse_dcf_fact_operand(
+            operands, facts_by_name, "shares_outstanding", base.fiscal_year, seen_operands
+        )
+
+        # These values may be filed directly or computed by a versioned canonical
+        # derivation. In the latter case the helper emits the rule's real leaves,
+        # never the internal accession anchor (AD-19).
         for name, value in (
             ("total_debt", base.total_debt),
             ("cash_and_equivalents", base.cash_and_equivalents),
         ):
             if value is None:
                 continue
-            fact = next(
-                (
-                    f
-                    for f in debt_facts
-                    if f.canonical_concept == name and f.fiscal_year == base.fiscal_year
-                ),
-                None,
+            _append_reverse_dcf_fact_operand(
+                operands, facts_by_name, name, base.fiscal_year, seen_operands
             )
+        if base.enterprise_value is not None:
             operands.append(
                 ReverseDcfOperandOut(
-                    name=name,
-                    value=float(value),
-                    accession_number=fact.accession_number if fact is not None else None,
-                    derived_from=[fact.derivation] if fact is not None and fact.derivation else [],
+                    name="enterprise_value",
+                    value=float(base.enterprise_value),
+                    derived_from=["market_cap", "total_debt", "cash_and_equivalents"],
+                    derivation="reverse_dcf_v1.enterprise_value",
+                    operation="add_then_subtract",
+                    unit=reporting_currency,
                 )
             )
         reverse_dcf = ReverseDcfOut(

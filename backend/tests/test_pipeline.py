@@ -206,6 +206,7 @@ def test_universe_includes_the_ifrs_filer() -> None:
     assert ccj.cik == "0001009001"
     assert ccj.is_financial_sector is False  # Beneish/Altman remain in scope
     assert ccj.capital_intensive is True  # mining -> Altman caveat, as with CP
+    assert ccj.interest_outside_operating is True
 
 
 @requires_db

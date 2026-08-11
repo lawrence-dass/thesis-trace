@@ -155,6 +155,19 @@ class ReverseDcfOperandOut(BaseModel):
     #: filed-line citation.
     accession_number: str | None = None
     derived_from: list[str] = []
+    derivation: str | None = None
+    operation: str | None = None
+    #: Unit of the value (for example ``USD`` or ``CAD``). This matters for the
+    #: external market price, which is converted before it is multiplied by shares.
+    unit: str | None = None
+    #: Non-filing source for external inputs such as the persisted market price.
+    source: str | None = None
+    #: Period/date metadata for filing facts and market/FX observations.
+    period_end: str | None = None
+    observed_on: str | None = None
+    conversion_rate: float | None = None
+    conversion_rate_date: str | None = None
+    conversion_rate_source: str | None = None
 
 
 class SensitivityCellOut(BaseModel):

@@ -24,6 +24,9 @@ class UniverseEntry:
     cik: str | None  # zero-padded; None until confirmed against EDGAR
     is_financial_sector: bool = False
     capital_intensive: bool = False  # carries an Altman caveat (D6), used in Epic 2
+    # IFRS cash-flow classification verified from the filer's explicit interest-paid
+    # tag. This is source data about the issuer, not a reverse-DCF assumption.
+    interest_outside_operating: bool = False
 
 
 PHASE1_UNIVERSE: tuple[UniverseEntry, ...] = (
@@ -40,7 +43,13 @@ PHASE1_UNIVERSE: tuple[UniverseEntry, ...] = (
     # assets-minus-equity identity derivation.
     # capital_intensive: mining carries heavy PP&E, so Altman runs structurally
     # low and the D6 caveat applies for the same reason it does to CP.
-    UniverseEntry("CCJ", "Cameco Corporation", "0001009001", capital_intensive=True),
+    UniverseEntry(
+        "CCJ",
+        "Cameco Corporation",
+        "0001009001",
+        capital_intensive=True,
+        interest_outside_operating=True,
+    ),
     # BCE: telecom. Verified live 2026-08-02 — 288 ifrs-full concepts, FY2017-2025.
     # Resolves 15 of 18 canonical concepts directly. Its gaps are presentation, not
     # tagging quality: no SG&A line (IAS 1 by-nature, so Beneish SGAI stays

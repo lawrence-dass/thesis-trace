@@ -10,17 +10,19 @@ future field would actually be added.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 from api.schemas import CompanyOverviewOut, ReverseDcfOut, SensitivityCellOut
+from explanation.methodology import get_methodology
 from valuation.overview import DCF_CONCEPTS, historical_revenue_cagr
 
 
 @dataclass
 class _Fact:
-    """Only `.value` is read by the function under test."""
+    """The function reads the revenue value and its reporting unit."""
 
     value: Decimal
+    unit: str = "USD"
 
 
 def _years(**revenue_by_year: str) -> dict[int, dict[str, _Fact]]:
@@ -64,11 +66,45 @@ def test_a_non_positive_starting_revenue_yields_no_cagr() -> None:
     )
 
 
+def test_a_non_positive_ending_revenue_yields_no_cagr() -> None:
+    """A fractional root of a negative endpoint is not a real CAGR.
+
+    This also guards the AD-15 implementation: the calculation must refuse the
+    case rather than falling through to Python's float/complex arithmetic.
+    """
+    assert historical_revenue_cagr(_years(**{"2023": "100", "2024": "50", "2025": "-25"})) == (
+        None,
+        None,
+        None,
+    )
+
+
 def test_a_shrinking_filer_reports_negative_growth_not_an_absent_one() -> None:
     """Decline is a real answer and must not be confused with missing data — the
     reader comparing an implied 20% against an actual -8% needs the -8%."""
     cagr, _, _ = historical_revenue_cagr(_years(**{"2023": "100", "2024": "90", "2025": "81"}))
     assert cagr < 0
+
+
+def test_a_long_decline_keeps_the_decimal_root_bounded() -> None:
+    """Newton's initial guess must not turn a long decline into explosive growth."""
+    cagr, first, last = historical_revenue_cagr(
+        _years(**{"2010": "100", "2015": "90", "2020": "80"})
+    )
+    assert (first, last) == (2010, 2020)
+    assert cagr < 0
+    assert abs(cagr - Decimal("-0.022067")) < Decimal("0.00001")
+
+
+def test_cagr_is_not_affected_by_the_process_decimal_context() -> None:
+    facts = _years(**{"2010": "120", "2020": "100", "2025": "80"})
+    with localcontext() as context:
+        context.prec = 6
+        low_precision = historical_revenue_cagr(facts)[0]
+    with localcontext() as context:
+        context.prec = 40
+        high_precision = historical_revenue_cagr(facts)[0]
+    assert low_precision == high_precision
 
 
 # --- the read surface ----------------------------------------------------------
@@ -128,6 +164,22 @@ def test_the_overview_carries_the_block_optionally() -> None:
     assert CompanyOverviewOut.model_fields["reverse_dcf"].default is None
 
 
+def test_the_authored_rule_publishes_its_default_and_origin() -> None:
+    """The reverse DCF is not academic, but its assumptions are still public."""
+    methodology = get_methodology("reverse_dcf")
+    assert methodology is not None
+    assert methodology["formula_version"] == "reverse_dcf_v1"
+    assert methodology["assumptions"]["discount_rate"]["default"] == "0.10"
+    assert methodology["assumptions"]["discount_rate"]["default_origin"] == "convention_not_computed"
+
+
+def test_public_methodology_does_not_leak_maintainer_notes() -> None:
+    methodology = get_methodology("reverse_dcf")
+    assert "note" not in str(methodology)
+    assert "Story 6.3" not in str(methodology)
+    assert "AD-" not in str(methodology)
+
+
 def test_the_dcf_reads_only_concepts_the_single_fact_query_can_widen_to() -> None:
     """AD-1: the block reuses the caller's existing fact pass rather than issuing its
     own query. If a new operand were added here without widening that query, the
@@ -138,6 +190,10 @@ def test_the_dcf_reads_only_concepts_the_single_fact_query_can_widen_to() -> Non
         "capex",
         "total_debt",
         "cash_and_equivalents",
+        "near_term_debt",
+        "long_term_debt",
+        "cash",
+        "cash_equivalents",
         "shares_outstanding",
         "revenue",
         "total_assets",
