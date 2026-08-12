@@ -61,6 +61,7 @@ CURATED_SECTIONS = (
     "reverse_dcf_capital_intensity_distortion",
     "story_6_5_open_deviations",
     "story_6_6_browser_verification",
+    "story_6_7_golden_coverage",
     "market_price_dates_labelled_as_fiscal_year_end",
     "shop_local_history_is_not_edgar_coverage",
     "canonical_facts_amendment_gap",

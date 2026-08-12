@@ -126,14 +126,14 @@ development_status:
   # than in a comment like this one, which no parser can see. Epic titles likewise
   # live in the catalog — they used to sit in trailing `#` comments here, which
   # made every epic in this file nameless to `yaml.safe_load`.
-  epic-6: in-progress
+  epic-6: done
   6-1-reverse-dcf-input-coverage-spike: done
   6-2-free-cash-flow-canonical-concepts: done
   6-3-versioned-reverse-dcf-spec-and-deterministic-solver: done
   6-4-sensitivity-range-over-discount-rate-and-terminal-growth: done
   6-5-implied-assumptions-read-api: done
   6-6-reverse-dcf-on-the-company-overview: done
-  6-7-golden-dataset-coverage-for-the-implied-growth-rate: backlog
+  6-7-golden-dataset-coverage-for-the-implied-growth-rate: done
   epic-6-retrospective: optional
   epic-7: backlog
   epic-7-retrospective: optional
@@ -722,6 +722,49 @@ market_price_dates_labelled_as_fiscal_year_end:
     non-trading day, followed by a re-ingest. Needs its own change: it touches the
     ingestion path and should carry a guard asserting no stored observation lands on
     a weekend.
+
+# Story 6.7. The fixture gap is the finding worth keeping here — it was invisible
+# until something tried to USE the fixtures for a new capability.
+story_6_7_golden_coverage:
+  status: done
+  completed: 2026-08-12
+  blocker_found_and_resolved: >
+    The golden fixtures are TRIMMED SUBSETS built for earlier stories — CP's carried
+    23 us-gaap tags and neither a capex nor a cash-and-equivalents tag. Every filer
+    therefore resolved to insufficient_data, which would have made the golden entries
+    assert nothing about the capability while looking complete. The mappings were
+    fine (concepts_v8); the fixtures were the gap.
+  resolved_by: >
+    Rebuilt the missing payload entries from the dev store's own raw_facts joined to
+    filings — already-ingested real EDGAR data, keyed to accession numbers — rather
+    than re-fetching from EDGAR. Faithful because raw_facts rows only exist for
+    entries that already passed the ingestion filter (fp == FY, annual form), so each
+    row maps back to exactly one company_facts entry. Approved by Lawrence 2026-08-12.
+  no_existing_golden_value_changed: >
+    Checked explicitly, because adding source tags CAN change canonicalization: the
+    full suite went 309 -> 310 passed with no other assertion moving. CP's reverse-DCF
+    total_debt (22,494,000,000) is the same figure its debt-share entry already
+    pinned — two capabilities reading one canonical fact.
+  coverage:
+    resolves: "QSR FY2023 22.228%, CP FY2023 47.169%, OTEX FY2019 5.860%, CCJ FY2024 34.818%"
+    insufficient_data: >
+      SHOP and BCE (no total_debt in the golden fiscal year — SHOP's long_term_debt
+      is deliberately unmapped, BCE's CurrentPortionOfLongtermBorrowings is untagged
+      for FY2024), and SU (no capex tag in ANY year, under any variant).
+    note: >-
+      These are golden-year figures from the fixtures, NOT the live-database values
+      Story 6.6 was verified against — CP resolves 47.2% at FY2023 and 37.2% at
+      FY2025. Different years, not a discrepancy.
+  independence: >
+    The expected rates are solved by a reimplementation written from the SPEC TEXT
+    that imports nothing from backend/valuation, backend/scoring or backend/formulas.
+    A golden value produced by calling the code under test asserts only that the code
+    agrees with itself. Cost accepted and recorded: a spec change must be mirrored by
+    hand, because a version importing the solver's constants would drift with it.
+  guard_verified: >
+    Corrupting CP's expected rate by 1e-4 fails TWO independent assertions — the
+    DB-backed independent solve, and the pure-function check that each golden rate
+    reproduces from its own recorded operands. Confirmed by actually doing it.
 
 # Story 6.6's browser pass, recorded because the standing rule keeps earning its
 # keep: 5.4 found four defects this way, 5.7 found two, and 6.6 found three that
