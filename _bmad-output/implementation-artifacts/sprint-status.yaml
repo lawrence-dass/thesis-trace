@@ -304,6 +304,30 @@ post_epic_work:
   - item: "test_llm_rewrite_disabled_returns_text_unchanged depended on ambient environment"
     status: done
     evidence: "PR #24 — passed in CI while failing for anyone with a real .env sourced. Both the process env and the .env-file fallback are now pinned with monkeypatch."
+  - item: "Persist the reverse DCF in the pipeline — the read path currently computes it, violating AD-1"
+    status: open
+    raised: 2026-08-12
+    why: >
+      AD-1 is a CQRS rule: "all computation runs in the scheduled batch pipeline; the
+      read path only queries materialized Postgres and never computes a score", and
+      "no request can trigger scoring, ingestion, or RECOMPUTATION". Nothing about the
+      reverse DCF is persisted — no table, and reverse_dcf_for_issuer has exactly one
+      caller, api/repository.py:287, on the read path. Every page load re-solves the
+      DCF and all 35 grid cells.
+    scope: >
+      A table keyed (issuer_cik, fiscal_year, spec_version) holding the result, its
+      operands and the grid; an alembic migration; a stage in pipeline/run.py's
+      run_issuer after scoring; and repository.get_company_overview reading the stored
+      row instead of calling the solver.
+    must_not_forget: >
+      The write MUST be an upsert on that key. run_validation is the precedent: it was
+      implemented, tested and then appended a duplicate row every night once the cron
+      ran. Story 6.4's AC already says stored, so this closes an AC/code disagreement
+      rather than adding a new promise.
+    verify: >
+      A test asserting the read path issues NO solver call (the whole point), the
+      existing browser-verified figures are unchanged (CP 37.2% FY2025 live), and a
+      double pipeline run leaves exactly one row.
 
 # D8 — Canada-first IFRS/40-F support. In progress, 4 of 7 increments merged.
 # Foundational decision recorded in planning-artifacts/foundational-decisions.md (D8);
@@ -880,6 +904,28 @@ story_6_5_open_deviations:
       to say computed-on-read with the measured cost recorded. Do not leave the AC
       and the code disagreeing — that is the exact defect pattern this repo keeps
       finding.
+    CORRECTION_2026_08_12: >
+      THE "AMEND THE AC" HALF OF THAT RECOMMENDATION WAS WRONG, and the entry above
+      also understates the problem. Both were corrected after actually reading AD-1
+      rather than reasoning about its purpose.
+
+      AD-1 is a CQRS STRUCTURAL RULE, not a reproducibility one. epics.md line 60:
+      "all computation runs in the scheduled batch pipeline; the read path only
+      queries materialized Postgres and never computes a score". Line 614: "no
+      request can trigger scoring, ingestion, or RECOMPUTATION". A versioned spec
+      making the result reproducible does not satisfy that — the rule is about WHERE
+      computation happens, so amending 6.4's AC would have written a CQRS violation
+      into the spec instead of fixing it.
+
+      AND IT IS BROADER THAN THE GRID. Nothing about the reverse DCF is persisted at
+      all: there is no table, and `reverse_dcf_for_issuer` has exactly ONE caller —
+      `api/repository.py:287`, on the read path. The pipeline never calls it. So a
+      page load re-solves the DCF *and* all 35 grid cells, not just the grid.
+
+      Correct action: persist the whole capability from the pipeline and have the
+      read path query it. Needs a table, a migration, a pipeline stage, and an
+      idempotency key on (issuer_cik, fiscal_year, spec_version) or the nightly cron
+      accumulates a row per night — the anti-pattern that bit `run_validation`.
   overview_n_plus_1_now_measured:
     finding: >
       Risk-assessment finding 3.10 is REAL and now measured rather than assumed:
