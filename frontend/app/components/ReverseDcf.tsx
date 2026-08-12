@@ -15,6 +15,7 @@
 import { Badge } from "./ui/Badge";
 import { Card } from "./ui/Card";
 import { CitationChip } from "./ui/CitationChip";
+import { compactAmount } from "./ui/format";
 
 export type SensitivityCell = {
   discount_rate: number;
@@ -72,6 +73,13 @@ export function formatRate(value: number | null | undefined, digits = 1): string
 // Every operand the solver emits. Kept exhaustive on purpose: an unmapped name
 // falls back to its raw snake_case, which renders lowercase beside mapped labels
 // and makes one list look like two conventions.
+//
+// The last four are DERIVATION LEAVES. `_append_reverse_dcf_fact_operand` walks
+// each derived fact's own operands, so a filer whose total debt or cash is a
+// derivation exposes the parts too: CCJ emits near_term_debt/long_term_debt, and
+// BCE emits all four (it tags Cash and CashEquivalents separately and never the
+// combined concept). Neither filer was in the browser spot-check that this map's
+// first version was written against — which is exactly how they got missed.
 const OPERAND_LABEL: Record<string, string> = {
   free_cash_flow: "Free cash flow",
   cash_from_operations: "Cash from operations",
@@ -82,6 +90,10 @@ const OPERAND_LABEL: Record<string, string> = {
   total_debt: "Total debt",
   cash_and_equivalents: "Cash and equivalents",
   enterprise_value: "Enterprise value",
+  near_term_debt: "Near-term debt",
+  long_term_debt: "Long-term debt",
+  cash: "Cash",
+  cash_equivalents: "Cash equivalents",
 };
 
 function labelFor(name: string): string {
@@ -109,13 +121,11 @@ function joinList(parts: string[]): string {
   return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
 }
 
-/** Absolute amounts, unit-labelled by the operand itself rather than assumed. */
-function formatOperand(value: number): string {
-  const abs = Math.abs(value);
-  if (abs >= 1e9) return `${(value / 1e9).toFixed(2)}B`;
-  if (abs >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
-  return value.toLocaleString();
-}
+// Amounts use the SHARED helper rather than a local one. `compactAmount` rounds
+// before its magnitude test so 999,999,999 reads "1.00B" and not "1000M"; a local
+// re-implementation of the same idea drifted from it on that exact boundary, which
+// is the divergence ui/format.ts was extracted to end. Two cards on this page show
+// money — they must only ever differ when the numbers do.
 
 export function ReverseDcfCard({ dcf, cik }: { dcf?: ReverseDcf | null; cik?: string }) {
   // `null` means the filer resolved NO fiscal year at all — there is no run to
@@ -184,22 +194,68 @@ export function ReverseDcfCard({ dcf, cik }: { dcf?: ReverseDcf | null; cik?: st
  *  cover must say so rather than vanish. */
 function InsufficientData({ dcf }: { dcf: ReverseDcf }) {
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="font-mono text-3xl font-semibold tabular-nums text-[var(--color-ink-faint)]">—</span>
-        <Badge variant="pending">Insufficient data</Badge>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-3xl font-semibold tabular-nums text-[var(--color-ink-faint)]">
+              —
+            </span>
+            <Badge variant="pending">Insufficient data</Badge>
+          </div>
+        </div>
+        {/* The achieved CAGR is computed independently of whether the DCF
+            resolves, so it EXISTS here — Suncor's is 7.7% over FY2016-FY2025.
+            Dropping it left the one card with no figure at all showing nothing,
+            when half of the comparison the story exists for was available. */}
+        <Achieved dcf={dcf} />
       </div>
       {dcf.reason ? (
         <p className="text-sm leading-relaxed text-[var(--color-ink-muted)]">{dcf.reason}</p>
+      ) : null}
+      {/* A base can be insufficient while some grid cells still resolve (the
+          implied rate falls outside the solver's search bounds at the base pair
+          but not at every other one). No filer in the universe does this today,
+          so this is unobserved rather than verified — but dropping a resolved
+          band would invert the contract's rule that failed cells are shown, not
+          silently removed. */}
+      {dcf.range_low !== null && dcf.range_high !== null ? (
+        <p className="text-xs text-[var(--color-ink-muted)]">
+          Some assumption combinations still resolve:{" "}
+          <span className="font-medium tabular-nums text-[var(--color-ink)]">
+            {formatRate(dcf.range_low)} to {formatRate(dcf.range_high)}
+          </span>{" "}
+          <span className="text-[var(--color-ink-faint)]">
+            ({dcf.resolved_cells} of {dcf.total_cells})
+          </span>
+        </p>
       ) : null}
       <Assumptions dcf={dcf} />
     </div>
   );
 }
 
+/** The filer's own achieved revenue growth. Shared by both branches, because it
+ *  is available whether or not the reverse DCF resolved. */
+function Achieved({ dcf }: { dcf: ReverseDcf }) {
+  if (dcf.historical_revenue_cagr === null) return null;
+  return (
+    <div>
+      <div className="font-mono text-xl font-semibold tabular-nums text-[var(--color-ink-muted)]">
+        {formatRate(dcf.historical_revenue_cagr)}
+      </div>
+      <p className="text-xs text-[var(--color-ink-faint)]">
+        actually achieved
+        {dcf.historical_from_fiscal_year && dcf.historical_to_fiscal_year
+          ? `, FY${dcf.historical_from_fiscal_year}–FY${dcf.historical_to_fiscal_year}`
+          : ""}
+      </p>
+    </div>
+  );
+}
+
 function Resolved({ dcf }: { dcf: ReverseDcf }) {
   const implied = dcf.implied_growth!;
-  const historical = dcf.historical_revenue_cagr;
 
   return (
     <div className="space-y-4">
@@ -212,19 +268,7 @@ function Resolved({ dcf }: { dcf: ReverseDcf }) {
             a year for {dcf.horizon_years} years, at a {formatRate(dcf.discount_rate, 0)} discount rate
           </p>
         </div>
-        {historical !== null ? (
-          <div>
-            <div className="font-mono text-xl font-semibold tabular-nums text-[var(--color-ink-muted)]">
-              {formatRate(historical)}
-            </div>
-            <p className="text-xs text-[var(--color-ink-faint)]">
-              actually achieved
-              {dcf.historical_from_fiscal_year && dcf.historical_to_fiscal_year
-                ? `, FY${dcf.historical_from_fiscal_year}–FY${dcf.historical_to_fiscal_year}`
-                : ""}
-            </p>
-          </div>
-        ) : null}
+        <Achieved dcf={dcf} />
       </div>
 
       <BandPlot dcf={dcf} />
@@ -390,19 +434,26 @@ function Operands({
           <li key={op.name} className="flex flex-wrap items-center gap-2 text-xs">
             <span className="w-40 flex-shrink-0 text-[var(--color-ink-muted)]">{labelFor(op.name)}</span>
             <span className="font-medium tabular-nums text-[var(--color-ink)]">
-              {formatOperand(op.value)}
+              {compactAmount(op.value)}
               {op.unit ? <span className="ml-1 text-[var(--color-ink-faint)]">{op.unit}</span> : null}
             </span>
             {/* A filed figure gets a citation; a computed one gets its derivation
                 and NO accession, so the two can never be confused (AD-19). */}
-            {op.accession_number && cik ? (
-              <CitationChip
-                cik={cik}
-                accessionNumber={op.accession_number}
-                canonicalConcept={op.name}
-                fiscalYear={fiscalYear}
-                derivation={null}
-              />
+            {op.accession_number ? (
+              cik ? (
+                <CitationChip
+                  cik={cik}
+                  accessionNumber={op.accession_number}
+                  canonicalConcept={op.name}
+                  fiscalYear={fiscalYear}
+                  derivation={null}
+                />
+              ) : (
+                // Without a cik the chip cannot build its EDGAR link, but the
+                // operand IS filed and saying so beats rendering nothing —
+                // silent loss of provenance is the worse failure.
+                <span className="text-[var(--color-ink-faint)]">as filed, FY{fiscalYear}</span>
+              )
             ) : op.derived_from && op.derived_from.length > 0 ? (
               <span className="text-[var(--color-ink-faint)]">
                 computed from {joinList(op.derived_from.map(inlineLabel))}
@@ -411,6 +462,21 @@ function Operands({
               <span className="text-[var(--color-ink-faint)]">
                 {op.source}
                 {op.observed_on ? `, ${op.observed_on}` : ""}
+              </span>
+            ) : null}
+            {/* The displayed price is the CONVERTED one — CP files in CAD but is
+                quoted in USD — so without the rate a reader checking it against
+                the exchange sees a mismatch and no explanation. Recomputability
+                is the whole point of this list. */}
+            {op.conversion_rate ? (
+              <span className="text-[var(--color-ink-faint)]">
+                converted at {op.conversion_rate}
+                {op.conversion_rate_source ? ` (${op.conversion_rate_source}` : ""}
+                {op.conversion_rate_source && op.conversion_rate_date
+                  ? `, ${op.conversion_rate_date})`
+                  : op.conversion_rate_source
+                    ? ")"
+                    : ""}
               </span>
             ) : null}
           </li>

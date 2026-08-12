@@ -762,7 +762,56 @@ story_6_6_browser_verification:
     returns it rather than suppressed in the frontend — AD-8 makes this presentation
     only, and the caveat arguably explains the absence (its reason is "no free cash
     flow", which is what capital intensity consumes). Flagged for review rather than
-    silently hidden.
+    silently hidden. Less stark since the review fix below: the card now carries a
+    real achieved figure for the caveat to sit beside.
+  code_review:
+    reviewed: 2026-08-12
+    by: "/code-review against PR #64"
+    findings: 5
+    all_confirmed_against_live_data: true
+    note: >
+      Every finding was re-checked against the running API before being accepted
+      rather than applied on trust. Four reproduced exactly; the fifth is a real
+      code path that the current universe does not exercise.
+    fixed:
+      - >
+        MEDIUM, and the most damaging: the insufficient_data branch discarded
+        `historical_revenue_cagr`, which the backend computes INDEPENDENTLY of
+        whether the DCF resolves. Suncor carries 7.7% (FY2016-FY2025) and SHOP
+        27.3% (FY2022-FY2025) — so the one card with no implied figure was hiding
+        the only half of the comparison it did have. Now shown in both branches.
+      - >
+        MEDIUM: OPERAND_LABEL claimed to be exhaustive but omitted the four
+        DERIVATION LEAF concepts the API emits recursively. Confirmed reachable
+        today: CCJ emits near_term_debt/long_term_debt, BCE emits all four. Neither
+        filer was in the original browser spot-check — the review caught precisely
+        what the spot-check could not.
+      - >
+        LOW: a local formatOperand duplicated the shared `compactAmount` and dropped
+        its documented round-before-magnitude fix, so the DCF card and the debt cards
+        on the SAME page would disagree at the 999,999,999 boundary — the exact
+        divergence ui/format.ts was extracted to end. Now calls the shared helper.
+      - >
+        LOW: conversion_rate/_date/_source were typed but never rendered, though CP,
+        CCJ and BCE all carry them (1.3706 / 1.3226, bank_of_canada). The displayed
+        market price is the CONVERTED one, so a reader checking it against the
+        exchange saw a mismatch with no explanation — undercutting recomputability
+        for the one operand that needed the extra provenance.
+      - >
+        LOW: a filed operand with no `cik` fell through every branch and rendered NO
+        provenance at all rather than degrading visibly. Unreachable in the
+        state == "ok" path today, but the failure mode was silent loss of citation.
+    unobserved_but_handled: >
+      The review also noted that a base can be insufficient while some grid cells
+      still resolve, in which case range_low/high come back non-null and were being
+      dropped. Checked: both insufficient filers return range=[None, None] and
+      cells=0/0, so this does NOT occur in the current universe. Handled anyway,
+      recorded as unobserved rather than verified.
+    reverified_in_browser: >
+      BCE (13 operands, all four derivation leaves labelled, FX line reading
+      "converted at 1.3226 (bank_of_canada, 2023-12-31)"; debt 3.25+31.14=34.38B,
+      cash 547.0M+225.0M=772.0M, EV 47.51+34.38-0.772=81.12B all tie out), SU (7.7%
+      achieved now visible beside the insufficient-data badge), and CP unchanged.
 
 # TWO OPEN ITEMS FROM STORY 6.5, both recorded rather than silently accepted.
 story_6_5_open_deviations:
