@@ -18,6 +18,7 @@ import {
   MaturityProfileCard,
   type MaturityProfile,
 } from "../../components/MaturityProfile";
+import { ReverseDcfCard, type ReverseDcf } from "../../components/ReverseDcf";
 import { AlertIcon, ChevronIcon } from "../../components/ui/icons";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
@@ -63,6 +64,10 @@ type Overview = {
   // Story 5.7. Empty for most of the universe by structure — the component
   // renders nothing rather than a "missing" state.
   debt_maturity_profile?: MaturityProfile[];
+  // Story 6.6. Latest resolvable fiscal year only. `null` when the filer
+  // resolves no year at all; a filer that ran without resolving comes back as
+  // an object carrying `insufficient_data` and its reason (AD-16).
+  reverse_dcf?: ReverseDcf | null;
   data_quality?: DataQuality[];
   verdict?: VerdictItem[];
   lenses_pending?: string[];
@@ -369,6 +374,12 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
           </section>
         );
       })}
+
+      {/* Story 6.6. A SEPARATE section, deliberately not adjacent to the Verdict
+          grid: these assumptions are ThesisTrace's own, and sitting beside the
+          four published models would let the page read as though one of them
+          produced the figure. */}
+      <ReverseDcfCard dcf={data.reverse_dcf} cik={data.cik} />
     </main>
   );
 }

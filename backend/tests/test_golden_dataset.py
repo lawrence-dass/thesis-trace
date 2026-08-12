@@ -169,6 +169,184 @@ async def test_active_companies_match_golden(db_session) -> None:
         # aggregate lets a wrong component hide behind a right-looking total.
         await _assert_near_term_debt_share(db_session, cik, company)
         await _assert_maturity_profile(db_session, cik, company)
+        await _assert_reverse_dcf(db_session, cik, company)
+
+
+# --- Story 6.7: reverse DCF -------------------------------------------------
+#
+# THE INDEPENDENCE CONSTRAINT IS THE POINT OF THIS SECTION. The two functions
+# below implement the discounted cash flow from the SPEC TEXT, and deliberately
+# import nothing from backend/valuation, backend/scoring or backend/formulas. A
+# golden value produced by calling the code under test asserts only that the code
+# agrees with itself; it was an independent reimplementation that caught the IFRS
+# golden pass's own averaging error, and the same discipline applies here.
+#
+# Consequence accepted: if the spec's assumptions change, this must be updated by
+# hand. That is the cost of the guard, not an oversight — a version that imported
+# the solver's constants would drift silently WITH it and guard nothing.
+
+
+def _present_value(fcf0: float, growth: float, discount: float, terminal: float, years: int) -> float:
+    """PV of `years` explicit cash flows plus a perpetuity, per reverse_dcf_v1.
+
+    Free cash flow grows at exactly the revenue growth rate because the spec holds
+    the free-cash-flow margin constant (A-4), so one rate drives both.
+    """
+    explicit = sum(fcf0 * (1 + growth) ** t / (1 + discount) ** t for t in range(1, years + 1))
+    terminal_value = fcf0 * (1 + growth) ** years * (1 + terminal) / (discount - terminal)
+    return explicit + terminal_value / (1 + discount) ** years
+
+
+def _solve_implied_growth(
+    fcf0: float, enterprise_value: float, discount: float, terminal: float, years: int
+) -> float | None:
+    """Bisection over the spec's DECLARED search range (-0.50..1.00).
+
+    Returns None when the root lies outside the range rather than the nearest
+    bound — the spec is explicit that the bounds are a search range and never a
+    clamp, because returning a bound would present a search limit as a finding.
+    """
+    low, high = -0.50, 1.00
+    if _present_value(fcf0, low, discount, terminal, years) > enterprise_value:
+        return None
+    if _present_value(fcf0, high, discount, terminal, years) < enterprise_value:
+        return None
+    for _ in range(200):
+        mid = (low + high) / 2
+        if _present_value(fcf0, mid, discount, terminal, years) < enterprise_value:
+            low = mid
+        else:
+            high = mid
+        if high - low < 1e-7:
+            break
+    return (low + high) / 2
+
+
+REVERSE_DCF_CONCEPTS = (
+    "cash_from_operations",
+    "capex",
+    "total_debt",
+    "cash_and_equivalents",
+    "shares_outstanding",
+)
+
+
+async def _assert_reverse_dcf(db_session, cik: str, company: dict) -> None:
+    """Story 6.7 (SM-1 over the reverse DCF).
+
+    EVERY operand is asserted, not only the implied rate: two wrong operands can
+    agree on an aggregate, which is the failure the D8 pass found for the debt
+    share and the reason that entry pins its numerator and denominator separately.
+    """
+    expected = company["expected"].get("reverse_dcf")
+    assert expected is not None, (
+        f"{company['ticker']} has no reverse_dcf golden entry. SM-1 is a claim about "
+        "the universe: every active company needs one, even if it is insufficient_data."
+    )
+    ticker, fiscal_year = company["ticker"], company["fiscal_year"]
+
+    facts = (
+        await db_session.execute(
+            select(CanonicalFact).where(
+                CanonicalFact.issuer_cik == cik,
+                CanonicalFact.fiscal_year == fiscal_year,
+                CanonicalFact.mapping_version == MAPPING_VERSION,
+                CanonicalFact.canonical_concept.in_(REVERSE_DCF_CONCEPTS),
+            )
+        )
+    ).scalars().all()
+    by_concept = {f.canonical_concept: float(f.value) for f in facts}
+
+    if expected["insufficient_data"]:
+        # Names WHICH operand is absent, so a filer that later gains the concept
+        # fails this test loudly instead of quietly starting to resolve.
+        missing = [c for c in REVERSE_DCF_CONCEPTS if c not in by_concept]
+        assert missing, (
+            f"{ticker} FY{fiscal_year}: golden says insufficient_data ({expected['reason_contains']}) "
+            f"but every operand is present — the entry is now wrong, or coverage improved."
+        )
+        return
+
+    for concept, want in (
+        ("cash_from_operations", expected["operands"]["cash_from_operations"]),
+        ("capex", expected["operands"]["capex"]),
+        ("total_debt", expected["operands"]["total_debt"]),
+        ("cash_and_equivalents", expected["operands"]["cash_and_equivalents"]),
+        ("shares_outstanding", expected["operands"]["shares_outstanding"]),
+    ):
+        assert concept in by_concept, f"{ticker} FY{fiscal_year}: missing {concept}"
+        assert by_concept[concept] == want, f"{ticker} FY{fiscal_year} {concept}"
+
+    # market_price is the filer's own close in its REPORTING currency: a non-USD
+    # filer's USD close is converted first, so market_cap's two factors share a
+    # currency (AD-11, the same handling Altman's X4 uses).
+    close = float(company["fye_close"])
+    rate = company.get("fx_rate", {}).get("rate")
+    market_price = close * float(rate) if rate else close
+    assert abs(market_price - expected["operands"]["market_price"]) < 1e-6, f"{ticker} market_price"
+
+    free_cash_flow = by_concept["cash_from_operations"] - by_concept["capex"]
+    market_cap = by_concept["shares_outstanding"] * market_price
+    enterprise_value = market_cap + by_concept["total_debt"] - by_concept["cash_and_equivalents"]
+
+    assert free_cash_flow == expected["operands"]["free_cash_flow"], f"{ticker} free_cash_flow"
+    assert abs(market_cap - expected["operands"]["market_cap"]) < 1e-2, f"{ticker} market_cap"
+    assert abs(enterprise_value - expected["operands"]["enterprise_value"]) < 1e-2, (
+        f"{ticker} enterprise_value"
+    )
+
+    assumptions = expected["assumptions"]
+    implied = _solve_implied_growth(
+        free_cash_flow,
+        enterprise_value,
+        assumptions["discount_rate"],
+        assumptions["terminal_growth"],
+        assumptions["horizon_years"],
+    )
+    assert implied is not None, f"{ticker} FY{fiscal_year}: expected a root, found none in range"
+    assert abs(implied - expected["implied_growth"]) < 1e-6, (
+        f"{ticker} FY{fiscal_year} implied growth: independent solve gave {implied!r}, "
+        f"golden says {expected['implied_growth']!r}"
+    )
+
+
+def test_corrupting_a_golden_implied_growth_fails() -> None:
+    """The guard bites (Story 6.7's last AC).
+
+    Without this, every assertion above could be comparing a value to itself
+    through some accidental identity and nothing would notice. Corrupts an
+    expected rate by one part in ten thousand — far smaller than any real
+    revision — and confirms the comparison rejects it.
+    """
+    resolved = [
+        c
+        for c in GOLDEN["companies"]
+        if c["status"] == "active" and not c["expected"]["reverse_dcf"]["insufficient_data"]
+    ]
+    assert resolved, "expected at least one filer with a resolved golden implied growth"
+
+    for company in resolved:
+        expected = company["expected"]["reverse_dcf"]
+        operands = expected["operands"]
+        assumptions = expected["assumptions"]
+
+        honest = _solve_implied_growth(
+            operands["free_cash_flow"],
+            operands["enterprise_value"],
+            assumptions["discount_rate"],
+            assumptions["terminal_growth"],
+            assumptions["horizon_years"],
+        )
+        assert honest is not None
+        assert abs(honest - expected["implied_growth"]) < 1e-6, (
+            f"{company['ticker']}: golden implied growth does not reproduce from its own operands"
+        )
+
+        corrupted = expected["implied_growth"] + 1e-4
+        assert not abs(honest - corrupted) < 1e-6, (
+            f"{company['ticker']}: a corrupted expected value still passed the comparison — "
+            "the guard does not bite"
+        )
 
 
 async def _assert_maturity_profile(db_session, cik: str, company: dict) -> None:

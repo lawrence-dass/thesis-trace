@@ -76,6 +76,13 @@ companies:
       debt_maturity_profile:
         no_profile: true
         reason: "no debt maturity ladder filed; SHOP tags a LEASE ladder, which is not this"
+      # Story 6.7. SHOP cannot reach an enterprise value: total_debt is absent for
+      # the same reason its debt share is (long_term_debt deliberately unmapped —
+      # see `shop_convertible_debt_unmapped` in sprint-status). A REAL outcome, not
+      # a fixture gap: the capex and cash tags ARE present for FY2024.
+      reverse_dcf:
+        insufficient_data: true
+        reason_contains: "total debt"
 
   - ticker: QSR
     status: active
@@ -124,6 +131,28 @@ companies:
           debt_maturity_year_4: 115000000
           debt_maturity_year_5: 3505000000
           debt_maturity_thereafter: 8566000000
+      # Story 6.7, FY2023. Operands read from the canonicalized fixture; the implied
+      # growth solved INDEPENDENTLY of backend/valuation (see test_golden_dataset).
+      # QSR's cash comes from the restricted-inclusive tag, which is admissible for
+      # this filer specifically and proven so — it files both tags identically
+      # FY2016-2018, so it carries no restricted cash.
+      reverse_dcf:
+        insufficient_data: false
+        assumptions:
+          discount_rate: 0.10
+          terminal_growth: 0.025
+          horizon_years: 5
+        operands:
+          cash_from_operations: 1323000000
+          capex: 120000000
+          free_cash_flow: 1203000000
+          total_debt: 12921000000
+          cash_and_equivalents: 1139000000
+          shares_outstanding: 312454851
+          market_price: 78.13
+          market_cap: 24412097508.63
+          enterprise_value: 36194097508.63
+        implied_growth: 0.222282633
 
   - ticker: CP
     status: active
@@ -182,6 +211,28 @@ companies:
           debt_maturity_year_4: 7000000
           debt_maturity_year_5: 1868000000
           debt_maturity_thereafter: 15202000000
+      # Story 6.7, FY2023, in CAD throughout. market_price is the USD close 79.06
+      # converted at the SAME Bank of Canada rate Altman's X4 uses (1.3226), so the
+      # numerator and denominator of market_cap share a currency (AD-11).
+      # total_debt 22,494,000,000 is the same figure the debt-share entry above
+      # pins — a cross-check that two capabilities read one canonical fact.
+      reverse_dcf:
+        insufficient_data: false
+        assumptions:
+          discount_rate: 0.10
+          terminal_growth: 0.025
+          horizon_years: 5
+        operands:
+          cash_from_operations: 4137000000
+          capex: 2468000000
+          free_cash_flow: 1669000000
+          total_debt: 22494000000
+          cash_and_equivalents: 464000000
+          shares_outstanding: 932100000
+          market_price: 104.564756
+          market_cap: 97464809067.6
+          enterprise_value: 119494809067.6
+        implied_growth: 0.471685871
 
   - ticker: OTEX
     status: active
@@ -255,6 +306,28 @@ companies:
         # Generalises: a golden entry whose fixture cannot reproduce its own stated
         # reason is pinning an outcome, not verifying it. Say so where it happens.
         reason: "live: never tags years 2-5; yields no profile via contiguity (FY2012-2020) or the middle-year floor (FY2011, FY2021-2025). Fixture carries the thereafter end only and cannot exercise either."
+      # Story 6.7, FY2019. OTEX's capex comes from PaymentsToAcquireProductiveAssets
+      # — it has NEVER tagged the common PaymentsToAcquirePropertyPlantAndEquipment,
+      # so a golden entry built against the common tag alone would report it as
+      # having no capex at all. The lowest implied growth in the universe (5.9%),
+      # and the only filer whose implied rate sits below its own achieved CAGR.
+      reverse_dcf:
+        insufficient_data: false
+        assumptions:
+          discount_rate: 0.10
+          terminal_growth: 0.025
+          horizon_years: 5
+        operands:
+          cash_from_operations: 876278000
+          capex: 63837000
+          free_cash_flow: 812441000
+          total_debt: 2614878000
+          cash_and_equivalents: 941009000
+          shares_outstanding: 269834442
+          market_price: 41.2
+          market_cap: 11117179010.4
+          enterprise_value: 12791048010.4
+        implied_growth: 0.058595285
 
   # --- 40-F / ifrs-full filers (D8) -----------------------------------------
   # Market data is real and fetched live 2026-08-04: Tiingo EOD closes for
@@ -300,6 +373,29 @@ companies:
       debt_maturity_profile:
         no_profile: true
         reason: "ifrs-full maturity analysis is dimensional; unreachable via company-facts"
+      # Story 6.7, FY2024, in CAD. An IFRS filer: capex is
+      # PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities and cash
+      # is the combined CashAndCashEquivalents tag. Cameco classifies interest paid
+      # as FINANCING (proven from its classification tags, not inferred), so its
+      # cash_from_operations excludes interest and its free cash flow reads
+      # systematically high — the figure is annotated, never adjusted.
+      reverse_dcf:
+        insufficient_data: false
+        assumptions:
+          discount_rate: 0.10
+          terminal_growth: 0.025
+          horizon_years: 5
+        operands:
+          cash_from_operations: 905288000
+          capex: 211635000
+          free_cash_flow: 693653000
+          total_debt: 1281290000
+          cash_and_equivalents: 600462000
+          shares_outstanding: 435312083
+          market_price: 73.945071
+          market_cap: 32189182884.592892
+          enterprise_value: 32870010884.592892
+        implied_growth: 0.348184273
 
   - ticker: BCE
     status: active
@@ -343,6 +439,16 @@ companies:
       debt_maturity_profile:
         no_profile: true
         reason: "ifrs-full maturity analysis is dimensional; unreachable via company-facts"
+      # Story 6.7. BCE cannot reach an enterprise value for FY2024 for the SAME
+      # reason its debt share is insufficient: CurrentPortionOfLongtermBorrowings is
+      # untagged that year, so total_debt cannot be derived. Its capex and cash ARE
+      # present, and both parts of its derived cash (Cash + CashEquivalents, which
+      # BCE tags separately and never combines) canonicalize — so this is a debt
+      # gap in one fiscal year, not an absence of reverse-DCF coverage. BCE resolves
+      # in FY2023 against live data.
+      reverse_dcf:
+        insufficient_data: true
+        reason_contains: "total debt"
 
   - ticker: SU
     status: active
@@ -390,3 +496,15 @@ companies:
       debt_maturity_profile:
         no_profile: true
         reason: "ifrs-full maturity analysis is dimensional; unreachable via company-facts"
+      # Story 6.7 — THE ENTRY THE STORY NAMES. Suncor tags NO capex concept in any
+      # year under any variant, so free cash flow cannot be formed and the reverse
+      # DCF genuinely does not apply. Confirmed twice: live on 2026-08-07, and again
+      # here against the dev store while extending these fixtures, where every other
+      # filer's capex tag was found and Suncor's was absent.
+      #
+      # Asserted rather than omitted precisely so this absence can never later be
+      # mistaken for a coverage bug — its debt and cash operands ARE present, which
+      # is what distinguishes "the model does not apply" from "the data is missing".
+      reverse_dcf:
+        insufficient_data: true
+        reason_contains: "free cash flow"

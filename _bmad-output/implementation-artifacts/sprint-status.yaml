@@ -126,14 +126,14 @@ development_status:
   # than in a comment like this one, which no parser can see. Epic titles likewise
   # live in the catalog — they used to sit in trailing `#` comments here, which
   # made every epic in this file nameless to `yaml.safe_load`.
-  epic-6: in-progress
+  epic-6: done
   6-1-reverse-dcf-input-coverage-spike: done
   6-2-free-cash-flow-canonical-concepts: done
   6-3-versioned-reverse-dcf-spec-and-deterministic-solver: done
   6-4-sensitivity-range-over-discount-rate-and-terminal-growth: done
   6-5-implied-assumptions-read-api: done
-  6-6-reverse-dcf-on-the-company-overview: backlog
-  6-7-golden-dataset-coverage-for-the-implied-growth-rate: backlog
+  6-6-reverse-dcf-on-the-company-overview: done
+  6-7-golden-dataset-coverage-for-the-implied-growth-rate: done
   epic-6-retrospective: optional
   epic-7: backlog
   epic-7-retrospective: optional
@@ -722,6 +722,139 @@ market_price_dates_labelled_as_fiscal_year_end:
     non-trading day, followed by a re-ingest. Needs its own change: it touches the
     ingestion path and should carry a guard asserting no stored observation lands on
     a weekend.
+
+# Story 6.7. The fixture gap is the finding worth keeping here — it was invisible
+# until something tried to USE the fixtures for a new capability.
+story_6_7_golden_coverage:
+  status: done
+  completed: 2026-08-12
+  blocker_found_and_resolved: >
+    The golden fixtures are TRIMMED SUBSETS built for earlier stories — CP's carried
+    23 us-gaap tags and neither a capex nor a cash-and-equivalents tag. Every filer
+    therefore resolved to insufficient_data, which would have made the golden entries
+    assert nothing about the capability while looking complete. The mappings were
+    fine (concepts_v8); the fixtures were the gap.
+  resolved_by: >
+    Rebuilt the missing payload entries from the dev store's own raw_facts joined to
+    filings — already-ingested real EDGAR data, keyed to accession numbers — rather
+    than re-fetching from EDGAR. Faithful because raw_facts rows only exist for
+    entries that already passed the ingestion filter (fp == FY, annual form), so each
+    row maps back to exactly one company_facts entry. Approved by Lawrence 2026-08-12.
+  no_existing_golden_value_changed: >
+    Checked explicitly, because adding source tags CAN change canonicalization: the
+    full suite went 309 -> 310 passed with no other assertion moving. CP's reverse-DCF
+    total_debt (22,494,000,000) is the same figure its debt-share entry already
+    pinned — two capabilities reading one canonical fact.
+  coverage:
+    resolves: "QSR FY2023 22.228%, CP FY2023 47.169%, OTEX FY2019 5.860%, CCJ FY2024 34.818%"
+    insufficient_data: >
+      SHOP and BCE (no total_debt in the golden fiscal year — SHOP's long_term_debt
+      is deliberately unmapped, BCE's CurrentPortionOfLongtermBorrowings is untagged
+      for FY2024), and SU (no capex tag in ANY year, under any variant).
+    note: >-
+      These are golden-year figures from the fixtures, NOT the live-database values
+      Story 6.6 was verified against — CP resolves 47.2% at FY2023 and 37.2% at
+      FY2025. Different years, not a discrepancy.
+  independence: >
+    The expected rates are solved by a reimplementation written from the SPEC TEXT
+    that imports nothing from backend/valuation, backend/scoring or backend/formulas.
+    A golden value produced by calling the code under test asserts only that the code
+    agrees with itself. Cost accepted and recorded: a spec change must be mirrored by
+    hand, because a version importing the solver's constants would drift with it.
+  guard_verified: >
+    Corrupting CP's expected rate by 1e-4 fails TWO independent assertions — the
+    DB-backed independent solve, and the pure-function check that each golden rate
+    reproduces from its own recorded operands. Confirmed by actually doing it.
+
+# Story 6.6's browser pass, recorded because the standing rule keeps earning its
+# keep: 5.4 found four defects this way, 5.7 found two, and 6.6 found three that
+# lint, tsc and the build all passed clean.
+story_6_6_browser_verification:
+  status: done
+  verified: 2026-08-12
+  how: >
+    Production build served against the live dev database, every filer loaded in a
+    real browser. Not fixtures — the numbers below are what the solver returned
+    from concepts_v8 on the day.
+  filers_checked:
+    CP: "implied 37.2%, band 16.4-51.6%, achieved 7.8% FY2013-FY2025 — band entirely above zero"
+    OTEX: "implied 9.7%, band -6.5-20.7%, achieved 12.8% FY2007-FY2025 — crosses zero AND achieved exceeds implied, the inverted reading"
+    QSR: "implied 17.0%, band -0.4-29.0%, achieved 12.8% — zero sits 12px inside the band's left edge, the tightest legibility case in the universe"
+    SU: "insufficient_data, 'no free cash flow for this fiscal year', rendered per AD-16 rather than hidden"
+  defects_found_and_fixed:
+    - >
+      Only ONE of the two marks on the band was labelled. The implied point had no
+      label while the achieved mark did, leaving a reader two marks and one name on
+      a card whose whole purpose is telling them apart.
+    - >
+      Operand labels were half-mapped, so one list rendered in two conventions:
+      "Free cash flow" beside "cash from operations" and "capex". The label map had
+      guessed `market_capitalisation` where the solver emits `market_cap`, and
+      omitted `cash_from_operations` and `capex` entirely.
+    - >
+      Three-item derivations read as a run-on: "market cap and Total debt and Cash
+      and equivalents". Now serial-comma joined — and the comma is load-bearing, not
+      stylistic, because one operand is itself named "cash and equivalents".
+  recompute_check: >
+    Verified by hand from the rendered page, closing risk-assessment finding 3.5
+    visually as well as structurally: FCF 5.31B - 3.10B = 2.21B; market cap 897.6M x
+    100.917 = 90.58B; EV 90.58 + 23.19 - 0.184 = 113.59B. All three tie out.
+  open_observation: >
+    The capital-intensity caveat renders on Suncor's card even though Suncor has no
+    implied figure, so it annotates a number that is not there. Left as the API
+    returns it rather than suppressed in the frontend — AD-8 makes this presentation
+    only, and the caveat arguably explains the absence (its reason is "no free cash
+    flow", which is what capital intensity consumes). Flagged for review rather than
+    silently hidden. Less stark since the review fix below: the card now carries a
+    real achieved figure for the caveat to sit beside.
+  code_review:
+    reviewed: 2026-08-12
+    by: "/code-review against PR #64"
+    findings: 5
+    all_confirmed_against_live_data: true
+    note: >
+      Every finding was re-checked against the running API before being accepted
+      rather than applied on trust. Four reproduced exactly; the fifth is a real
+      code path that the current universe does not exercise.
+    fixed:
+      - >
+        MEDIUM, and the most damaging: the insufficient_data branch discarded
+        `historical_revenue_cagr`, which the backend computes INDEPENDENTLY of
+        whether the DCF resolves. Suncor carries 7.7% (FY2016-FY2025) and SHOP
+        27.3% (FY2022-FY2025) — so the one card with no implied figure was hiding
+        the only half of the comparison it did have. Now shown in both branches.
+      - >
+        MEDIUM: OPERAND_LABEL claimed to be exhaustive but omitted the four
+        DERIVATION LEAF concepts the API emits recursively. Confirmed reachable
+        today: CCJ emits near_term_debt/long_term_debt, BCE emits all four. Neither
+        filer was in the original browser spot-check — the review caught precisely
+        what the spot-check could not.
+      - >
+        LOW: a local formatOperand duplicated the shared `compactAmount` and dropped
+        its documented round-before-magnitude fix, so the DCF card and the debt cards
+        on the SAME page would disagree at the 999,999,999 boundary — the exact
+        divergence ui/format.ts was extracted to end. Now calls the shared helper.
+      - >
+        LOW: conversion_rate/_date/_source were typed but never rendered, though CP,
+        CCJ and BCE all carry them (1.3706 / 1.3226, bank_of_canada). The displayed
+        market price is the CONVERTED one, so a reader checking it against the
+        exchange saw a mismatch with no explanation — undercutting recomputability
+        for the one operand that needed the extra provenance.
+      - >
+        LOW: a filed operand with no `cik` fell through every branch and rendered NO
+        provenance at all rather than degrading visibly. Unreachable in the
+        state == "ok" path today, but the failure mode was silent loss of citation.
+    unobserved_but_handled: >
+      The review also noted that a base can be insufficient while some grid cells
+      still resolve, in which case range_low/high come back non-null and were being
+      dropped. Checked: both insufficient filers return range=[None, None] and
+      cells=0/0, so this does NOT occur in the current universe. Handled anyway,
+      recorded as unobserved rather than verified.
+    reverified_in_browser: >
+      BCE (13 operands, all four derivation leaves labelled, FX line reading
+      "converted at 1.3226 (bank_of_canada, 2023-12-31)"; debt 3.25+31.14=34.38B,
+      cash 547.0M+225.0M=772.0M, EV 47.51+34.38-0.772=81.12B all tie out), SU (7.7%
+      achieved now visible beside the insufficient-data badge), and CP unchanged.
 
 # TWO OPEN ITEMS FROM STORY 6.5, both recorded rather than silently accepted.
 story_6_5_open_deviations:
