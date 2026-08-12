@@ -132,7 +132,7 @@ development_status:
   6-3-versioned-reverse-dcf-spec-and-deterministic-solver: done
   6-4-sensitivity-range-over-discount-rate-and-terminal-growth: done
   6-5-implied-assumptions-read-api: done
-  6-6-reverse-dcf-on-the-company-overview: backlog
+  6-6-reverse-dcf-on-the-company-overview: done
   6-7-golden-dataset-coverage-for-the-implied-growth-rate: backlog
   epic-6-retrospective: optional
   epic-7: backlog
@@ -722,6 +722,47 @@ market_price_dates_labelled_as_fiscal_year_end:
     non-trading day, followed by a re-ingest. Needs its own change: it touches the
     ingestion path and should carry a guard asserting no stored observation lands on
     a weekend.
+
+# Story 6.6's browser pass, recorded because the standing rule keeps earning its
+# keep: 5.4 found four defects this way, 5.7 found two, and 6.6 found three that
+# lint, tsc and the build all passed clean.
+story_6_6_browser_verification:
+  status: done
+  verified: 2026-08-12
+  how: >
+    Production build served against the live dev database, every filer loaded in a
+    real browser. Not fixtures — the numbers below are what the solver returned
+    from concepts_v8 on the day.
+  filers_checked:
+    CP: "implied 37.2%, band 16.4-51.6%, achieved 7.8% FY2013-FY2025 — band entirely above zero"
+    OTEX: "implied 9.7%, band -6.5-20.7%, achieved 12.8% FY2007-FY2025 — crosses zero AND achieved exceeds implied, the inverted reading"
+    QSR: "implied 17.0%, band -0.4-29.0%, achieved 12.8% — zero sits 12px inside the band's left edge, the tightest legibility case in the universe"
+    SU: "insufficient_data, 'no free cash flow for this fiscal year', rendered per AD-16 rather than hidden"
+  defects_found_and_fixed:
+    - >
+      Only ONE of the two marks on the band was labelled. The implied point had no
+      label while the achieved mark did, leaving a reader two marks and one name on
+      a card whose whole purpose is telling them apart.
+    - >
+      Operand labels were half-mapped, so one list rendered in two conventions:
+      "Free cash flow" beside "cash from operations" and "capex". The label map had
+      guessed `market_capitalisation` where the solver emits `market_cap`, and
+      omitted `cash_from_operations` and `capex` entirely.
+    - >
+      Three-item derivations read as a run-on: "market cap and Total debt and Cash
+      and equivalents". Now serial-comma joined — and the comma is load-bearing, not
+      stylistic, because one operand is itself named "cash and equivalents".
+  recompute_check: >
+    Verified by hand from the rendered page, closing risk-assessment finding 3.5
+    visually as well as structurally: FCF 5.31B - 3.10B = 2.21B; market cap 897.6M x
+    100.917 = 90.58B; EV 90.58 + 23.19 - 0.184 = 113.59B. All three tie out.
+  open_observation: >
+    The capital-intensity caveat renders on Suncor's card even though Suncor has no
+    implied figure, so it annotates a number that is not there. Left as the API
+    returns it rather than suppressed in the frontend — AD-8 makes this presentation
+    only, and the caveat arguably explains the absence (its reason is "no free cash
+    flow", which is what capital intensity consumes). Flagged for review rather than
+    silently hidden.
 
 # TWO OPEN ITEMS FROM STORY 6.5, both recorded rather than silently accepted.
 story_6_5_open_deviations:
