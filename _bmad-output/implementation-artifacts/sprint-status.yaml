@@ -134,7 +134,7 @@ development_status:
   6-5-implied-assumptions-read-api: done
   6-6-reverse-dcf-on-the-company-overview: done
   6-7-golden-dataset-coverage-for-the-implied-growth-rate: done
-  epic-6-retrospective: optional
+  epic-6-retrospective: done
   epic-7: backlog
   epic-7-retrospective: optional
   epic-8: backlog
