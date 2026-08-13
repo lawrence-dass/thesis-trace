@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import FxRate, MarketPrice
 from raw_store.fx_rates import get_fx_rate_on_or_before
+from raw_store.observation_dates import assert_tradeable_observation_date
 
 
 @dataclass(frozen=True)
@@ -50,6 +51,12 @@ async def upsert_fye_close(
     close_price: float,
     source: str = "tiingo",
 ) -> MarketPrice:
+    # `price_date` is WHEN THE QUOTE WAS OBSERVED, not the fiscal-year-end it is
+    # being used for. Storing the year end here is the defect this guard closes:
+    # the unique key is (issuer_cik, price_date, source), so a fiscal-year-end row
+    # both mislabels the observation and outranks the true trading day in
+    # `get_fye_close`, which takes the latest row on or before the year end.
+    assert_tradeable_observation_date(price_date, what=f"market price for {issuer_cik}")
     existing = (
         await session.execute(
             select(MarketPrice).where(
