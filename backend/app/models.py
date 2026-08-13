@@ -286,6 +286,123 @@ class ScoreResult(Base):
     run: Mapped["ScoreRun"] = relationship(back_populates="results")
 
 
+# --- Materialized reverse DCF (AD-1) ----------------------------------------
+
+
+class ReverseDcfRun(Base):
+    """One filer's latest resolvable reverse DCF, computed on the WRITE path (AD-1).
+
+    Exists because the read path used to call `reverse_dcf_for_issuer` directly, so
+    every page load re-solved the DCF and all 35 sensitivity cells. AD-1 is a
+    structural CQRS rule — "all computation runs in the scheduled batch pipeline; the
+    read path only queries materialized Postgres and never computes a score" — so the
+    fix is to move the work, not to make it reproducible.
+
+    ONE ROW PER ISSUER, not per year. `reverse_dcf_for_issuer` chooses the latest
+    fully reproducible fiscal year itself; the pipeline stores whichever year it
+    chose. `fiscal_year` is in the key so a re-run that picks a DIFFERENT year cannot
+    collide with the old row, and the writer deletes any other year for the same
+    (issuer, spec_version) so "the stored row is the chosen year" stays an invariant.
+
+    Rates are NUMERIC(18, 10): the solver's tolerance is 1e-7, so the money-shaped
+    NUMERIC(28, 6) used elsewhere would round the answer coarser than the bisection
+    that produced it.
+    """
+
+    __tablename__ = "reverse_dcf_runs"
+    __table_args__ = (
+        UniqueConstraint(
+            "issuer_cik", "fiscal_year", "spec_version", name="uq_reverse_dcf_runs_key"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    issuer_cik: Mapped[str] = mapped_column(ForeignKey("issuers.cik"), index=True)
+    fiscal_year: Mapped[int] = mapped_column(index=True)
+    spec_version: Mapped[str] = mapped_column(String(32))
+
+    implied_growth: Mapped[float | None] = mapped_column(Numeric(18, 10))
+    insufficient_data: Mapped[bool] = mapped_column(default=False)
+    # Long because the overview concatenates the solver's reason with the market
+    # resolution's reason when both apply (AD-16: absence explains itself).
+    reason: Mapped[str | None] = mapped_column(String(512))
+
+    # Operands, so the stored result stays independently recomputable (finding 3.5).
+    enterprise_value: Mapped[float | None] = mapped_column(Numeric(28, 6))
+    free_cash_flow: Mapped[float | None] = mapped_column(Numeric(28, 6))
+    market_cap: Mapped[float | None] = mapped_column(Numeric(28, 6))
+    total_debt: Mapped[float | None] = mapped_column(Numeric(28, 6))
+    cash_and_equivalents: Mapped[float | None] = mapped_column(Numeric(28, 6))
+
+    # The assumptions that produced it. Without these the number means nothing.
+    discount_rate: Mapped[float] = mapped_column(Numeric(18, 10))
+    terminal_growth: Mapped[float] = mapped_column(Numeric(18, 10))
+    horizon_years: Mapped[int] = mapped_column()
+    #: Caveat IDs. Stored as data rather than inferred downstream from a shared enum
+    #: — the recurring bug class where one model's display logic reaches another.
+    caveats: Mapped[list | None] = mapped_column(JSONB)
+    attribution: Mapped[str] = mapped_column(String(1024))
+
+    # The exact persisted market/FX rows market capitalisation was derived from.
+    market_price_date: Mapped[date | None] = mapped_column(Date)
+    market_price_source: Mapped[str | None] = mapped_column(String(32))
+    fx_rate: Mapped[float | None] = mapped_column(Numeric(18, 8))
+    fx_rate_date: Mapped[date | None] = mapped_column(Date)
+    fx_rate_source: Mapped[str | None] = mapped_column(String(32))
+
+    # Sensitivity band. `has_grid` distinguishes "no grid at all" (operands missing,
+    # `grid_for` returned None) from "a grid where no cell resolved" — collapsing
+    # those would let an unsolvable filer look like an unattempted one.
+    has_grid: Mapped[bool] = mapped_column(default=False)
+    grid_low: Mapped[float | None] = mapped_column(Numeric(18, 10))
+    grid_high: Mapped[float | None] = mapped_column(Numeric(18, 10))
+    resolved_cells: Mapped[int] = mapped_column(default=0)
+    total_cells: Mapped[int] = mapped_column(default=0)
+
+    # The filer's OWN achieved growth, for comparison against the implied rate. The
+    # window adapts per filer (IFRS 40-F history starts ~FY2017), so it is reported
+    # rather than promised — hence the explicit from/to years.
+    historical_revenue_cagr: Mapped[float | None] = mapped_column(Numeric(18, 10))
+    historical_from_fiscal_year: Mapped[int | None] = mapped_column()
+    historical_to_fiscal_year: Mapped[int | None] = mapped_column()
+
+    computed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    cells: Mapped[list["ReverseDcfCell"]] = relationship(
+        back_populates="run", cascade="all, delete-orphan"
+    )
+
+
+class ReverseDcfCell(Base):
+    """One (discount rate, terminal growth) pair of the sensitivity grid.
+
+    A CELL THAT FAILED IS STORED, NOT DROPPED — omitting it would let the grid imply
+    its own coverage is complete. A failed cell has a NULL `implied_growth` and a
+    `reason`, exactly like the in-memory `SensitivityCell`.
+    """
+
+    __tablename__ = "reverse_dcf_cells"
+    __table_args__ = (
+        UniqueConstraint(
+            "reverse_dcf_run_id", "discount_rate", "terminal_growth",
+            name="uq_reverse_dcf_cells_key",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    reverse_dcf_run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("reverse_dcf_runs.id", ondelete="CASCADE"), index=True
+    )
+    discount_rate: Mapped[float] = mapped_column(Numeric(18, 10))
+    terminal_growth: Mapped[float] = mapped_column(Numeric(18, 10))
+    implied_growth: Mapped[float | None] = mapped_column(Numeric(18, 10))
+    reason: Mapped[str | None] = mapped_column(String(512))
+
+    run: Mapped["ReverseDcfRun"] = relationship(back_populates="cells")
+
+
 # --- Data-quality tracking (AD-3, AD-17) ------------------------------------
 
 

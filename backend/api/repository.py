@@ -48,7 +48,8 @@ from api.schemas import (
 from canonicalization.mappings import DERIVATION_RULES, MAPPING_VERSION
 from debt.engine import DENOMINATOR_CONCEPT, NUMERATOR_CONCEPT, shares_for_facts
 from debt.profile import PROFILE_CONCEPTS, profile_for_facts
-from valuation.overview import DCF_CONCEPTS, reverse_dcf_for_issuer
+from valuation.overview import DCF_CONCEPTS
+from valuation.store import load_reverse_dcf
 from diff.engine import diff_company_since, latest_filing_pivot
 from trajectory.engine import trajectories_for_scores
 
@@ -277,19 +278,19 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
         for _, p in sorted(profile_for_facts(debt_facts).items(), reverse=True)
     ]
 
-    # Reverse DCF (Epic 6). Reads the SAME `debt_facts` rows widened by DCF_CONCEPTS
-    # above rather than issuing its own query, so the single-pass read holds (AD-1).
-    # Only bounded market-price and FX reads for candidate years are fetched beyond it.
+    # Reverse DCF (Epic 6). READS THE MATERIALIZED ROW — it does not solve (AD-1).
+    # This previously called `reverse_dcf_for_issuer` here, so every page load
+    # re-solved the DCF and all 35 sensitivity cells; `pipeline/run.py` now computes
+    # and upserts it, and this is two bounded queries.
     #
-    # LATEST RESOLVABLE YEAR ONLY, not a per-year series: the sensitivity grid is 35
-    # solves, a different cost class from the ratio-per-year the debt cards compute.
+    # The operand assembly below still projects `debt_facts` (widened by
+    # DCF_CONCEPTS above) — those rows are already in memory from the single pass,
+    # so building the evidence list stays projection rather than computation.
+    #
+    # LATEST RESOLVABLE YEAR ONLY, not a per-year series: the grid is 35 solves, a
+    # different cost class from the ratio-per-year the debt cards compute.
     reverse_dcf = None
-    dcf = await reverse_dcf_for_issuer(
-        session,
-        issuer_cik=issuer.cik,
-        is_capital_intensive=bool(issuer.is_capital_intensive),
-        facts=debt_facts,
-    )
+    dcf = await load_reverse_dcf(session, issuer.cik)
     if dcf is not None:
         base, grid, (cagr, cagr_from, cagr_to) = dcf
         facts_by_name = {

@@ -305,9 +305,48 @@ post_epic_work:
     status: done
     evidence: "PR #24 — passed in CI while failing for anyone with a real .env sourced. Both the process env and the .env-file fallback are now pinned with monkeypatch."
   - item: "Persist the reverse DCF in the pipeline — the read path currently computes it, violating AD-1"
-    status: open
+    status: done
     raised: 2026-08-12
-    why: >
+    closed: 2026-08-13
+    evidence: >
+      Two tables (reverse_dcf_runs + reverse_dcf_cells), migration b43d7bd6fe33,
+      backend/valuation/store.py, a stage in run_issuer, and repository.py:287 now
+      calling load_reverse_dcf. All three required verifications ran:
+
+      (1) NO SOLVER CALL ON READ — test_reverse_dcf_store.py breaks `compute` in all
+      three modules that bind it and asserts the overview still renders its figures.
+      A second test runs the OLD read path under the same patch and requires it to
+      raise, so the guard cannot go inert the way the OTEX golden entry did.
+
+      (2) LIVE FIGURES UNCHANGED — CP still reads 37.2% at FY2025. Verified harder
+      than asked: the FULL serialized reverse-DCF block was dumped for all 7 filers
+      before and after and diffed. Zero structural or string differences (no field,
+      reason, date or source moved); 197 numeric deltas, all rates, largest 4.96e-11
+      against a solver tolerance of 1e-7.
+
+      (3) DOUBLE RUN LEAVES ONE ROW — asserted in the store tests, again end-to-end
+      through run_issuer in test_pipeline.py, and confirmed against the real dev
+      store: 7 issuers, 7 run rows, 175 cell rows after two passes.
+
+      Suite 313 -> 323. Query-count guard moved +1 (fixed cost, slope unchanged at
+      16) and the constant was updated with the reason, as that test demands.
+    deviation_from_scope: >
+      The scope said "a table"; this is TWO. The 35 grid cells are their own table
+      rather than a JSONB column because an implied growth rate is a financial figure
+      and AD-15 requires NUMERIC — and because "meaning parked in a blob" is this
+      repo's most repeated failure mode. Mirrors score_runs/score_results exactly.
+      Rate columns are NUMERIC(18,10), not the usual NUMERIC(28,6): the solver's
+      tolerance is 1e-7, so a money-shaped column would have rounded the answer
+      coarser than the bisection that produced it.
+    consequence_to_know: >
+      THE REVERSE DCF NOW DISAPPEARS FROM A COMPANY PAGE UNTIL THE PIPELINE HAS RUN
+      for that issuer. That is correct CQRS behaviour and is asserted deliberately
+      (an unmaterialized issuer renders nothing rather than solving on the fly), but
+      it means a fresh database shows no reverse DCF until the 06:00 cron completes.
+      Nothing is deployed yet, so this cost nothing here; the dev store was
+      materialized by hand. Worth remembering at first deploy.
+    original_why: >
+
       AD-1 is a CQRS rule: "all computation runs in the scheduled batch pipeline; the
       read path only queries materialized Postgres and never computes a score", and
       "no request can trigger scoring, ingestion, or RECOMPUTATION". Nothing about the
@@ -926,6 +965,19 @@ story_6_5_open_deviations:
       read path query it. Needs a table, a migration, a pipeline stage, and an
       idempotency key on (issuer_cik, fiscal_year, spec_version) or the nightly cron
       accumulates a row per night — the anti-pattern that bit `run_validation`.
+    RESOLVED_2026_08_13: >
+      DONE. See post_epic_work "Persist the reverse DCF in the pipeline" for the full
+      evidence. Story 6.4's AC and the code now agree: the grid IS stored, along with
+      the rest of the reverse DCF, and the read path only queries it.
+
+      One thing found while doing it that was not in the diagnosis: `sensitivity.py`'s
+      module docstring ALREADY claimed "Computed deterministically in Python on the
+      write path (AD-1) — a read never triggers 35 solves". That was false when
+      written and stayed false through two stories. It is true now, and no edit was
+      needed to make it true — which is the tell. Fifth instance of this repo's most
+      repeated failure: documentation describing the intent correctly and the
+      implementation incorrectly, with nothing connecting the two. The AC said
+      "stored", the docstring said "write path", and the code did neither.
   overview_n_plus_1_now_measured:
     finding: >
       Risk-assessment finding 3.10 is REAL and now measured rather than assumed:

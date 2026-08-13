@@ -150,10 +150,21 @@ async def test_overview_query_count_is_pinned_and_linear(db_session) -> None:
 #
 # THESE ARE NOT THE LIVE NUMBERS AND ARE NOT MEANT TO BE. The fixture above gives
 # every run 3 signals; the real models carry 5-9, and a live issuer also has debt,
-# maturity, market-price and reverse-DCF reads on top. So 484-for-OTEX and 100-for-
+# maturity, market-price and reverse-DCF reads on top. So 484-for-OTEX and 101-for-
 # six-synthetic-years measure the same defect at different scales, and neither is
 # wrong. What transfers between them is the SHAPE: cost per fiscal year is constant
 # and non-zero, which is the definition of the N+1 this guards.
-SHORT_HISTORY_QUERIES = 36
-LONG_HISTORY_QUERIES = 100
+#
+# MOVED +1 ON 2026-08-13, and the slope did NOT move. Persisting the reverse DCF
+# (AD-1) replaced the in-line solver call with a lookup of the materialized row.
+# This fixture stores no such row, so the lookup finds nothing and costs exactly one
+# query; a live issuer with a stored row costs two (run, then its 35 cells). Both
+# are FIXED cost — PER_YEAR_QUERIES is unchanged at 16, which is the assertion that
+# actually matters here.
+#
+# What went away is not counted by this test and is the larger win: the read path no
+# longer runs 35 bisection solves, nor the market-price/FX queries the solver issued
+# to build market capitalisation.
+SHORT_HISTORY_QUERIES = 37
+LONG_HISTORY_QUERIES = 101
 PER_YEAR_QUERIES = 16

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.models import (
     Applicability,
@@ -15,6 +15,8 @@ from app.models import (
     IssueStatus,
     Model,
     RawFact,
+    ReverseDcfCell,
+    ReverseDcfRun,
     ScoreResult,
     ScoreRun,
 )
@@ -117,6 +119,39 @@ async def test_run_issuer_runs_the_validate_stage(db_session) -> None:
     summary = await run_issuer(db_session, payload, ticker="SHOP")
     # Clean fixture -> stage ran and found nothing, rather than never running.
     assert summary["validation"] == {"issues_raised": 0, "issues_existing": 0}
+
+
+@requires_db
+async def test_pipeline_materializes_the_reverse_dcf_exactly_once(db_session) -> None:
+    """The reverse DCF is a WRITE-path artefact now (AD-1), and the cron is daily.
+
+    `test_reverse_dcf_store.py` covers the store in isolation; this asserts the
+    wiring — that `run_issuer` actually reaches it, and that the second night does
+    not append a second row. `run_validation` was implemented, tested and still
+    accumulated a row per night because nothing asserted it through the pipeline.
+    """
+    payload = json.loads(FIXTURE.read_text())
+    first = await run_issuer(db_session, payload, ticker="SHOP")
+    second = await run_issuer(db_session, payload, ticker="SHOP")
+
+    # The stage ran at all — a silently skipped stage would also produce no
+    # duplicates, so the row count alone cannot carry this.
+    assert first["reverse_dcf_year"] is not None
+    assert second["reverse_dcf_year"] == first["reverse_dcf_year"]
+
+    runs = (await db_session.execute(select(ReverseDcfRun))).scalars().all()
+    assert len(runs) == 1
+    assert runs[0].issuer_cik == first["cik"]
+    assert runs[0].fiscal_year == first["reverse_dcf_year"]
+
+    cells = (
+        await db_session.execute(
+            select(func.count()).select_from(ReverseDcfCell)
+        )
+    ).scalar_one()
+    # 35 when the grid resolved, 0 when the filer's operands do not support one.
+    # Either is correct; what must not happen is the count doubling on night two.
+    assert cells in (0, 35)
 
 
 @requires_db
