@@ -11,15 +11,24 @@ WHAT THE DEV STORE ACTUALLY CONTAINS, checked 2026-08-13 before writing this:
 20 weekend-dated market_prices rows and 4 weekend-dated fx_rates rows — and NOT ONE
 of them has a correctly-dated partner. The recorded diagnosis assumed both rows
 existed side by side; they do not, because the corrected ingestion has never been
-re-run. That changes the safe order of operations completely:
+re-run. So deletion alone, which the original note proposes, would destroy the only
+copy of that year's close.
 
-    WRITE THE CORRECT ROW FIRST, THEN DELETE THE MISLABELLED ONE.
+IT IS AN UPDATE IN PLACE, NOT A DELETE AND RE-INSERT. The first version of this
+module wrote the corrected row and then deleted the stale one, and the database
+refused: `score_inputs.market_price_id` and `score_inputs.fx_rate_id` are the AD-19
+provenance links recording WHICH row each Altman run consumed, and the dev store
+holds 69 and 38 of them respectively. Deleting would have orphaned every one.
 
-Deleting first — the order the original note implies — would destroy the only copy
-of that year's close, and if the subsequent fetch failed or the API key were
-missing, Altman and the reverse DCF would silently lose their market inputs for
-those years. In this order the data is never absent, and a failed fetch simply
-leaves the row untouched for the next attempt.
+Updating the date on the existing row is not a workaround for that constraint — it
+is the more truthful operation. The row's identity is preserved because IT IS THE
+SAME OBSERVATION; only its label was wrong. Every score run keeps citing the exact
+quote it actually consumed, the value is never absent for an instant, and a re-run
+is a no-op.
+
+The delete path survives for the one case that needs it: a correctly-dated row
+already exists, so the stale row is a genuine duplicate. Its provenance links are
+re-pointed at the surviving row before it is removed.
 
 THE CLOSE IS VERIFIED, NOT ASSUMED. The stored figure should already be the correct
 trading day's close (`select_fye_close` picked it); only the label was wrong. This
@@ -38,10 +47,10 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import FxRate, Issuer, MarketPrice
+from app.models import FxRate, Issuer, MarketPrice, ScoreInput
 from raw_store.observation_dates import is_weekend, previous_trading_day
 
 #: How far before a mislabelled date the true observation can sit. A weekend end
@@ -111,13 +120,24 @@ async def relabel_market_price(
     close_price: float,
     source: str = "tiingo",
 ) -> str:
-    """Write the correctly-dated row, then drop the mislabelled one.
+    """Correct one market price's observation date, preserving its identity.
 
-    Returns a one-line outcome. Idempotent: a second run finds no weekend row and
-    does nothing, and re-writing an already-correct row hits the existing-row path.
+    Returns a one-line outcome. Idempotent: a second run finds no weekend row.
     """
     if is_weekend(observed_date):
         return f"REFUSED {issuer_cik} {stored_date}: provider date {observed_date} is also a weekend"
+
+    stale = (
+        await session.execute(
+            select(MarketPrice).where(
+                MarketPrice.issuer_cik == issuer_cik,
+                MarketPrice.price_date == stored_date,
+                MarketPrice.source == source,
+            )
+        )
+    ).scalars().first()
+    if stale is None:
+        return f"SKIP {issuer_cik} {stored_date}: no such row (already corrected?)"
 
     existing_correct = (
         await session.execute(
@@ -130,28 +150,24 @@ async def relabel_market_price(
     ).scalars().first()
 
     if existing_correct is None:
-        session.add(
-            MarketPrice(
-                issuer_cik=issuer_cik,
-                price_date=observed_date,
-                close_price=close_price,
-                source=source,
-            )
-        )
+        # THE NORMAL CASE. Relabel in place: same row, same id, so every
+        # score_inputs citation keeps pointing at the observation it consumed.
+        stale.price_date = observed_date
+        stale.close_price = close_price
         await session.flush()
+        return f"OK {issuer_cik} {stored_date} -> {observed_date} close={close_price}"
 
-    stale = (
-        await session.execute(
-            select(MarketPrice).where(
-                MarketPrice.issuer_cik == issuer_cik,
-                MarketPrice.price_date == stored_date,
-                MarketPrice.source == source,
-            )
-        )
-    ).scalars().first()
-    if stale is not None:
-        await session.delete(stale)
-    return f"OK {issuer_cik} {stored_date} -> {observed_date} close={close_price}"
+    # A correctly-dated row already exists, so the stale one is a true duplicate.
+    # Move its provenance links across BEFORE removing it, or the delete either
+    # fails on the foreign key or silently drops an Altman run's citation.
+    await session.execute(
+        update(ScoreInput)
+        .where(ScoreInput.market_price_id == stale.id)
+        .values(market_price_id=existing_correct.id)
+    )
+    await session.delete(stale)
+    await session.flush()
+    return f"OK {issuer_cik} {stored_date} merged into existing {observed_date}"
 
 
 async def relabel_fx_rate(
@@ -163,24 +179,13 @@ async def relabel_fx_rate(
     rate: float,
     source: str = "bank_of_canada",
 ) -> str:
-    """The FX analogue of `relabel_market_price`, same write-then-delete order."""
+    """The FX analogue of `relabel_market_price` — same relabel-in-place rule.
+
+    `score_inputs.fx_rate_id` is the matching AD-19 link for Altman's currency
+    conversion, and the dev store holds 38 of them.
+    """
     if is_weekend(observed_date):
         return f"REFUSED {currency_pair} {stored_date}: provider date {observed_date} is also a weekend"
-
-    existing_correct = (
-        await session.execute(
-            select(FxRate).where(
-                FxRate.currency_pair == currency_pair,
-                FxRate.rate_date == observed_date,
-                FxRate.source == source,
-            )
-        )
-    ).scalars().first()
-    if existing_correct is None:
-        session.add(
-            FxRate(currency_pair=currency_pair, rate_date=observed_date, rate=rate, source=source)
-        )
-        await session.flush()
 
     stale = (
         await session.execute(
@@ -191,9 +196,33 @@ async def relabel_fx_rate(
             )
         )
     ).scalars().first()
-    if stale is not None:
-        await session.delete(stale)
-    return f"OK {currency_pair} {stored_date} -> {observed_date} rate={rate}"
+    if stale is None:
+        return f"SKIP {currency_pair} {stored_date}: no such row (already corrected?)"
+
+    existing_correct = (
+        await session.execute(
+            select(FxRate).where(
+                FxRate.currency_pair == currency_pair,
+                FxRate.rate_date == observed_date,
+                FxRate.source == source,
+            )
+        )
+    ).scalars().first()
+
+    if existing_correct is None:
+        stale.rate_date = observed_date
+        stale.rate = rate
+        await session.flush()
+        return f"OK {currency_pair} {stored_date} -> {observed_date} rate={rate}"
+
+    await session.execute(
+        update(ScoreInput)
+        .where(ScoreInput.fx_rate_id == stale.id)
+        .values(fx_rate_id=existing_correct.id)
+    )
+    await session.delete(stale)
+    await session.flush()
+    return f"OK {currency_pair} {stored_date} merged into existing {observed_date}"
 
 
 async def main() -> None:  # pragma: no cover — live path, gated

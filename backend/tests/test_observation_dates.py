@@ -22,7 +22,7 @@ from decimal import Decimal
 import pytest
 from sqlalchemy import select
 
-from app.models import FxRate, Issuer, MarketPrice
+from app.models import Filing, FxRate, Issuer, MarketPrice, Model, ScoreInput, ScoreRun
 from pipeline.backfill_observation_dates import (
     plan_fx_rates,
     plan_market_prices,
@@ -42,6 +42,7 @@ from tests.conftest import requires_db
 
 CIK = "0000000888"
 TICKER = "OBSV"
+ACCN = "0000000888-24-000001"
 
 # 2023-12-31 is a SUNDAY and is a real fiscal-year-end for CP, BCE and Cameco —
 # this is the actual shape of the defect, not an invented one.
@@ -150,6 +151,16 @@ async def _seed_mislabelled(db_session) -> None:
     now refuses it. That bypass is the point: this is legacy data, and a fixture
     that could not represent it would leave the backfill untested."""
     db_session.add(Issuer(cik=CIK, ticker=TICKER, name="Observation Test Co"))
+    db_session.add(
+        Filing(
+            accession_number=ACCN,
+            issuer_cik=CIK,
+            form_type="10-K",
+            filing_date=date(2024, 2, 1),
+            fiscal_year=2023,
+            fiscal_year_end=FYE_SUNDAY,
+        )
+    )
     await db_session.flush()
     db_session.add(
         MarketPrice(
@@ -204,18 +215,37 @@ async def test_the_price_is_still_resolvable_for_the_fiscal_year_end(db_session)
 
 
 @requires_db
-async def test_relabelling_writes_before_it_deletes(db_session) -> None:
-    """Order matters, and the recorded diagnosis had it backwards.
+async def test_relabelling_preserves_the_rows_identity_and_its_citations(db_session) -> None:
+    """THE TEST THAT WAS MISSING, and running the backfill for real is what found it.
 
-    It assumed a correct row already sat beside each bad one, so deletion alone
-    would do. The dev store has NO such partners — every weekend row is the only
-    copy of that year's close. Deleting first would destroy it, and a failed fetch
-    would leave the year with no price at all. Asserted by relabelling to a date
-    that does not exist yet and requiring the value to survive.
+    `score_inputs.market_price_id` is the AD-19 provenance link recording WHICH
+    price row an Altman run consumed — 69 of them in the dev store. The first
+    version of this backfill wrote a corrected row and deleted the stale one, and
+    Postgres refused on the foreign key. The fixture had no score_inputs, so
+    nothing here forced the issue.
+
+    Relabelling in place is not a workaround for that constraint, it is the more
+    truthful operation: IT IS THE SAME OBSERVATION, only its label was wrong, so
+    the citation should keep pointing at exactly the row it always did.
     """
     await _seed_mislabelled(db_session)
-    before = (await db_session.execute(select(MarketPrice))).scalars().all()
-    assert [r.price_date for r in before] == [FYE_SUNDAY], "fixture should have no partner row"
+    price = (await db_session.execute(select(MarketPrice))).scalars().one()
+    original_id = price.id
+
+    run = ScoreRun(
+        issuer_cik=CIK,
+        model=Model.altman,
+        fiscal_year=2023,
+        formula_version="altman_v1",
+        accession_number=ACCN,
+        aggregate_value=Decimal("3.0"),
+    )
+    db_session.add(run)
+    await db_session.flush()
+    db_session.add(
+        ScoreInput(score_run_id=run.id, signal_key="x4", market_price_id=original_id)
+    )
+    await db_session.flush()
 
     await relabel_market_price(
         db_session,
@@ -226,9 +256,60 @@ async def test_relabelling_writes_before_it_deletes(db_session) -> None:
     )
     await db_session.flush()
 
-    after = (await db_session.execute(select(MarketPrice))).scalars().all()
-    assert len(after) == 1
-    assert Decimal(str(after[0].close_price)) == Decimal(str(CLOSE))
+    rows = (await db_session.execute(select(MarketPrice))).scalars().all()
+    assert len(rows) == 1
+    assert rows[0].price_date == TRUE_FRIDAY
+    assert rows[0].id == original_id, "the row was replaced rather than relabelled"
+
+    cited = (await db_session.execute(select(ScoreInput))).scalars().one()
+    assert cited.market_price_id == original_id, "the Altman run lost its citation"
+
+
+@requires_db
+async def test_a_true_duplicate_is_merged_and_its_citations_moved(db_session) -> None:
+    """The one case that still needs a delete: a correctly-dated row already exists,
+    so the weekend row is a genuine duplicate. Its provenance links must move to the
+    surviving row first — otherwise the delete either fails on the foreign key or
+    drops an Altman run's citation."""
+    await _seed_mislabelled(db_session)
+    stale = (await db_session.execute(select(MarketPrice))).scalars().one()
+    db_session.add(
+        MarketPrice(
+            issuer_cik=CIK,
+            price_date=TRUE_FRIDAY,
+            close_price=Decimal(str(CLOSE)),
+            source="tiingo",
+        )
+    )
+    await db_session.flush()
+
+    run = ScoreRun(
+        issuer_cik=CIK,
+        model=Model.altman,
+        fiscal_year=2023,
+        formula_version="altman_v1",
+        accession_number=ACCN,
+        aggregate_value=Decimal("3.0"),
+    )
+    db_session.add(run)
+    await db_session.flush()
+    db_session.add(ScoreInput(score_run_id=run.id, signal_key="x4", market_price_id=stale.id))
+    await db_session.flush()
+
+    outcome = await relabel_market_price(
+        db_session,
+        issuer_cik=CIK,
+        stored_date=FYE_SUNDAY,
+        observed_date=TRUE_FRIDAY,
+        close_price=CLOSE,
+    )
+    await db_session.flush()
+
+    assert "merged" in outcome
+    rows = (await db_session.execute(select(MarketPrice))).scalars().all()
+    assert [r.price_date for r in rows] == [TRUE_FRIDAY]
+    cited = (await db_session.execute(select(ScoreInput))).scalars().one()
+    assert cited.market_price_id == rows[0].id, "the citation was orphaned by the merge"
 
 
 @requires_db
