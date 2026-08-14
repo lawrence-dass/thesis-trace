@@ -1,23 +1,22 @@
 """Query-count guard for `get_company_overview` (risk-assessment finding 3.10).
 
-The N+1 here is REAL and measured, not hypothetical: against live data the overview
-issues 484 queries for OTEX (20 fiscal years), 343 for CP (13) and 100 for SHOP (5).
-Story 6.5 measured it again with the reverse DCF wired in and found +2 to +3, FLAT —
-it inherits the N+1 rather than causing it.
+TRACK P IS DONE, AND THIS FILE CHANGED CHARACTER WITH IT. It used to guard an N+1
+that existed — 484 queries for OTEX (20 fiscal years), 343 for CP, 100 for SHOP,
+growing by a constant 16 per fiscal year forever. Both loads are now single `IN`
+queries resolved in memory, and against the live store the overview costs 8 queries
+for OTEX instead of 486. The whole universe went from 2,092 queries to 54.
 
-This file does NOT fix that. Batching the per-run and per-signal loads is its own
-piece of work (Track P). What it does is stop the number moving silently in the
-meantime: an unrelated change that turns 484 into 900 currently has nothing to trip
-over, and a linear cost that quietly becomes quadratic would show up first as a slow
-page rather than as a failing test.
+So the interesting assertion is no longer "the number has not moved". It is:
 
-Two things are asserted, and the second matters more than the first:
+    THE COST DOES NOT DEPEND ON HISTORY LENGTH AT ALL.
 
-  1. The exact count for a known history length, so ANY change is visible.
-  2. That the count grows LINEARLY with the number of fiscal years — measured by
-     running two different history lengths and comparing the per-year slope. An
-     exact count alone would still pass if someone made the per-year cost worse
-     while shortening the fixed prelude.
+That is a much stronger property than the old linear-slope check, and a much
+cheaper one to break: anything that reintroduces a per-run or per-signal round trip
+puts the slope back above zero and fails here, whatever the totals happen to be.
+The exact totals are still pinned underneath, so a change in the fixed prelude is
+visible too — but the slope is the load-bearing assertion.
+
+A filer with twenty years of history and one with two must now cost the same.
 """
 
 from __future__ import annotations
@@ -108,7 +107,9 @@ async def _seed_issuer(db_session, cik: str, ticker: str, years: int) -> None:
 
 
 @requires_db
-async def test_overview_query_count_is_pinned_and_linear(db_session) -> None:
+async def test_overview_query_count_does_not_grow_with_history(db_session) -> None:
+    # Deliberately far apart. Two lengths one year apart could hide a small
+    # per-year cost inside rounding; 2 against 6 cannot.
     short_years, long_years = 2, 6
 
     await _seed_issuer(db_session, "9999900001", "SHORT", short_years)
@@ -123,17 +124,18 @@ async def test_overview_query_count_is_pinned_and_linear(db_session) -> None:
 
     short_count, long_count = short_counter["n"], long_counter["n"]
 
-    # The per-year slope. Asserted rather than the totals alone: a change that made
-    # each year more expensive while trimming the fixed prelude would keep a single
-    # pinned total looking right.
+    # THE LOAD-BEARING ASSERTION. Zero, not "small": a filer with twenty years of
+    # history must cost exactly what one with two costs. Anything that reintroduces
+    # a per-run or per-signal round trip puts this above zero, whatever the totals
+    # do — which is why it is checked before them.
     per_year = (long_count - short_count) / (long_years - short_years)
 
     assert per_year == PER_YEAR_QUERIES, (
-        f"query cost per fiscal year moved: {per_year} vs the recorded "
-        f"{PER_YEAR_QUERIES} ({short_count} queries for {short_years} years, "
-        f"{long_count} for {long_years}). If this went DOWN the N+1 was batched — "
-        "update this number and say so. If it went UP, something added a per-year "
-        "round trip."
+        f"query cost per fiscal year is {per_year}, recorded {PER_YEAR_QUERIES} "
+        f"({short_count} queries for {short_years} years, {long_count} for "
+        f"{long_years}). Above zero means a per-year round trip came back and the "
+        "overview is an N+1 again — the exact defect Track P removed. Batch the new "
+        "load the way `_results_for_runs` and `_provenance_for_runs` do."
     )
     assert short_count == SHORT_HISTORY_QUERIES, (
         f"overview issued {short_count} queries for {short_years} fiscal years, "
@@ -143,28 +145,34 @@ async def test_overview_query_count_is_pinned_and_linear(db_session) -> None:
         f"overview issued {long_count} queries for {long_years} fiscal years, "
         f"recorded {LONG_HISTORY_QUERIES}"
     )
+    # Stated separately from the slope so a failure reads as what it is.
+    assert short_count == long_count, (
+        "a longer history cost more queries than a short one; the overview scales "
+        "with history again"
+    )
 
 
-# Recorded 2026-08-12 by running the test. These are the CURRENT cost, deliberately
-# not a target: the point is that changing them requires saying why.
+# Recorded by running the test. These are the CURRENT cost, deliberately not a
+# target: the point is that changing them requires saying why.
 #
-# THESE ARE NOT THE LIVE NUMBERS AND ARE NOT MEANT TO BE. The fixture above gives
-# every run 3 signals; the real models carry 5-9, and a live issuer also has debt,
-# maturity, market-price and reverse-DCF reads on top. So 484-for-OTEX and 101-for-
-# six-synthetic-years measure the same defect at different scales, and neither is
-# wrong. What transfers between them is the SHAPE: cost per fiscal year is constant
-# and non-zero, which is the definition of the N+1 this guards.
+# THESE ARE NOT THE LIVE NUMBERS AND ARE NOT MEANT TO BE. The fixture gives every
+# run 3 signals; the real models carry 5-9, and a live issuer also has debt,
+# maturity, market-price and reverse-DCF reads on top. The two scales are supposed
+# to differ. What transfers between them is the SHAPE — and the shape is now flat.
 #
-# MOVED +1 ON 2026-08-13, and the slope did NOT move. Persisting the reverse DCF
-# (AD-1) replaced the in-line solver call with a lookup of the materialized row.
-# This fixture stores no such row, so the lookup finds nothing and costs exactly one
-# query; a live issuer with a stored row costs two (run, then its 35 cells). Both
-# are FIXED cost — PER_YEAR_QUERIES is unchanged at 16, which is the assertion that
-# actually matters here.
+# HISTORY OF THESE NUMBERS, kept because the trend is the story:
+#   2026-08-12   36 / 100, slope 16   first recorded; the N+1 as found
+#   2026-08-13   37 / 101, slope 16   +1 fixed cost, the reverse-DCF row lookup
+#   2026-08-13    7 /   7, slope  0   Track P: both loads batched
 #
-# What went away is not counted by this test and is the larger win: the read path no
-# longer runs 35 bisection solves, nor the market-price/FX queries the solver issued
-# to build market capitalisation.
-SHORT_HISTORY_QUERIES = 37
-LONG_HISTORY_QUERIES = 101
-PER_YEAR_QUERIES = 16
+# PER_YEAR_QUERIES IS NOW ZERO, and that is the whole point. It was 16 — sixteen
+# round trips per fiscal year, forever, so OTEX's twenty years of history cost 486
+# queries and a filer with forty would have cost nearly a thousand. Measured against
+# the live store after batching: OTEX 486 -> 8, CP 345 -> 8, and the whole
+# seven-filer universe 2,092 -> 54.
+#
+# If this ever goes above zero again, the overview has become an N+1 again. That is
+# the failure this file now exists to catch; the totals below are secondary.
+SHORT_HISTORY_QUERIES = 7
+LONG_HISTORY_QUERIES = 7
+PER_YEAR_QUERIES = 0
