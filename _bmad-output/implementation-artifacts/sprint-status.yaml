@@ -8,13 +8,36 @@
 # STATUS DEFINITIONS:
 # ==================
 # Epic Status:
-#   - backlog: Epic not yet started
+#   - backlog: Epic not yet started, and nothing prevents starting it
+#   - blocked: Epic CANNOT be started — a named decision defers it. Added 2026-08-14;
+#              see "WHY 'blocked' EXISTS" below, which is not a style note.
 #   - in-progress: Epic actively being worked on
 #   - done: All stories in epic completed
 #
 # Epic Status Transitions:
 #   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - blocked → backlog: when the deferring decision is satisfied — remove
+#     `decomposition: deferred` from the epic's `epic_catalog` entry in the SAME change
 #   - in-progress → done: Manually when all stories reach 'done' status
+#
+# WHY 'blocked' EXISTS:
+# =====================
+# Until 2026-08-14 this state machine had no way to say "cannot be started", so
+# Epics 7-9 — every one of them deferred under D9 — were written as `backlog`,
+# which is the word for the opposite situation. Their real gate lived in a
+# different key entirely (`epic_catalog`'s `decomposition: deferred` /
+# `deferred_under`), and a reader who checked the obvious field got the wrong
+# answer. Two consecutive handovers consequently asserted "Nothing blocks Epic 7".
+# It is false: D9 forbids selecting the next epic from list order at all, and the
+# choice must come from the largest research failure named in a decision packet
+# (D10) — which is also D3.2 and does not exist yet.
+#
+# This is the SIXTH instance of one failure mode in this project: the meaning
+# lives in one field and the answer a reader actually sees lives in another.
+# Adding the enum value alone would have been a seventh, so the two fields are
+# now bound BOTH ways by test_blocked_status_agrees_with_the_catalog:
+#   epic_catalog[e].decomposition == 'deferred'  <->  development_status[e] == 'blocked'
+# Neither can be changed without the other, so they can no longer disagree.
 #
 # Story Status:
 #   - backlog: Story only exists in epic file
@@ -135,11 +158,14 @@ development_status:
   6-6-reverse-dcf-on-the-company-overview: done
   6-7-golden-dataset-coverage-for-the-implied-growth-rate: done
   epic-6-retrospective: done
-  epic-7: backlog
+  # blocked, not backlog — all three are deferred under D9 and none can be
+  # started until a decision packet (D10) selects it. Bound to each epic's
+  # `epic_catalog` entry by test_blocked_status_agrees_with_the_catalog.
+  epic-7: blocked
   epic-7-retrospective: optional
-  epic-8: backlog
+  epic-8: blocked
   epic-8-retrospective: optional
-  epic-9: backlog
+  epic-9: blocked
   epic-9-retrospective: optional
 
 # EPIC CATALOG — the human-meaningful half of `development_status`, in a form a
