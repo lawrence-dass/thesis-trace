@@ -7,6 +7,7 @@ provenance of each input.
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from decimal import Decimal
 
@@ -127,26 +128,77 @@ async def get_issuer_by_ticker(session: AsyncSession, ticker: str) -> Issuer | N
     ).scalars().first()
 
 
-async def _provenance_for(session: AsyncSession, run_id, signal_key: str) -> list[Provenance]:
+async def _results_for_runs(
+    session: AsyncSession, run_ids: list
+) -> dict[uuid.UUID, list[ScoreResult]]:
+    """Every run's signal rows, in ONE query rather than one per run.
+
+    Part of the Track P batching. The overview previously issued a query per run —
+    80 of them for OTEX's 20 fiscal years across four models.
+    """
+    if not run_ids:
+        return {}
     rows = (
         await session.execute(
-            select(CanonicalFact, Filing.form_type)
+            select(ScoreResult)
+            .where(ScoreResult.score_run_id.in_(run_ids))
+            .order_by(ScoreResult.score_run_id, ScoreResult.signal_key)
+        )
+    ).scalars().all()
+    grouped: dict[uuid.UUID, list[ScoreResult]] = {}
+    for row in rows:
+        grouped.setdefault(row.score_run_id, []).append(row)
+    return grouped
+
+
+async def _provenance_for_runs(
+    session: AsyncSession, run_ids: list
+) -> dict[tuple, list[Provenance]]:
+    """Every signal's provenance for every run, in ONE query.
+
+    THE EXPENSIVE HALF of the old N+1: this was a query per (run, signal), which is
+    where 400 of OTEX's 486 went. The join is unchanged — only the `where` widens
+    from one run to all of them, and the grouping key moves into the projection.
+
+    Ordered explicitly. The per-signal version had no ORDER BY at all, so its row
+    order was whatever Postgres happened to return; grouping without one would make
+    the ordering depend on the plan for a much larger scan. Verified against the
+    live store that the emitted provenance lists are byte-identical either way.
+    """
+    if not run_ids:
+        return {}
+    rows = (
+        await session.execute(
+            select(ScoreInput.score_run_id, ScoreInput.signal_key, CanonicalFact, Filing.form_type)
             .join(ScoreInput, ScoreInput.canonical_fact_id == CanonicalFact.id)
             .join(Filing, Filing.accession_number == CanonicalFact.accession_number)
-            .where(ScoreInput.score_run_id == run_id, ScoreInput.signal_key == signal_key)
+            .where(ScoreInput.score_run_id.in_(run_ids))
+            .order_by(
+                ScoreInput.score_run_id,
+                ScoreInput.signal_key,
+                # Newest fiscal year first, matching how the runs themselves are
+                # ordered and — verified against the live store — what the
+                # unordered per-signal query already emitted. A year-over-year
+                # signal cites two facts, and reversing them would silently
+                # relabel which one a reader takes as "current".
+                CanonicalFact.fiscal_year.desc(),
+                CanonicalFact.canonical_concept,
+            )
         )
     ).all()
-    return [
-        Provenance(
-            accession_number=cf.accession_number,
-            canonical_concept=cf.canonical_concept,
-            fiscal_year=cf.fiscal_year,
-            period_end=cf.period_end.isoformat() if cf.period_end else None,
-            source_filing_form=form,
-            derivation=cf.derivation,
+    grouped: dict[tuple, list[Provenance]] = {}
+    for run_id, signal_key, cf, form in rows:
+        grouped.setdefault((run_id, signal_key), []).append(
+            Provenance(
+                accession_number=cf.accession_number,
+                canonical_concept=cf.canonical_concept,
+                fiscal_year=cf.fiscal_year,
+                period_end=cf.period_end.isoformat() if cf.period_end else None,
+                source_filing_form=form,
+                derivation=cf.derivation,
+            )
         )
-        for cf, form in rows
-    ]
+    return grouped
 
 
 async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOverviewOut | None:
@@ -162,20 +214,25 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
         )
     ).scalars().all()
 
+    # TRACK P: two bounded queries instead of one per run and one per signal.
+    # The overview issued 486 queries for OTEX (20 fiscal years x 4 models, with
+    # each run's signals fetched individually and each signal's provenance fetched
+    # individually) and the cost grew linearly with history — 16 queries per fiscal
+    # year, forever. Both loads are now single `IN` queries resolved in memory.
+    run_ids = [run.id for run in runs]
+    results_by_run = await _results_for_runs(session, run_ids)
+    provenance_by_signal = await _provenance_for_runs(session, run_ids)
+
     scores: list[LensScoreOut] = []
     for run in runs:
-        results = (
-            await session.execute(
-                select(ScoreResult).where(ScoreResult.score_run_id == run.id).order_by(ScoreResult.signal_key)
-            )
-        ).scalars().all()
+        results = results_by_run.get(run.id, [])
         signals = [
             SignalOut(
                 signal_key=r.signal_key,
                 status=r.status.value,
                 value=float(r.value) if r.value is not None else None,
                 band_label=r.band_label,
-                provenance=await _provenance_for(session, run.id, r.signal_key),
+                provenance=provenance_by_signal.get((run.id, r.signal_key), []),
             )
             for r in results
         ]
