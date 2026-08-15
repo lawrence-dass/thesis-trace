@@ -27,6 +27,7 @@ from raw_store.repository import persist_company_facts
 from scoring.facts import load_facts
 from scoring.runner import score_altman, score_beneish, score_piotroski, score_sloan
 from validation.checks import run_validation
+from valuation.store import materialize_reverse_dcf
 
 
 def _primary_filing_per_year(filings) -> dict:
@@ -140,6 +141,16 @@ async def run_issuer(
         if filing is not None and await get_fye_close(session, parsed.cik, filing.fiscal_year_end):
             await score_altman(session, parsed.cik, year)
             scored["altman"].append(year)
+
+    # Reverse DCF (AD-1). Runs AFTER scoring because it reads the same canonical
+    # facts and the market/FX rows persisted above — and because it belongs on the
+    # write path at all: it was previously solved on every page load, 35 sensitivity
+    # cells at a time, which is the computation AD-1 forbids a read from triggering.
+    # Upserts, so the daily cron leaves exactly one row.
+    reverse_dcf_year = await materialize_reverse_dcf(
+        session, parsed.cik, is_capital_intensive=is_capital_intensive
+    )
+
     await session.commit()
     return {
         "cik": parsed.cik,
@@ -147,6 +158,7 @@ async def run_issuer(
         "scored_years": years,
         "scored": scored,
         "validation": validation,
+        "reverse_dcf_year": reverse_dcf_year,
     }
 
 
