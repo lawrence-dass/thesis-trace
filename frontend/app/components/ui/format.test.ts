@@ -40,27 +40,48 @@ describe("compactAmount", () => {
   });
 
   // ────────────────────────────────────────────────────────────────────────────
-  // DELIBERATELY NOT ASSERTED: compactAmount(950_000).
-  //
-  // It returns "0.9M" today, and that is a gate/display disagreement rather than a
-  // considered choice. The millions gate is `Math.round(abs / 1e5) / 10 >= 1`,
-  // which for 950,000 rounds to exactly 1.0 and admits the value into the millions
-  // branch — and the branch then renders `(0.95).toFixed(1)`, which is "0.9"
-  // because 0.95 is not exactly representable in binary. So the gate says "this is
-  // at least 1.0M" and the formatter prints less than that, in the one helper whose
-  // entire reason for existing is that two cards disagreed about a boundary.
-  //
-  // It is NOT pinned here because the fix is a presentation decision with two
-  // coherent answers and very different blast radii, measured 2026-08-13:
-  //   (a) make the gate match its display  -> 950,000 renders "950,000".  1 input changes.
-  //   (b) make the display match the gate  -> 950,000 renders "1.0M".   461 inputs change,
-  //       because it also switches .x5 cases to round-half-up (900,050,000 -> "900.1M").
-  // (b) is the more faithful reading of the docstring's stated intent — it PROMOTES
-  // a value that rounds up, which is exactly what the 999,999,999 case describes.
-  //
-  // Asserting either would bless a disputed rendering. Left for a decision; no real
-  // filer figure is exactly 950,000, so nothing is broken on the page today.
+  // THE GATE AND THE DISPLAY MUST READ THE SAME QUANTITY. Resolved 2026-08-14;
+  // the three tests below are the boundary cases, and each is the deliverable
+  // rather than an extra — a gate change is only correct if both sides are pinned.
   // ────────────────────────────────────────────────────────────────────────────
+
+  it("does not promote to billions a value that only reaches 1.0B at one decimal", () => {
+    // THE LIVE DEFECT, and the reason this was not merely the 950,000 curiosity.
+    // The old billions gate tested ONE decimal (`round(abs / 1e8) / 10 >= 1`)
+    // while the branch printed TWO, so everything from 950,000,000 up was
+    // promoted and then rendered below 1: these three figures showed "0.97B",
+    // "0.99B" and "0.98B" on real pages, in columns of "M" values they could no
+    // longer be read against. All three are real dev-store facts.
+    // The two that were VISIBLY WRONG on a rendered page, confirmed in the
+    // browser 2026-08-14 — CP's Year 4 repayment bucket and the headline of
+    // Suncor's near-term debt card, which read "0.97B of 9.99B".
+    expect(compactAmount(990_000_000)).toBe("990.0M"); // CP debt_maturity_year_4 FY2025
+    expect(compactAmount(973_000_000)).toBe("973.0M"); // SU near_term_debt FY2025
+    // Served in an overview payload but not currently rendered as an amount
+    // (earlier-year rows show only the percentage). Pinned anyway: whether a
+    // figure reaches a card is a layout decision that can change, and the
+    // formatter must be right regardless of who calls it.
+    expect(compactAmount(975_000_000)).toBe("975.0M"); // BCE near_term_debt FY2020
+  });
+
+  it("still promotes a value that DOES reach 1.00B at two decimals", () => {
+    // The other side of the same boundary. Narrowing the gate must not break the
+    // case the helper was extracted for — 999,999,999 is asserted above, and
+    // CCJ's FY2025 total debt is the real figure that crosses at two decimals.
+    expect(compactAmount(996_348_000)).toBe("1.00B"); // CCJ total_debt FY2025
+    expect(compactAmount(995_000_000)).toBe("1.00B"); // exact .995 tie, rounds up
+    expect(compactAmount(994_999_999)).toBe("995.0M"); // just below it
+  });
+
+  it("breaks ties half-up rather than on the binary representation", () => {
+    // `toFixed` rounds by what the double actually stores: 0.95 sits just below
+    // 0.95, so `(0.95).toFixed(1)` is "0.9" — the millions gate admitted 950,000
+    // as "at least 1.0M" and the branch then printed less than that. Rounding
+    // half-up before the test makes the two agree by construction.
+    expect(compactAmount(950_000)).toBe("1.0M");
+    expect(compactAmount(900_050_000)).toBe("900.1M");
+    expect(compactAmount(3_150_000)).toBe("3.2M");
+  });
 
   it("keeps the sign, choosing magnitude on the absolute value", () => {
     // Capex and some cash-flow operands arrive negative. Testing magnitude on the
