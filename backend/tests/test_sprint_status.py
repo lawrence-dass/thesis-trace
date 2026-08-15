@@ -38,7 +38,7 @@ STATUS_PATH = REPO_ROOT / "_bmad-output" / "implementation-artifacts" / "sprint-
 EPICS_PATH = REPO_ROOT / "_bmad-output" / "planning-artifacts" / "epics.md"
 
 # The state machine documented at the top of sprint-status.yaml itself.
-EPIC_STATUSES = frozenset({"backlog", "in-progress", "done"})
+EPIC_STATUSES = frozenset({"backlog", "blocked", "in-progress", "done"})
 STORY_STATUSES = frozenset({"backlog", "ready-for-dev", "in-progress", "review", "done"})
 RETRO_STATUSES = frozenset({"optional", "done"})
 DECOMPOSITION_STATES = frozenset({"decomposed", "deferred"})
@@ -217,6 +217,44 @@ def test_epic_status_agrees_with_its_stories(status, declared):
         if epic_status == "backlog" and any(v != "backlog" for v in own.values()):
             problems.append(f"epic-{epic} is 'backlog' but has started stories")
     assert not problems, "epic/story status disagreement:\n  " + "\n  ".join(problems)
+
+
+def test_blocked_status_agrees_with_the_catalog(status, declared):
+    """`blocked` and `decomposition: deferred` are the same fact in two files, so
+    something has to hold them together.
+
+    Before `blocked` existed (2026-08-14) the state machine's only word for Epics
+    7-9 was `backlog` — which means the opposite — while their real gate sat in
+    `epic_catalog`. A reader who checked `development_status`, the obvious field,
+    got the wrong answer, and two handovers asserted "Nothing blocks Epic 7".
+
+    Adding the enum value without this test would have reproduced the very bug it
+    was added to fix: one more field carrying meaning that nothing keeps true.
+    The binding is deliberately BOTH ways — a deferred epic left as `backlog` is
+    the original bug, and a `blocked` epic with no recorded deferral is an epic
+    nobody can start for a reason nobody wrote down.
+    """
+    _, epics = declared
+    dev = status["development_status"]
+    catalog = status["epic_catalog"]
+    problems = []
+    for epic in sorted(epics):
+        key = f"epic-{epic}"
+        entry = catalog.get(key, {})
+        deferred = entry.get("decomposition") == "deferred"
+        blocked = dev.get(key) == "blocked"
+        if deferred and not blocked:
+            problems.append(
+                f"{key}: catalog defers it under {entry.get('deferred_under')!r} but "
+                f"development_status says {dev.get(key)!r} — a reader checking the "
+                "status field would think it can be picked up"
+            )
+        if blocked and not deferred:
+            problems.append(
+                f"{key}: development_status says 'blocked' but the catalog does not "
+                "declare `decomposition: deferred`, so no decision is on record for why"
+            )
+    assert not problems, "blocked/deferred disagreement:\n  " + "\n  ".join(problems)
 
 
 @pytest.fixture(scope="module")
