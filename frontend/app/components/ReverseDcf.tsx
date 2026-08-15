@@ -96,14 +96,19 @@ const OPERAND_LABEL: Record<string, string> = {
   cash_equivalents: "Cash equivalents",
 };
 
-function labelFor(name: string): string {
+export function labelFor(name: string): string {
   return OPERAND_LABEL[name] ?? name.replace(/_/g, " ");
 }
+
+/** Every operand name the label map claims to cover. Exported so a test can assert
+ *  the map stays exhaustive — the review found it silently missing the four
+ *  derivation leaves, which rendered raw snake_case beside mapped labels. */
+export const OPERAND_LABEL_KEYS = Object.keys(OPERAND_LABEL);
 
 /** The same label mid-sentence. None of these are proper nouns, so lowering the
  *  first character is safe and keeps "computed from cash from operations and
  *  capital expenditure" reading as prose rather than as a list of headings. */
-function inlineLabel(name: string): string {
+export function inlineLabel(name: string): string {
   const label = labelFor(name);
   return label.charAt(0).toLowerCase() + label.slice(1);
 }
@@ -115,7 +120,7 @@ function inlineLabel(name: string): string {
  *  The serial comma is load-bearing here rather than stylistic: one operand is
  *  itself named "cash and equivalents", so without it the last term reads
  *  "total debt and cash and equivalents" — three items or two, unknowable. */
-function joinList(parts: string[]): string {
+export function joinList(parts: string[]): string {
   if (parts.length <= 1) return parts[0] ?? "";
   if (parts.length === 2) return `${parts[0]} and ${parts[1]}`;
   return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
@@ -284,6 +289,44 @@ function Resolved({ dcf }: { dcf: ReverseDcf }) {
  *
  *  Custom SVG-free rendering: positioned spans over a track. No charting
  *  library, per the story's constraint. */
+/** The band plot's geometry, as a pure function so its rules can be tested.
+ *
+ *  Extracted from `BandPlot` rather than left as a closure because three of these
+ *  rules are load-bearing and none of them were enforced by anything:
+ *  zero is always inside the domain, a degenerate band still gets a visible width,
+ *  and every mark lands within the track.
+ *
+ *  Returns percentages, which is what the inline styles consume.
+ */
+export function bandGeometry(
+  low: number,
+  high: number,
+  implied: number,
+  historical: number | null,
+): { pos: (value: number) => number; bandLeft: number; bandWidth: number } {
+  // Zero is ALWAYS in the domain. Two real bands cross it, and whether the price
+  // implies contraction or growth is the single most important read on this card —
+  // a domain that floated above zero would hide the sign change.
+  const marks = [low, high, implied, 0];
+  if (historical !== null) marks.push(historical);
+  const rawMin = Math.min(...marks);
+  const rawMax = Math.max(...marks);
+  // A band whose ends coincide has zero span; the fallback keeps the division
+  // below finite instead of producing NaN for every mark.
+  const span = rawMax - rawMin || 0.01;
+  const pad = span * 0.08;
+  const domainMin = rawMin - pad;
+  const domainMax = rawMax + pad;
+
+  const pos = (value: number) => ((value - domainMin) / (domainMax - domainMin)) * 100;
+
+  const bandLeft = pos(low);
+  // A floor, not a scale: a band too narrow to see would otherwise render as
+  // nothing at all, which reads as "no band" rather than "a very tight one".
+  const bandWidth = Math.max(pos(high) - bandLeft, 0.5);
+  return { pos, bandLeft, bandWidth };
+}
+
 function BandPlot({ dcf }: { dcf: ReverseDcf }) {
   const implied = dcf.implied_growth;
   const historical = dcf.historical_revenue_cagr;
@@ -293,22 +336,7 @@ function BandPlot({ dcf }: { dcf: ReverseDcf }) {
   // Nothing to plot without a band. The figures above still stand.
   if (low === null || high === null || implied === null) return null;
 
-  // Zero is ALWAYS in the domain. Two real bands cross it, and whether the price
-  // implies contraction or growth is the single most important read on this card —
-  // a domain that floated above zero would hide the sign change.
-  const marks = [low, high, implied, 0];
-  if (historical !== null) marks.push(historical);
-  const rawMin = Math.min(...marks);
-  const rawMax = Math.max(...marks);
-  const span = rawMax - rawMin || 0.01;
-  const pad = span * 0.08;
-  const domainMin = rawMin - pad;
-  const domainMax = rawMax + pad;
-
-  const pos = (v: number) => ((v - domainMin) / (domainMax - domainMin)) * 100;
-
-  const bandLeft = pos(low);
-  const bandWidth = Math.max(pos(high) - bandLeft, 0.5);
+  const { pos, bandLeft, bandWidth } = bandGeometry(low, high, implied, historical);
 
   return (
     <div className="space-y-2">

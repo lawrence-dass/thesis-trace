@@ -80,6 +80,13 @@ jobs:
         working-directory: frontend
         run: npm run lint
 
+      # Runs BEFORE the build: a failing assertion should report as a failing test,
+      # not as a slower build. Until 2026-08-13 this job was lint + build only, so
+      # every pure function in the app shipped untested.
+      - name: Test (vitest)
+        working-directory: frontend
+        run: npm test
+
       - name: Build
         working-directory: frontend
         env:
