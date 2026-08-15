@@ -64,15 +64,16 @@ async def run_issuer(
     sector: str | None = None,
     is_financial_sector: bool = False,
     is_capital_intensive: bool = False,
-    fye_prices: dict[int, float | tuple[date, float]] | None = None,
-    fx_rates: dict[int, float | tuple[date, float]] | None = None,
+    fye_prices: dict[int, tuple[date, float]] | None = None,
+    fx_rates: dict[int, tuple[date, float]] | None = None,
     reporting_currency: str | None = None,
 ) -> dict:
     """Full write-path pipeline for one issuer from a Company Facts payload.
 
-    `fye_prices` maps fiscal_year -> period-end close (or `(observed_date, close)`)
-    from Tiingo; when present for a year, Altman is also scored for that year
-    (AD-11/AD-14). `fx_rates` has the analogous value or dated tuple for the
+    `fye_prices` maps fiscal_year -> `(observed_date, close)` from Tiingo, where
+    `observed_date` is the trading day the quote actually came from and NEVER the
+    fiscal-year-end; when present for a year, Altman is also scored for that year
+    (AD-11/AD-14). `fx_rates` has the analogous dated tuple for the
     USD/`reporting_currency` rate and is only needed for filers that
     report in a non-USD currency (e.g. CP reports in CAD) — see AD-11's currency
     fix (2026-07-23): Tiingo's price is always USD, so a non-USD filer's Altman
@@ -97,30 +98,27 @@ async def run_issuer(
     # one year should not suppress every other year's valid scores.
     validation = await run_validation(session, parsed.cik)
 
-    # Persist any provided FYE market prices at the selected observation date.
+    # Persist any provided FYE market prices at the date they were OBSERVED.
+    #
+    # The (date, value) pair is now required. It used to be optional — a bare float
+    # dated the observation to the filer's fiscal-year-end — and that fallback was
+    # the entire mechanism behind the weekend-dated rows: six of seven filers ended
+    # a year on a Saturday or Sunday and so carried quotes on days the market was
+    # shut. Nothing tested the bare form and live ingestion had already stopped
+    # using it, so it is removed rather than left as a documented way to
+    # reintroduce the defect. `upsert_*` now refuses a weekend date outright.
     fye_prices = fye_prices or {}
     all_filings = (await session.execute(select(Filing).where(Filing.issuer_cik == parsed.cik))).scalars().all()
     filings = _primary_filing_per_year(all_filings)
-    for fy, supplied in fye_prices.items():
+    for fy, (price_date, close) in fye_prices.items():
         if fy in filings:
-            if isinstance(supplied, tuple):
-                price_date, close = supplied
-            else:
-                # Backward-compatible fixture/caller form. Live ingestion uses
-                # the tuple form so a weekend FYE does not masquerade as a quote
-                # observed on the Sunday itself.
-                price_date, close = filings[fy].fiscal_year_end, supplied
             await upsert_fye_close(
                 session, issuer_cik=parsed.cik, price_date=price_date, close_price=close
             )
 
     if reporting_currency and reporting_currency != "USD":
-        for fy, supplied in (fx_rates or {}).items():
+        for fy, (rate_date, rate) in (fx_rates or {}).items():
             if fy in filings:
-                if isinstance(supplied, tuple):
-                    rate_date, rate = supplied
-                else:
-                    rate_date, rate = filings[fy].fiscal_year_end, supplied
                 await upsert_fx_rate(
                     session,
                     currency_pair=f"USD{reporting_currency}",

@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import FxRate
+from raw_store.observation_dates import assert_tradeable_observation_date
 
 
 async def upsert_fx_rate(
@@ -19,6 +20,10 @@ async def upsert_fx_rate(
     rate: float,
     source: str = "bank_of_canada",
 ) -> FxRate:
+    # Same rule as `upsert_fye_close`: the date is when the rate was PUBLISHED, not
+    # the fiscal-year-end it will be applied to. The Bank of Canada publishes no
+    # rate on a weekend, so a weekend-dated row is always a mislabel.
+    assert_tradeable_observation_date(rate_date, what=f"{currency_pair} rate")
     existing = (
         await session.execute(
             select(FxRate).where(

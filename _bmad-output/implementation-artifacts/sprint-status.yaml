@@ -757,7 +757,48 @@ story_6_2_live_verification:
 
 # Found by Codex's review of Story 6.5 (2026-08-11), confirmed and sharpened here.
 market_price_dates_labelled_as_fiscal_year_end:
-  status: open
+  status: done
+  closed: 2026-08-13
+  closed_by: >
+    PR #72. Guard + backfill, applied to the dev store: 24 rows re-dated (20
+    market_prices, 4 fx_rates), 0 remaining on a non-trading date, and the second
+    --apply run is a no-op.
+  correction_to_this_entry: >
+    THE DIAGNOSIS ABOVE WAS WRONG ABOUT THE DATA, and the error would have caused
+    data loss if the recorded fix had been followed. It says a corrected row sits
+    beside the mislabelled one, the weekend row winning because it sorts later, so
+    "one-time deletion ... followed by a re-ingest" would suffice. Checked first:
+    NOT ONE of the 24 rows had a correctly-dated partner, because the corrected
+    ingestion had never been re-run. Deleting first would have destroyed the only
+    copy of each year's close, and a failed fetch would have left Altman and the
+    reverse DCF with no market input for those years.
+  what_it_actually_needed: >
+    An UPDATE IN PLACE, not a delete and re-insert. The first implementation wrote
+    the corrected row and deleted the stale one; Postgres refused, because
+    score_inputs.market_price_id and .fx_rate_id are the AD-19 provenance links
+    recording WHICH row each Altman run consumed — 69 and 38 of them respectively.
+    Deleting would have orphaned every one. Relabelling in place is also the more
+    truthful operation: it is the same observation, only its label was wrong, so
+    each score run keeps citing exactly the quote it consumed. Verified after the
+    run: 69/38 citations intact, 0 orphans, row counts unchanged at 69/11.
+  verified: >
+    Every provider close and rate matched the stored value EXACTLY — 0 mismatches
+    across 24 rows — which confirms the original severity call: the label was
+    wrong, the price was right. Every weekend fiscal-year-end still resolves to a
+    price (get_fye_close takes the latest row within 7 days, and Friday is 1-2 days
+    before), so no year lost its market cap. A test pins that property.
+  guard: >
+    upsert_fye_close and upsert_fx_rate now REFUSE a weekend date outright, and the
+    bare-float form of fye_prices/fx_rates was removed from run_issuer — dating an
+    observation to the fiscal-year-end was its only behaviour and the entire cause.
+    Weekends only: a full exchange calendar needs a dependency, and every FYE in the
+    universe is 31 December or 30 June, never a weekday holiday. A weekday holiday
+    would still slip through — recorded in raw_store/observation_dates.py.
+  also_caught: >
+    The guard immediately found the GOLDEN DATASET doing the same thing: three
+    golden years end on a Sunday (QSR and CP FY2023, OTEX FY2019) and the fixture
+    seeded the quote AT the year end. Now seeded at the real trading day; no golden
+    expected value moved.
   found: 2026-08-11
   found_by: "Codex code review of Story 6.5; consequence traced during verification"
   issue: >

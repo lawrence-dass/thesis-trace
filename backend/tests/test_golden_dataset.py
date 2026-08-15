@@ -24,6 +24,7 @@ from debt.profile import PROFILE_CONCEPTS, profile_for_facts
 from ingestion.company_facts import parse_company_facts
 from raw_store.fx_rates import upsert_fx_rate
 from raw_store.market_prices import upsert_fye_close
+from raw_store.observation_dates import previous_trading_day
 from raw_store.repository import persist_company_facts
 from scoring.runner import score_altman, score_beneish, score_piotroski, score_sloan
 from sqlalchemy import select
@@ -58,8 +59,19 @@ async def _run_pipeline(db_session, company: dict) -> str:
         # silently miss for any non-calendar-FYE filer and Altman would come back
         # insufficient_data instead of matching the hand-verified golden value.
         fye_date = date.fromisoformat(company["fye_date"])
+        # THE FISCAL-YEAR-END AND THE OBSERVATION DATE ARE DIFFERENT THINGS, and
+        # this fixture used to conflate them — seeding the quote AT the year end.
+        # Three golden years end on a Sunday (QSR and CP FY2023, OTEX FY2019), so
+        # it was storing closes on days the market was shut, which is the same
+        # defect the live store carried. The close itself is unchanged: it is the
+        # last trading day's close either way, and `get_fye_close` resolves it for
+        # the year end because that lookup takes the latest row within seven days.
+        observed_on = previous_trading_day(fye_date)
         await upsert_fye_close(
-            db_session, issuer_cik=parsed.cik, price_date=fye_date, close_price=company["fye_close"]
+            db_session,
+            issuer_cik=parsed.cik,
+            price_date=observed_on,
+            close_price=company["fye_close"],
         )
         # Non-USD reporting filers (e.g. CP, in CAD) need the FX rate too, or X4
         # silently divides a USD price by a CAD denominator (AD-11 currency fix).
@@ -67,7 +79,7 @@ async def _run_pipeline(db_session, company: dict) -> str:
             await upsert_fx_rate(
                 db_session,
                 currency_pair=company["fx_rate"]["currency_pair"],
-                rate_date=fye_date,
+                rate_date=observed_on,
                 rate=company["fx_rate"]["rate"],
             )
         await score_altman(db_session, parsed.cik, fiscal_year)
