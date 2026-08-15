@@ -51,9 +51,20 @@ grep -n "pattern" bigdoc.md                    # locate a section before reading
 
 ## Git workflow (read before making any commit)
 
-Lawrence runs multiple sessions on this repo (desktop and cloud, sometimes overlapping) — a prior collision between two concurrent sessions caused a real divergence (see `_bmad-output/archive/HANDOFF-2026-07-29.md`'s "Real bug found and fixed post-implementation" section for the full story). To prevent a repeat:
+Lawrence runs multiple sessions on this repo (desktop and cloud, sometimes overlapping) — a prior collision between two concurrent sessions caused a real divergence (see `_bmad-output/archive/HANDOFF-2026-07-29.md`'s "Real bug found and fixed post-implementation" section for the full story), and a second collision occurred on 2026-08-15 by a different route (rule 5). Rules 1-4 govern what each session commits; rule 5 governs where it works, and the two failures came from those two different places:
 
 1. **Every session works on its own new feature branch — never push directly to `main`.** At the start of a session, `git pull origin main` first, then create a fresh branch (e.g. `claude/<short-task-description>-<date>`). Never reuse an old branch name from a prior session.
 2. **Merge back via PR, not a direct push to `main`.** This surfaces any conflict with other concurrent work as a normal PR diff to review, instead of a rejected push discovered after a lot of independent work has piled up.
 3. **Pull `main` before starting substantive planning/architecture work specifically** — BMad workflow state (memlogs, spines, specs) can diverge just as easily as source code, and is harder to merge automatically.
 4. Push and open the PR at natural checkpoints (end of a story/epic, end of a planning phase) rather than batching a very long uninterrupted run — smaller, more frequent syncs make any real conflict small and easy to see.
+5. **Two local sessions must never share one checkout — give each its own `git worktree`.** Rule 1 is not sufficient on its own. A branch is per-repository but the *working directory* is shared, so a second session running `git checkout` switches the files underneath the first one, mid-task, with no warning to either.
+
+   ```bash
+   git worktree add ../ThesisTrace-<task> -b claude/<short-task>-<date> origin/main
+   git worktree list                      # who currently holds what
+   git worktree remove ../ThesisTrace-<task>   # once its PR has merged
+   ```
+
+   **This has happened, on 2026-08-15.** Session A committed session B's handover, switched the shared checkout to a new branch and opened PR #76. Session B — still believing it was on its own branch — found five files whose contents were *older* than `HEAD`: committing them would have silently reverted two already-merged PRs (#74's `compactAmount` fix, and #76's own `Badge.test.ts`, which showed as a deletion) inside a commit labelled "session handover". This is the same class of divergence as the 2026-07-29 incident above, reached by a different route.
+
+   **Detecting it after the fact:** `git status` is useless here — the five files showed as five ordinary `M` flags. Read the *direction* of `git diff` instead: if the `-` lines carry NEWER content than the `+` lines, the working tree is behind `HEAD` rather than ahead of it, and committing would revert rather than advance. `git reflog` then shows the checkouts and commits the other session made. **Never resolve this with `git add -A`.** Restore the affected paths from `HEAD` individually, then verify the recovery by running the tests rather than by trusting a clean `git status` — a reverted file and a correct file both produce no output.
