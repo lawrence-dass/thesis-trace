@@ -67,11 +67,23 @@ export function applicabilityLabel(applicability: string): string {
 
 /**
  * Visual-only tone hint for the backend's own cited band vocabulary (FR-9,
- * AD-12: Piotroski Strong/Middle/Weak; Altman Safe/Grey/Distress; Sloan's
- * "Low/High accruals" copy). This colors an already-fixed, backend-authored
- * string for scannability — it does not classify or recompute anything new.
- * An unrecognized label (e.g. a future model's band copy) safely falls back
- * to neutral rather than guessing.
+ * AD-12). All four models, as emitted by `backend/formulas/specs/*.yaml`:
+ *
+ *   Piotroski  Strong / Middle / Weak
+ *   Altman     Safe / Grey / Distress
+ *   Beneish    "Manipulation risk flagged" / "No manipulation flag"
+ *   Sloan      "Low accruals (higher quality)" / "High accruals (lower quality)"
+ *
+ * This colors an already-fixed, backend-authored string for scannability — it
+ * does not classify or recompute anything new. An unrecognized label (e.g. a
+ * future model's band copy) safely falls back to neutral rather than guessing.
+ *
+ * Two pairs are separated only by how SPECIFIC a search term is, and each is one
+ * loosened string away from inverting a result: "no manipulation" must not be
+ * shortened to "manipulation" (both Beneish labels contain it), and "low accrual"
+ * must not be shortened to "low" ("lower quality" contains it). `Badge.test.ts`
+ * pins all ten labels and both near-misses — the omission of Beneish from this
+ * comment survived a 2026-07-29 audit precisely because nothing enforced it.
  */
 export function bandTone(label: string | null): BadgeVariant {
   if (!label) return "neutral";

@@ -309,7 +309,7 @@ action_items:
     status: done
     resolved: 2026-07-29
     evidence: "All 10 band labels emitted by backend/formulas/specs/*.yaml traced through bandTone() in frontend/app/components/ui/Badge.tsx — Altman Safe/Grey/Distress, Piotroski Strong/Middle/Weak, Beneish flagged/no-flag, Sloan low/high accruals. All map to the intended tone; 'High accruals (lower quality)' does not false-match the 'low accrual' branch. Unrecognized labels fall back to neutral by design."
-    follow_up: "bandTone()'s docstring still lists only Piotroski/Altman/Sloan and omits Beneish — cosmetic, worth fixing when that file is next touched."
+    follow_up: "RESOLVED 2026-08-14 by PR #76. Was: bandTone()'s docstring lists only Piotroski/Altman/Sloan and omits Beneish — cosmetic, fix when that file is next touched. The docstring now names all four models and the ten labels. It was NOT merely cosmetic: the 2026-07-29 audit that found the code correct left no test, so nothing held the rule. Badge.test.ts now pins all ten labels plus the two substring near-misses, both verified by mutation — loosening 'no manipulation' to 'manipulation' renders a FLAGGED Beneish result green, and loosening 'low accrual' to 'low' renders 'High accruals (lower quality)' green because 'lower' contains 'low'. Each break fails two tests."
   - epic: 4
     action: "Decide whether to add a CI pipeline, since none exists and PRs are landing without automated checks"
     owner: "Lawrence"
@@ -413,7 +413,7 @@ d8_ifrs_track:
   - step: "4. Extract mapping engine to versioned per-taxonomy YAML"
     status: done
     evidence: "PR #31. canonicalization/mappings/ package: engine.py + specs/{registry,us-gaap_v4,ifrs-full_v1,derivations_v1}.yaml. Rule set proven byte-identical to the pre-refactor tuples (all 59, same priorities), so MAPPING_VERSION stays concepts_v4 — AD-2 requires a bump for a mapping CHANGE, and nothing changed. 87 passed / 1 skipped against real Postgres 17. Priority is now list position; derivations are declarative and taxonomy-blind."
-    follow_up: "Seven ifrs-full fallbacks are marked UNVERIFIED VARIANT — added during the D8 sweep as plausible IFRS variants, never confirmed against a filer whose primary tag is missing. Inert (priority > 0 only fires when the primary is absent) but several are not clean substitutes: parent-only equity, pre-interest operating cash flow, impairment-inclusive D&A, inventories-only cost of sales. Verify per-year coverage when step 5 lands BCE/Suncor; delete any that no filer needs."
+    follow_up: "RESOLVED 2026-08-02 — do not re-investigate. Was: seven ifrs-full fallbacks marked UNVERIFIED VARIANT, to be checked once step 5 landed BCE/Suncor, deleting any no filer needs. All seven were then checked per-year against real company-facts JSON for all three IFRS filers. Outcome: five are LOAD-BEARING (four are Suncor's ONLY source for their concept), one never fires but guards a real measurement difference, one has never been used. NONE deleted — keeping them was right. Four are not clean substitutes, which is a cross-filer COMPARABILITY issue rather than a coverage one, so the three affected sources carry `like_for_like: false` + `mismatch_reason` and any score consuming one is annotated computed_with_caveat, value never altered. Evidence and the full per-source disposition: backend/canonicalization/mappings/specs/ifrs-full_v4.yaml, the `Fallback verification status` block. Left reading as an open instruction until 2026-08-14, when it sent a session chasing a solved problem — the same drift as the four Epic-4 items reconciled 2026-07-29."
   - step: "5. BCE (3 of 4 models) and Suncor (2 of 4)"
     status: done
     resolved: 2026-08-02
@@ -988,7 +988,23 @@ story_6_6_browser_verification:
 
 # TWO OPEN ITEMS FROM STORY 6.5, both recorded rather than silently accepted.
 story_6_5_open_deviations:
-  status: open
+  status: done
+  resolved: 2026-08-14
+  evidence: >
+    BOTH deviations are closed, each by a PR merged 2026-08-14.
+
+    (1) sensitivity_grid_is_not_stored — closed by PR #69, which moved the whole
+    reverse DCF onto the write path (AD-1) and added the two tables and migration
+    the `why_not_fixed_here` note said it would need. `reverse_dcf_cells` now holds
+    175 stored cells across 5 runs (35 per run — exactly the 35 solves a read used
+    to trigger); the 2 filers with no cells are SHOP and Suncor, both correctly
+    insufficient_data. It took the `recommendation`'s first branch: persist it,
+    rather than amend 6.4's AC down to computed-on-read.
+
+    (2) overview_n_plus_1_now_measured — closed by PR #73, which batched the
+    query fan-out (486 -> 8 for OTEX). Pinned by
+    backend/tests/test_overview_query_count.py::test_overview_query_count_does_not_grow_with_history,
+    so the cost can no longer regrow silently with a filer's history.
   found: 2026-08-11
   sensitivity_grid_is_not_stored:
     ac_said: >
@@ -1117,7 +1133,17 @@ reverse_dcf_capital_intensity_distortion:
 # Found 2026-08-06 while running the Epic 6 spike. Not a product defect — a dev
 # ENVIRONMENT gap that will mislead any session that reasons from the local DB.
 shop_local_history_is_not_edgar_coverage:
-  status: open
+  status: done
+  resolved: 2026-08-14
+  evidence: >
+    Fixed by the full-universe pipeline run of 2026-08-14, which re-ingested every
+    filer from live EDGAR. SHOP now holds 12 filings covering FY2016-2025 (was 4,
+    covering FY2024-2025 only), matching what live company-facts always carried.
+    Verified against the dev store after the run. The `fix` below predicted this
+    would need no decision, and it did not — it fell out of a routine live run.
+    The `why_it_matters` warning still stands as a rule: a coverage question
+    answered from local raw_facts rather than EDGAR is unreliable, which is how
+    the Epic 6 spike's first pass reached a false conclusion about SHOP.
   found: 2026-08-06
   issue: >
     The local dev DB holds 4 SHOP filings covering FY2024-2025, against 9-20 filings
