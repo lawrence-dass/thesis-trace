@@ -1083,46 +1083,81 @@ epic_decomposition_rationale:
 # genuinely open item (the DoD spot-check, owner: Lawrence) was 41. The tracker keeps
 # each closed item as a one-line pointer here, so BMad's carry-over contract holds.
 action_item_evidence:
-- action: Resume the golden-dataset investigation in a session with real Docker/Postgres/EDGAR/Tiingo
-    access; SM-1 is not met until real hand-verified values replace the placeholder golden
-    dataset
+- action: >-
+    Resume the golden-dataset investigation in a session with real Docker/Postgres/EDGAR/Tiingo
+    access; SM-1 is not met until real hand-verified values replace the placeholder
+    golden dataset
   epic: 4
   resolved: 2026-07-29
-  evidence: backend/tests/golden/phase1_golden.yaml — all four companies hand-verified
-    against raw EDGAR company-facts JSON (2026-07-23/25/26/29); no pending_fixture entries
+  evidence: >-
+    backend/tests/golden/phase1_golden.yaml — all four companies hand-verified against
+    raw EDGAR company-facts JSON (2026-07-23/25/26/29); no pending_fixture entries
     remain. Closes PRD OQ1.
-  reopened_and_reclosed: '2026-08-04. The D8 universe expansion to 7 filers left CCJ,
-    BCE and SU scored but NOT hand-verified, so SM-1''s ''every score for the Phase 1
-    universe'' no longer held against the universe it was closed on. All three verified
-    2026-08-04 and added; golden coverage is 7 of 7 again. Lesson: SM-1 is a claim about
-    the universe, so expanding the universe reopens it.'
-- action: Diagnose SHOP's null Altman aggregate and Beneish's zero-coverage concept mappings
+  reopened_and_reclosed: >-
+    2026-08-04. The D8 universe expansion to 7 filers left CCJ, BCE and SU scored
+    but NOT hand-verified, so SM-1's 'every score for the Phase 1 universe' no longer
+    held against the universe it was closed on. All three verified 2026-08-04 and
+    added; golden coverage is 7 of 7 again. Lesson: SM-1 is a claim about the universe,
+    so expanding the universe reopens it.
+- action: >-
+    Diagnose SHOP's null Altman aggregate and Beneish's zero-coverage concept mappings
   epic: 4
   resolved: 2026-07-29
-  evidence: 'SHOP''s Altman resolves (z_score 36.292041, band Safe — phase1_golden.yaml).
-    Its Beneish is CORRECTLY insufficient_data, not a coverage bug: SHOP genuinely carries
+  evidence: >-
+    SHOP's Altman resolves (z_score 36.292041, band Safe — phase1_golden.yaml). Its
+    Beneish is CORRECTLY insufficient_data, not a coverage bug: SHOP genuinely carries
     no long_term_debt XBRL tag (a real zero-debt company), so LVGI and the M aggregate
-    cannot resolve.'
-- action: Audit bandTone() and similar frontend string-matching against backend-authored
+    cannot resolve.
+- action: >-
+    Audit bandTone() and similar frontend string-matching against backend-authored
     labels for coverage gaps across all 4 models
   epic: 4
   resolved: 2026-07-29
-  evidence: All 10 band labels emitted by backend/formulas/specs/*.yaml traced through
-    bandTone() in frontend/app/components/ui/Badge.tsx — Altman Safe/Grey/Distress, Piotroski
-    Strong/Middle/Weak, Beneish flagged/no-flag, Sloan low/high accruals. All map to the
-    intended tone; 'High accruals (lower quality)' does not false-match the 'low accrual'
-    branch. Unrecognized labels fall back to neutral by design.
-  follow_up: 'RESOLVED 2026-08-14 by PR #76. Was: bandTone()''s docstring lists only Piotroski/Altman/Sloan
-    and omits Beneish — cosmetic, fix when that file is next touched. The docstring now
-    names all four models and the ten labels. It was NOT merely cosmetic: the 2026-07-29
-    audit that found the code correct left no test, so nothing held the rule. Badge.test.ts
-    now pins all ten labels plus the two substring near-misses, both verified by mutation
-    — loosening ''no manipulation'' to ''manipulation'' renders a FLAGGED Beneish result
-    green, and loosening ''low accrual'' to ''low'' renders ''High accruals (lower quality)''
-    green because ''lower'' contains ''low''. Each break fails two tests.'
-- action: Decide whether to add a CI pipeline, since none exists and PRs are landing without
+  evidence: >-
+    All 10 band labels emitted by backend/formulas/specs/*.yaml traced through bandTone()
+    in frontend/app/components/ui/Badge.tsx — Altman Safe/Grey/Distress, Piotroski
+    Strong/Middle/Weak, Beneish flagged/no-flag, Sloan low/high accruals. All map
+    to the intended tone; 'High accruals (lower quality)' does not false-match the
+    'low accrual' branch. Unrecognized labels fall back to neutral by design.
+  follow_up: >-
+    RESOLVED 2026-08-14 by PR #76. Was: bandTone()'s docstring lists only Piotroski/Altman/Sloan
+    and omits Beneish — cosmetic, fix when that file is next touched. The docstring
+    now names all four models and the ten labels. It was NOT merely cosmetic: the
+    2026-07-29 audit that found the code correct left no test, so nothing held the
+    rule. Badge.test.ts now pins all ten labels plus the two substring near-misses,
+    both verified by mutation — loosening 'no manipulation' to 'manipulation' renders
+    a FLAGGED Beneish result green, and loosening 'low accrual' to 'low' renders 'High
+    accruals (lower quality)' green because 'lower' contains 'low'. Each break fails
+    two tests.
+- action: >-
+    Decide whether to add a CI pipeline, since none exists and PRs are landing without
     automated checks
   epic: 4
-  evidence: .github/workflows/ci.yml (commit d8ea4de) — backend job (postgres:17 -> alembic
-    -> ruff -> pytest) and frontend job (node 22 -> eslint -> next build), gating push
-    to main and every PR.
+  evidence: >-
+    .github/workflows/ci.yml (commit d8ea4de) — backend job (postgres:17 -> alembic
+    -> ruff -> pytest) and frontend job (node 22 -> eslint -> next build), gating
+    push to main and every PR.
+- action: >-
+    Add a live-data spot-check to the Definition of Done for any story touching real
+    EDGAR/Tiingo integration or concept mapping
+  epic: 4
+  resolved: '2026-08-20'
+  evidence: >-
+    Closed 2026-08-20. Lawrence's call: the DoD lives in CLAUDE.md, which is loaded
+    every session, rather than in a story template or a separate process doc that
+    nothing would read at the moment it matters. Added as `## Definition of Done —
+    live-data stories`, scoped to stories touching EDGAR/Tiingo/Bank-of-Canada ingestion,
+    concept mapping, a formula spec, or a user-rendered figure; ordinary code stories
+    keep the normal bar. Seven clauses, each traceable to a real incident rather than
+    to general good practice: per-year coverage against live company-facts (the shares_outstanding
+    class, and CP's FY2021 PP&E switch); check engineering-findings.yaml before re-fetching;
+    a coverage gap may be a DECISION (BCE's debt stopping at FY2023); a gap in every
+    concept at once is a method smell (EDGAR's `fy` is the filing's year, not the
+    fact's); render it in a browser and choose subjects by code path, not convenience
+    (Story 6.6 was clean on the four filers chosen and broken on the two that were
+    not); confirm a golden fixture can exercise a new concept before writing entries
+    against it; record the verification and batch the permission ask. The motivating
+    evidence is that a green suite has repeatedly meant nothing here — Story 5.4 hid
+    four real bugs behind 27 passing tests, and PR #74 rendered '0.97B' on two live
+    pages behind 34 passing tests, a clean tsc and a written analysis of that exact
+    helper.

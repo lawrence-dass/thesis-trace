@@ -24,7 +24,7 @@
 # and selects one. `_bmad-output/decision-packets/` holds only TEMPLATE.md.
 # An agent cannot write it — it needs a real judgment on real money, section 1
 # written before the app is opened. That single document is the whole critical
-# path. Open action items: 1.
+# path. Open action items: 0.
 #
 # LEGEND
 #   Epic:    backlog (not started) | blocked (a named decision defers it —
@@ -201,10 +201,9 @@ action_items:
     Add a live-data spot-check to the Definition of Done for any story touching real
     EDGAR/Tiingo integration or concept mapping
   owner: Lawrence
-  status: open
-  note: >-
-    The only genuinely open Epic-4 item. Process change, not code — needs Lawrence's
-    call on where the DoD lives.
+  status: done
+  resolved: '2026-08-20'
+  evidence_in: engineering-findings.yaml#action_item_evidence
 - epic: 4
   action: >-
     Diagnose SHOP's null Altman aggregate and Beneish's zero-coverage concept mappings

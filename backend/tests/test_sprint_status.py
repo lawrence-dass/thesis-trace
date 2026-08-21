@@ -419,6 +419,43 @@ def test_the_tracker_holds_only_tracking(status):
     )
 
 
+def test_status_at_a_glance_matches_the_data(status):
+    """The header summary is the first thing a human reads. Nothing generated it at
+    read time, so it can state a number the file below it contradicts.
+
+    It did, within hours of being written: closing the last action item on 2026-08-20
+    left the header reading "Open action items: 1" above a section with none. That is
+    the project's signature failure — one field carries the meaning, another carries
+    the answer a reader actually sees — and writing a summary without binding it would
+    have been a fresh instance of the very bug the `blocked` status was added to close.
+    """
+    text = STATUS_PATH.read_text()
+    dev = status["development_status"]
+    stories = {k: v for k, v in dev.items() if re.match(r"^\d+-", k)}
+    epics = {k: v for k, v in dev.items() if re.fullmatch(r"epic-\d+", k)}
+    expected = {
+        "stories done": (sum(v == "done" for v in stories.values()), len(stories)),
+        "epics complete": (sum(v == "done" for v in epics.values()), len(epics)),
+    }
+    m = re.search(
+        r"STATUS AT A GLANCE \((\d+) of (\d+) stories done, (\d+) of (\d+) epics complete\)",
+        text,
+    )
+    assert m, "the STATUS AT A GLANCE header is missing or its wording changed"
+    got = {
+        "stories done": (int(m.group(1)), int(m.group(2))),
+        "epics complete": (int(m.group(3)), int(m.group(4))),
+    }
+    assert got == expected, f"header says {got}, development_status says {expected}"
+
+    m2 = re.search(r"Open action items: (\d+)\.", text)
+    assert m2, "the header no longer states an open action-item count"
+    open_items = sum(a["status"] != "done" for a in status["action_items"])
+    assert int(m2.group(1)) == open_items, (
+        f"header says {m2.group(1)} open action item(s), action_items has {open_items}"
+    )
+
+
 def test_comment_header_metadata_matches_the_parsed_fields(status):
     """The file carries its metadata TWICE — once as `#` comments for humans, once
     as real YAML keys. Nothing keeps the two in step, so they drift silently."""
