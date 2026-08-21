@@ -652,7 +652,7 @@ As Lawrence (investor),
 I want to see how much of a company's debt comes due within twelve months relative to its total debt,
 So that leverage reads as a timing risk and not only as a level.
 
-**Scope was set by Story 5.1's live-EDGAR finding.** The originally-named "debt maturity concentration" is not buildable as specified — only QSR and CP carry a usable year-by-year ladder, and the three IFRS filers carry none at all for a structural reason (their maturity analysis is dimensional, and the company-facts API exposes only non-dimensional facts). The metric is therefore **redefined, not restricted**: near-term share is a single concept, identically defined whether read from a ladder's first bucket or from a current/noncurrent split, so it stays comparable across filers without a caveat. Full spike record: `sprint-status.yaml`, `story_5_1_debt_maturity_spike`.
+**Scope was set by Story 5.1's live-EDGAR finding.** The originally-named "debt maturity concentration" is not buildable as specified — only QSR and CP carry a usable year-by-year ladder, and the three IFRS filers carry none at all for a structural reason (their maturity analysis is dimensional, and the company-facts API exposes only non-dimensional facts). The metric is therefore **redefined, not restricted**: near-term share is a single concept, identically defined whether read from a ladder's first bucket or from a current/noncurrent split, so it stays comparable across filers without a caveat. Full spike record: `engineering-findings.yaml`, `story_5_1_debt_maturity_spike`.
 
 > **CORRECTED 2026-08-04 during implementation, by the live re-verification this story
 > itself demanded.** The ACs below are the shipped ones. The original set was written on
@@ -737,7 +737,7 @@ So that the metric is scoped to what the data supports rather than redefined mid
 **And** every finding is recorded as a hypothesis to be re-confirmed at build time, per Story 5.1's precedent
 **And** the record states what the spike could **not** establish.
 
-*Status: DONE 2026-08-06. Findings in `sprint-status.yaml` → `story_6_1_reverse_dcf_coverage_spike`. Verdict: reachable for 6 of 7; Suncor tags no PP&E purchase flow and must read `insufficient_data`.*
+*Status: DONE 2026-08-06. Findings in `engineering-findings.yaml` → `story_6_1_reverse_dcf_coverage_spike`. Verdict: reachable for 6 of 7; Suncor tags no PP&E purchase flow and must read `insufficient_data`.*
 
 ### Story 6.2: Free-cash-flow canonical concepts — interest classification decided
 

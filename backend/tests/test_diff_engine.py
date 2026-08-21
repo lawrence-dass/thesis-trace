@@ -359,7 +359,7 @@ async def test_restatement_under_one_mapping_version_yields_no_fact_change(db_se
     This test asserts the current behaviour so the gap is visible in code rather
     than only in a tracker. When canonicalization learns to supersede facts on
     amendment, this test SHOULD fail — that is the signal to revisit it, not a
-    regression. Tracked in sprint-status.yaml as `canonical_facts_amendment_gap`.
+    regression. Tracked in engineering-findings.yaml as `canonical_facts_amendment_gap`.
     """
     cik = await _seed_issuer(db_session)
     prior = await _add_run(db_session, cik, computed_at=T0, superseded=True)

@@ -231,7 +231,7 @@ Three cold-context layers (Blind Hunter, Edge Case Hunter, Acceptance Auditor). 
 
 - [Source: _bmad-output/planning-artifacts/epics.md#Story 5.7] — acceptance criteria, "enrichment not a metric" framing
 - [Source: _bmad-output/planning-artifacts/epics.md#Story 5.6] — the corrected ladder-vs-carrying-amount finding this story must not undo
-- [Source: _bmad-output/implementation-artifacts/sprint-status.yaml#story_5_1_debt_maturity_spike] — original ladder coverage + the 5.7 correction block
+- [Source: _bmad-output/implementation-artifacts/engineering-findings.yaml#story_5_1_debt_maturity_spike] — original ladder coverage + the 5.7 correction block
 - [Source: architecture/ARCHITECTURE-SPINE.md#AD-16] — tri-state; and why this component is a scoped exception
 - [Source: architecture/ARCHITECTURE-SPINE.md#AD-19] — provenance is a first-class invariant
 - [Source: architecture/ARCHITECTURE-SPINE.md#AD-1] — read path is one pass over materialized rows

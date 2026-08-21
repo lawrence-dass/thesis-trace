@@ -1,7 +1,7 @@
 """Story 6.2 — guards on the free-cash-flow operands behind the reverse DCF.
 
 Each test here pins a finding from the live EDGAR verification of 2026-08-07
-(`sprint-status.yaml` -> `story_6_2_live_verification`). They are guards on
+(`engineering-findings.yaml` -> `story_6_2_live_verification`). They are guards on
 JUDGEMENTS, not on arithmetic: every one of them encodes a tag that was considered
 and deliberately accepted or rejected, so a later edit cannot quietly reverse the
 decision without the reasoning resurfacing.

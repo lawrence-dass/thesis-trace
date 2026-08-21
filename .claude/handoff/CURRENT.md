@@ -30,7 +30,7 @@ written *before* opening the app. Do not draft one, and do not "unblock" an epic
 - **Live EDGAR/Tiingo/Bank-of-Canada fetches need `EDGAR_CONTACT` + `TIINGO_API_KEY`
   and Lawrence's permission.** Ask ONCE, naming every ticker/CIK up front.
 - **Much live verification is already recorded — read before re-fetching.**
-  `sprint-status.yaml` carries `story_6_1_reverse_dcf_coverage_spike`,
+  `engineering-findings.yaml` carries `story_6_1_reverse_dcf_coverage_spike`,
   `story_6_2_live_verification`, `story_6_6_browser_verification`, `d8_ifrs_track`.
 
 ## Open PRs — merge these first
@@ -66,7 +66,8 @@ first decision packet from `_bmad-output/decision-packets/TEMPLATE.md`.
 ## References
 - `_bmad-output/decision-packets/TEMPLATE.md` — the packet that unblocks Epics 7-9
 - `_bmad-output/planning-artifacts/foundational-decisions.md` — D9, D10, D3.2
-- `_bmad-output/implementation-artifacts/sprint-status.yaml` — `epic_catalog`, spikes
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — what is done / what is left
+- `_bmad-output/implementation-artifacts/engineering-findings.yaml` — spikes and findings
 - `.claude/context/project-context.md` — durable rules; read every session
 - `.github/workflows/ci.yml` — the only reference for a working DB environment
 

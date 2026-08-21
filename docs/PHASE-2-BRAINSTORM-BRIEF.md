@@ -302,5 +302,6 @@ sessions in the project history.
 
 - `docs/THESISTRACE-DIRECTION-AND-RISK-ASSESSMENT.md` — 2026-08-02 body, 2026-08-05 hiring addendum
 - `_bmad-output/planning-artifacts/foundational-decisions.md` — D3 (status), D5, D7, D8, D9, D10
-- `_bmad-output/implementation-artifacts/sprint-status.yaml` — `epic_catalog`, open findings
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — `epic_catalog` (what is done / left)
+- `_bmad-output/implementation-artifacts/engineering-findings.yaml` — the open findings
 - `.claude/context/project-context.md` — anti-patterns and learnings, including the ones this brief relies on
