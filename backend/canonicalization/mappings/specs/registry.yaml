@@ -47,10 +47,21 @@
 #                regimes and the derivation ties them together — same reasoning as
 #                concepts_v6.
 
-mapping_version: concepts_v8
+#   concepts_v9  us-gaap_v8 + ifrs-full_v4 + derivations_v4. A real mapping change:
+#                ConvertibleDebtNoncurrent joins long_term_debt, which resolves SHOP's
+#                Piotroski leverage signal and Beneish LVGI — the two that had read
+#                insufficient_data since Epic 2 because SHOP's entire debt load is
+#                convertible notes. us-gaap ONLY (no IFRS filer tags convertible debt
+#                separately), so ifrs-full and derivations keep their v4 specs, per the
+#                per-taxonomy rule above. The source is flagged `like_for_like: false`:
+#                SHOP's notes flip noncurrent -> current in FY2024 without being repaid,
+#                which Beneish absorbs (it sums both terms) and Piotroski does not (it
+#                reads long_term_debt alone). Annotated, never corrected.
+
+mapping_version: concepts_v9
 
 taxonomies:
-  us-gaap: us-gaap_v7
+  us-gaap: us-gaap_v8
   ifrs-full: ifrs-full_v4
 
 derivations: derivations_v4
