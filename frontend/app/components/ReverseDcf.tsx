@@ -132,6 +132,37 @@ export function joinList(parts: string[]): string {
 // is the divergence ui/format.ts was extracted to end. Two cards on this page show
 // money — they must only ever differ when the numbers do.
 
+/** True when this run produced no implied figure.
+ *
+ *  One expression, used by BOTH the card body and the caveat gate, so the two
+ *  cannot disagree about whether a figure exists — the same fault `compactAmount`
+ *  carried, where a gate admitted a value its formatter then rendered below the
+ *  gate's own threshold.
+ */
+export function hasNoFigure(dcf: Pick<ReverseDcf, "insufficient_data" | "implied_growth">): boolean {
+  return dcf.insufficient_data || dcf.implied_growth === null;
+}
+
+/** Whether the card should render its caveats.
+ *
+ *  A caveat annotates a distortion IN a computed figure; with no figure there is
+ *  nothing to annotate. Suncor rendered "A model based on that leftover cash will
+ *  therefore imply a high growth rate for it" above a card reading "Insufficient
+ *  data — no free cash flow", asserting a number that was not there.
+ *
+ *  Story 6.6 left it visible, reasoning that the caveat explained the absence
+ *  because capital intensity is what consumes the free cash flow. Checked live
+ *  2026-08-21: not so. Suncor reports 12.3-16.0bn of operating cash flow and tags
+ *  NO capex concept at all, so its free cash flow is missing an operand rather
+ *  than consumed by one. The caveat described a mechanism that had not occurred.
+ *
+ *  Presentation only (AD-8): the caveat data is untouched and still travels with
+ *  every computed run.
+ */
+export function showsCaveats(dcf: Pick<ReverseDcf, "insufficient_data" | "implied_growth" | "caveats">): boolean {
+  return !hasNoFigure(dcf) && !!dcf.caveats && dcf.caveats.length > 0;
+}
+
 export function ReverseDcfCard({ dcf, cik }: { dcf?: ReverseDcf | null; cik?: string }) {
   // `null` means the filer resolved NO fiscal year at all — there is no run to
   // describe, so there is nothing to be missing. This is not the AD-16 case:
@@ -164,15 +195,11 @@ export function ReverseDcfCard({ dcf, cik }: { dcf?: ReverseDcf | null; cik?: st
           <span className="text-xs text-[var(--color-ink-faint)]">FY{dcf.fiscal_year}</span>
         </div>
 
-        {dcf.insufficient_data || dcf.implied_growth === null ? (
-          <InsufficientData dcf={dcf} />
-        ) : (
-          <Resolved dcf={dcf} />
-        )}
+        {hasNoFigure(dcf) ? <InsufficientData dcf={dcf} /> : <Resolved dcf={dcf} />}
 
-        {dcf.caveats && dcf.caveats.length > 0 ? (
+        {showsCaveats(dcf) ? (
           <ul className="space-y-1 border-t border-[var(--color-border)] pt-3">
-            {dcf.caveats.map((c, i) => (
+            {(dcf.caveats ?? []).map((c, i) => (
               <li key={i} className="text-xs leading-snug text-[var(--color-ink-muted)]">
                 {c}
               </li>
