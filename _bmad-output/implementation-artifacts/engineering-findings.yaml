@@ -24,6 +24,8 @@
 # `status:` of open|done. Do NOT put it in sprint-status.yaml.
 #
 # INDEX (status as of 2026-08-20)
+#   reference                  epic_decomposition_rationale   (from epic_catalog)
+#   reference                  action_item_evidence           (closed action items)
 #   5 entries, all closed      post_epic_work
 #   7 entries, 1 open          d8_ifrs_track
 #   —                          qsr_gross_profit_reverification
@@ -1014,3 +1016,113 @@ shop_convertible_debt_unmapped:
   reachability: >
     CONFIRMED. Verified live 2026-08-04: ConvertibleDebtCurrent covers FY2023-2025 and
     ConvertibleDebtNoncurrent FY2019-2024, overlapping in FY2023 and FY2024.
+
+# Rationale behind each epic's decomposition state, moved out of sprint-status.yaml's
+# `epic_catalog` on 2026-08-20. The catalog keeps only the four fields the tests
+# require (title, decomposition, deferred_under, decompose_when) — 102 words. These
+# were the other 384, i.e. 79% of that section: arguments for decisions already
+# taken, plus `epic-6.known_gap` (Suncor's capex), which was a finding sitting in
+# the tracker by any reading.
+epic_decomposition_rationale:
+  epic-6:
+    decomposed_on: 2026-08-06
+    note: 'Decomposed WITHOUT a decision packet, deliberately, and the reasoning is recorded
+      because it reverses this file''s own earlier position. D9''s binding criterion governs
+      BUILD order — which feature is built next — not planning order. The "do not decompose"
+      rule was an inference stated in epics.md, not a clause in D9, and it does not hold:
+      acceptance criteria commit nothing, since a story can sit in the backlog unbuilt.
+      Deferring Epics 6-9 as a block treated four epics with four different blockers as
+      one case.
+
+      The test applied instead is per-epic: can the acceptance criteria be written truthfully
+      today? Epic 6''s could, once Story 6.1''s spike (2026-08-06) answered the data question.
+      Its five remaining product questions are judgement calls, not evidence questions,
+      and are recorded in epics.md as assumptions A-1..A-5 — horizon, terminal method,
+      discount-rate treatment, solve-target and sensitivity axes — each explicitly reversible
+      rather than presented as a finding.
+
+      '
+    d9_still_governs: 'What gets BUILT next is still chosen from the largest observed
+      research failure, per D10''s decision packet. A planned backlog is what that choice
+      selects from. Decomposition is not a commitment to build.
+
+      '
+    known_gap: 'Suncor resolves no capex and is insufficient_data for the whole epic.
+      Story 6.2 must also settle an interest-classification decision: US GAAP mandates
+      interest paid inside operating activities while IAS 7 permits operating or financing,
+      so cash_from_operations is not comparable across regimes as filed. Same shape as
+      D8 consequence 3.
+
+      '
+  epic-7:
+    reason: 'Same criterion as Epic 6, one step further out. Scoped in epics.md (intent
+      and FR coverage) but not decomposed, because its position depends on what Epic 6''s
+      decision packet exposes.
+
+      '
+  epic-8:
+    reason: 'Headline only in epics.md — deliberately the least specified, because it
+      is furthest from evidence. Its depth is explicitly meant to be set by "the depth
+      the decision workflow proves it needs", which cannot be known yet. A further constraint
+      is already recorded: trend depth must honestly reflect per-filer coverage (IFRS
+      40-F filers start ~FY2017, ~9 years, against OTEX''s 24 under us-gaap), so no fixed
+      decade-long promise can be written into a story.
+
+      '
+  epic-9:
+    reason: 'Headline only, and last by design. D9 places it last because it is the heaviest
+      lift in the roadmap and depends on a citation-evaluation framework that does not
+      yet exist; D7 additionally confines LangGraph to the explain/retrieve/cite surface.
+      Both constraints have to be satisfied before stories are meaningful.
+
+      '
+
+# Evidence for CLOSED retrospective action items, moved out of sprint-status.yaml on
+# 2026-08-20. bmad-sprint-planning's own note says the tracker "surfaces open ones";
+# these four closed entries were 386 of that section's 427 words, while the single
+# genuinely open item (the DoD spot-check, owner: Lawrence) was 41. The tracker keeps
+# each closed item as a one-line pointer here, so BMad's carry-over contract holds.
+action_item_evidence:
+- action: Resume the golden-dataset investigation in a session with real Docker/Postgres/EDGAR/Tiingo
+    access; SM-1 is not met until real hand-verified values replace the placeholder golden
+    dataset
+  epic: 4
+  resolved: 2026-07-29
+  evidence: backend/tests/golden/phase1_golden.yaml — all four companies hand-verified
+    against raw EDGAR company-facts JSON (2026-07-23/25/26/29); no pending_fixture entries
+    remain. Closes PRD OQ1.
+  reopened_and_reclosed: '2026-08-04. The D8 universe expansion to 7 filers left CCJ,
+    BCE and SU scored but NOT hand-verified, so SM-1''s ''every score for the Phase 1
+    universe'' no longer held against the universe it was closed on. All three verified
+    2026-08-04 and added; golden coverage is 7 of 7 again. Lesson: SM-1 is a claim about
+    the universe, so expanding the universe reopens it.'
+- action: Diagnose SHOP's null Altman aggregate and Beneish's zero-coverage concept mappings
+  epic: 4
+  resolved: 2026-07-29
+  evidence: 'SHOP''s Altman resolves (z_score 36.292041, band Safe — phase1_golden.yaml).
+    Its Beneish is CORRECTLY insufficient_data, not a coverage bug: SHOP genuinely carries
+    no long_term_debt XBRL tag (a real zero-debt company), so LVGI and the M aggregate
+    cannot resolve.'
+- action: Audit bandTone() and similar frontend string-matching against backend-authored
+    labels for coverage gaps across all 4 models
+  epic: 4
+  resolved: 2026-07-29
+  evidence: All 10 band labels emitted by backend/formulas/specs/*.yaml traced through
+    bandTone() in frontend/app/components/ui/Badge.tsx — Altman Safe/Grey/Distress, Piotroski
+    Strong/Middle/Weak, Beneish flagged/no-flag, Sloan low/high accruals. All map to the
+    intended tone; 'High accruals (lower quality)' does not false-match the 'low accrual'
+    branch. Unrecognized labels fall back to neutral by design.
+  follow_up: 'RESOLVED 2026-08-14 by PR #76. Was: bandTone()''s docstring lists only Piotroski/Altman/Sloan
+    and omits Beneish — cosmetic, fix when that file is next touched. The docstring now
+    names all four models and the ten labels. It was NOT merely cosmetic: the 2026-07-29
+    audit that found the code correct left no test, so nothing held the rule. Badge.test.ts
+    now pins all ten labels plus the two substring near-misses, both verified by mutation
+    — loosening ''no manipulation'' to ''manipulation'' renders a FLAGGED Beneish result
+    green, and loosening ''low accrual'' to ''low'' renders ''High accruals (lower quality)''
+    green because ''lower'' contains ''low''. Each break fails two tests.'
+- action: Decide whether to add a CI pipeline, since none exists and PRs are landing without
+    automated checks
+  epic: 4
+  evidence: .github/workflows/ci.yml (commit d8ea4de) — backend job (postgres:17 -> alembic
+    -> ruff -> pytest) and frontend job (node 22 -> eslint -> next build), gating push
+    to main and every PR.

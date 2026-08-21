@@ -74,6 +74,10 @@ CURATED_SECTIONS = (
     "shop_local_history_is_not_edgar_coverage",
     "canonical_facts_amendment_gap",
     "shop_convertible_debt_unmapped",
+    # Moved out of the tracker's own sections on 2026-08-20 — see the note above
+    # `TRACKER_CURATED`. Protected here for the same reason as the rest.
+    "epic_decomposition_rationale",
+    "action_item_evidence",
 )
 
 pytestmark = pytest.mark.skipif(
@@ -342,16 +346,30 @@ def test_decomposition_state_matches_whether_stories_actually_exist(status, decl
     assert not problems, "decomposition state disagrees with reality:\n  " + "\n  ".join(problems)
 
 
-def test_deferred_epics_name_a_decision_and_an_exit_condition(status):
+def test_deferred_epics_name_a_decision_and_an_exit_condition(status, findings):
     """A deferral with no named decision is indistinguishable from procrastination, and
-    one with no exit condition never ends — nothing would ever prompt a re-check."""
+    one with no exit condition never ends — nothing would ever prompt a re-check.
+
+    The guarantee is unchanged since 2026-08-20; only where it is satisfied moved. The
+    tracker keeps the two STRUCTURAL fields (`deferred_under`, `decompose_when`), and
+    the discursive `reason` — why this epic specifically, 30-73 words apiece — now
+    lives in engineering-findings.yaml. Requiring it there rather than dropping it
+    matters: it is the field that distinguishes a considered deferral from an
+    unexamined one, and this is now the binding that keeps the two files in step.
+    """
     problems = []
+    rationale = findings.get("epic_decomposition_rationale", {})
     for key, entry in status["epic_catalog"].items():
         if entry.get("decomposition") != "deferred":
             continue
-        for field in ("deferred_under", "reason", "decompose_when"):
+        for field in ("deferred_under", "decompose_when"):
             if not str(entry.get(field, "")).strip():
-                problems.append(f"{key}: deferred but has no {field}")
+                problems.append(f"{key}: deferred but has no {field} in sprint-status.yaml")
+        if not str(rationale.get(key, {}).get("reason", "")).strip():
+            problems.append(
+                f"{key}: deferred but has no `reason` under "
+                "engineering-findings.yaml#epic_decomposition_rationale"
+            )
     assert not problems, "incomplete deferral(s):\n  " + "\n  ".join(problems)
 
 

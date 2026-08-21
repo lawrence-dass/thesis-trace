@@ -135,130 +135,95 @@ development_status:
   epic-9: blocked
   epic-9-retrospective: optional
 
-# EPIC CATALOG — epic titles and, for an epic with no stories, the decision that
-# defers it. `development_status` is a flat map of scalars because that is what
-# bmad-sprint-planning regenerates; a scalar has nowhere to put a title or a
-# reason, so both live here and are pinned to it by tests rather than by hope.
+# EPIC CATALOG — epic titles, and for an epic with no stories, the decision that
+# defers it. Four fields only; the rationale behind each state was moved to
+# engineering-findings.yaml on 2026-08-20 (`epic_decomposition_rationale`), where
+# it was 79% of this section.
 #   decomposed  Stories exist in epics.md and are tracked above.
 #   deferred    NO stories, deliberately. `deferred_under` names the decision;
 #               `decompose_when` states what would end it. Both are required.
 
 epic_catalog:
   epic-1:
-    title: "Foundation & First Evidence (Walking Skeleton)"
+    title: Foundation & First Evidence (Walking Skeleton)
     decomposition: decomposed
   epic-2:
-    title: "Complete the Four Lenses"
+    title: Complete the Four Lenses
     decomposition: decomposed
   epic-3:
-    title: "Verdict, Methodology & Explanation"
+    title: Verdict, Methodology & Explanation
     decomposition: decomposed
   epic-4:
-    title: "Discovery & Comparison"
+    title: Discovery & Comparison
     decomposition: decomposed
   epic-5:
-    title: "Filing Change Detection & Quality-Lens Depth"
+    title: Filing Change Detection & Quality-Lens Depth
     decomposition: decomposed
   epic-6:
-    title: "Narrow Valuation — Reverse DCF"
+    title: Narrow Valuation — Reverse DCF
     decomposition: decomposed
-    decomposed_on: 2026-08-06
-    note: >
-      Decomposed WITHOUT a decision packet, deliberately, and the reasoning is recorded
-      because it reverses this file's own earlier position. D9's binding criterion
-      governs BUILD order — which feature is built next — not planning order. The "do
-      not decompose" rule was an inference stated in epics.md, not a clause in D9, and
-      it does not hold: acceptance criteria commit nothing, since a story can sit in
-      the backlog unbuilt. Deferring Epics 6-9 as a block treated four epics with four
-      different blockers as one case.
-
-      The test applied instead is per-epic: can the acceptance criteria be written
-      truthfully today? Epic 6's could, once Story 6.1's spike (2026-08-06) answered
-      the data question. Its five remaining product questions are judgement calls, not
-      evidence questions, and are recorded in epics.md as assumptions A-1..A-5 —
-      horizon, terminal method, discount-rate treatment, solve-target and sensitivity
-      axes — each explicitly reversible rather than presented as a finding.
-    d9_still_governs: >
-      What gets BUILT next is still chosen from the largest observed research failure,
-      per D10's decision packet. A planned backlog is what that choice selects from.
-      Decomposition is not a commitment to build.
-    known_gap: >
-      Suncor resolves no capex and is insufficient_data for the whole epic. Story 6.2
-      must also settle an interest-classification decision: US GAAP mandates interest
-      paid inside operating activities while IAS 7 permits operating or financing, so
-      cash_from_operations is not comparable across regimes as filed. Same shape as D8
-      consequence 3.
   epic-7:
-    title: "Thesis Journal & Thesis Diff"
+    title: Thesis Journal & Thesis Diff
     decomposition: deferred
     deferred_under: D9
-    reason: >
-      Same criterion as Epic 6, one step further out. Scoped in epics.md (intent and
-      FR coverage) but not decomposed, because its position depends on what Epic 6's
-      decision packet exposes.
-    decompose_when: >
-      The increment before it has produced its own decision packet (D10) and this epic
-      is what that packet's single largest research failure selects.
+    decompose_when: >-
+      The increment before it has produced its own decision packet (D10) and this
+      epic is what that packet's single largest research failure selects.
   epic-8:
-    title: "Growth Trends"
+    title: Growth Trends
     decomposition: deferred
     deferred_under: D9
-    reason: >
-      Headline only in epics.md — deliberately the least specified, because it is
-      furthest from evidence. Its depth is explicitly meant to be set by "the depth
-      the decision workflow proves it needs", which cannot be known yet. A further
-      constraint is already recorded: trend depth must honestly reflect per-filer
-      coverage (IFRS 40-F filers start ~FY2017, ~9 years, against OTEX's 24 under
-      us-gaap), so no fixed decade-long promise can be written into a story.
-    decompose_when: >
-      The workflow has demonstrated which trends it actually consumes. Do not
-      decompose from the FR alone.
+    decompose_when: >-
+      The workflow has demonstrated which trends it actually consumes. Do not decompose
+      from the FR alone.
   epic-9:
-    title: "Filing Q&A"
+    title: Filing Q&A
     decomposition: deferred
     deferred_under: D9
-    reason: >
-      Headline only, and last by design. D9 places it last because it is the heaviest
-      lift in the roadmap and depends on a citation-evaluation framework that does not
-      yet exist; D7 additionally confines LangGraph to the explain/retrieve/cite
-      surface. Both constraints have to be satisfied before stories are meaningful.
-    decompose_when: >
-      A citation-evaluation framework exists, and the earlier increments have been used
-      for real research.
+    decompose_when: >-
+      A citation-evaluation framework exists, and the earlier increments have been
+      used for real research.
 
-
-# Action-item statuses reconciled 2026-07-29 against the actual repo state.
-# Four of the five were already satisfied but still recorded as open, which
-# would have sent a fresh session chasing solved problems. Each closure cites
-# the evidence that settled it rather than asserting completion.
+# Retrospective commitments. A closed item keeps a pointer; its evidence lives in
+# engineering-findings.yaml. bmad-sprint-planning carries this section over unchanged.
 action_items:
-  - epic: 4
-    action: "Resume the golden-dataset investigation in a session with real Docker/Postgres/EDGAR/Tiingo access; SM-1 is not met until real hand-verified values replace the placeholder golden dataset"
-    owner: "next capable session"
-    status: done
-    resolved: 2026-07-29
-    evidence: "backend/tests/golden/phase1_golden.yaml — all four companies hand-verified against raw EDGAR company-facts JSON (2026-07-23/25/26/29); no pending_fixture entries remain. Closes PRD OQ1."
-    reopened_and_reclosed: "2026-08-04. The D8 universe expansion to 7 filers left CCJ, BCE and SU scored but NOT hand-verified, so SM-1's 'every score for the Phase 1 universe' no longer held against the universe it was closed on. All three verified 2026-08-04 and added; golden coverage is 7 of 7 again. Lesson: SM-1 is a claim about the universe, so expanding the universe reopens it."
-  - epic: 4
-    action: "Add a live-data spot-check to the Definition of Done for any story touching real EDGAR/Tiingo integration or concept mapping"
-    owner: "Lawrence"
-    status: open
-    note: "The only genuinely open Epic-4 item. Process change, not code — needs Lawrence's call on where the DoD lives."
-  - epic: 4
-    action: "Diagnose SHOP's null Altman aggregate and Beneish's zero-coverage concept mappings"
-    owner: "next capable session"
-    status: done
-    resolved: 2026-07-29
-    evidence: "SHOP's Altman resolves (z_score 36.292041, band Safe — phase1_golden.yaml). Its Beneish is CORRECTLY insufficient_data, not a coverage bug: SHOP genuinely carries no long_term_debt XBRL tag (a real zero-debt company), so LVGI and the M aggregate cannot resolve."
-  - epic: 4
-    action: "Audit bandTone() and similar frontend string-matching against backend-authored labels for coverage gaps across all 4 models"
-    owner: "next session"
-    status: done
-    resolved: 2026-07-29
-    evidence: "All 10 band labels emitted by backend/formulas/specs/*.yaml traced through bandTone() in frontend/app/components/ui/Badge.tsx — Altman Safe/Grey/Distress, Piotroski Strong/Middle/Weak, Beneish flagged/no-flag, Sloan low/high accruals. All map to the intended tone; 'High accruals (lower quality)' does not false-match the 'low accrual' branch. Unrecognized labels fall back to neutral by design."
-    follow_up: "RESOLVED 2026-08-14 by PR #76. Was: bandTone()'s docstring lists only Piotroski/Altman/Sloan and omits Beneish — cosmetic, fix when that file is next touched. The docstring now names all four models and the ten labels. It was NOT merely cosmetic: the 2026-07-29 audit that found the code correct left no test, so nothing held the rule. Badge.test.ts now pins all ten labels plus the two substring near-misses, both verified by mutation — loosening 'no manipulation' to 'manipulation' renders a FLAGGED Beneish result green, and loosening 'low accrual' to 'low' renders 'High accruals (lower quality)' green because 'lower' contains 'low'. Each break fails two tests."
-  - epic: 4
-    action: "Decide whether to add a CI pipeline, since none exists and PRs are landing without automated checks"
-    owner: "Lawrence"
-    status: done
-    evidence: ".github/workflows/ci.yml (commit d8ea4de) — backend job (postgres:17 -> alembic -> ruff -> pytest) and frontend job (node 22 -> eslint -> next build), gating push to main and every PR."
+- epic: 4
+  action: >-
+    Resume the golden-dataset investigation in a session with real Docker/Postgres/EDGAR/Tiingo
+    access; SM-1 is not met until real hand-verified values replace the placeholder
+    golden dataset
+  owner: next capable session
+  status: done
+  resolved: 2026-07-29
+  evidence_in: engineering-findings.yaml#action_item_evidence
+- epic: 4
+  action: >-
+    Add a live-data spot-check to the Definition of Done for any story touching real
+    EDGAR/Tiingo integration or concept mapping
+  owner: Lawrence
+  status: open
+  note: >-
+    The only genuinely open Epic-4 item. Process change, not code — needs Lawrence's
+    call on where the DoD lives.
+- epic: 4
+  action: >-
+    Diagnose SHOP's null Altman aggregate and Beneish's zero-coverage concept mappings
+  owner: next capable session
+  status: done
+  resolved: 2026-07-29
+  evidence_in: engineering-findings.yaml#action_item_evidence
+- epic: 4
+  action: >-
+    Audit bandTone() and similar frontend string-matching against backend-authored
+    labels for coverage gaps across all 4 models
+  owner: next session
+  status: done
+  resolved: 2026-07-29
+  evidence_in: engineering-findings.yaml#action_item_evidence
+- epic: 4
+  action: >-
+    Decide whether to add a CI pipeline, since none exists and PRs are landing without
+    automated checks
+  owner: Lawrence
+  status: done
+  evidence_in: engineering-findings.yaml#action_item_evidence
