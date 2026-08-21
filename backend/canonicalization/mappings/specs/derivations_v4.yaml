@@ -102,7 +102,7 @@ derivations:
       SHOP's hand-verified Piotroski and Beneish golden values, which belongs in
       its own change. SHOP is therefore the one filer with no near-term share, and
       it is insufficient_data rather than a partial figure (AD-16). Tracked in
-      sprint-status.yaml.
+      engineering-findings.yaml.
 
   # --- DECISION --------------------------------------------------------------
 
@@ -208,7 +208,7 @@ derivations:
       production for QSR's M-score today. It is a ratio OF the two years' margins, so
       the mix effect largely divides out (0.988 for FY2023) rather than exploding.
       Correcting it would change another hand-verified golden value and belongs in its
-      own change. Tracked in sprint-status.yaml.
+      own change. Tracked in engineering-findings.yaml.
 
   - rule: cash_plus_cash_equivalents
     rationale: >-

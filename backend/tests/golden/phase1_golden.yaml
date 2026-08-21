@@ -78,7 +78,7 @@ companies:
         reason: "no debt maturity ladder filed; SHOP tags a LEASE ladder, which is not this"
       # Story 6.7. SHOP cannot reach an enterprise value: total_debt is absent for
       # the same reason its debt share is (long_term_debt deliberately unmapped —
-      # see `shop_convertible_debt_unmapped` in sprint-status). A REAL outcome, not
+      # see `shop_convertible_debt_unmapped` in engineering-findings.yaml). A REAL outcome, not
       # a fixture gap: the capex and cash tags ARE present for FY2024.
       reverse_dcf:
         insufficient_data: true

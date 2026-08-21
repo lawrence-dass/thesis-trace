@@ -1,0 +1,1128 @@
+# Engineering findings — the record of what was DISCOVERED, not what was planned
+# =========================================================================
+#
+# Split out of sprint-status.yaml on 2026-08-20, which had grown to 1,279 lines
+# of which only ~115 were actual sprint status. The rest was this.
+#
+# WHY IT ACCUMULATED IN THE TRACKER. `bmad-sprint-planning` REGENERATES
+# sprint-status.yaml from a template, and its preservation rule covers
+# `action_items` alone. So when a story turned up a finding that was not
+# derivable from epics.md — a live-data verification, a coverage gap, a
+# mapping decision — the tracker was the only file that was both read every
+# session AND explicitly protected from the regenerator by a test. Findings
+# went where they would survive, not where they belonged. Fourteen sections
+# and ~960 lines later, the tracker could no longer answer the one question
+# it exists to answer: what is done, and what is left.
+#
+# THE SAME PROTECTION APPLIES HERE. `test_curated_sections_survive` now reads
+# this file. Nothing regenerates it, but the test still holds: a section may
+# only disappear if CURATED_SECTIONS drops it in the same change, so a
+# deletion is a reviewed decision rather than an accident.
+#
+# ADDING A FINDING: append a top-level section, add its name to
+# CURATED_SECTIONS in backend/tests/test_sprint_status.py, and give it a
+# `status:` of open|done. Do NOT put it in sprint-status.yaml.
+#
+# INDEX (status as of 2026-08-20)
+#   reference                  epic_decomposition_rationale   (from epic_catalog)
+#   reference                  action_item_evidence           (closed action items)
+#   5 entries, all closed      post_epic_work
+#   7 entries, 1 open          d8_ifrs_track
+#   —                          qsr_gross_profit_reverification
+#   done                       story_5_1_debt_maturity_spike
+#   open                       canonical_facts_amendment_gap
+#   done                       story_6_2_live_verification
+#   done                       market_price_dates_labelled_as_fiscal_year_end
+#   done                       story_6_7_golden_coverage
+#   done                       story_6_6_browser_verification
+#   done                       story_6_5_open_deviations
+#   open                       reverse_dcf_capital_intensity_distortion
+#   done                       shop_local_history_is_not_edgar_coverage
+#   done                       story_6_1_reverse_dcf_coverage_spike
+#   open                       shop_convertible_debt_unmapped
+
+
+# Work completed after Epic 4 that no epic owns, tracked here so it is not lost.
+post_epic_work:
+  - item: "Verdict selection bug — get_company_overview picked each model's latest EXISTING run regardless of whether it resolved a value, hiding real historical Beneish scores for QSR/OTEX"
+    status: done
+    evidence: "PR #18; PR #19 additionally explains genuinely-insufficient scores instead of showing a bare dash."
+  - item: "Architecture diagram suite + in-app /architecture page"
+    status: done
+    evidence: "PRs #21, #23 — docs/diagrams/ (3 diagrams, verified by rendering through mermaid-cli) read at build time by frontend/app/architecture/page.tsx, so docs and app cannot drift."
+  - item: "validation/checks.run_validation wired into pipeline/run.py and made idempotent"
+    status: done
+    evidence: "PR #22. The stage was implemented and tested but never invoked, so the spine's ingest -> canonicalize -> validate -> score order skipped validate in production. Idempotency was required, not optional: the daily cron would otherwise append a duplicate data_quality_issues row every night, and the read API surfaces those."
+  - item: "test_llm_rewrite_disabled_returns_text_unchanged depended on ambient environment"
+    status: done
+    evidence: "PR #24 — passed in CI while failing for anyone with a real .env sourced. Both the process env and the .env-file fallback are now pinned with monkeypatch."
+  - item: "Persist the reverse DCF in the pipeline — the read path currently computes it, violating AD-1"
+    status: done
+    raised: 2026-08-12
+    closed: 2026-08-13
+    evidence: >
+      Two tables (reverse_dcf_runs + reverse_dcf_cells), migration b43d7bd6fe33,
+      backend/valuation/store.py, a stage in run_issuer, and repository.py:287 now
+      calling load_reverse_dcf. All three required verifications ran:
+
+      (1) NO SOLVER CALL ON READ — test_reverse_dcf_store.py breaks `compute` in all
+      three modules that bind it and asserts the overview still renders its figures.
+      A second test runs the OLD read path under the same patch and requires it to
+      raise, so the guard cannot go inert the way the OTEX golden entry did.
+
+      (2) LIVE FIGURES UNCHANGED — CP still reads 37.2% at FY2025. Verified harder
+      than asked: the FULL serialized reverse-DCF block was dumped for all 7 filers
+      before and after and diffed. Zero structural or string differences (no field,
+      reason, date or source moved); 197 numeric deltas, all rates, largest 4.96e-11
+      against a solver tolerance of 1e-7.
+
+      (3) DOUBLE RUN LEAVES ONE ROW — asserted in the store tests, again end-to-end
+      through run_issuer in test_pipeline.py, and confirmed against the real dev
+      store: 7 issuers, 7 run rows, 175 cell rows after two passes.
+
+      Suite 313 -> 323. Query-count guard moved +1 (fixed cost, slope unchanged at
+      16) and the constant was updated with the reason, as that test demands.
+    deviation_from_scope: >
+      The scope said "a table"; this is TWO. The 35 grid cells are their own table
+      rather than a JSONB column because an implied growth rate is a financial figure
+      and AD-15 requires NUMERIC — and because "meaning parked in a blob" is this
+      repo's most repeated failure mode. Mirrors score_runs/score_results exactly.
+      Rate columns are NUMERIC(18,10), not the usual NUMERIC(28,6): the solver's
+      tolerance is 1e-7, so a money-shaped column would have rounded the answer
+      coarser than the bisection that produced it.
+    consequence_to_know: >
+      THE REVERSE DCF NOW DISAPPEARS FROM A COMPANY PAGE UNTIL THE PIPELINE HAS RUN
+      for that issuer. That is correct CQRS behaviour and is asserted deliberately
+      (an unmaterialized issuer renders nothing rather than solving on the fly), but
+      it means a fresh database shows no reverse DCF until the 06:00 cron completes.
+      Nothing is deployed yet, so this cost nothing here; the dev store was
+      materialized by hand. Worth remembering at first deploy.
+    original_why: >
+
+      AD-1 is a CQRS rule: "all computation runs in the scheduled batch pipeline; the
+      read path only queries materialized Postgres and never computes a score", and
+      "no request can trigger scoring, ingestion, or RECOMPUTATION". Nothing about the
+      reverse DCF is persisted — no table, and reverse_dcf_for_issuer has exactly one
+      caller, api/repository.py:287, on the read path. Every page load re-solves the
+      DCF and all 35 grid cells.
+    scope: >
+      A table keyed (issuer_cik, fiscal_year, spec_version) holding the result, its
+      operands and the grid; an alembic migration; a stage in pipeline/run.py's
+      run_issuer after scoring; and repository.get_company_overview reading the stored
+      row instead of calling the solver.
+    must_not_forget: >
+      The write MUST be an upsert on that key. run_validation is the precedent: it was
+      implemented, tested and then appended a duplicate row every night once the cron
+      ran. Story 6.4's AC already says stored, so this closes an AC/code disagreement
+      rather than adding a new promise.
+    verify: >
+      A test asserting the read path issues NO solver call (the whole point), the
+      existing browser-verified figures are unchanged (CP 37.2% FY2025 live), and a
+      double pipeline run leaves exactly one row.
+
+
+# D8 — Canada-first IFRS/40-F support. In progress, 4 of 7 increments merged.
+# Foundational decision recorded in planning-artifacts/foundational-decisions.md (D8);
+# it NARROWS D6's blanket IFRS exclusion rather than re-litigating it.
+d8_ifrs_track:
+  - step: "1. Reporting regimes as data (canonicalization/taxonomies.py); D8 recorded"
+    status: done
+    evidence: "PR #26. Four hardcoded gates across ingestion/canonicalization/pipeline now read a registry; behaviour-preserving for the four us-gaap filers."
+  - step: "3. ifrs-full mappings + Cameco (CCJ) as the first IFRS filer"
+    status: done
+    evidence: "PR #27. 18/18 canonical concepts, FY2016-2025, Beneish resolving all 8 indices. 29 ifrs-full MappingRules; MAPPING_VERSION concepts_v3 -> concepts_v4 per AD-2."
+  - step: "Derived-vs-filed provenance marker (found while scoping D8, pre-existing)"
+    status: done
+    evidence: "PR #28. canonical_facts.derivation + Provenance.derivation + CitationChip 'derived' badge. Migration a1c4e7b9f012."
+  - step: "Out-of-calibration Beneish caveat"
+    status: done
+    evidence: "PR #29. Cameco FY2021 GMI=45.1 -> M=+20.84 annotated computed_with_caveat, value UNCHANGED. score_runs.caveat_reason, migration b2d5f8c1a334."
+  - step: "4. Extract mapping engine to versioned per-taxonomy YAML"
+    status: done
+    evidence: "PR #31. canonicalization/mappings/ package: engine.py + specs/{registry,us-gaap_v4,ifrs-full_v1,derivations_v1}.yaml. Rule set proven byte-identical to the pre-refactor tuples (all 59, same priorities), so MAPPING_VERSION stays concepts_v4 — AD-2 requires a bump for a mapping CHANGE, and nothing changed. 87 passed / 1 skipped against real Postgres 17. Priority is now list position; derivations are declarative and taxonomy-blind."
+    follow_up: "RESOLVED 2026-08-02 — do not re-investigate. Was: seven ifrs-full fallbacks marked UNVERIFIED VARIANT, to be checked once step 5 landed BCE/Suncor, deleting any no filer needs. All seven were then checked per-year against real company-facts JSON for all three IFRS filers. Outcome: five are LOAD-BEARING (four are Suncor's ONLY source for their concept), one never fires but guards a real measurement difference, one has never been used. NONE deleted — keeping them was right. Four are not clean substitutes, which is a cross-filer COMPARABILITY issue rather than a coverage one, so the three affected sources carry `like_for_like: false` + `mismatch_reason` and any score consuming one is annotated computed_with_caveat, value never altered. Evidence and the full per-source disposition: backend/canonicalization/mappings/specs/ifrs-full_v4.yaml, the `Fallback verification status` block. Left reading as an open instruction until 2026-08-14, when it sent a session chasing a solved problem — the same drift as the four Epic-4 items reconciled 2026-07-29."
+  - step: "5. BCE (3 of 4 models) and Suncor (2 of 4)"
+    status: done
+    resolved: 2026-08-02
+    evidence: "Both added and verified live (BCE 0000718940, Suncor 0000311337). MAPPING_VERSION concepts_v4 -> concepts_v5. All three D8 consequence-3 decisions made: ebit = ProfitLossBeforeTax + InterestExpense (derivations_v2, with the rejected alternative recorded), gross_profit derived only from a true CostOfSales tag, and non-comparable by-nature inputs annotated computed_with_caveat. 100 passed / 1 skipped."
+    follow_up: "(1) RESOLVED 2026-08-02 — see qsr_gross_profit_reverification below. (2) RESOLVED 2026-08-04 by PR #36 — the ebit DECISION rationale, versioned in derivations_v2.yaml, is now published on the /methodology page as D8 consequence 3 requires. NOTE: this value's closing quote was missing until 2026-08-04, which made the whole file unparseable by any YAML reader; if you add prose here, parse the file afterwards."
+    note: "Each adds one degradation case. Suncor forces the ebit decision: IFRS mandates no operating-profit line, so ProfitLossBeforeTax + InterestExpense vs - FinanceIncomeCost both defensible and differ. Belongs in a versioned spec, not a mapping row."
+  - step: "7. Beneish five-variable model (was: 'Roxas-5 variant')"
+    status: blocked
+    blocked_on: "The five-variable coefficient table in Beneish (1999), Financial Analysts Journal 55(5) 24-36 — paywalled. The free June 1999 preprint is truncated before the tables."
+    finding: "Verified 2026-08-02 by reading the Roxas (2011) original in full (all 11 pages, publisher PDF). TWO corrections to what was recorded. (1) MISATTRIBUTION: Roxas contains no equations and no coefficients at all — she applies Beneish's own 5-coefficient probit model and says so (p.59). There is no 'Roxas-5 variant'; citing Roxas for coefficients would misattribute the model in a versioned spec. (2) DEPI vs TATA IS STILL OPEN, and the previously recorded conclusion is not safe. Roxas contradicts herself within three sentences on p.60 — 'Beneish (1999) found the following indices as significant: DSRI, GMI, AQI, SGI and TATA' followed by 'This M-score combines the five indices: DSRI, GMI, AQI, SGI, and DEPI'. Beneish's own introduction lists his five as receivables, gross margins, asset quality, sales growth and ACCRUALS, with no depreciation. Against that, the disputed 0.107 is very close to DEPI's 8-variable coefficient of 0.115 while TATA's is 4.679. Significance evidence says TATA; magnitude evidence says DEPI. Unresolvable without Beneish's table."
+    verified: "Cutoff -2.76 is real (Roxas Table 1) but is a BENEISH benchmark she reports, not a Roxas figure. Note Roxas uses -2.22 for the 8-variable cutoff where beneish_v1.yaml uses -1.78 — both are in the literature, different prior/cost assumptions; worth stating on the methodology page."
+    full_writeup: "_bmad-output/planning-artifacts/research-beneish-five-variable-model.md"
+    options: "(1) Buy/borrow the FAJ paper and read the table — the only thing that settles it, recommended if the variant is still wanted. (2) Drop it: SHOP and Suncor stay insufficient_data, which is honest — the variant adds coverage, not correctness. (3) Encode with a caveat — NOT recommended, a caveat cannot make a possibly-wrong coefficient right."
+
+
+# PHASE 2 PLANNING — UNBLOCKED AND OPENED (2026-08-04)
+#
+# Supersedes the 2026-07-29 note that said OQ8/OQ9 blocked this. Both are answered.
+#   OQ8 -> manual universe expansion, on demand only. No automated screening built.
+#          (Partly overtaken by events: D8 already grew the universe 4 -> 7.)
+#   OQ9 -> adopt debt maturity concentration + trajectory-over-level; DROP
+#          receivables-vs-revenue (~= Beneish DSRI) and cash-vs-earnings (~= Sloan)
+#          as duplicates of shipped figures.
+#   Both recorded in prd.md section 8 and SPEC.md Open Questions.
+#
+# Phase 2 shape is decided by NEW foundational decision D9: sequence around one real
+# investment decision, not around the lens list. Reorders D5, does not overturn it.
+# epics.md now defines Epics 5-9. Epic 5 is decomposed into 6 stories; Epics 6-7 are
+# scoped but storyless; Epics 8-9 are headlines only. That unevenness is deliberate —
+# D9's binding selection criterion picks the next feature from the largest OBSERVED
+# research failure, so decomposing further now would commit to an ordering the first
+# decision packet is explicitly permitted to overturn.
+#
+# CONTRACT DRIFT REPAIRED (2026-08-04). SPEC.md and prd.md both still described a
+# 4-company US-GAAP-only universe with IFRS as a non-goal, ~1 week after D8 shipped
+# three IFRS filers. Planning off that would have produced epics for a product that
+# no longer exists. Reconciled. Generalise: a superseding decision (D8) is not fully
+# landed until every document it contradicts is updated in the same change.
+#
+# NEW FR ADDED: FR-22 (latest-filing change detection, prd.md section 4.13). D9 makes
+# it Phase 2 step 1 and no existing FR covered it — FR-18's diff is thesis-scoped and
+# presupposes a saved thesis.
+#
+# EPIC 5 FINDINGS WORTH CARRYING. Per-story status now lives in
+# development_status above, where it can actually be parsed. What is kept here is
+# only what a status flag cannot express — the places where the built thing
+# differs from the story, or where something was learned the hard way.
+#
+# 5.3 DEVIATES FROM ITS OWN AC, deliberately. The story said the default `since`
+# is the "most recent prior run"; the nightly cron makes that useless, because it
+# means last night. It pivots on the latest filing's ingestion instant instead, so
+# the endpoint answers the question FR-22 is actually named for. `since_basis`
+# reports which rule produced the pivot.
+#
+# 5.4 FOUND A REAL ENGINE BUG THAT 27 PASSING TESTS MISSED. With the boundary at
+# `computed_at <= pivot`, a company whose first scoring happened AT the pivot
+# instant selected its own current run as its own predecessor, compared a state
+# against itself, and reported "No change since {date}" about a comparison that
+# never happened. Fixed to a strict `<`. Invisible to the API contract and to
+# every unit test — it took rendering the page.
+#
+# 5.5 POLARITY IS DATA, NOT CODE. Piotroski/Altman are higher-is-better;
+# Beneish/Sloan are LOWER-is-better because both measure a risk. Verified
+# in-browser that Beneish moving -1.6 -> -2.9 renders as IMPROVING. Naive "did the
+# number go up" logic would have told the reader that rising manipulation risk is
+# good news.
+#
+# 5.6 OVERTURNED THE 5.1 SPIKE THAT SCOPED IT. The spike's central claim — that a
+# maturity ladder's first bucket and a current-portion tag are one concept — is
+# false against real filed figures, and two of its coverage findings were wrong.
+# Full correction in story_5_1_debt_maturity_spike below. The transferable lesson:
+# a spike's finding is a HYPOTHESIS until the build re-checks it, which is why the
+# story carried "to be re-confirmed at build time, not trusted from here".
+#
+# Known tech debt, unowned by any epic: nine test files assert against
+# backend/tests/fixtures/shop_company_facts.json, which is entirely SYNTHETIC
+# (fabricated accession numbers; tags SHOP does not actually use). Only the
+# golden dataset uses real EDGAR data. Those nine can stay green against fiction
+# — the same class of gap as the shares_outstanding and CP PP&E tag bugs.
+
+# QSR gross-profit re-verification (2026-08-02). Asked: should the gross_profit
+# derivation extend to us-gaap cost tags, accepting a golden F-score change 6 -> 7?
+# Answered against live EDGAR (CIK 0001618756). ANSWER: NO. Golden value 6 stands.
+qsr_gross_profit_reverification:
+  verdict: "Do not extend. The derived figure is wrong, not a missing signal."
+  evidence:
+    - "QSR is primarily a franchisor: Revenues bundles royalties, property and advertising revenue with supply-chain and company-restaurant sales, while CostOfGoodsAndServicesSold covers only the latter. It is 49% of total costs and expenses; advertising expense alone (FY2023 $1,201M) sits outside cogs while its revenue sits inside Revenues."
+    - "The apparent improvement that would have flipped Piotroski's margin signal is a revenue-mix artefact: FY2022->FY2023 revenue +7.9%, cost of sales +5.3%, advertising expense +16.4%. A zero-cogs stream growing at twice revenue lifts the ratio 0.87pp with no underlying margin change."
+    - "Control: SHOP and OTEX both file GrossProfit AND revenue - cogs reproduces it to the dollar. QSR files no GrossProfit line at all — the filer signalling the subtraction is not meaningful for its income statement. CP tags no cogs and is unaffected."
+    - "Structurally identical to Suncor's inventories-only cogs, from the revenue side: a partial cost base against a full revenue base. Both excluded by the same requires_source constraint."
+  guarded_by: "backend/tests/test_concept_mappings.py::test_gross_profit_derivation_stays_scoped_to_true_cost_of_sales_tags"
+  follow_up_resolved:
+    - item: "Beneish's GMI computed QSR's gross margin from the same (revenue - cogs) / revenue ratio, so the distortion was live in production for QSR's M-score."
+      status: done
+      resolved: 2026-08-02
+      evidence: "New `gross_margin_validation` guard in formulas/specs/beneish_v1.yaml, applied in scoring/beneish.py. QSR and Suncor are flagged computed_with_caveat; SHOP, OTEX, Cameco and BCE are not. The M-score is UNCHANGED — QSR FY2023 still -2.219847, the hand-verified golden value, so no golden re-verification was needed after all. Guarded by tests/test_beneish_gross_margin_guard.py."
+      design_note: "The test is filer-level, not year-level: a filer that reports a gross profit line ANYWHERE has demonstrated revenue - cogs is meaningful for its income statement. A year-level test would wrongly flag SHOP, whose fixture carries GrossProfit for FY2024 only. Stated limitation: validation once is validation throughout, so a filer that restructured after last reporting gross profit would not be re-flagged — accepted because the cases caught are structural (business model / presentation basis), not year-specific."
+      note: "Suncor's Beneish never resolves anyway (no SG&A line -> SGAI unresolvable), so the guard is real but unreachable for it. Pinned by a test so its absence is not later mistaken for a coverage bug."
+
+
+# Story 5.1 — debt-maturity coverage spike (2026-08-04). Asked: is the debt maturity
+# schedule actually tagged for every filer, before Story 5.6 assumes it? Answered
+# against live data.sec.gov company-facts for all 7 universe CIKs.
+# ANSWER: No. Only 2 of 7 filers carry a usable ladder. Scope Story 5.6 accordingly.
+story_5_1_debt_maturity_spike:
+  status: done
+  resolved: 2026-08-04
+  question: "Is a year-by-year debt maturity schedule reachable from EDGAR company-facts for every universe filer?"
+  verdict: "NO for the full ladder — 2 of 7. But a narrower NEAR-TERM SHARE metric is reachable for 6 of 7 with usable history, and is genuinely comparable across filers."
+  ladder_coverage:
+    - filer: "CP"
+      finding: "Full years 1-5 for FY2015-2025. 'AfterYearFive' (thereafter) only from FY2022 — so for FY2015-2021 the ladder does NOT sum to total debt and must not be used as its own denominator. Tags no LongTermDebtCurrent/Noncurrent at all; its InNextTwelveMonths bucket IS its current portion."
+    - filer: "QSR"
+      finding: "Best coverage in the universe. Full 5-year ladder + thereafter, FY2014-2024. FY2025 is missing thereafter. Also tags the current/noncurrent split for 13 years."
+    - filer: "OTEX"
+      finding: "NEVER tags years 2-5 — the ladder does not exist for it in any year. Worse, it switched near-term tags mid-history: InNextTwelveMonths (FY2011-2015) -> RemainderOfFiscalYear (FY2016-2020) -> back to InNextTwelveMonths (FY2021-2025), and AfterYearFive only FY2012-2020. Recent years carry a near-term bucket and nothing else."
+    - filer: "SHOP"
+      finding: "No debt maturity ladder at all. Tags the LEASE maturity ladder (LesseeOperatingLeaseLiability...AfterYearFive) but not a debt one — consistent with convertible notes having a single maturity. Current/noncurrent convertible split exists for FY2023-2024 only."
+    - filer: "CCJ / BCE / SU (all ifrs-full)"
+      finding: "ZERO maturity or repayment-of-principal concepts, all three. Not a tagging-quality gap: under IFRS the maturity analysis is a liquidity-risk disclosure expressed with axis/member DIMENSIONS, and the EDGAR company-facts API exposes only non-dimensional facts. It is structurally unreachable by this ingestion path, not merely absent. Reaching it would require dimensional-fact ingestion from Inline XBRL — a real architecture change, not a mapping addition."
+  recommended_scope: >
+    Redefine the metric rather than restrict it. Near-term debt share (debt due within
+    12 months / total debt) is ONE concept, identically defined whether it comes from a
+    ladder's first bucket or from a current/noncurrent split, so it stays comparable
+    across filers with no caveat: CP via its ladder, QSR/OTEX via either, CCJ FY2017-2025,
+    BCE FY2016-2025, SU FY2016-2025 via the split. SHOP resolves for FY2023-2024 only and
+    is honestly insufficient_data elsewhere. The full maturity PROFILE (years 2-5 and
+    thereafter) then becomes a display enrichment available for CP and QSR alone —
+    presented as extra detail where it exists, never as a metric other filers "fail".
+  decided: "2026-08-04 — Lawrence chose the redefinition. Story 5.6 is now 'near-term debt share'; the year-by-year profile moves to new Story 5.7 as a CP+QSR display enrichment that may be deferred indefinitely. Recorded in prd.md section 8 OQ9 and epics.md Epic 5."
+  method_note: >
+    Two documented project anti-patterns both reproduced here, which is why the spike
+    was worth running: 'a tag exists but does not cover the years you need' (CP's missing
+    thereafter bucket) and 'a filer switches tags mid-history' (OTEX, twice). Checking
+    tag presence alone would have reported OTEX as covered and CP's ladder as summable.
+  corrected_by_story_5_6: >
+    2026-08-04, during Story 5.6 implementation. Two findings above are WRONG and the
+    live re-verification the story mandated caught both.
+
+    (1) "CP tags no LongTermDebtCurrent/Noncurrent at all" — CP tags no concept by that
+    exact name, but has tagged LongTermDebtAndCapitalLeaseObligationsCurrent for 17
+    consecutive years (FY2009-2025) and the matching noncurrent and including-current
+    -maturities variants. CP never needed its ladder. This spike checked one tag name
+    rather than the family, which is the same failure mode it correctly warns about.
+
+    (2) "CCJ FY2017-2025" — Cameco does not tag CurrentPortionOfLongtermBorrowings in
+    FY2020 or FY2021. A real two-year gap, now insufficient_data.
+
+    Also disproved, and it was the spike's central recommendation: a maturity ladder's
+    first bucket and a current-portion tag are NOT one concept. They differ in 11 of 15
+    shared years for CP, 10 of 10 for OTEX, 2 of 12 for QSR — undiscounted contractual
+    principal vs balance-sheet carrying amount. Story 5.6 shipped on the current/
+    noncurrent split alone, which is available for every filer that has a ladder and
+    gives one measurement basis across the universe. The maturity ladder is not mapped.
+
+    The lesson is not that the spike was careless — it is that a spike's finding is a
+    hypothesis until the build re-checks it, which is exactly why the story carried
+    "to be re-confirmed at build time, not trusted from here".
+
+
+# Found 2026-08-04 while building Story 5.2's diff engine. NOT a Story 5.2 defect —
+# the engine handles it correctly; this is an upstream canonicalization gap that the
+# diff work exposed. Needs its own decision, so it is recorded rather than fixed here.
+canonical_facts_amendment_gap:
+  status: open
+  found: 2026-08-04
+  found_by: "Story 5.2 (diff engine) — a test asserting a restated fact produced a UniqueViolationError instead"
+  issue: >
+    A 10-K/A that restates a fiscal year's figures never reaches canonical_facts.
+    canonical_facts is UNIQUE on (issuer_cik, canonical_concept, fiscal_year,
+    mapping_version), and canonicalize_issuer skips any key already present under the
+    current mapping_version to keep the pass idempotent (canonicalize.py, the `existing`
+    set). That guard keys on the fiscal year and ignores the accession entirely, so once
+    a year is canonicalized from the original 10-K, the amendment's restated values are
+    skipped — and the unique constraint would reject them anyway.
+  why_it_matters: >
+    AD-6 and PRD open question 2 both say an amendment triggers a new append-only
+    score_run "referencing the new canonical_facts". The run is genuinely new, but the
+    facts it references are the stale pre-restatement ones, so the new run recomputes
+    the same numbers. The amendment is invisible below the filing layer.
+  note: >
+    The ranking function DOES handle amendments correctly (it prefers as-originally-filed
+    per AD-3) — but only when writing a key for the first time. The skip runs first, so
+    re-selection never happens. This is a gap in the idempotency guard, not in AD-3.
+  reachability: >
+    CONFIRMED REACHABLE, verified 2026-08-04 against live company-facts for all 7 filers.
+    Amendments exist for CP (650 amended fact rows across 8 accessions, 40-F/A + 10-K/A),
+    OTEX (1660 rows, 3 accessions) and SHOP (2 rows). QSR, CCJ, BCE and SU file none.
+    More importantly the amendments RESTATE canonical values, not just exhibits: 18
+    canonical concepts for CP and 18 for OTEX carry a different value under the amended
+    form than under the original.
+  severity_by_filer: >
+    OTEX is the live concern — its restated canonical concepts land in FY2010 and
+    FY2012-2015, squarely inside its 24-year scored history, and they touch total_assets,
+    current_assets, current_liabilities, cogs, sga, gross_profit, long_term_debt and
+    shares_outstanding, i.e. inputs to all four models. CP's restatements are FY2008-2010,
+    which predate its scoring window (its 10-K history starts 2016), so CP is very likely
+    unaffected in practice. SHOP's single conflict is EntityPublicFloat, a dei cover-page
+    fact that is not canonical. Net: OTEX needs checking against stored values; CP and
+    SHOP almost certainly do not.
+  crucial_nuance: >
+    The bug is an INCREMENTAL-OPERATION bug, not a backfill bug, and this determines both
+    severity and the fix. Within a SINGLE canonicalization pass, all of an issuer's raw
+    facts — original and amended alike — are grouped together and resolved by AD-3's
+    ranking, which handles the conflict correctly. The `existing` skip only takes effect
+    ACROSS passes. So a clean backfill (ingest everything, then canonicalize once) produces
+    correct values, while the production path (daily pipeline canonicalizes FY-N, a 10-K/A
+    arrives months later, the next pass skips the year) permanently keeps whichever value
+    was written first. A rebuild-from-scratch would therefore silently 'fix' the data and
+    hide the bug — which also means reproducing it requires simulating arrival ORDER, not
+    just the presence of an amendment.
+  verification_result: >
+    DONE 2026-08-04. VERDICT: the gap is LATENT, not biting — no score in the current
+    universe is wrong because of it. Two independent checks agree.
+    (1) ARRIVAL-ORDER REPRODUCTION on the real OTEX payload: ingest originals only ->
+    canonicalize -> ingest amendments -> canonicalize again, versus ingest everything ->
+    canonicalize once. Both orders produced identical values for all 325 canonical facts,
+    0 disagreements. The experiment is valid rather than vacuous: 141 amended facts do
+    survive the duration/FYE filters and 24 (concept, fiscal_year) groups have genuinely
+    competing values.
+    (2) MECHANISM CHECK explains why. The skip can only freeze a wrong value when an
+    amendment carries a value that NO original filing has. OTEX has 0 such cases and
+    SHOP 0 — every amended value is also carried by some original filing, typically a
+    later 10-K's comparative, so the first canonicalization pass already sees the
+    eventual winner. CP has 34 such cases, but all fall in FY2007-2010 while CP is only
+    scored FY2013-2025, so they are outside the scored window.
+  trigger_condition: >
+    An amendment carrying a value no original filing has, in a year that is scored. The
+    dangerous shape is a 10-K/A restating the MOST RECENT fiscal year, filed before the
+    next 10-K exists to carry that year as a comparative — exactly the case none of the
+    seven filers currently exhibits. CP demonstrably produces the condition, just aimed
+    at years predating its scoring window. This is a near-miss, not an all-clear.
+  severity: >
+    Downgraded from the initial reading. Restatements of canonical concepts are real
+    (18 concepts each for CP and OTEX), which is what the first pass established — but
+    restatement alone is not sufficient to move a stored value, and none of them does.
+    Priority is BELOW Story 5.3. Do not treat as won't-fix: OTEX is safe incidentally,
+    because comparatives happen to carry the amended value, not by design, so a new
+    filer or a differently-timed amendment could bite without warning.
+  regression_guard_suggested: >
+    Cheaper than fixing: assert in the pipeline (or a test) that no amendment introduces
+    a candidate value absent from every original filing for a SCORED year. That detects
+    the trigger condition arriving, rather than trying to detect a wrong number after the
+    fact. Would have to run against live payloads, so it fits the existing live-data
+    spot-check action item for Epic 4.
+  consequence_for_story_5_2: >
+    fact_change is unreachable within a single mapping_version — two runs under one
+    mapping_version necessarily reference identical canonical_fact rows. The engine
+    reports fact changes correctly when the mapping version moves, which is currently
+    the only way inputs can differ. Pinned by
+    tests/test_diff_engine.py::test_restatement_under_one_mapping_version_yields_no_fact_change,
+    which asserts CURRENT behaviour and is designed to fail when this gap is fixed.
+  options: >
+    (1) Include accession_number in the canonical_facts unique key and supersede facts on
+    amendment, mirroring AD-6's score_run pattern — most correct, needs a migration and a
+    supersession column. (2) Re-canonicalize a fiscal year when a superseding filing
+    arrives, deleting the prior rows — simpler but breaks the append-only/audit posture
+    AD-2 exists to protect. (3) Narrow the `existing` skip so it re-resolves a
+    (concept, fiscal_year) whose candidate raw_facts now include an accession not present
+    when it was last written — smallest change, no migration, keeps append-only, but needs
+    care not to rewrite history on every pass. Option 3 was NOT considered before the
+    reachability data came in and now looks the best value; recommend (3), with (1) if the
+    audit trail for superseded facts is judged worth a migration.
+  status_note: >
+    Option 3 supersedes the earlier '(3) accept and document' — accepting is no longer
+    defensible now that restatement of canonical concepts is confirmed rather than
+    hypothetical.
+
+
+# Epic 6 (Reverse DCF) coverage spike, 2026-08-06. Asked, before any story is
+# written: are the inputs a reverse DCF needs actually reachable for the universe?
+# Run because Epic 6's acceptance criteria cannot be written honestly without it —
+# and because Story 5.1 established that this class of question must be answered
+# from data, not assumed. Epic 6 stays `deferred` in epic_catalog: this produces
+# the evidence for decomposition, it does not perform it.
+# Story 6.2 live verification, 2026-08-07. The EDGAR work is DONE and recorded here
+# so the implementation does not need to re-fetch: all seven CIKs were fetched from
+# data.sec.gov and bucketed by PERIOD_END against each issuer's own recognised
+# fiscal-year-end, never by the payload's `fy` field. Story 6.2 itself is NOT done —
+# no spec files were written. This is its first half.
+story_6_2_live_verification:
+  status: done
+  resolved: 2026-08-07
+  story: "6.2 — free-cash-flow canonical concepts, interest classification decided"
+  what_remains: >
+    NOTHING — completed 2026-08-11. us-gaap_v7, ifrs-full_v4 and derivations_v4
+    written, registry bumped to concepts_v8, eight guards added in
+    tests/test_free_cash_flow_concepts.py.
+  build_time_reconfirmation: >
+    Re-checked against real data at build time per Story 5.1's lesson, by
+    canonicalizing the dev DB to concepts_v8. Every prediction held: capex resolves
+    for 6 of 7 and Suncor has none; cash_and_equivalents resolves for 7 of 7; BCE's
+    11 cash rows are 100% DERIVED, so the rule is what gives it a cash figure at all;
+    QSR now covers FY2011-2025 with a clean switch from the plain tag at FY2018 to
+    the fallback at FY2019. BCE's identity is exact in every year (FY2023: 547 + 225
+    = 772), including years where it tags CashEquivalents as 0.
+
+    ONE THING THE SPEC WORK CHANGED. The recorded plan said BCE's cash would be "a
+    derivation", which was right, but the engine takes CANONICAL CONCEPTS as
+    operands, not source tags — so `cash` and `cash_equivalents` had to become
+    canonical concepts to be summable. They are ifrs-full-only and are operands, not
+    metrics: neither is a usable cash figure alone, and a test pins them out of
+    us-gaap so no filer can resolve a partial value that reads like its cash.
+  coverage_verified_live:
+    capex:
+      SHOP: "PaymentsToAcquirePropertyPlantAndEquipment — 11y FY2015-2025"
+      CP: "PaymentsToAcquirePropertyPlantAndEquipment — 18y FY2008-2025"
+      QSR: "PaymentsToAcquirePropertyPlantAndEquipment — 14y FY2012-2025"
+      OTEX: "PaymentsToAcquireProductiveAssets (VARIANT) — 20y FY2007-2026"
+      CCJ: "PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities — 10y FY2016-2025"
+      BCE: "PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities — 10y FY2016-2025"
+      SU: "NONE — confirmed live. Suncor is insufficient_data for all of Epic 6."
+    cash_and_equivalents:
+      SHOP: "CashAndCashEquivalentsAtCarryingValue — 12y FY2014-2025"
+      CP: "CashAndCashEquivalentsAtCarryingValue — 19y FY2007-2025"
+      QSR: "plain tag 8y FY2011-2018 ONLY; restricted-inclusive tag 10y FY2016-2025 — see qsr_restricted_cash_proof"
+      OTEX: "CashAndCashEquivalentsAtCarryingValue — 21y FY2006-2026"
+      CCJ: "CashAndCashEquivalents — 11y FY2015-2025"
+      BCE: "NO combined tag — tags Cash and CashEquivalents SEPARATELY, 11y each. Needs a derivation."
+      SU: "CashAndCashEquivalents — 11y FY2015-2025"
+  corrects_the_6_1_spike: >
+    SHOP's capex and cash are 11y and 12y, not the 9y the spike reported. The spike
+    bucketed on the payload's `fy` field; bucketing on period_end recovers the extra
+    years. This is the correction the spike itself flagged as its own method error.
+  interest_classification_verified: >
+    IFRS gives filers explicit classification tags and the two IFRS filers CHOSE
+    DIFFERENTLY, so this is proven from real tags rather than inferred from IAS 7.
+    BCE: InterestPaidClassifiedAsOperatingActivities, 10y.
+    CCJ: InterestPaidClassifiedAsFinancingActivities, 10y.
+    CP / OTEX / QSR / SHOP: InterestPaid / InterestPaidNet — operating, mandated by
+    US GAAP. SU: no interest-paid tag, and moot since it has no capex.
+
+    CONSEQUENCE: Cameco's cash_from_operations EXCLUDES interest paid while every
+    other filer's includes it, so `CFO - capex` is not the same measurement for
+    Cameco and its free cash flow reads systematically high.
+  qsr_restricted_cash_proof: >
+    QSR files BOTH cash tags in FY2016, FY2017 and FY2018, and they are IDENTICAL to
+    the dollar in all three years (1,476M / 1,097M / 913M, difference exactly 0). QSR
+    therefore carries no restricted cash and the restricted-inclusive tag IS its
+    unrestricted cash. That makes it an admissible priority-1 fallback — but the proof
+    is FILER-SPECIFIC, not general, so it must be guarded by a test. Same overlap-year
+    technique that validated `revenue - cogs` against filers who file GrossProfit
+    directly. QSR does not disclose restricted cash separately after FY2014, so
+    subtracting it is not an option.
+  decisions_made:
+    - "capex maps the us-gaap primary + OTEX's ProductiveAssets variant + the ifrs-full purchase tag."
+    - >
+      capex does NOT map CapitalExpendituresIncurredButNotYetPaid — an accrual
+      disclosure, not cash capex. Confirmed live that SHOP (8y) and QSR (4y) both tag
+      it, so the exclusion is load-bearing rather than theoretical.
+    - >
+      cash_and_equivalents for BCE is a DERIVATION, not a fallback:
+      Cash + CashEquivalents, `kind: identity` because it is true by definition under
+      IFRS. Belongs beside assets_minus_equity in derivations_v4.
+    - >
+      THE INTEREST CAVEAT MOVES TO STORY 6.3, deliberately. 6.2's AC says to annotate
+      runs `computed_with_caveat`, but there are no runs yet — the solver is 6.3. The
+      classification is recorded as versioned spec data here and 6.3 applies the
+      caveat when it computes. Same shape as Story 5.3 departing from its own `since` AC.
+  tests_required:
+    - "Reject-list: CapitalExpendituresIncurredButNotYetPaid is never a capex source."
+    - >
+      QSR equality guard: for every universe filer that files BOTH cash tags, they must
+      be equal. Fails loudly the day a filer with real restricted cash is added, instead
+      of silently inflating cash and understating enterprise value.
+    - "Suncor resolves no capex, pinned so its absence is never mistaken for a coverage bug."
+    - "BCE's cash resolves via derivation and carries `derivation:` provenance, not a filed-line citation."
+  carry_forward: >
+    Per Story 5.1's lesson these remain hypotheses until the build re-checks them —
+    though unlike 5.1 this pass WAS live, per-year, and bucketed correctly.
+
+
+# Found by Codex's review of Story 6.5 (2026-08-11), confirmed and sharpened here.
+market_price_dates_labelled_as_fiscal_year_end:
+  status: done
+  closed: 2026-08-13
+  closed_by: >
+    PR #72. Guard + backfill, applied to the dev store: 24 rows re-dated (20
+    market_prices, 4 fx_rates), 0 remaining on a non-trading date, and the second
+    --apply run is a no-op.
+  correction_to_this_entry: >
+    THE DIAGNOSIS ABOVE WAS WRONG ABOUT THE DATA, and the error would have caused
+    data loss if the recorded fix had been followed. It says a corrected row sits
+    beside the mislabelled one, the weekend row winning because it sorts later, so
+    "one-time deletion ... followed by a re-ingest" would suffice. Checked first:
+    NOT ONE of the 24 rows had a correctly-dated partner, because the corrected
+    ingestion had never been re-run. Deleting first would have destroyed the only
+    copy of each year's close, and a failed fetch would have left Altman and the
+    reverse DCF with no market input for those years.
+  what_it_actually_needed: >
+    An UPDATE IN PLACE, not a delete and re-insert. The first implementation wrote
+    the corrected row and deleted the stale one; Postgres refused, because
+    score_inputs.market_price_id and .fx_rate_id are the AD-19 provenance links
+    recording WHICH row each Altman run consumed — 69 and 38 of them respectively.
+    Deleting would have orphaned every one. Relabelling in place is also the more
+    truthful operation: it is the same observation, only its label was wrong, so
+    each score run keeps citing exactly the quote it consumed. Verified after the
+    run: 69/38 citations intact, 0 orphans, row counts unchanged at 69/11.
+  verified: >
+    Every provider close and rate matched the stored value EXACTLY — 0 mismatches
+    across 24 rows — which confirms the original severity call: the label was
+    wrong, the price was right. Every weekend fiscal-year-end still resolves to a
+    price (get_fye_close takes the latest row within 7 days, and Friday is 1-2 days
+    before), so no year lost its market cap. A test pins that property.
+  guard: >
+    upsert_fye_close and upsert_fx_rate now REFUSE a weekend date outright, and the
+    bare-float form of fye_prices/fx_rates was removed from run_issuer — dating an
+    observation to the fiscal-year-end was its only behaviour and the entire cause.
+    Weekends only: a full exchange calendar needs a dependency, and every FYE in the
+    universe is 31 December or 30 June, never a weekday holiday. A weekday holiday
+    would still slip through — recorded in raw_store/observation_dates.py.
+  also_caught: >
+    The guard immediately found the GOLDEN DATASET doing the same thing: three
+    golden years end on a Sunday (QSR and CP FY2023, OTEX FY2019) and the fixture
+    seeded the quote AT the year end. Now seeded at the real trading day; no golden
+    expected value moved.
+  found: 2026-08-11
+  found_by: "Codex code review of Story 6.5; consequence traced during verification"
+  issue: >
+    Ingestion stored Tiingo closes and Bank of Canada rates under the filer's
+    FISCAL-YEAR-END date rather than the date the observation was actually made.
+    Confirmed reachable: BCE, Cameco, CP and OTEX all carry Saturday- and
+    Sunday-dated market_prices rows — quotes on days the market was shut.
+  fixed_going_forward: >
+    pipeline/run.py now accepts (observed_date, value) tuples and live ingestion
+    supplies them. Backward compatible: a bare float still dates to the
+    fiscal-year-end, so fixtures and older callers are unaffected.
+  why_the_backfill_matters_more_than_tidiness: >
+    uq_market_prices_key is (issuer_cik, price_date, source), so re-ingesting under
+    the corrected date writes a SECOND row rather than updating the first. The
+    lookup then takes the most recent row on or before the fiscal-year-end — and the
+    mislabelled weekend row is LATER than the true Friday observation, so it wins.
+    Until the legacy rows are removed the fix is INERT: correct dates are written
+    and never read.
+  severity: >
+    No numerical impact today. Both rows carry the same Friday close; the date label
+    was wrong, not the price. So this is a data-hygiene and correctness-of-provenance
+    issue, not a wrong-score issue.
+  fix: >
+    One-time deletion of market_prices and fx_rates rows whose date falls on a
+    non-trading day, followed by a re-ingest. Needs its own change: it touches the
+    ingestion path and should carry a guard asserting no stored observation lands on
+    a weekend.
+
+
+# Story 6.7. The fixture gap is the finding worth keeping here — it was invisible
+# until something tried to USE the fixtures for a new capability.
+story_6_7_golden_coverage:
+  status: done
+  completed: 2026-08-12
+  blocker_found_and_resolved: >
+    The golden fixtures are TRIMMED SUBSETS built for earlier stories — CP's carried
+    23 us-gaap tags and neither a capex nor a cash-and-equivalents tag. Every filer
+    therefore resolved to insufficient_data, which would have made the golden entries
+    assert nothing about the capability while looking complete. The mappings were
+    fine (concepts_v8); the fixtures were the gap.
+  resolved_by: >
+    Rebuilt the missing payload entries from the dev store's own raw_facts joined to
+    filings — already-ingested real EDGAR data, keyed to accession numbers — rather
+    than re-fetching from EDGAR. Faithful because raw_facts rows only exist for
+    entries that already passed the ingestion filter (fp == FY, annual form), so each
+    row maps back to exactly one company_facts entry. Approved by Lawrence 2026-08-12.
+  no_existing_golden_value_changed: >
+    Checked explicitly, because adding source tags CAN change canonicalization: the
+    full suite went 309 -> 310 passed with no other assertion moving. CP's reverse-DCF
+    total_debt (22,494,000,000) is the same figure its debt-share entry already
+    pinned — two capabilities reading one canonical fact.
+  coverage:
+    resolves: "QSR FY2023 22.228%, CP FY2023 47.169%, OTEX FY2019 5.860%, CCJ FY2024 34.818%"
+    insufficient_data: >
+      SHOP and BCE (no total_debt in the golden fiscal year — SHOP's long_term_debt
+      is deliberately unmapped, BCE's CurrentPortionOfLongtermBorrowings is untagged
+      for FY2024), and SU (no capex tag in ANY year, under any variant).
+    note: >-
+      These are golden-year figures from the fixtures, NOT the live-database values
+      Story 6.6 was verified against — CP resolves 47.2% at FY2023 and 37.2% at
+      FY2025. Different years, not a discrepancy.
+  independence: >
+    The expected rates are solved by a reimplementation written from the SPEC TEXT
+    that imports nothing from backend/valuation, backend/scoring or backend/formulas.
+    A golden value produced by calling the code under test asserts only that the code
+    agrees with itself. Cost accepted and recorded: a spec change must be mirrored by
+    hand, because a version importing the solver's constants would drift with it.
+  guard_verified: >
+    Corrupting CP's expected rate by 1e-4 fails TWO independent assertions — the
+    DB-backed independent solve, and the pure-function check that each golden rate
+    reproduces from its own recorded operands. Confirmed by actually doing it.
+
+
+# Story 6.6's browser pass, recorded because the standing rule keeps earning its
+# keep: 5.4 found four defects this way, 5.7 found two, and 6.6 found three that
+# lint, tsc and the build all passed clean.
+story_6_6_browser_verification:
+  status: done
+  verified: 2026-08-12
+  how: >
+    Production build served against the live dev database, every filer loaded in a
+    real browser. Not fixtures — the numbers below are what the solver returned
+    from concepts_v8 on the day.
+  filers_checked:
+    CP: "implied 37.2%, band 16.4-51.6%, achieved 7.8% FY2013-FY2025 — band entirely above zero"
+    OTEX: "implied 9.7%, band -6.5-20.7%, achieved 12.8% FY2007-FY2025 — crosses zero AND achieved exceeds implied, the inverted reading"
+    QSR: "implied 17.0%, band -0.4-29.0%, achieved 12.8% — zero sits 12px inside the band's left edge, the tightest legibility case in the universe"
+    SU: "insufficient_data, 'no free cash flow for this fiscal year', rendered per AD-16 rather than hidden"
+  defects_found_and_fixed:
+    - >
+      Only ONE of the two marks on the band was labelled. The implied point had no
+      label while the achieved mark did, leaving a reader two marks and one name on
+      a card whose whole purpose is telling them apart.
+    - >
+      Operand labels were half-mapped, so one list rendered in two conventions:
+      "Free cash flow" beside "cash from operations" and "capex". The label map had
+      guessed `market_capitalisation` where the solver emits `market_cap`, and
+      omitted `cash_from_operations` and `capex` entirely.
+    - >
+      Three-item derivations read as a run-on: "market cap and Total debt and Cash
+      and equivalents". Now serial-comma joined — and the comma is load-bearing, not
+      stylistic, because one operand is itself named "cash and equivalents".
+  recompute_check: >
+    Verified by hand from the rendered page, closing risk-assessment finding 3.5
+    visually as well as structurally: FCF 5.31B - 3.10B = 2.21B; market cap 897.6M x
+    100.917 = 90.58B; EV 90.58 + 23.19 - 0.184 = 113.59B. All three tie out.
+  open_observation: >
+    The capital-intensity caveat renders on Suncor's card even though Suncor has no
+    implied figure, so it annotates a number that is not there. Left as the API
+    returns it rather than suppressed in the frontend — AD-8 makes this presentation
+    only, and the caveat arguably explains the absence (its reason is "no free cash
+    flow", which is what capital intensity consumes). Flagged for review rather than
+    silently hidden. Less stark since the review fix below: the card now carries a
+    real achieved figure for the caveat to sit beside.
+  code_review:
+    reviewed: 2026-08-12
+    by: "/code-review against PR #64"
+    findings: 5
+    all_confirmed_against_live_data: true
+    note: >
+      Every finding was re-checked against the running API before being accepted
+      rather than applied on trust. Four reproduced exactly; the fifth is a real
+      code path that the current universe does not exercise.
+    fixed:
+      - >
+        MEDIUM, and the most damaging: the insufficient_data branch discarded
+        `historical_revenue_cagr`, which the backend computes INDEPENDENTLY of
+        whether the DCF resolves. Suncor carries 7.7% (FY2016-FY2025) and SHOP
+        27.3% (FY2022-FY2025) — so the one card with no implied figure was hiding
+        the only half of the comparison it did have. Now shown in both branches.
+      - >
+        MEDIUM: OPERAND_LABEL claimed to be exhaustive but omitted the four
+        DERIVATION LEAF concepts the API emits recursively. Confirmed reachable
+        today: CCJ emits near_term_debt/long_term_debt, BCE emits all four. Neither
+        filer was in the original browser spot-check — the review caught precisely
+        what the spot-check could not.
+      - >
+        LOW: a local formatOperand duplicated the shared `compactAmount` and dropped
+        its documented round-before-magnitude fix, so the DCF card and the debt cards
+        on the SAME page would disagree at the 999,999,999 boundary — the exact
+        divergence ui/format.ts was extracted to end. Now calls the shared helper.
+      - >
+        LOW: conversion_rate/_date/_source were typed but never rendered, though CP,
+        CCJ and BCE all carry them (1.3706 / 1.3226, bank_of_canada). The displayed
+        market price is the CONVERTED one, so a reader checking it against the
+        exchange saw a mismatch with no explanation — undercutting recomputability
+        for the one operand that needed the extra provenance.
+      - >
+        LOW: a filed operand with no `cik` fell through every branch and rendered NO
+        provenance at all rather than degrading visibly. Unreachable in the
+        state == "ok" path today, but the failure mode was silent loss of citation.
+    unobserved_but_handled: >
+      The review also noted that a base can be insufficient while some grid cells
+      still resolve, in which case range_low/high come back non-null and were being
+      dropped. Checked: both insufficient filers return range=[None, None] and
+      cells=0/0, so this does NOT occur in the current universe. Handled anyway,
+      recorded as unobserved rather than verified.
+    reverified_in_browser: >
+      BCE (13 operands, all four derivation leaves labelled, FX line reading
+      "converted at 1.3226 (bank_of_canada, 2023-12-31)"; debt 3.25+31.14=34.38B,
+      cash 547.0M+225.0M=772.0M, EV 47.51+34.38-0.772=81.12B all tie out), SU (7.7%
+      achieved now visible beside the insufficient-data badge), and CP unchanged.
+
+
+# TWO OPEN ITEMS FROM STORY 6.5, both recorded rather than silently accepted.
+story_6_5_open_deviations:
+  status: done
+  resolved: 2026-08-14
+  evidence: >
+    BOTH deviations are closed, each by a PR merged 2026-08-14.
+
+    (1) sensitivity_grid_is_not_stored — closed by PR #69, which moved the whole
+    reverse DCF onto the write path (AD-1) and added the two tables and migration
+    the `why_not_fixed_here` note said it would need. `reverse_dcf_cells` now holds
+    175 stored cells across 5 runs (35 per run — exactly the 35 solves a read used
+    to trigger); the 2 filers with no cells are SHOP and Suncor, both correctly
+    insufficient_data. It took the `recommendation`'s first branch: persist it,
+    rather than amend 6.4's AC down to computed-on-read.
+
+    (2) overview_n_plus_1_now_measured — closed by PR #73, which batched the
+    query fan-out (486 -> 8 for OTEX). Pinned by
+    backend/tests/test_overview_query_count.py::test_overview_query_count_does_not_grow_with_history,
+    so the cost can no longer regrow silently with a filer's history.
+  found: 2026-08-11
+  sensitivity_grid_is_not_stored:
+    ac_said: >
+      Story 6.4's AC: "the grid is computed deterministically in Python and STORED,
+      so a read cannot trigger computation (AD-1)."
+    what_shipped: >
+      The grid is computed on READ, not stored. Story 6.4 delivered the computation
+      and not the persistence its own AC required, and Story 6.5 consumes it that way.
+    measured_cost: >
+      2.9 ms per 35-cell grid; ~20 ms of CPU for a 7-filer compare page. Cheap, but
+      cost is not the argument — the AC is explicit and AD-1 is architectural.
+    why_not_fixed_here: >
+      Storing it needs a table, a migration and a pipeline stage. A pipeline writer
+      needs an idempotency key or the daily cron accumulates a row per night — the
+      documented anti-pattern that bit run_validation. That is its own story, not a
+      side-effect of the read API.
+    recommendation: >
+      Either persist it in a dedicated story before Epic 6 closes, or amend 6.4's AC
+      to say computed-on-read with the measured cost recorded. Do not leave the AC
+      and the code disagreeing — that is the exact defect pattern this repo keeps
+      finding.
+    CORRECTION_2026_08_12: >
+      THE "AMEND THE AC" HALF OF THAT RECOMMENDATION WAS WRONG, and the entry above
+      also understates the problem. Both were corrected after actually reading AD-1
+      rather than reasoning about its purpose.
+
+      AD-1 is a CQRS STRUCTURAL RULE, not a reproducibility one. epics.md line 60:
+      "all computation runs in the scheduled batch pipeline; the read path only
+      queries materialized Postgres and never computes a score". Line 614: "no
+      request can trigger scoring, ingestion, or RECOMPUTATION". A versioned spec
+      making the result reproducible does not satisfy that — the rule is about WHERE
+      computation happens, so amending 6.4's AC would have written a CQRS violation
+      into the spec instead of fixing it.
+
+      AND IT IS BROADER THAN THE GRID. Nothing about the reverse DCF is persisted at
+      all: there is no table, and `reverse_dcf_for_issuer` has exactly ONE caller —
+      `api/repository.py:287`, on the read path. The pipeline never calls it. So a
+      page load re-solves the DCF *and* all 35 grid cells, not just the grid.
+
+      Correct action: persist the whole capability from the pipeline and have the
+      read path query it. Needs a table, a migration, a pipeline stage, and an
+      idempotency key on (issuer_cik, fiscal_year, spec_version) or the nightly cron
+      accumulates a row per night — the anti-pattern that bit `run_validation`.
+    RESOLVED_2026_08_13: >
+      DONE. See post_epic_work "Persist the reverse DCF in the pipeline" for the full
+      evidence. Story 6.4's AC and the code now agree: the grid IS stored, along with
+      the rest of the reverse DCF, and the read path only queries it.
+
+      One thing found while doing it that was not in the diagnosis: `sensitivity.py`'s
+      module docstring ALREADY claimed "Computed deterministically in Python on the
+      write path (AD-1) — a read never triggers 35 solves". That was false when
+      written and stayed false through two stories. It is true now, and no edit was
+      needed to make it true — which is the tell. Fifth instance of this repo's most
+      repeated failure: documentation describing the intent correctly and the
+      implementation incorrectly, with nothing connecting the two. The AC said
+      "stored", the docstring said "write path", and the code did neither.
+  overview_n_plus_1_now_measured:
+    finding: >
+      Risk-assessment finding 3.10 is REAL and now measured rather than assumed:
+      get_company_overview issues 484 queries for OTEX (20 fiscal years), 343 for CP
+      (13) and 100 for SHOP (5). Query count scales linearly with history.
+    story_6_5_contribution: >
+      +2 to +3 queries, FLAT — 486 / 346 / 102 with the reverse DCF wired in. The
+      additions are one filing lookup, one market price and one FX rate for a single
+      fiscal year. Story 6.5 does not add an N+1; it inherits one.
+    recommendation: >
+      The risk assessment's own suggestion still stands and is now justified by
+      numbers: add a query-count test against a long-history issuer, then batch the
+      per-run and per-signal loads. Belongs in Track P, not in Epic 6.
+    guard_landed: >
+      2026-08-12 — the FIRST half is done: backend/tests/test_overview_query_count.py
+      pins the cost so it cannot move silently while the batching waits. The batching
+      itself is still deferred to Track P and is unchanged by this.
+
+      It asserts the per-year SLOPE as well as the totals, which matters more: an
+      exact total alone would still pass if someone made each year costlier while
+      trimming the fixed prelude. Measured on a synthetic issuer, 36 queries for 2
+      fiscal years and 100 for 6 — a constant 16 per year.
+
+      Those are NOT the live figures and are not meant to be. The fixture gives each
+      run 3 signals where the real models carry 5-9, and a live issuer also has debt,
+      maturity, market-price and reverse-DCF reads on top; 484-for-OTEX and
+      100-for-six-synthetic-years measure the same defect at different scales. What
+      transfers is the shape: cost per fiscal year is constant and non-zero.
+
+
+# Found 2026-08-11 while building Story 6.3's solver, by running it over real data
+# rather than fixtures. Not a 6.3 defect — the solver is correct; this is a property
+# of an FCF-based DCF that the universe makes visible.
+reverse_dcf_capital_intensity_distortion:
+  status: open
+  found: 2026-08-11
+  found_by: "Story 6.3 — first run of the solver against real concepts_v8 facts"
+  finding: >
+    The two capital-intensive filers that resolve are the two extremes, and the
+    separation is clean: CP 37.2% and Cameco 36.8% implied growth, against OTEX 9.7%
+    and QSR 17.0%. Their ACTUAL revenue CAGRs run the other way — CP 7.8%, Cameco
+    4.1%, OTEX 12.8%, QSR 12.8% — so the filers implying the most growth are the ones
+    that have delivered the least.
+  mechanism: >
+    Free cash flow is cash_from_operations - capex. Heavy capex depresses the
+    numerator, so a smaller stream must be grown harder to reach the same enterprise
+    value. It is arithmetic, not a bug.
+  same_shape_as: >
+    D6 already recorded this distortion for Altman, whose X3 and X5 are similarly
+    depressed by a large asset base — which is why `issuers.is_capital_intensive`
+    already exists. Story 6.3 reuses that flag rather than introducing a second
+    notion of capital intensity.
+  decision: >
+    ANNOTATE, DO NOT CORRECT. Adjusting for it would mean ThesisTrace inventing a
+    normalised capex — originating a figure, which the deterministic boundary forbids
+    for our own code as much as for the LLM. A caveat is attached instead, with the
+    reason stored as data (reverse_dcf_v1.yaml `caveats`), and a test asserts the
+    caveat never alters the value.
+  open_question_for_story_6_6: >
+    Whether a caveat is sufficient presentation, or whether a capital-intensive
+    filer's implied growth should be visually de-emphasised relative to a
+    non-intensive one. That is a display decision, not a computation one.
+  partly_answered_by_story_6_4: >
+    The sensitivity band narrows this question but does not close it. Real bands at
+    concepts_v8, FY2025: CP 16.4-51.6%, Cameco 16.0-51.1%, QSR -0.4-29.0%, OTEX
+    -6.5-20.7%, all 35/35 cells resolved. Every band is ~30 percentage points wide
+    and two CROSS ZERO, so leading with the range rather than the point figure
+    already stops the capital-intensive filers reading as precise. What remains for
+    6.6 is whether the caveat needs visual weight beyond that.
+
+
+# Found 2026-08-06 while running the Epic 6 spike. Not a product defect — a dev
+# ENVIRONMENT gap that will mislead any session that reasons from the local DB.
+shop_local_history_is_not_edgar_coverage:
+  status: done
+  resolved: 2026-08-14
+  evidence: >
+    Fixed by the full-universe pipeline run of 2026-08-14, which re-ingested every
+    filer from live EDGAR. SHOP now holds 12 filings covering FY2016-2025 (was 4,
+    covering FY2024-2025 only), matching what live company-facts always carried.
+    Verified against the dev store after the run. The `fix` below predicted this
+    would need no decision, and it did not — it fell out of a routine live run.
+    The `why_it_matters` warning still stands as a rule: a coverage question
+    answered from local raw_facts rather than EDGAR is unreliable, which is how
+    the Epic 6 spike's first pass reached a false conclusion about SHOP.
+  found: 2026-08-06
+  issue: >
+    The local dev DB holds 4 SHOP filings covering FY2024-2025, against 9-20 filings
+    for every other filer. Live company-facts shows SHOP actually carries FY2016-2025
+    for capex, cash, tax expense, operating income, D&A and CFO. SHOP was the first
+    filer ingested (Story 1.3) and its local history was never backfilled.
+  why_it_matters: >
+    The Epic 6 spike's first pass concluded SHOP had 2 years of coverage for
+    everything and would be the second filer unable to support a reverse DCF. That
+    was false, and it came from reading the dev DB rather than EDGAR. Any coverage
+    question answered from local raw_facts is unreliable for SHOP specifically.
+  fix: >
+    Re-ingest SHOP from live EDGAR (CIK 0001594805). Cheap and needs no decision —
+    run_issuer is idempotent and canonicalize is scoped per mapping_version. Not done
+    here because it perturbs a hand-verified golden filer, so it wants its own change
+    with a golden re-verification pass.
+  do_not_confuse_with: >
+    shop_convertible_debt_unmapped, which is a genuine MAPPING decision about
+    convertible notes. This one is purely an ingestion gap in one environment.
+
+
+story_6_1_reverse_dcf_coverage_spike:
+  status: done
+  resolved: 2026-08-06
+  question: >
+    Can free cash flow, enterprise value and an effective tax rate be assembled
+    from EDGAR company-facts for all seven universe filers?
+  verdict: >
+    YES for 6 of 7. Suncor cannot, and should read insufficient_data rather than a
+    degraded estimate. Requires three NEW canonical concepts plus one extension,
+    i.e. a MAPPING_VERSION bump to concepts_v8.
+  method_note: >
+    Ran against ingested raw_facts for six filers and LIVE company-facts for SHOP.
+    raw_facts is a valid source here for the same reason it was for Story 5.1 — it
+    stores unmapped tags, which is how the maturity ladder was found before it was
+    mapped. SHOP needed the live check because its local history is an ingestion
+    artifact, not an EDGAR limit (see shop_local_history_is_not_edgar_coverage).
+  missing_canonical_concepts:
+    - concept: capex
+      coverage: "6 of 7"
+      note: >
+        us-gaap PaymentsToAcquirePropertyPlantAndEquipment (CP FY2015-2025, QSR
+        FY2014-2025, SHOP FY2016-2025 live); OTEX uses PaymentsToAcquireProductive
+        Assets instead (FY2009-2025); ifrs-full PurchaseOfPropertyPlantAndEquipment
+        ClassifiedAsInvestingActivities (CCJ, BCE, FY2017-2025).
+    - concept: cash_and_equivalents
+      coverage: "7 of 7"
+      note: "us-gaap CashAndCashEquivalentsAtCarryingValue; ifrs-full CashAndCashEquivalents."
+    - concept: income_tax_expense
+      coverage: "7 of 7"
+      note: "us-gaap IncomeTaxExpenseBenefit; ifrs-full IncomeTaxExpenseContinuingOperations."
+  extension_needed:
+    concept: profit_before_tax
+    issue: >
+      Currently resolves for the three ifrs-full filers only. The us-gaap tags exist
+      but are unmapped, and there are TWO of them with different semantics — see the
+      traps below. An alternative avoiding the choice entirely is the identity
+      pre_tax = net_income + income_tax_expense, which fits the existing declarative
+      derivations pattern and is the recommended route for SHOP, whose direct tag
+      covers one year only.
+  traps:
+    - trap: "SUNCOR HAS NO CAPEX AT ALL."
+      detail: >
+        It tags AdditionsOtherThanThroughBusinessCombinationsIntangibleAssetsOther
+        ThanGoodwill (intangibles only) and balance-sheet PP&E stock, but no PP&E
+        purchase flow. NOT an IFRS-wide gap — BCE and Cameco both carry the ifrs-full
+        purchase tag for 9 years, so the D8 rule holds: never conclude a taxonomy is
+        unsupported from one filer. Substituting intangibles additions would repeat
+        the QSR gross-profit error, a partial base against a full one. Suncor must be
+        insufficient_data.
+    - trap: "CASH IS NOT CASH-PLUS-RESTRICTED-CASH."
+      detail: >
+        CashAndCashEquivalentsAtCarryingValue and CashCashEquivalentsRestrictedCash
+        AndRestrictedCashEquivalents are different concepts; restricted cash cannot
+        service debt, so folding it in understates enterprise value. QSR SWITCHED
+        between them mid-history (first FY2014-2019, second FY2019-2025) and CP
+        carries both from FY2017, so priority order changes the number. Same shape as
+        Story 5.6's ladder-vs-carrying-amount finding.
+    - trap: "TWO us-gaap PRE-TAX TAGS THAT DIFFER ON EQUITY-METHOD INCOME."
+      detail: >
+        ...ExtraordinaryItemsNoncontrollingInterest vs ...MinorityInterestAndIncome
+        LossFromEquityMethodInvestments. QSR switches cleanly (second FY2014-2020,
+        first FY2021-2025); CP and OTEX carry both with overlap. Not interchangeable.
+    - trap: "QSR TAGS A DECOY."
+      detail: >
+        CapitalExpendituresIncurredButNotYetPaid (FY2024-2025) is an accrual
+        disclosure, not cash capex. Mapping it would be wrong.
+    - trap: "OTEX USES A DIFFERENT CAPEX TAG."
+      detail: >
+        PaymentsToAcquireProductiveAssets, not PaymentsToAcquirePropertyPlantAnd
+        Equipment. Checking only the common tag reports OTEX as uncovered.
+  method_error_worth_keeping: >
+    The first pass reported a uniform FY2023 gap for SHOP across EVERY concept. It
+    was an artifact: company-facts' `fy` field is the FILING's fiscal year, not the
+    fact's period, so a fact for the period ending 2023 appears under fy=2024 and
+    fy=2025 as a comparative. Verified by re-bucketing on `end` instead. A gap that
+    appears in every concept at once is a method smell, not a coverage finding —
+    the same fiscal-year-bucketing trap as the original shares_outstanding dei bug.
+  status_of_epic_6: >
+    Still `deferred` in epic_catalog, deliberately. This spike answers the DATA
+    question and does not answer the PRODUCT questions Epic 6's acceptance criteria
+    also need — forecast horizon, terminal-value method, whether the discount rate is
+    user-supplied or computed, which variable the model solves backward for, and which
+    two variables carry the sensitivity range. Those still want a decision packet.
+  carry_forward: >
+    Per Story 5.1's lesson, treat every finding here as a HYPOTHESIS until the build
+    re-checks it live. 5.1's central claim was false and two of its coverage findings
+    were wrong; this spike already caught one of its own errors mid-flight.
+
+
+# Opened 2026-08-04 by Story 5.6. Not a 5.6 defect — 5.6 correctly reports
+# insufficient_data — but it is the only reason SHOP has no near-term debt share.
+shop_convertible_debt_unmapped:
+  status: open
+  found: 2026-08-04
+  found_by: "Story 5.6 (near-term debt share) — SHOP is the one filer the metric cannot resolve"
+  issue: >
+    SHOP's convertible notes are its entire debt load, and `long_term_debt` is unmapped
+    for SHOP: ConvertibleDebtNoncurrent is deliberately not a source, because the notes
+    flip between the Current and Noncurrent tags as they approach maturity and mapping
+    only the noncurrent side would make leverage appear to fall to zero while the debt
+    is still outstanding.
+  why_it_matters: >
+    Story 5.6 now maps ConvertibleDebtCurrent, so BOTH halves are available for the
+    first time — which is precisely the condition under which the original objection
+    stops applying. Mapping the noncurrent half would give SHOP a near-term debt share
+    for FY2023-2024, and would also resolve Piotroski's leverage signal and Beneish's
+    LVGI for SHOP, which currently read as insufficient_data.
+  why_not_fixed_here: >
+    It changes SHOP's hand-verified Piotroski F-score and Beneish M-score, both golden
+    values. That needs its own change with its own hand-verification pass, not a
+    side-effect of a presentation-rule story.
+  reachability: >
+    CONFIRMED. Verified live 2026-08-04: ConvertibleDebtCurrent covers FY2023-2025 and
+    ConvertibleDebtNoncurrent FY2019-2024, overlapping in FY2023 and FY2024.
+
+# Rationale behind each epic's decomposition state, moved out of sprint-status.yaml's
+# `epic_catalog` on 2026-08-20. The catalog keeps only the four fields the tests
+# require (title, decomposition, deferred_under, decompose_when) — 102 words. These
+# were the other 384, i.e. 79% of that section: arguments for decisions already
+# taken, plus `epic-6.known_gap` (Suncor's capex), which was a finding sitting in
+# the tracker by any reading.
+epic_decomposition_rationale:
+  epic-6:
+    decomposed_on: 2026-08-06
+    note: 'Decomposed WITHOUT a decision packet, deliberately, and the reasoning is recorded
+      because it reverses this file''s own earlier position. D9''s binding criterion governs
+      BUILD order — which feature is built next — not planning order. The "do not decompose"
+      rule was an inference stated in epics.md, not a clause in D9, and it does not hold:
+      acceptance criteria commit nothing, since a story can sit in the backlog unbuilt.
+      Deferring Epics 6-9 as a block treated four epics with four different blockers as
+      one case.
+
+      The test applied instead is per-epic: can the acceptance criteria be written truthfully
+      today? Epic 6''s could, once Story 6.1''s spike (2026-08-06) answered the data question.
+      Its five remaining product questions are judgement calls, not evidence questions,
+      and are recorded in epics.md as assumptions A-1..A-5 — horizon, terminal method,
+      discount-rate treatment, solve-target and sensitivity axes — each explicitly reversible
+      rather than presented as a finding.
+
+      '
+    d9_still_governs: 'What gets BUILT next is still chosen from the largest observed
+      research failure, per D10''s decision packet. A planned backlog is what that choice
+      selects from. Decomposition is not a commitment to build.
+
+      '
+    known_gap: 'Suncor resolves no capex and is insufficient_data for the whole epic.
+      Story 6.2 must also settle an interest-classification decision: US GAAP mandates
+      interest paid inside operating activities while IAS 7 permits operating or financing,
+      so cash_from_operations is not comparable across regimes as filed. Same shape as
+      D8 consequence 3.
+
+      '
+  epic-7:
+    reason: 'Same criterion as Epic 6, one step further out. Scoped in epics.md (intent
+      and FR coverage) but not decomposed, because its position depends on what Epic 6''s
+      decision packet exposes.
+
+      '
+  epic-8:
+    reason: 'Headline only in epics.md — deliberately the least specified, because it
+      is furthest from evidence. Its depth is explicitly meant to be set by "the depth
+      the decision workflow proves it needs", which cannot be known yet. A further constraint
+      is already recorded: trend depth must honestly reflect per-filer coverage (IFRS
+      40-F filers start ~FY2017, ~9 years, against OTEX''s 24 under us-gaap), so no fixed
+      decade-long promise can be written into a story.
+
+      '
+  epic-9:
+    reason: 'Headline only, and last by design. D9 places it last because it is the heaviest
+      lift in the roadmap and depends on a citation-evaluation framework that does not
+      yet exist; D7 additionally confines LangGraph to the explain/retrieve/cite surface.
+      Both constraints have to be satisfied before stories are meaningful.
+
+      '
+
+# Evidence for CLOSED retrospective action items, moved out of sprint-status.yaml on
+# 2026-08-20. bmad-sprint-planning's own note says the tracker "surfaces open ones";
+# these four closed entries were 386 of that section's 427 words, while the single
+# genuinely open item (the DoD spot-check, owner: Lawrence) was 41. The tracker keeps
+# each closed item as a one-line pointer here, so BMad's carry-over contract holds.
+action_item_evidence:
+- action: Resume the golden-dataset investigation in a session with real Docker/Postgres/EDGAR/Tiingo
+    access; SM-1 is not met until real hand-verified values replace the placeholder golden
+    dataset
+  epic: 4
+  resolved: 2026-07-29
+  evidence: backend/tests/golden/phase1_golden.yaml — all four companies hand-verified
+    against raw EDGAR company-facts JSON (2026-07-23/25/26/29); no pending_fixture entries
+    remain. Closes PRD OQ1.
+  reopened_and_reclosed: '2026-08-04. The D8 universe expansion to 7 filers left CCJ,
+    BCE and SU scored but NOT hand-verified, so SM-1''s ''every score for the Phase 1
+    universe'' no longer held against the universe it was closed on. All three verified
+    2026-08-04 and added; golden coverage is 7 of 7 again. Lesson: SM-1 is a claim about
+    the universe, so expanding the universe reopens it.'
+- action: Diagnose SHOP's null Altman aggregate and Beneish's zero-coverage concept mappings
+  epic: 4
+  resolved: 2026-07-29
+  evidence: 'SHOP''s Altman resolves (z_score 36.292041, band Safe — phase1_golden.yaml).
+    Its Beneish is CORRECTLY insufficient_data, not a coverage bug: SHOP genuinely carries
+    no long_term_debt XBRL tag (a real zero-debt company), so LVGI and the M aggregate
+    cannot resolve.'
+- action: Audit bandTone() and similar frontend string-matching against backend-authored
+    labels for coverage gaps across all 4 models
+  epic: 4
+  resolved: 2026-07-29
+  evidence: All 10 band labels emitted by backend/formulas/specs/*.yaml traced through
+    bandTone() in frontend/app/components/ui/Badge.tsx — Altman Safe/Grey/Distress, Piotroski
+    Strong/Middle/Weak, Beneish flagged/no-flag, Sloan low/high accruals. All map to the
+    intended tone; 'High accruals (lower quality)' does not false-match the 'low accrual'
+    branch. Unrecognized labels fall back to neutral by design.
+  follow_up: 'RESOLVED 2026-08-14 by PR #76. Was: bandTone()''s docstring lists only Piotroski/Altman/Sloan
+    and omits Beneish — cosmetic, fix when that file is next touched. The docstring now
+    names all four models and the ten labels. It was NOT merely cosmetic: the 2026-07-29
+    audit that found the code correct left no test, so nothing held the rule. Badge.test.ts
+    now pins all ten labels plus the two substring near-misses, both verified by mutation
+    — loosening ''no manipulation'' to ''manipulation'' renders a FLAGGED Beneish result
+    green, and loosening ''low accrual'' to ''low'' renders ''High accruals (lower quality)''
+    green because ''lower'' contains ''low''. Each break fails two tests.'
+- action: Decide whether to add a CI pipeline, since none exists and PRs are landing without
+    automated checks
+  epic: 4
+  evidence: .github/workflows/ci.yml (commit d8ea4de) — backend job (postgres:17 -> alembic
+    -> ruff -> pytest) and frontend job (node 22 -> eslint -> next build), gating push
+    to main and every PR.

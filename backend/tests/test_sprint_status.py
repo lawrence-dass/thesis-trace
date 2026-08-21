@@ -35,6 +35,9 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 STATUS_PATH = REPO_ROOT / "_bmad-output" / "implementation-artifacts" / "sprint-status.yaml"
+FINDINGS_PATH = (
+    REPO_ROOT / "_bmad-output" / "implementation-artifacts" / "engineering-findings.yaml"
+)
 EPICS_PATH = REPO_ROOT / "_bmad-output" / "planning-artifacts" / "epics.md"
 
 # The state machine documented at the top of sprint-status.yaml itself.
@@ -43,15 +46,20 @@ STORY_STATUSES = frozenset({"backlog", "ready-for-dev", "in-progress", "review",
 RETRO_STATUSES = frozenset({"optional", "done"})
 DECOMPOSITION_STATES = frozenset({"decomposed", "deferred"})
 
-#: Sections carrying findings that are NOT derivable from epics.md. Named
-#: explicitly because bmad-sprint-planning regenerates this file from a template
-#: whose preservation rule covers `action_items` alone — running it verbatim
-#: would silently drop every other entry here. If a section is deliberately
-#: retired, delete it from this list in the same change, so the removal is a
-#: reviewed decision rather than an accident.
+#: Sections carrying findings that are NOT derivable from epics.md. They lived in
+#: sprint-status.yaml until 2026-08-20 because bmad-sprint-planning regenerates
+#: that file from a template whose preservation rule covers `action_items` alone,
+#: and this list was the only thing standing between a regeneration and their
+#: silent loss. They now live in engineering-findings.yaml, which nothing
+#: regenerates — but the list is still enforced, so a section can only disappear
+#: if it is dropped from here in the same change: a reviewed decision, not an
+#: accident. The tracker is checked too, to catch a finding re-added to it.
+#: Sections that must survive in the TRACKER. `action_items` is the one thing
+#: bmad-sprint-planning's template preserves on its own; `epic_catalog` is not,
+#: and carries every epic title plus the deferral reason behind each `blocked`.
+TRACKER_CURATED = ("action_items", "epic_catalog")
+
 CURATED_SECTIONS = (
-    "action_items",
-    "epic_catalog",
     "post_epic_work",
     "d8_ifrs_track",
     "qsr_gross_profit_reverification",
@@ -66,6 +74,10 @@ CURATED_SECTIONS = (
     "shop_local_history_is_not_edgar_coverage",
     "canonical_facts_amendment_gap",
     "shop_convertible_debt_unmapped",
+    # Moved out of the tracker's own sections on 2026-08-20 — see the note above
+    # `TRACKER_CURATED`. Protected here for the same reason as the rest.
+    "epic_decomposition_rationale",
+    "action_item_evidence",
 )
 
 pytestmark = pytest.mark.skipif(
@@ -99,6 +111,11 @@ def _epic_title(heading: str) -> str:
 @pytest.fixture(scope="module")
 def status() -> dict:
     return yaml.safe_load(STATUS_PATH.read_text())
+
+
+@pytest.fixture(scope="module")
+def findings() -> dict:
+    return yaml.safe_load(FINDINGS_PATH.read_text())
 
 
 def test_sprint_status_is_parseable_yaml_at_all():
@@ -329,29 +346,76 @@ def test_decomposition_state_matches_whether_stories_actually_exist(status, decl
     assert not problems, "decomposition state disagrees with reality:\n  " + "\n  ".join(problems)
 
 
-def test_deferred_epics_name_a_decision_and_an_exit_condition(status):
+def test_deferred_epics_name_a_decision_and_an_exit_condition(status, findings):
     """A deferral with no named decision is indistinguishable from procrastination, and
-    one with no exit condition never ends — nothing would ever prompt a re-check."""
+    one with no exit condition never ends — nothing would ever prompt a re-check.
+
+    The guarantee is unchanged since 2026-08-20; only where it is satisfied moved. The
+    tracker keeps the two STRUCTURAL fields (`deferred_under`, `decompose_when`), and
+    the discursive `reason` — why this epic specifically, 30-73 words apiece — now
+    lives in engineering-findings.yaml. Requiring it there rather than dropping it
+    matters: it is the field that distinguishes a considered deferral from an
+    unexamined one, and this is now the binding that keeps the two files in step.
+    """
     problems = []
+    rationale = findings.get("epic_decomposition_rationale", {})
     for key, entry in status["epic_catalog"].items():
         if entry.get("decomposition") != "deferred":
             continue
-        for field in ("deferred_under", "reason", "decompose_when"):
+        for field in ("deferred_under", "decompose_when"):
             if not str(entry.get(field, "")).strip():
-                problems.append(f"{key}: deferred but has no {field}")
+                problems.append(f"{key}: deferred but has no {field} in sprint-status.yaml")
+        if not str(rationale.get(key, {}).get("reason", "")).strip():
+            problems.append(
+                f"{key}: deferred but has no `reason` under "
+                "engineering-findings.yaml#epic_decomposition_rationale"
+            )
     assert not problems, "incomplete deferral(s):\n  " + "\n  ".join(problems)
 
 
-def test_curated_sections_survive(status):
-    """bmad-sprint-planning regenerates this file from a template that preserves
-    only `action_items`. Everything else here is a finding not derivable from
-    epics.md — the debt-maturity spike and its correction, the amendment gap, the
-    D8 track. Losing them to a regeneration would be silent and unrecoverable
-    except from git."""
-    lost = [s for s in CURATED_SECTIONS if s not in status]
+def test_curated_sections_survive(findings, status):
+    """Every finding is still on record, and none has drifted back into the tracker.
+
+    These sections were kept alive inside sprint-status.yaml for months because
+    bmad-sprint-planning regenerates that file and preserves only `action_items`;
+    this list was the only thing that would have caught their loss. Since
+    2026-08-20 they live in engineering-findings.yaml, which nothing regenerates.
+    The list is still enforced because the original risk has only moved, not gone:
+    a section can be deleted by hand as easily as by a generator, and either way
+    the loss is silent and recoverable only from git.
+    """
+    lost = [f"{s} (engineering-findings.yaml)" for s in CURATED_SECTIONS if s not in findings]
+    lost += [f"{s} (sprint-status.yaml)" for s in TRACKER_CURATED if s not in status]
     assert not lost, (
-        f"curated section(s) missing: {lost}. If a regeneration dropped them, restore "
-        "from git; if the removal was deliberate, drop them from CURATED_SECTIONS too."
+        f"curated section(s) missing: {lost}. If a regeneration or an edit dropped "
+        "them, restore from git; if the removal was deliberate, drop them from "
+        "CURATED_SECTIONS / TRACKER_CURATED in the same change."
+    )
+    strayed = [s for s in CURATED_SECTIONS if s in status]
+    assert not strayed, (
+        f"finding(s) back in sprint-status.yaml: {strayed}. The tracker records what "
+        "is DONE and what is LEFT; findings belong in engineering-findings.yaml."
+    )
+
+
+def test_the_tracker_holds_only_tracking(status):
+    """The split of 2026-08-20 is enforced, not merely performed.
+
+    sprint-status.yaml reached 1,279 lines — 14 finding sections against ~115 lines
+    of actual status — one story at a time, each addition individually reasonable.
+    Nothing resisted it, so nothing stopped it, and the file lost the ability to
+    answer the only question it exists to answer. This test is what resists it now:
+    a new top-level key here has to be a deliberate change to this allow-list.
+    """
+    allowed = {
+        "generated", "last_updated", "project", "project_key", "tracking_system",
+        "story_location", "development_status", "epic_catalog", "action_items",
+    }
+    extra = sorted(set(status) - allowed)
+    assert not extra, (
+        f"unexpected top-level key(s) in sprint-status.yaml: {extra}. A finding, "
+        "spike or verification belongs in engineering-findings.yaml. If this really "
+        "is tracking data, add it to `allowed` here in the same change."
     )
 
 
