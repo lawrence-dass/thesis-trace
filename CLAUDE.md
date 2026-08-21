@@ -49,6 +49,40 @@ grep -n "pattern" bigdoc.md                    # locate a section before reading
 - Canonical contract: `_bmad-output/specs/spec-thesistrace/SPEC.md` (+ its adopted companions: the architecture spine, the PRD, and `foundational-decisions.md`).
 - Deterministic/LLM boundary is inviolable: all scores/numbers are computed deterministically; the LLM only explains and cites, never originates a figure.
 
+## Definition of Done — live-data stories (read before calling one finished)
+
+**Applies to any story that touches SEC EDGAR / Tiingo / Bank-of-Canada ingestion,
+concept mapping, a formula spec, or a figure rendered to a user.** Ordinary code
+stories use the normal bar: tests pass, lint and types clean, PR green.
+
+The extra bar exists because on this project a green suite has repeatedly meant
+nothing. Story 5.4: four real bugs behind 27 passing tests. PR #74: a figure
+rendering "0.97B" on two live pages, behind 34 passing tests, a clean `tsc`, and a
+written analysis of that exact helper. Rendering the page is what found both.
+
+1. **Verify per-year coverage against live `data.sec.gov` company-facts — never tag
+   existence.** A tag can exist and not cover the years you need; filers switch tags
+   mid-history (CP's PP&E, FY2021). This is the class the original `shares_outstanding`
+   bug belonged to, and it recurs per taxonomy.
+2. **Check it is not already answered first.** `engineering-findings.yaml` holds the
+   spikes and live verifications; re-fetching wastes a permission ask and risks
+   recording a worse answer than the one already there.
+3. **A coverage gap may be a DECISION, not a defect** — grep the mapping spec and read
+   the `note` before "fixing" it. BCE's debt stopping at FY2023 looks exactly like a
+   tag-switch bug and is a live-verified comparability choice.
+4. **A gap in every concept at once is a method smell, not a finding.** Real tagging
+   gaps are concept-specific. Re-bucket on `end`, not EDGAR's `fy`.
+5. **Render it in a browser**, and choose subjects by which code paths they exercise,
+   not by convenience. A spot-check only covers the filers you picked — Story 6.6 was
+   clean on four and broken on the two not chosen.
+6. **Before writing golden entries, confirm the fixture can exercise the new concept.**
+   The golden fixtures are trimmed subsets; an entry a fixture cannot reproduce pins an
+   outcome while asserting nothing.
+7. **Record the verification** in `engineering-findings.yaml`, and **ask for every
+   domain, ticker and CIK in one request** (standing preference 4).
+
+Full incident record: `.claude/context/project-context.md`.
+
 ## Git workflow (read before making any commit)
 
 Lawrence runs multiple sessions on this repo (desktop and cloud, sometimes overlapping) — a prior collision between two concurrent sessions caused a real divergence (see `_bmad-output/archive/HANDOFF-2026-07-29.md`'s "Real bug found and fixed post-implementation" section for the full story), and a second collision occurred on 2026-08-15 by a different route (rule 5). Rules 1-4 govern what each session commits; rule 5 governs where it works, and the two failures came from those two different places:
