@@ -121,6 +121,34 @@ async def canonicalize_issuer(
         await session.execute(select(RawFact).where(RawFact.accession_number.in_(accns)))
     ).scalars().all()
 
+    # (concept, fiscal_year) ambiguities THIS module has already recorded for the
+    # issuer. Without this the insert below has no idempotency key, which is the
+    # anti-pattern `run_validation` was given a dedup for in PR #22 — the one
+    # writer that was missed. It does not bite in daily operation, because an
+    # already-canonicalized issuer is skipped wholesale before reaching here; it
+    # bites on a MAPPING-VERSION BUMP, which re-resolves every concept and so
+    # re-flags every unresolvable one. Found 2026-08-21 by rendering SHOP's page
+    # after the concepts_v9 bump: 24 identical "Ambiguous source selection" rows
+    # for SHOP and 18 for CP, with BCE's and OTEX's four apiece doubled to eight.
+    #
+    # Deliberately IGNORES status, so a `dismissed` issue is not resurrected as a
+    # fresh `needs_review` one — the same requirement recorded for validation.
+    existing_ambiguities = {
+        (d.get("canonical_concept"), d.get("fiscal_year"))
+        for d in (
+            await session.execute(
+                select(DataQualityIssue.detail)
+                .join(Filing, Filing.accession_number == DataQualityIssue.accession_number)
+                .where(
+                    Filing.issuer_cik == issuer_cik,
+                    DataQualityIssue.raised_by == "canonicalization",
+                    DataQualityIssue.issue_type == "ambiguous_selection",
+                )
+            )
+        ).scalars()
+        if d
+    }
+
     # Group candidate raw_facts by (canonical_concept, fiscal_year).
     fye_day = _issuer_fye_day(filings)
     grouped: dict[tuple[str, int], list[RawFact]] = defaultdict(list)
@@ -172,6 +200,9 @@ async def canonicalize_issuer(
 
         if len(distinct_values) > 1:
             # Rules cannot separate conflicting values — flag, do not guess (AD-3).
+            if (canonical, fiscal_year) in existing_ambiguities:
+                continue
+            existing_ambiguities.add((canonical, fiscal_year))
             session.add(
                 DataQualityIssue(
                     accession_number=best.accession_number,

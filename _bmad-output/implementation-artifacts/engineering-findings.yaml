@@ -994,7 +994,7 @@ story_6_1_reverse_dcf_coverage_spike:
 # Opened 2026-08-04 by Story 5.6. Not a 5.6 defect — 5.6 correctly reports
 # insufficient_data — but it is the only reason SHOP has no near-term debt share.
 shop_convertible_debt_unmapped:
-  status: open
+  status: done
   found: 2026-08-04
   found_by: "Story 5.6 (near-term debt share) — SHOP is the one filer the metric cannot resolve"
   issue: >
@@ -1016,6 +1016,43 @@ shop_convertible_debt_unmapped:
   reachability: >
     CONFIRMED. Verified live 2026-08-04: ConvertibleDebtCurrent covers FY2023-2025 and
     ConvertibleDebtNoncurrent FY2019-2024, overlapping in FY2023 and FY2024.
+  resolved: 2026-08-21
+  resolution: >-
+    MAPPED at concepts_v9, flagged rather than plain. The recorded premise — that
+    Story 5.6 mapping ConvertibleDebtCurrent removed the original objection — is
+    only HALF right, and the half that fails is the one that matters for the two
+    blocked models. Verified live 2026-08-21: SHOP's two convertible tags are
+    exactly complementary and never both non-zero (noncurrent FY2019-2024, current
+    FY2023-2025), because the notes flip to current in FY2024 and are settled by
+    FY2025. Beneish LVGI reads (current_liabilities + long_term_debt), so the flip
+    preserves the sum and LVGI resolves correctly. Piotroski leverage_decreasing
+    reads long_term_debt ALONE, so FY2023 916/11299 against FY2024 0/13924 scores a
+    point for deleveraging that did not happen. Annotated via like_for_like: false,
+    never corrected — Piotroski's signal is defined on long-term debt and under that
+    definition the fall is real; adjusting it would be ThesisTrace originating
+    methodology. Same posture as Cameco FY2021's Beneish of +20.84.
+  outcome: >-
+    SHOP FY2024 now resolves Piotroski F-score 6 (was 5), Beneish M -1.981461 (was
+    insufficient_data), near-term debt share 1.0 (every dollar due within twelve
+    months, because the notes reclassified), and a reverse DCF of 52.8% implied
+    against 44.6% achieved — its first enterprise value. All hand-verified against
+    the fixture's own filed figures, importing nothing from backend/scoring or
+    backend/formulas. FY2022 stays insufficient_data: two filings report it as
+    913.312M and 913.000M and AD-3 cannot separate them, so it is flagged
+    ambiguous_selection rather than guessed.
+  golden_fixture_note: >-
+    shop_real_company_facts.json did NOT carry ConvertibleDebtNoncurrent, so a
+    golden entry written before checking would have pinned an outcome the fixture
+    could not reproduce — the trap the live-data DoD's clause 6 exists for, hit on
+    the first story after the DoD was written. Rebuilt from the dev store's own
+    raw_facts (real EDGAR, accession 0001594805-25-000012) rather than re-fetching.
+  also_corrected: >-
+    The golden entry's Beneish block asserted "SHOP genuinely has no long_term_debt
+    XBRL tag at all (confirmed live: a real zero-debt company)". False — SHOP tags
+    ConvertibleDebtNoncurrent for six years. The tag was deliberately UNMAPPED,
+    which is a different fact; the note had turned a mapping decision into a claim
+    about the filer.
+
 
 # Rationale behind each epic's decomposition state, moved out of sprint-status.yaml's
 # `epic_catalog` on 2026-08-20. The catalog keeps only the four fields the tests
@@ -1161,3 +1198,36 @@ action_item_evidence:
     four real bugs behind 27 passing tests, and PR #74 rendered '0.97B' on two live
     pages behind 34 passing tests, a clean tsc and a written analysis of that exact
     helper.
+
+
+# Found 2026-08-21 while browser-checking the concepts_v9 bump — the live-data DoD's
+# "render it" clause, on the first story after that DoD was written.
+ambiguity_flagging_had_no_idempotency_key:
+  status: done
+  found: 2026-08-21
+  found_by: >-
+    Rendering SHOP's company page after the concepts_v9 re-canonicalization. The page
+    showed a wall of identical "Ambiguous source selection" rows. No test saw it,
+    because no test canonicalized one issuer under two mapping versions.
+  issue: >-
+    canonicalize.py flagged an unresolvable AD-3 selection with a bare
+    session.add(DataQualityIssue(...)) and no idempotency key. Invisible in daily
+    operation, because an already-canonicalized issuer is skipped wholesale before
+    reaching the flagging branch — but a MAPPING-VERSION BUMP re-resolves every
+    concept and re-flags every unresolvable one, so the UI gains a duplicate warning
+    per bump. Counts after the v9 pass: SHOP 24, CP 18, BCE and OTEX 8 apiece.
+  pre_existing: >-
+    Not introduced by concepts_v9, only exposed by it. BCE and OTEX deduplicated to
+    TWO rows each, below the four they carried before this session — so their
+    "four" was already two real ambiguities doubled by the earlier v7 to v8 bump.
+  same_class_as: >-
+    The run_validation accumulation fixed in PR #22, whose lesson is recorded as an
+    anti-pattern in project-context.md. This was the one writer that was missed, and
+    the anti-pattern's own wording ("canonicalize_issuer already models the pattern")
+    is what made it look covered.
+  fix: >-
+    Pre-fetch the issuer's existing canonicalization-raised ambiguity keys and skip a
+    concept/year already on record. Deliberately ignores status, so a dismissed issue
+    is not resurrected as a fresh needs_review one. Guarded by
+    test_an_ambiguity_is_flagged_once_not_once_per_mapping_version, verified to fail
+    when the guard is removed. Dev store deduplicated: 59 rows to 31.

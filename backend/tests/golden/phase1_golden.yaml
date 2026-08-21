@@ -49,7 +49,7 @@ companies:
       # only comparative — SHOP has no standalone FY2023 10-K at all). See
       # shop_real_company_facts.json.
       piotroski:
-        f_score: 5
+        f_score: 6
       sloan:
         accruals_ratio: 0.031955
         band: "Low accruals (higher quality)"
@@ -57,22 +57,35 @@ companies:
         z_score: 36.292041
         band: "Safe"
       beneish:
-        # SHOP genuinely has no long_term_debt XBRL tag at all (confirmed
-        # live: a real zero-debt company) — LVGI, and so the aggregate M,
-        # is correctly insufficient_data rather than a bug to chase.
-        m_score: null
-        band: null
-      # Story 5.6: SHOP is the one filer with no near-term debt share, and the
-      # reason is a pre-existing deliberate decision rather than a gap here. Its
-      # near_term_debt resolves from ConvertibleDebtCurrent (FY2023-2025), but
-      # `long_term_debt` is unmapped for SHOP because its convertible notes flip
-      # between the Current and Noncurrent tags as they near maturity — so the
-      # total_debt derivation has no second operand. Reversing that would move
-      # SHOP's hand-verified Piotroski and Beneish values and belongs in its own
-      # change. insufficient_data, never a partial figure (AD-16).
+        # CORRECTED 2026-08-21. This block previously read "SHOP genuinely has no
+        # long_term_debt XBRL tag at all (confirmed live: a real zero-debt company)".
+        # That was wrong: SHOP tags ConvertibleDebtNoncurrent FY2019-2024. The tag
+        # was deliberately UNMAPPED, which is a different fact, and the note turned
+        # a mapping decision into a claim about the filer. Mapped at concepts_v9.
+        #
+        # Hand-verified 2026-08-21 from the fixture's own filed figures, importing
+        # nothing from backend/scoring or backend/formulas, and honouring
+        # beneish_v1.yaml's quantization contract — every division rounded to 6
+        # places, ROUND_HALF_EVEN. Two earlier hand-passes disagreed at 2e-5 by
+        # quantizing only the final index.
+        # DSRI 0.964224  GMI 0.988624  AQI 1.080285  SGI 1.257790
+        # DEPI 1.356208  SGAI 0.663882  TATA 0.028943  LVGI 0.875001
+        m_score: -1.981461
+        band: "No manipulation flag"
+      # RESOLVED at concepts_v9 (2026-08-21). Story 5.6 recorded this as
+      # insufficient_data because `long_term_debt` was unmapped for SHOP, so the
+      # total_debt derivation had no second operand. Both operands now exist:
+      # near_term_debt 918M (ConvertibleDebtCurrent) and long_term_debt 0
+      # (ConvertibleDebtNoncurrent), giving total_debt 918M and a share of exactly
+      # 1.0 — every dollar of SHOP's debt is due within twelve months in FY2024,
+      # because the notes flipped to current that year rather than being repaid.
+      # A real 100%, not a degenerate one: FY2025 shows them settled.
       near_term_debt_share:
-        insufficient_data: true
-        reason: "no total_debt — long_term_debt deliberately unmapped for SHOP"
+        share: 1.0
+        band: "Concentrated near term"
+        near_term_debt: 918000000
+        total_debt: 918000000
+        total_source: "derived: total_debt_current_plus_noncurrent"
       debt_maturity_profile:
         no_profile: true
         reason: "no debt maturity ladder filed; SHOP tags a LEASE ladder, which is not this"
@@ -80,9 +93,33 @@ companies:
       # the same reason its debt share is (long_term_debt deliberately unmapped —
       # see `shop_convertible_debt_unmapped` in engineering-findings.yaml). A REAL outcome, not
       # a fixture gap: the capex and cash tags ARE present for FY2024.
+      # RESOLVED at concepts_v9 (2026-08-21). Story 6.7 recorded insufficient_data
+      # with reason "total debt", because total_debt could not be derived while
+      # long_term_debt was unmapped. Mapping ConvertibleDebtNoncurrent supplies the
+      # missing operand, so SHOP reaches an enterprise value for the first time.
+      # implied_growth 0.527762 was solved INDEPENDENTLY of backend/valuation by
+      # bisection over reverse_dcf_v1's declared range, written from the spec text
+      # (same constraint as the harness's own solver). SHOP is priced at roughly 85x
+      # free cash flow, so the figure is high but is a real root inside the range,
+      # not a clamped bound. Operands are asserted too, since a wrong component can
+      # hide behind a right-looking aggregate (the D8 lesson).
       reverse_dcf:
-        insufficient_data: true
-        reason_contains: "total debt"
+        insufficient_data: false
+        assumptions:
+          discount_rate: 0.10
+          terminal_growth: 0.025
+          horizon_years: 5
+        operands:
+          cash_from_operations: 1616000000
+          capex: 19000000
+          free_cash_flow: 1597000000
+          total_debt: 918000000
+          cash_and_equivalents: 1498000000
+          shares_outstanding: 1289812124
+          market_price: 106.33
+          market_cap: 137145723144.92
+          enterprise_value: 136565723144.92
+        implied_growth: 0.527762
 
   - ticker: QSR
     status: active

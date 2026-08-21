@@ -92,6 +92,63 @@ async def test_conflicting_values_flag_ambiguity_not_guess(db_session) -> None:
 
 
 @requires_db
+
+async def test_an_ambiguity_is_flagged_once_not_once_per_mapping_version(db_session):
+    """The ambiguity writer needs an idempotency key, like every other pipeline writer.
+
+    `session.add(DataQualityIssue(...))` ran unconditionally. That is invisible in
+    daily operation, because an already-canonicalized issuer is skipped wholesale
+    before reaching the flagging branch — but a MAPPING-VERSION BUMP re-resolves
+    every concept and so re-flags every unresolvable one. Found 2026-08-21 by
+    rendering SHOP's page after the concepts_v9 bump: a wall of 24 identical
+    "Ambiguous source selection" rows, with CP at 18 and BCE's and OTEX's four
+    apiece doubled to eight. No test saw it, because no test canonicalized the same
+    issuer under two versions.
+
+    Same class as the `run_validation` accumulation fixed in PR #22 — this was the
+    one writer that was missed.
+    """
+    cik = await _ingest(db_session)
+    db_session.add(
+        RawFact(
+            accession_number="0001594805-25-000010",
+            taxonomy="us-gaap",
+            concept="Assets",
+            unit="USD",
+            period_end=date(2024, 12, 31),
+            value=99999999999,
+            source="inline_xbrl",
+            content_hash="conflict-hash-idempotency",
+            fetched_at=datetime(2020, 1, 1, tzinfo=timezone.utc),
+        )
+    )
+    await db_session.flush()
+
+    async def issue_count() -> int:
+        rows = (
+            await db_session.execute(
+                select(DataQualityIssue).where(
+                    DataQualityIssue.issue_type == "ambiguous_selection"
+                )
+            )
+        ).scalars().all()
+        return len(rows)
+
+    await canonicalize_issuer(db_session, cik)
+    await db_session.flush()
+    after_first = await issue_count()
+    assert after_first >= 1, "the conflicting fact should have been flagged at all"
+
+    # A NEW mapping version: every concept is re-resolved, so the flagging branch
+    # runs again. This is the exact condition that produced the wall of duplicates.
+    await canonicalize_issuer(db_session, cik, mapping_version="concepts_probe")
+    await db_session.flush()
+    assert await issue_count() == after_first, (
+        "a mapping-version bump re-flagged an ambiguity that was already on record — "
+        "the writer has lost its idempotency key, and the UI will show the same "
+        "warning once per version bump"
+    )
+
 async def test_shares_outstanding_prefers_point_in_time_over_dei_and_ignores_wrong_year_dei(db_session) -> None:
     """Regression guard (AD-3/AD-11): dei:EntityCommonStockSharesOutstanding is dated to
     the filing date, not FYE — for a December filer that files in Jan/Feb, its `end` date
