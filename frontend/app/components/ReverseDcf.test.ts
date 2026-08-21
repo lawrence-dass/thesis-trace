@@ -3,9 +3,11 @@ import {
   OPERAND_LABEL_KEYS,
   bandGeometry,
   formatRate,
+  hasNoFigure,
   inlineLabel,
   joinList,
   labelFor,
+  showsCaveats,
 } from "./ReverseDcf";
 
 /** Story 6.6 shipped these as pure, trivially testable, untested functions —
@@ -211,5 +213,49 @@ describe("bandGeometry", () => {
     expect(pos(0.164)).toBeLessThan(pos(0.516));
     expect(bandLeft).toBeGreaterThanOrEqual(0);
     expect(bandLeft + bandWidth).toBeLessThanOrEqual(100);
+  });
+});
+
+
+describe("showsCaveats", () => {
+  const caveat = ["This company spends heavily on long-lived assets…"];
+
+  it("hides caveats when the run produced no figure", () => {
+    // SUNCOR, the case this rule exists for. Its card read "Insufficient data —
+    // no free cash flow" and then asserted that a model "will therefore imply a
+    // high growth rate for it", annotating a number that was not there.
+    expect(showsCaveats({ insufficient_data: true, implied_growth: null, caveats: caveat })).toBe(false);
+  });
+
+  it("hides them when implied_growth is null even if the flag says otherwise", () => {
+    // Both halves of the condition are load-bearing: a run can carry a null
+    // growth without the flag set, and the card body already treats that as
+    // "no figure". The two must agree, which is why both read one predicate.
+    expect(showsCaveats({ insufficient_data: false, implied_growth: null, caveats: caveat })).toBe(false);
+  });
+
+  it("still shows them when there IS a figure to annotate", () => {
+    // CP and Cameco — capital-intensive, resolving, and exactly who the caveat
+    // was written for. Suppressing it here would lose the explanation of why
+    // their implied growth reads high.
+    expect(showsCaveats({ insufficient_data: false, implied_growth: 0.372, caveats: caveat })).toBe(true);
+  });
+
+  it("shows nothing when there are no caveats", () => {
+    expect(showsCaveats({ insufficient_data: false, implied_growth: 0.372, caveats: [] })).toBe(false);
+    expect(showsCaveats({ insufficient_data: false, implied_growth: 0.372 })).toBe(false);
+  });
+
+  it("agrees with hasNoFigure, which the card body uses", () => {
+    // The gate and the body must not disagree about whether a figure exists —
+    // the fault compactAmount carried, where a gate admitted a value its own
+    // formatter then rendered below the gate's threshold.
+    for (const dcf of [
+      { insufficient_data: true, implied_growth: null },
+      { insufficient_data: false, implied_growth: null },
+      { insufficient_data: false, implied_growth: 0.372 },
+    ]) {
+      expect(showsCaveats({ ...dcf, caveats: caveat })).toBe(!hasNoFigure(dcf));
+    }
   });
 });

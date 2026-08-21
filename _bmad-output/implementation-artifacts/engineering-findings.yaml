@@ -719,6 +719,13 @@ story_6_6_browser_verification:
       "converted at 1.3226 (bank_of_canada, 2023-12-31)"; debt 3.25+31.14=34.38B,
       cash 547.0M+225.0M=772.0M, EV 47.51+34.38-0.772=81.12B all tie out), SU (7.7%
       achieved now visible beside the insufficient-data badge), and CP unchanged.
+  open_observation_outcome: >-
+    The reasoning above ("the caveat arguably explains the absence") was checked live
+    2026-08-21 and is FALSE: Suncor's free cash flow is missing because it tags no
+    capex concept at all, not because capital intensity consumed the cash. The caveat
+    is now suppressed when a run produced no figure. See
+    reverse_dcf_capital_intensity_distortion.correction_to_story_6_6.
+
 
 
 # TWO OPEN ITEMS FROM STORY 6.5, both recorded rather than silently accepted.
@@ -830,7 +837,7 @@ story_6_5_open_deviations:
 # rather than fixtures. Not a 6.3 defect — the solver is correct; this is a property
 # of an FCF-based DCF that the universe makes visible.
 reverse_dcf_capital_intensity_distortion:
-  status: open
+  status: done
   found: 2026-08-11
   found_by: "Story 6.3 — first run of the solver against real concepts_v8 facts"
   finding: >
@@ -865,6 +872,31 @@ reverse_dcf_capital_intensity_distortion:
     and two CROSS ZERO, so leading with the range rather than the point figure
     already stops the capital-intensive filers reading as precise. What remains for
     6.6 is whether the caveat needs visual weight beyond that.
+  resolved: 2026-08-21
+  resolution_of_the_display_question: >-
+    CLOSED. The open question was whether a capital-intensive filer's implied growth
+    needs visual de-emphasis BEYOND the sensitivity band. Story 6.6 shipped without
+    adding any, and the band is the answer: verified in the browser 2026-08-21 that
+    CP leads with "37.2%" beside "achieved 7.8%" and a 16.4-51.6% range, so the point
+    figure never reads as precise. No further weight is warranted, and adding some
+    would be ThesisTrace editorialising a figure it computed correctly. This entry
+    stayed `open` for ten days after the question was in fact settled by shipping —
+    the same drift as the four Epic-4 action items reconciled 2026-07-29.
+  correction_to_story_6_6: >-
+    Story 6.6 recorded that the capital-intensity caveat rendering on Suncor's card
+    was acceptable because "the caveat arguably explains the absence — its reason is
+    'no free cash flow', which is what capital intensity consumes". THAT REASONING IS
+    WRONG, checked live 2026-08-21. Suncor reports 12.3-16.0bn of cash from
+    operations and tags NO capex concept at all, so its free cash flow is missing an
+    OPERAND, not consumed by one. The caveat described a mechanism that had not
+    occurred, above a card reading "Insufficient data". Fixed by gating caveats on
+    `showsCaveats`, which reuses the same `hasNoFigure` predicate the card body uses
+    so the two cannot disagree — the fault compactAmount carried. Presentation only
+    (AD-8): the caveat data is untouched and still travels with every computed run.
+    Both sides of the boundary were verified in the browser — SU loses it, CP keeps
+    it — and pinned by five tests in ReverseDcf.test.ts, confirmed to fail against
+    the pre-fix behaviour.
+
 
 
 # Found 2026-08-06 while running the Epic 6 spike. Not a product defect — a dev
