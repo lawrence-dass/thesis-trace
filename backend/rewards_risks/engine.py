@@ -3,7 +3,7 @@
 
 A ThesisTrace-authored PRESENTATION rule, not an academic model. It SELECTS
 which of the four models' own published bands is reward- or risk-worthy, and
-selects open (non-dismissed) data-quality issues as risks — it never computes
+selects open (`needs_review`) data-quality issues as risks — it never computes
 a new figure, never reclassifies a band, and never uses free text or an LLM.
 Every selection and every sentence shape comes from
 `formulas/specs/rewards_risks_v1.yaml`, where it is labelled as ours.
@@ -22,6 +22,8 @@ from pathlib import Path
 
 import yaml
 
+from formulas.engine import load_spec as load_formula_spec
+
 SPEC_PATH = Path(__file__).resolve().parent.parent / "formulas" / "specs" / "rewards_risks_v1.yaml"
 
 # Category (already on every VerdictItem, FR-5/FR-8) -> report section anchor
@@ -35,6 +37,8 @@ SECTION_FOR_CATEGORY = {
 # Data-quality issues are homed under Integrity & Evidence regardless of
 # which model's inputs raised them (Story 10.5's own placement decision).
 DATA_QUALITY_SECTION = "integrity-evidence"
+OPEN_DATA_QUALITY_STATUS = "needs_review"
+SUPPORTED_MODELS = ("piotroski", "altman", "beneish", "sloan")
 
 
 class RewardRiskKind(str, enum.Enum):
@@ -50,7 +54,9 @@ class RewardRiskItem:
     #: Populated for a model-band bullet; None for a data-quality bullet.
     model: str | None
     fiscal_year: int | None
-    #: Populated for a data-quality bullet; None for a model-band bullet.
+    #: Grouped data-quality bullets intentionally have no single accession;
+    #: the section link is their citation. Model-band bullets likewise point to
+    #: the section containing the cited score and its input provenance.
     accession_number: str | None
     attribution: str
     spec_version: str
@@ -70,7 +76,12 @@ def load_rewards_risks_spec() -> dict:
     """
     if not SPEC_PATH.exists():
         raise RewardsRisksSpecError(f"Rewards/risks spec not found: {SPEC_PATH}")
-    data = yaml.safe_load(SPEC_PATH.read_text())
+    try:
+        data = yaml.safe_load(SPEC_PATH.read_text())
+    except (OSError, yaml.YAMLError) as exc:
+        raise RewardsRisksSpecError(f"Could not load rewards/risks spec: {exc}") from exc
+    if not isinstance(data, dict):
+        raise RewardsRisksSpecError("Rewards/risks spec must be a YAML mapping")
     if data.get("kind") != "thesistrace_presentation_rule":
         raise RewardsRisksSpecError(
             f"{SPEC_PATH.name} is not a thesistrace_presentation_rule; refusing to load it "
@@ -84,16 +95,47 @@ def load_rewards_risks_spec() -> dict:
         "band_risk_template",
         "data_quality_risk_template_singular",
         "data_quality_risk_template_plural",
+        "rationale",
         "attribution",
         "spec_version",
     ):
         if required not in data:
             raise RewardsRisksSpecError(f"Rewards/risks spec missing '{required}'")
+
+    for field in ("reward_bands", "risk_bands", "model_label"):
+        if not isinstance(data[field], dict):
+            raise RewardsRisksSpecError(f"Rewards/risks spec field '{field}' must be a mapping")
+    for field in (
+        "band_reward_template",
+        "band_risk_template",
+        "data_quality_risk_template_singular",
+        "data_quality_risk_template_plural",
+        "rationale",
+        "attribution",
+        "spec_version",
+    ):
+        if not isinstance(data[field], str) or not data[field].strip():
+            raise RewardsRisksSpecError(f"Rewards/risks spec field '{field}' must be non-empty text")
+
+    # The reward/risk rule deliberately quotes the academic models' labels, but
+    # the model specs remain authoritative. Fail at load time if a future model
+    # revision relabels a band instead of silently disabling a headline.
+    for model in SUPPORTED_MODELS:
+        model_spec = load_formula_spec(f"{model}_v1")
+        classes = model_spec.raw.get("bands", {}).get("classes", [])
+        labels = {band.get("label") for band in classes if isinstance(band, dict)}
+        for field in ("reward_bands", "risk_bands"):
+            configured = data[field].get(model)
+            if configured not in labels:
+                raise RewardsRisksSpecError(
+                    f"{field}.{model}={configured!r} is not a published band in {model}_v1"
+                )
     return data
 
 
 def _attribution() -> str:
-    return load_rewards_risks_spec()["attribution"].strip()
+    spec = load_rewards_risks_spec()
+    return f"{spec['rationale'].strip()} {spec['attribution'].strip()}"
 
 
 def _spec_version() -> str:
@@ -104,8 +146,8 @@ def rewards_risks_for_overview(verdict, data_quality) -> list[RewardRiskItem]:
     """Rewards and risks over an already-built Verdict and data-quality list.
 
     `verdict` items need `.model`, `.category`, `.fiscal_year`,
-    `.aggregate_value`, `.band_label`. `data_quality` items need
-    `.issue_type`, `.accession_number`. Duck-typed, like
+    `.aggregate_value`, `.band_label`, `.applicability`. `data_quality` items
+    need `.issue_type`, `.status`. Duck-typed, like
     `trajectories_for_scores`, so this stays decoupled from the API schema
     layer — the read path is one pass over rows the caller already fetched
     (AD-1), never a second query.
@@ -120,20 +162,32 @@ def rewards_risks_for_overview(verdict, data_quality) -> list[RewardRiskItem]:
     items: list[RewardRiskItem] = []
 
     for v in verdict:
-        if v.aggregate_value is None or not v.band_label:
+        if (
+            v.aggregate_value is None
+            or not v.band_label
+            or v.applicability not in {"computed", "computed_with_caveat"}
+        ):
             # No value to plot is not a headline positive or negative — the
-            # glyph and the Verdict grid already say "Insufficient data"
-            # everywhere this belongs; repeating it here would pad the list
-            # rather than surface a real signal.
+            # glyph and the Verdict grid already say "Insufficient data" or
+            # "Unavailable" everywhere this belongs; repeating it here would
+            # pad the list or promote an unsupported score.
             continue
         label = model_label.get(v.model, v.model)
-        section = SECTION_FOR_CATEGORY.get(v.category, "financial-health")
+        section = SECTION_FOR_CATEGORY.get(v.category)
+        if section is None:
+            # A new/corrupt category must not send the reader to a substantive
+            # section that does not contain this model's evidence.
+            continue
+        caveat_suffix = " (with a caveat)" if v.applicability == "computed_with_caveat" else ""
         if v.band_label == reward_bands.get(v.model):
             items.append(
                 RewardRiskItem(
                     kind=RewardRiskKind.reward,
                     text=spec["band_reward_template"].format(
-                        model_label=label, band_label=v.band_label, fiscal_year=v.fiscal_year
+                        model_label=label,
+                        band_label=v.band_label,
+                        fiscal_year=v.fiscal_year,
+                        caveat_suffix=caveat_suffix,
                     ),
                     section=section,
                     model=v.model,
@@ -148,7 +202,10 @@ def rewards_risks_for_overview(verdict, data_quality) -> list[RewardRiskItem]:
                 RewardRiskItem(
                     kind=RewardRiskKind.risk,
                     text=spec["band_risk_template"].format(
-                        model_label=label, band_label=v.band_label, fiscal_year=v.fiscal_year
+                        model_label=label,
+                        band_label=v.band_label,
+                        fiscal_year=v.fiscal_year,
+                        caveat_suffix=caveat_suffix,
                     ),
                     section=section,
                     model=v.model,
@@ -167,8 +224,11 @@ def rewards_risks_for_overview(verdict, data_quality) -> list[RewardRiskItem]:
     # is the citation; Integrity & Evidence lists every row individually.
     counts: dict[str, int] = {}
     for dq in data_quality:
+        if dq.status != OPEN_DATA_QUALITY_STATUS:
+            continue
         counts[dq.issue_type] = counts.get(dq.issue_type, 0) + 1
-    for issue_type, count in counts.items():
+    for issue_type in sorted(counts):
+        count = counts[issue_type]
         template = (
             spec["data_quality_risk_template_singular"]
             if count == 1

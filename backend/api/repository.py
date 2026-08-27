@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
@@ -504,12 +504,19 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
             spec_version=base.spec_version,
         )
 
-    # Open data-quality warnings for this issuer's filings (AD-17, FR-8) — never hidden.
+    # Open data-quality warnings for this issuer (AD-17, FR-8) — never hidden.
+    # Most rows point at a filing; keep canonical-fact-only issues visible too,
+    # since both foreign keys are nullable on the quality-issue table.
     dq_rows = (
         await session.execute(
             select(DataQualityIssue, Filing.issuer_cik)
-            .join(Filing, Filing.accession_number == DataQualityIssue.accession_number)
-            .where(Filing.issuer_cik == issuer.cik, DataQualityIssue.status != IssueStatus.dismissed)
+            .outerjoin(Filing, Filing.accession_number == DataQualityIssue.accession_number)
+            .outerjoin(CanonicalFact, CanonicalFact.id == DataQualityIssue.canonical_fact_id)
+            .where(
+                or_(Filing.issuer_cik == issuer.cik, CanonicalFact.issuer_cik == issuer.cik),
+                DataQualityIssue.status == IssueStatus.needs_review,
+            )
+            .order_by(DataQualityIssue.issue_type, DataQualityIssue.accession_number, DataQualityIssue.id)
         )
     ).all()
     data_quality = [

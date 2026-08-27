@@ -295,10 +295,10 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
       <ReportNav sections={SECTIONS} />
 
       <section id="overview" className="scroll-mt-28 space-y-3">
+        <h2 className="text-title font-semibold text-[var(--color-ink)]">Overview</h2>
         {/* Verdict: each live model's own cited classification, side by side (FR-9, AD-12). */}
         {data.verdict && data.verdict.length > 0 ? (
           <>
-            <h2 className="text-title font-semibold text-[var(--color-ink)]">Overview</h2>
             {/* Story 10.2: the at-a-glance hero — four independent axes,
                 never blended. Sits above the detail cards below, which are
                 unchanged and still the place for the full per-model read. */}
@@ -350,7 +350,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
             ) : null}
           </>
         ) : (
-          <h2 className="text-title font-semibold text-[var(--color-ink)]">Overview</h2>
+          <RewardsRisks items={data.rewards_risks ?? []} />
         )}
       </section>
 

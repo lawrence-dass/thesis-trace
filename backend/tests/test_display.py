@@ -7,11 +7,12 @@ from pathlib import Path
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from api.deps import get_session
 from app.main import app
-from app.models import Base, DataQualityIssue, IssueStatus
+from app.models import Base, CanonicalFact, DataQualityIssue, IssueStatus
 from canonicalization.canonicalize import canonicalize_issuer
 from canonicalization.mappings import seed_concept_mappings
 from ingestion.company_facts import parse_company_facts
@@ -37,6 +38,9 @@ async def seeded_app():
         await score_piotroski(session, parsed.cik, 2024)
         await score_sloan(session, parsed.cik, 2024)
         await score_beneish(session, parsed.cik, 2024)
+        canonical_fact = (
+            await session.execute(select(CanonicalFact).where(CanonicalFact.issuer_cik == parsed.cik).limit(1))
+        ).scalar_one()
         # Seed a data-quality warning tied to the FY2024 filing.
         session.add(
             DataQualityIssue(
@@ -45,6 +49,25 @@ async def seeded_app():
                 status=IssueStatus.needs_review,
                 raised_by="validation",
                 detail={"note": "seeded for display test"},
+            )
+        )
+        # A canonical-fact-only issue is valid because both issue foreign keys
+        # are nullable; the overview must still scope it to this issuer.
+        session.add(
+            DataQualityIssue(
+                canonical_fact_id=canonical_fact.id,
+                issue_type="canonical_fact_only",
+                status=IssueStatus.needs_review,
+                raised_by="validation",
+            )
+        )
+        # Resolved issues are closed and must not be promoted as open risks.
+        session.add(
+            DataQualityIssue(
+                accession_number="0001594805-25-000010",
+                issue_type="resolved_should_not_show",
+                status=IssueStatus.resolved,
+                raised_by="validation",
             )
         )
         await session.commit()
@@ -74,3 +97,5 @@ async def test_overview_groups_by_category_and_surfaces_data_quality(seeded_app)
 
     # Data-quality warning surfaced, never hidden (FR-8, AD-17).
     assert any(dq["issue_type"] == "identity_violation:demo" for dq in body["data_quality"])
+    assert any(dq["issue_type"] == "canonical_fact_only" for dq in body["data_quality"])
+    assert not any(dq["issue_type"] == "resolved_should_not_show" for dq in body["data_quality"])

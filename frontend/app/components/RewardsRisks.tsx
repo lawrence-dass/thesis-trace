@@ -7,7 +7,7 @@
 import { Badge } from "./ui/Badge";
 
 export type RewardRiskItem = {
-  kind: string; // "reward" | "risk"
+  kind: "reward" | "risk";
   text: string;
   section: string;
   model: string | null;
@@ -38,13 +38,18 @@ function List({ items, emptyLabel }: { items: RewardRiskItem[]; emptyLabel: stri
 }
 
 export function RewardsRisks({ items }: { items: RewardRiskItem[] }) {
-  const rewards = items.filter((i) => i.kind === "reward");
-  const risks = items.filter((i) => i.kind === "risk");
+  // The API schema rejects unknown kinds, but keep this component fail-closed
+  // because the page consumes JSON via a type assertion rather than a runtime
+  // validator. An invalid item must not turn into two misleading "None"
+  // states.
+  const recognized = items.filter((item) => item.kind === "reward" || item.kind === "risk");
+  const rewards = recognized.filter((i) => i.kind === "reward");
+  const risks = recognized.filter((i) => i.kind === "risk");
 
   // Honest empty state (AD-16): a company with nothing qualifying gets one
   // plain note, not two empty lists each padded with a heading and nothing
   // beneath it.
-  if (items.length === 0) {
+  if (recognized.length === 0) {
     return (
       <p className="text-sm text-[var(--color-ink-faint)]">
         No standout rewards or risks in this company&apos;s current classifications.
@@ -68,7 +73,7 @@ export function RewardsRisks({ items }: { items: RewardRiskItem[] }) {
           <List items={risks} emptyLabel="None currently." />
         </div>
       </div>
-      <p className="text-xs leading-relaxed text-[var(--color-ink-faint)]">{items[0].attribution}</p>
+      <p className="text-xs leading-relaxed text-[var(--color-ink-faint)]">{recognized[0].attribution}</p>
     </div>
   );
 }

@@ -1655,9 +1655,10 @@ story_10_3_browser_verification:
   regression_check: >
     Full gate: tsc/eslint clean, vitest 57/57 (unmodified — this story is
     backend-computed, so the frontend component has no pure logic worth unit
-    testing beyond what TypeScript already checks), backend pytest 364/364 (343
-    prior + 21 new: reward/risk selection per model, absence precedence, unknown-
-    model/applicability safety, data-quality aggregation and its singular/
-    plural boundary, attribution, loader guards, and the declared-inputs
-    coverage test), `next build` succeeds, production server confirmed clean
-    across CP and Suncor in both themes with zero console errors.
+    testing beyond what TypeScript already checks), backend pytest 372/372 (343
+    prior + 29 new: reward/risk selection per model, absence precedence,
+    caveat/applicability/category safety, data-quality status filtering and
+    deterministic ordering, attribution, authoritative-band validation, loader
+    guards, and the declared-inputs coverage test), `next build` succeeds,
+    production server confirmed clean across CP and Suncor in both themes with
+    zero console errors.

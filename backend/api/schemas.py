@@ -3,6 +3,8 @@ renders exactly what these carry (AD-8). Provenance travels with every value (AD
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -229,7 +231,7 @@ class RewardRiskItemOut(BaseModel):
     `attribution` travels with every item so a reader can never see one
     without also seeing whose selection it is."""
 
-    kind: str  # reward | risk
+    kind: Literal["reward", "risk"]
     text: str
     section: str  # report-section anchor id, e.g. "financial-health"
     model: str | None = None

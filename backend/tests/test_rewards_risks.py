@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 
+from formulas.engine import load_spec as load_formula_spec
 from rewards_risks.engine import (
     SPEC_PATH,
     RewardRiskKind,
@@ -34,12 +35,14 @@ class FakeVerdict:
     fiscal_year: int
     aggregate_value: float | None
     band_label: str | None
+    applicability: str = "computed"
 
 
 @dataclass
 class FakeDataQuality:
     issue_type: str
     accession_number: str | None = None
+    status: str = "needs_review"
 
 
 # --- Selection: only the model's OWN published reward/risk band fires ------
@@ -112,6 +115,37 @@ def test_no_band_label_never_produces_a_bullet() -> None:
     assert rewards_risks_for_overview(verdict, []) == []
 
 
+def test_excluded_verdict_never_produces_a_bullet_even_with_a_value_and_band() -> None:
+    verdict = [
+        FakeVerdict(
+            "altman", "quality_health", 2025, 4.0, "Safe", "excluded_out_of_scope"
+        )
+    ]
+    assert rewards_risks_for_overview(verdict, []) == []
+
+
+def test_unknown_applicability_never_produces_a_bullet() -> None:
+    verdict = [FakeVerdict("altman", "quality_health", 2025, 4.0, "Safe", "future_state")]
+    assert rewards_risks_for_overview(verdict, []) == []
+
+
+def test_a_caveated_value_is_headlined_with_an_explicit_caveat() -> None:
+    verdict = [
+        FakeVerdict(
+            "altman", "quality_health", 2025, 4.0, "Safe", "computed_with_caveat"
+        )
+    ]
+    items = rewards_risks_for_overview(verdict, [])
+    assert len(items) == 1
+    assert items[0].kind is RewardRiskKind.reward
+    assert items[0].text.endswith("(with a caveat).")
+
+
+def test_unknown_category_never_gets_a_misleading_section_link() -> None:
+    verdict = [FakeVerdict("altman", "future_category", 2025, 4.0, "Safe")]
+    assert rewards_risks_for_overview(verdict, []) == []
+
+
 # --- Data-quality issues: always a risk, never a reward ---------------------
 
 
@@ -150,6 +184,29 @@ def test_distinct_issue_types_get_their_own_bullet_each() -> None:
         "2 open data-quality issues: ambiguous_selection.",
         "1 open data-quality issue: some_future_issue_type.",
     }
+
+
+def test_closed_data_quality_issues_are_not_counted_as_open_risks() -> None:
+    dq = [
+        FakeDataQuality(issue_type="ambiguous_selection", status="resolved"),
+        FakeDataQuality(issue_type="source_conflict", status="dismissed"),
+        FakeDataQuality(issue_type="identity_violation"),
+    ]
+    items = rewards_risks_for_overview([], dq)
+    assert len(items) == 1
+    assert "identity_violation" in items[0].text
+
+
+def test_data_quality_bullets_have_stable_issue_type_order() -> None:
+    dq = [
+        FakeDataQuality(issue_type="source_conflict"),
+        FakeDataQuality(issue_type="ambiguous_selection"),
+    ]
+    items = rewards_risks_for_overview([], dq)
+    assert [item.text for item in items] == [
+        "1 open data-quality issue: ambiguous_selection.",
+        "1 open data-quality issue: source_conflict.",
+    ]
 
 
 # --- Honest empty state ------------------------------------------------------
@@ -195,6 +252,31 @@ def test_spec_file_declares_itself_a_presentation_rule() -> None:
     assert SPEC_PATH.exists()
     spec = load_rewards_risks_spec()
     assert spec["kind"] == "thesistrace_presentation_rule"
+    assert spec["rationale"].strip()
+
+
+def test_configured_band_labels_match_each_authoritative_model_spec() -> None:
+    spec = load_rewards_risks_spec()
+    for model in ("piotroski", "altman", "beneish", "sloan"):
+        labels = {
+            band["label"]
+            for band in load_formula_spec(f"{model}_v1").raw["bands"]["classes"]
+        }
+        assert spec["reward_bands"][model] in labels
+        assert spec["risk_bands"][model] in labels
+
+
+def test_loader_rejects_empty_or_scalar_specs(tmp_path, monkeypatch) -> None:
+    for contents in ("", "just a scalar"):
+        bad = tmp_path / "malformed.yaml"
+        bad.write_text(contents)
+        monkeypatch.setattr("rewards_risks.engine.SPEC_PATH", bad)
+        load_rewards_risks_spec.cache_clear()
+        try:
+            with pytest.raises(RewardsRisksSpecError):
+                load_rewards_risks_spec()
+        finally:
+            load_rewards_risks_spec.cache_clear()
 
 
 # --- The piotroski_v1 inputs lesson, applied here ---------------------------

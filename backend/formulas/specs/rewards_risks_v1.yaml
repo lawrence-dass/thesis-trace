@@ -23,6 +23,14 @@ description: >
   into a fixed sentence citing the figure that produced it. Never computes a
   new figure, never re-classifies a band, never uses free text or an LLM.
 
+rationale: >
+  The rule surfaces only the best and worst already-published band for each
+  model because those are the classifications most useful in a ten-second
+  overview. A caveated computed value remains eligible, but the headline says
+  so explicitly; an excluded, unresolved or otherwise unsupported value is
+  not promoted. Open data-quality issues are risks because they qualify the
+  evidence, not because this rule reclassifies the underlying model.
+
 # LOAD-BEARING, not documentation (the piotroski_v1 inputs lesson,
 # 2026-08-02: a formula spec's declared inputs must cover what the code
 # actually reads, or a comparability/audit check can silently never fire on
@@ -35,7 +43,9 @@ inputs:
   - verdict.fiscal_year
   - verdict.aggregate_value
   - verdict.band_label
+  - verdict.applicability
   - data_quality.issue_type
+  - data_quality.status
 
 # Which of each model's OWN published bands (see the model's own spec's
 # `bands:` list, quoted verbatim here) counts as reward- or risk-worthy. This
@@ -63,8 +73,8 @@ model_label:
 # {model_label} and {band_label} are the model's own published names; every
 # other field is drawn from the already-computed VerdictItem. No field here
 # is invented by this rule.
-band_reward_template: "{model_label} shows {band_label} for FY{fiscal_year}."
-band_risk_template: "{model_label} shows {band_label} for FY{fiscal_year}."
+band_reward_template: "{model_label} shows {band_label} for FY{fiscal_year}{caveat_suffix}."
+band_risk_template: "{model_label} shows {band_label} for FY{fiscal_year}{caveat_suffix}."
 
 # ONE risk bullet per distinct issue_type, counting every open row of that
 # type — never one bullet per row. A single filer can carry many genuinely
@@ -72,8 +82,7 @@ band_risk_template: "{model_label} shows {band_label} for FY{fiscal_year}."
 # same issue_type), and one bullet each would flood a summary meant to be
 # readable in ten seconds with near-identical text. Never a reward
 # counterpart — an issue being open is inherently a risk framing; a
-# CLOSED/dismissed issue is not surfaced here at all (get_company_overview
-# already excludes dismissed rows before this rule ever sees them).
+# CLOSED/resolved or dismissed issues are not surfaced here at all.
 data_quality_risk_template_singular: "1 open data-quality issue: {issue_type}."
 data_quality_risk_template_plural: "{count} open data-quality issues: {issue_type}."
 
