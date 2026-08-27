@@ -22,6 +22,12 @@ MODEL_TITLE = {
 @dataclass
 class LensExplanation:
     model: str
+    #: One explanation per (model, fiscal_year) — a filer with N scored years
+    #: produces N explanations per model, not one. Without this field the API
+    #: response is ambiguous whenever more than one year is rendered for a
+    #: model, which every report page does (FR-10's expandable card list is
+    #: per fiscal year, not just the latest).
+    fiscal_year: int
     text: str
     citations: list[str]  # accession numbers cited
 
@@ -72,5 +78,7 @@ def build_explanations(overview: CompanyOverviewOut) -> list[LensExplanation]:
     out: list[LensExplanation] = []
     for lens in overview.scores:
         text, citations = _lens_sentences(lens)
-        out.append(LensExplanation(model=lens.model, text=text, citations=citations))
+        out.append(
+            LensExplanation(model=lens.model, fiscal_year=lens.fiscal_year, text=text, citations=citations)
+        )
     return out
