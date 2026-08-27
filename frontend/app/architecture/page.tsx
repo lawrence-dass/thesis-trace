@@ -1,8 +1,8 @@
 // Architecture page — renders the Mermaid diagram suite in-app.
 //
-// Single source of truth: the diagram sources are READ FROM docs/diagrams/*.md at
-// build time, never copied into this file. Editing a diagram in docs/ updates the
-// page, so the documentation and the app cannot drift apart.
+// Single source of truth: the diagram sources are READ FROM docs/diagrams/*.md
+// on the server, never copied into this file. Editing a diagram in docs/ updates
+// the page, so the documentation and the app cannot drift apart.
 //
 // Note this reads from OUTSIDE frontend/. On Vercel that requires the project's
 // "Include files outside the root directory" setting to stay enabled (it is on by
@@ -14,9 +14,6 @@ import path from "node:path";
 
 import { Card } from "../components/ui/Card";
 import { MermaidDiagram } from "../components/MermaidDiagram";
-
-// Static content — read once at build time.
-export const dynamic = "force-static";
 
 export const metadata = {
   title: "Architecture — ThesisTrace",

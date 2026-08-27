@@ -13,14 +13,19 @@ import { bandTone } from "./Badge";
 
 export type BandClass = { label: string; min?: number; max?: number; above?: number; below?: number };
 
-const DISPLAY_DOMAIN: Record<string, [number, number]> = {
+// Exported so any OTHER component needing "where does this value sit in this
+// model's own range" (e.g. VerdictGlyph.tsx) reads the identical domain
+// rather than an independently hand-copied one — the "two code paths must
+// not answer the same question from different sources" lesson (Epic 6
+// retrospective, the currency-source bug).
+export const DISPLAY_DOMAIN: Record<string, [number, number]> = {
   piotroski: [0, 9],
   altman: [0.5, 4.5],
   beneish: [-5, 1],
   sloan: [-0.2, 0.3],
 };
 
-const TONE_BG: Record<string, string> = {
+export const TONE_BG: Record<string, string> = {
   pass: "var(--color-signal-pass-bg)",
   fail: "var(--color-signal-fail-bg)",
   caveat: "var(--color-signal-caveat-bg)",
@@ -30,7 +35,7 @@ const TONE_BG: Record<string, string> = {
   brand: "var(--color-canvas)",
 };
 
-const TONE_SOLID: Record<string, string> = {
+export const TONE_SOLID: Record<string, string> = {
   pass: "var(--color-signal-pass)",
   fail: "var(--color-signal-fail)",
   caveat: "var(--color-signal-caveat)",
@@ -40,12 +45,21 @@ const TONE_SOLID: Record<string, string> = {
   brand: "var(--color-ink-faint)",
 };
 
-function clamp(n: number, lo: number, hi: number): number {
+export function clamp(n: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, n));
 }
 
 function zoneRange(b: BandClass, lo: number, hi: number): [number, number] {
   return [b.min ?? b.above ?? lo, b.max ?? b.below ?? hi];
+}
+
+/** Where `value` sits in `model`'s own DISPLAY_DOMAIN, as 0-100. The same
+ * question Gauge answers internally for its marker position — extracted so
+ * VerdictGlyph's spoke length can never drift from what the gauge shows for
+ * the same value. */
+export function domainPct(model: string, value: number): number {
+  const [lo, hi] = DISPLAY_DOMAIN[model] ?? [value - 1, value + 1];
+  return clamp(((value - lo) / (hi - lo)) * 100, 0, 100);
 }
 
 export function Gauge({
@@ -70,7 +84,7 @@ export function Gauge({
     return { label: b.label, startPct: ((zoneStart - lo) / span) * 100, widthPct: ((zoneEnd - zoneStart) / span) * 100 };
   });
 
-  const valuePct = clamp(((value - lo) / span) * 100, 0, 100);
+  const valuePct = domainPct(model, value);
   const markerTone = bandTone(bandLabel);
 
   return (

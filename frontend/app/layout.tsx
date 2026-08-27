@@ -1,27 +1,29 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { cookies } from "next/headers";
 import { Inter } from "next/font/google";
 import Link from "next/link";
-import Script from "next/script";
 import { ThemeToggle } from "./components/ThemeToggle";
 import "./globals.css";
 
-// Sets `data-theme` before first paint so the dark-primary default (D12)
-// never flashes light for a returning visitor who chose it. `beforeInteractive`
-// is Next's documented mechanism for exactly this — code that must run before
-// hydration — and Next hoists it into <head> regardless of where the
-// component sits in the tree. Defaults to "dark" on any failure (private
-// browsing, storage blocked), matching the site's primary theme.
-const THEME_INIT_SCRIPT = `
-  (function () {
-    try {
-      var stored = window.localStorage.getItem("thesistrace-theme");
-      document.documentElement.setAttribute("data-theme", stored === "light" ? "light" : "dark");
-    } catch (e) {
-      document.documentElement.setAttribute("data-theme", "dark");
-    }
-  })();
-`;
+// Theme comes from a COOKIE, read server-side, and rendered directly as the
+// `data-theme` attribute — not a pre-hydration script mutating the DOM.
+//
+// That was the first design and it does not work in this stack: a script
+// setting `data-theme` before hydration creates a genuine server/client
+// attribute mismatch on <html>, and React's hydration reconciliation
+// resets attributes to match its OWN render regardless of
+// `suppressHydrationWarning` — that flag only silences the console warning
+// for TEXT-content mismatches, not attribute reconciliation. Confirmed live
+// in a real production build: removing `suppressHydrationWarning` surfaced
+// React error #418 (hydration failed on <html>) on every load, and
+// restoring it made the error silent but the attribute still got wiped —
+// proving React was reconciling it away either way, not merely warning.
+//
+// Reading the cookie server-side removes the mismatch structurally: the
+// attribute IS what the server rendered, so client and server agree from
+// the first frame, no script-timing race and nothing to reconcile.
+const THEME_COOKIE = "thesistrace-theme";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
@@ -30,20 +32,13 @@ export const metadata: Metadata = {
   description: "Evidence-backed equity intelligence — deterministic forensic scores with provenance.",
 };
 
-// suppressHydrationWarning below is scoped to <html> only (React does not
-// propagate it to children) and is the documented fix for exactly this case:
-// `data-theme` is set by the blocking script further down, outside React's
-// render, before hydration — so the attribute React sees on mount
-// legitimately differs from what it rendered on the server. Same technique
-// next-themes uses; without it, every load logs a spurious hydration-mismatch
-// warning that has nothing to do with an actual bug.
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const cookieStore = await cookies();
+  const theme = cookieStore.get(THEME_COOKIE)?.value === "light" ? "light" : "dark";
+
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang="en" className={inter.variable} data-theme={theme}>
       <body>
-        <Script id="theme-init" strategy="beforeInteractive">
-          {THEME_INIT_SCRIPT}
-        </Script>
         <header className="sticky top-0 z-10 border-b border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur">
           <div className="mx-auto flex min-w-0 max-w-5xl items-center justify-between px-3 py-4 sm:px-6">
             <Link href="/" className="flex min-w-0 items-baseline gap-1 no-underline sm:gap-2">
@@ -59,7 +54,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <Link href="/architecture" className="whitespace-nowrap transition-colors hover:text-[var(--color-ink)]">
                 Architecture
               </Link>
-              <ThemeToggle />
+              <ThemeToggle initialTheme={theme} />
             </nav>
           </div>
         </header>

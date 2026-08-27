@@ -56,13 +56,15 @@ export function signalVariant(status: string): BadgeVariant {
 export function applicabilityVariant(applicability: string): BadgeVariant {
   if (applicability === "excluded_out_of_scope") return "excluded";
   if (applicability === "computed_with_caveat") return "caveat";
-  return "pass";
+  if (applicability === "computed") return "pass";
+  return "pending";
 }
 
 export function applicabilityLabel(applicability: string): string {
   if (applicability === "excluded_out_of_scope") return "Out of scope";
   if (applicability === "computed_with_caveat") return "Caveat";
-  return "Computed";
+  if (applicability === "computed") return "Computed";
+  return "Unavailable";
 }
 
 /**
