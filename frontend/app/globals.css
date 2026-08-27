@@ -13,42 +13,59 @@
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
 
-  /* Neutrals — cool slate, matches a serious analytical tool over a warm gray. */
-  --color-canvas: #f6f7fb;
-  --color-surface: #ffffff;
-  --color-border: #e2e5ec;
-  --color-border-strong: #c7cbd6;
-  --color-ink: #12141c;
-  --color-ink-muted: #565c6d;
-  --color-ink-faint: #8b91a1;
+  /*
+   * Semantic tokens — DARK is the primary/default value (D12, 2026-08-27:
+   * "dark becomes the primary theme"). `:root[data-theme="light"]` below
+   * overrides every one of these back to the original light hex values, so
+   * light mode is retained, not removed. Do not read these names as "dark
+   * palette" vs a separate "light palette" — they are the single semantic
+   * vocabulary every component already references via var(); only the
+   * VALUES swap per theme.
+   *
+   * Raw dark swatches (--color-*-dark) stay defined below as the source of
+   * truth these defaults point at, per DESIGN.md's Colors section.
+   */
+  --color-canvas: var(--color-canvas-dark);
+  --color-surface: var(--color-surface-dark);
+  --color-border: var(--color-border-dark);
+  --color-border-strong: color-mix(in srgb, var(--color-border-dark) 60%, var(--color-ink-dark));
+  --color-ink: var(--color-ink-dark);
+  --color-ink-muted: var(--color-ink-muted-dark);
+  --color-ink-faint: var(--color-ink-faint-dark);
 
-  /* Brand — primary actions, links, "live" indicators. */
-  --color-brand-50: #eef4ff;
-  --color-brand-100: #dbe7fe;
-  --color-brand-500: #2f6fed;
-  --color-brand-600: #1f56d6;
-  --color-brand-700: #1a45ad;
+  /* Brand — primary actions, links, "live" indicators. Only one dark swatch
+     is pre-defined (DESIGN.md [ASSUMPTION]); -50/-100 tints and the -600/-700
+     hover steps are derived mechanically via color-mix rather than
+     hand-picked, per DESIGN.md's own guidance for exactly this gap. */
+  --color-brand-50: color-mix(in srgb, var(--color-brand-dark) 14%, var(--color-surface-dark));
+  --color-brand-100: color-mix(in srgb, var(--color-brand-dark) 26%, var(--color-surface-dark));
+  --color-brand-500: var(--color-brand-dark);
+  --color-brand-600: color-mix(in srgb, var(--color-brand-dark) 88%, black);
+  --color-brand-700: color-mix(in srgb, var(--color-brand-dark) 74%, black);
 
-  /* Signal semantics — the tri-state/verdict vocabulary (AD-16, AD-17, AD-20). */
-  --color-signal-pass: #0f8a5f;
-  --color-signal-pass-bg: #e6f6ee;
-  --color-signal-pass-border: #b9e5cd;
+  /* Signal semantics — the tri-state/verdict vocabulary (AD-16, AD-17, AD-20).
+     Only the foreground hue is pre-swatched per signal; -bg/-border are
+     derived via color-mix against the dark surface, exactly as DESIGN.md's
+     Colors section specifies for this gap. */
+  --color-signal-pass: var(--color-signal-pass-dark);
+  --color-signal-pass-bg: color-mix(in srgb, var(--color-signal-pass-dark) 18%, var(--color-surface-dark));
+  --color-signal-pass-border: color-mix(in srgb, var(--color-signal-pass-dark) 40%, var(--color-surface-dark));
 
-  --color-signal-fail: #c4392b;
-  --color-signal-fail-bg: #fbeae8;
-  --color-signal-fail-border: #f2c3bd;
+  --color-signal-fail: var(--color-signal-fail-dark);
+  --color-signal-fail-bg: color-mix(in srgb, var(--color-signal-fail-dark) 18%, var(--color-surface-dark));
+  --color-signal-fail-border: color-mix(in srgb, var(--color-signal-fail-dark) 40%, var(--color-surface-dark));
 
-  --color-signal-caveat: #a86b06;
-  --color-signal-caveat-bg: #fdf3de;
-  --color-signal-caveat-border: #f2debb;
+  --color-signal-caveat: var(--color-signal-caveat-dark);
+  --color-signal-caveat-bg: color-mix(in srgb, var(--color-signal-caveat-dark) 18%, var(--color-surface-dark));
+  --color-signal-caveat-border: color-mix(in srgb, var(--color-signal-caveat-dark) 40%, var(--color-surface-dark));
 
-  --color-signal-pending: #5c6270;
-  --color-signal-pending-bg: #eef0f4;
-  --color-signal-pending-border: #d8dbe3;
+  --color-signal-pending: var(--color-signal-pending-dark);
+  --color-signal-pending-bg: color-mix(in srgb, var(--color-signal-pending-dark) 18%, var(--color-surface-dark));
+  --color-signal-pending-border: color-mix(in srgb, var(--color-signal-pending-dark) 40%, var(--color-surface-dark));
 
-  --color-signal-excluded: #6941a8;
-  --color-signal-excluded-bg: #f2ecfb;
-  --color-signal-excluded-border: #ddccf0;
+  --color-signal-excluded: var(--color-signal-excluded-dark);
+  --color-signal-excluded-bg: color-mix(in srgb, var(--color-signal-excluded-dark) 18%, var(--color-surface-dark));
+  --color-signal-excluded-border: color-mix(in srgb, var(--color-signal-excluded-dark) 40%, var(--color-surface-dark));
 
   --radius-card: 1rem;
   --radius-control: 0.6rem;
@@ -85,11 +102,9 @@
   --tracking-label: 0.01em;
 
   /*
-   * Dark-mode palette (DESIGN.md Colors, `[ASSUMPTION]`) — core hues only.
-   * Not yet wired to a toggle: badge bg/border derive from these at
-   * implementation time via a reduced-opacity color-mix rather than
-   * hand-picked swatches, and need a contrast audit before shipping a
-   * user-facing dark mode. Defined here so that work has a starting point.
+   * Raw dark swatches (DESIGN.md Colors) — wired as the DEFAULT semantic
+   * values above (Story 10.1, D12). badge bg/border derive from these via
+   * color-mix, per DESIGN.md's original guidance for that gap.
    */
   --color-canvas-dark: #0d1117;
   --color-surface-dark: #151a23;
@@ -104,6 +119,59 @@
   --color-signal-caveat-dark: #e8a83c;
   --color-signal-pending-dark: #8992a3;
   --color-signal-excluded-dark: #b48ee0;
+}
+
+/*
+ * Light theme — the ORIGINAL palette this file carried before D12, kept
+ * verbatim as an explicit opt-in rather than the default. Set by the
+ * blocking inline script in `layout.tsx` (reads localStorage, defaults to
+ * dark) before first paint, so there is no flash of the wrong theme.
+ * Toggled at runtime via `ThemeToggle.tsx`.
+ */
+:root[data-theme="light"] {
+  --color-canvas: #f6f7fb;
+  --color-surface: #ffffff;
+  --color-border: #e2e5ec;
+  --color-border-strong: #c7cbd6;
+  --color-ink: #12141c;
+  --color-ink-muted: #565c6d;
+  --color-ink-faint: #8b91a1;
+
+  --color-brand-50: #eef4ff;
+  --color-brand-100: #dbe7fe;
+  --color-brand-500: #2f6fed;
+  --color-brand-600: #1f56d6;
+  --color-brand-700: #1a45ad;
+
+  --color-signal-pass: #0f8a5f;
+  --color-signal-pass-bg: #e6f6ee;
+  --color-signal-pass-border: #b9e5cd;
+
+  --color-signal-fail: #c4392b;
+  --color-signal-fail-bg: #fbeae8;
+  --color-signal-fail-border: #f2c3bd;
+
+  --color-signal-caveat: #a86b06;
+  --color-signal-caveat-bg: #fdf3de;
+  --color-signal-caveat-border: #f2debb;
+
+  --color-signal-pending: #5c6270;
+  --color-signal-pending-bg: #eef0f4;
+  --color-signal-pending-border: #d8dbe3;
+
+  --color-signal-excluded: #6941a8;
+  --color-signal-excluded-bg: #f2ecfb;
+  --color-signal-excluded-border: #ddccf0;
+
+  color-scheme: light;
+}
+
+:root {
+  color-scheme: dark;
+  /* Smooth in-page section jumps (persistent report nav, Story 10.1) — pure
+     CSS, so a plain <a href="#id"> already satisfies "addressable by a
+     stable URL anchor" without JS-driven scrolling. */
+  scroll-behavior: smooth;
 }
 
 body {

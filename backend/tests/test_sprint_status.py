@@ -79,6 +79,7 @@ CURATED_SECTIONS = (
     "epic_decomposition_rationale",
     "action_item_evidence",
     "ambiguity_flagging_had_no_idempotency_key",
+    "story_10_1_browser_verification",
 )
 
 pytestmark = pytest.mark.skipif(

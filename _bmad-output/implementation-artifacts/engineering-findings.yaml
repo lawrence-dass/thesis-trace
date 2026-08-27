@@ -23,7 +23,7 @@
 # CURATED_SECTIONS in backend/tests/test_sprint_status.py, and give it a
 # `status:` of open|done. Do NOT put it in sprint-status.yaml.
 #
-# INDEX (status as of 2026-08-20)
+# INDEX (status as of 2026-08-27)
 #   reference                  epic_decomposition_rationale   (from epic_catalog)
 #   reference                  action_item_evidence           (closed action items)
 #   5 entries, all closed      post_epic_work
@@ -39,7 +39,8 @@
 #   open                       reverse_dcf_capital_intensity_distortion
 #   done                       shop_local_history_is_not_edgar_coverage
 #   done                       story_6_1_reverse_dcf_coverage_spike
-#   open                       shop_convertible_debt_unmapped
+#   done                       shop_convertible_debt_unmapped (corrected — resolved by PR #81, this line was stale)
+#   done                       story_10_1_browser_verification
 
 
 # Work completed after Epic 4 that no epic owns, tracked here so it is not lost.
@@ -1263,3 +1264,56 @@ ambiguity_flagging_had_no_idempotency_key:
     is not resurrected as a fresh needs_review one. Guarded by
     test_an_ambiguity_is_flagged_once_not_once_per_mapping_version, verified to fail
     when the guard is removed. Dev store deduplicated: 59 rows to 31.
+
+story_10_1_browser_verification:
+  status: done
+  verified: 2026-08-27
+  how: >
+    Live dev server (Next.js dev, not a static build) against the real dev database
+    and a running backend, two filers chosen for opposite code paths — not for
+    convenience — per the live-data DoD.
+  filers_checked:
+    CP: >-
+      Full resolution: all 4 models compute across ~19 fiscal years each, reverse
+      DCF resolves (37.2% implied vs 6.6% achieved), near-term debt share AND a
+      published maturity/repayment schedule both present, open data-quality
+      warnings (ambiguous_selection). Exercises every section's "everything present"
+      path and the longest realistic Financial Health section (2 models x ~19 years).
+    SU: >-
+      Sparse/degraded: Beneish and Altman both carry a Caveat (missing SG&A Ratio,
+      missing Retained Earnings under IFRS by-nature presentation), reverse DCF
+      resolves to insufficient_data ("no free cash flow for this fiscal year") per
+      AD-16 rather than being hidden, near-term debt share present (973.0M of
+      9.99B — the exact figure PR #74's compactAmount fix targeted) but NO
+      maturity/repayment schedule (renders nothing, not a placeholder), and no
+      open data-quality warnings. Exercises every section's degraded/absent path.
+  what_was_verified:
+    - "All 5 sections (Overview, Valuation, Past Performance, Financial Health, Integrity & Evidence) render with correct content in their new homes, on both filers."
+    - "Persistent section nav's scrollspy correctly tracks the active section as the real page scrolls (verified via mouse-wheel scroll, see defect note below on how in-page click navigation was verified)."
+    - "URL hash updates and is independently addressable (direct #anchor jump on load, and via nav click)."
+    - "Dark theme is the default on first load with no stored preference; ThemeToggle correctly switches to light and back, in both directions, with badges/gauges/cards legible in both themes."
+    - "Every existing capability confirmed still reachable: Verdict grid, WhatChanged, ReverseDcfCard (both resolved and insufficient_data branches), per-model expandable breakdowns with citations, NearTermDebtShareCard, MaturityProfileCard (both present and render-nothing branches), data-quality warning banner (both present and absent branches)."
+    - "All 47 pre-existing frontend unit tests pass unmodified; tsc and eslint clean; production build succeeds."
+  defects_found_and_fixed:
+    - >
+      React hydration-mismatch console error on every page load: the blocking
+      theme-init script sets `data-theme` on `<html>` before hydration (by design,
+      to avoid a flash of the wrong theme), which server-rendered HTML never
+      carries — React correctly flagged the resulting attribute mismatch. Fixed
+      with `suppressHydrationWarning` on `<html>` (scoped to that element only,
+      the same technique the next-themes library uses for this exact case).
+      Confirmed clean console after the fix, on a fresh navigation.
+  tooling_note: >
+    In-page anchor-click navigation could not be visually confirmed as "smooth"
+    through the browser-automation tab specifically: `scroll-behavior: smooth`
+    (CSS) animates via requestAnimationFrame, and this automation tab appears to
+    be treated as backgrounded/non-visible by Chrome, which throttles rAF-driven
+    animation near to a halt — confirmed by three independent tests: (1) a real
+    mouse-wheel scroll moved the page instantly and correctly, (2) `window.scrollTo`
+    and `scrollIntoView` had zero effect while `scroll-behavior` computed as
+    `smooth`, (3) setting `scroll-behavior: auto` at runtime made the identical
+    `scrollTo` call apply instantly. This is an artifact of the automation
+    environment's tab-visibility handling, not a defect in the shipped CSS — a
+    real user's foreground tab is never subject to this throttling. All 5-section
+    functional verification above was done with `scroll-behavior` forced to `auto`
+    for observability; the shipped code still ships `smooth` (globals.css).
