@@ -206,7 +206,14 @@ export function VerdictGlyph({ verdict }: { verdict: VerdictItem[] }) {
               aria-label={`${MODEL_SHORT_LABEL[model] ?? model}: ${state.label}${state.fiscalYear !== undefined ? `, FY ${state.fiscalYear}` : ""}`}
               role="link"
               tabIndex={0}
-              className="cursor-pointer outline-none focus-visible:outline-2 focus-visible:outline-[var(--color-brand-link)] focus-visible:outline-offset-2"
+              // `outline-2`/`outline-[color]`/`outline-offset-2` alone set
+              // width/color/offset but never `outline-style` — it stayed
+              // `none` (from the base `outline-none`) even while genuinely
+              // focus-visible, so nothing painted. Caught by checking the
+              // COMPUTED style after a real keyboard Tab, not by trusting
+              // the class list read correctly. `focus-visible:outline`
+              // supplies the missing solid style.
+              className="cursor-pointer outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-brand-link)] focus-visible:outline-offset-2"
             >
               {/* Invisible, wide hit-area — the visible track below is only
                   2px, far too thin a target to reliably click; this widens

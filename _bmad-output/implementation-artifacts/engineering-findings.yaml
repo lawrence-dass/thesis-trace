@@ -43,6 +43,7 @@
 #   done                       story_10_1_browser_verification
 #   done                       story_10_1_codex_review
 #   done                       story_10_2_browser_verification
+#   done                       story_10_2_codex_review
 
 
 # Work completed after Epic 4 that no epic owns, tracked here so it is not lost.
@@ -1488,3 +1489,114 @@ story_10_2_browser_verification:
     succeeds, and a real production server (`next start`) confirmed clean — zero
     console errors/warnings on a fresh navigation, `data-theme` correctly server-
     rendered, light mode surviving a full navigation to a different route.
+
+story_10_2_codex_review:
+  status: done
+  reviewed: 2026-08-27
+  by: "Codex, independent pass against PR #88 per the project's cross-model review convention"
+  findings: 10
+  all_confirmed_and_fixed: true
+  fixed_by_codex:
+    - "P1: /architecture was `export const dynamic = 'force-static'`, so it ignored the theme cookie entirely and served whatever theme happened to be baked in at build time to every visitor regardless of their real preference. Removed the force-static export; the route is now correctly dynamic (confirmed in the build output: architecture moved from a static ○ route to a dynamic ƒ one)."
+    - "P1: the glyph's outer <svg> carried role='img', which per ARIA semantics treats the whole element as a single flat leaf image — this hid all four interactive <a> links from assistive technology, functionally invisible to a screen-reader user despite being visually and mechanically clickable. Changed to role='group' (a labelled container that exposes its children) plus explicit role='link'/aria-label on each anchor."
+    - "P2: a model missing from the API's verdict array previously vanished from the glyph silently (filtered out) rather than rendering an explicit absence state, inconsistent with every other absence case (insufficient_data, excluded_out_of_scope) which do render explicitly. Missing models now render as a dashed 'Not covered' axis."
+    - "P2: long status labels on the left/right axes (e.g. Beneish's 'Manipulation risk flagged') could clip on narrow screens under text-anchor 'start'/'end' growing away from the axis with no wrap. Added word-wrapping for side-axis labels and moved to fixed, safe label coordinates instead of pure radial math."
+    - "P2: fiscal year was computed but never shown — added as a third label line per axis and in each link's aria-label."
+    - "P2: the Verdict-grid cards (both the top summary grid and the per-lens expandable breakdown) checked `applicability !== 'computed'` before checking `aggregate_value === null`, so a computed_with_caveat entry with no value showed a 'Caveat' badge instead of 'Insufficient data' — inconsistent with what axisState already did for the SAME data in the glyph. Reordered both call sites to check null-value first, matching axisState's own precedence."
+    - "P2: an applicability value the frontend doesn't recognize (a future backend enum addition) fell through to 'pass'/'Computed' in both applicabilityVariant/applicabilityLabel (shared Badge.tsx functions) and axisState — silently asserting success for a state nobody has defined yet. Both now require an exact match on known values and fall back to pending/'Unavailable' otherwise. Verified against the backend's actual Applicability enum (backend/app/models.py): exactly 3 values exist today, so this is a correctly-unreachable forward safety net, not a live behavior change."
+    - "P2: a non-finite aggregate_value (e.g. NaN, which Number would still pass the `!== null` check) would have flowed into domainPct and produced NaN spoke geometry. axisState now checks `!Number.isFinite(v.aggregate_value)` alongside the null check."
+    - "P2: an existing Story-10.1-era light-mode preference stored in localStorage would be silently lost the moment this story's cookie-based mechanism shipped (nothing ever reads localStorage anymore). ThemeToggle now migrates that one legacy value to a cookie in a post-mount effect (safe — runs after hydration, not before, so it cannot recreate the earlier hydration-mismatch class of bug)."
+    - "P3: the theme cookie had no Secure flag. Now conditionally added only when served over HTTPS (window.location.protocol === 'https:'), which hardens the real Vercel/production deployment while keeping local `next dev` over plain HTTP working."
+  independently_reverified_by_claude:
+    method: >
+      Did not accept Codex's fixes on trust. Read every diff hunk against the live
+      backend Applicability enum and the existing Gauge/Badge call sites before
+      running anything; then ran the full gate (tsc, eslint, vitest, backend pytest,
+      `next build`) and browser-verified the specific claims live in a real
+      production server (`next start`), on CP (full resolution) and Suncor (mixed
+      caveat/insufficient states, including the exact null-value-vs-caveat card the
+      fix targets).
+    architecture_theme_fix: >
+      Confirmed live: set a light-theme cookie, navigated to /architecture in a real
+      production server, and the page — including the Mermaid diagram's palette —
+      rendered light, not the previously-frozen build-time theme. Build output
+      confirms the route is no longer static.
+    accessibility_role_group_fix: >
+      Confirmed via the FULL (unfiltered) accessibility tree, not a filtered
+      "interactive elements" view (which, discovered along the way, does not surface
+      SVG-embedded links at all — a limitation of that specific tool view, not the
+      app): the tree correctly shows `group "Verdict constellation..."` containing
+      four `link "Piotroski: Middle, FY 2025"`-shaped entries with correct
+      accessible names including fiscal year. This is what a real screen reader
+      actually walks.
+    null_value_caveat_consistency: >
+      Confirmed live on Suncor: the Altman card (previously "— / Caveat", the exact
+      inconsistency logged) now reads "— / Insufficient data", matching what the
+      glyph's Altman axis already showed. Piotroski, which has a real value AND a
+      caveat, correctly still shows "6 / Caveat" on both — confirming the fix
+      changed the null-value case specifically without disturbing the real-value
+      case.
+    localstorage_migration: >
+      Confirmed live: cleared any cookie, set `localStorage['thesistrace-theme'] =
+      'light'` (simulating a returning pre-this-PR user), did a fresh full
+      navigation, and the page ended up on data-theme="light" with a real cookie
+      now set — the migration ran and self-heals for every subsequent visit.
+    unknown_applicability_fallback: >
+      Cross-checked against `backend/app/models.py`'s `Applicability` enum directly:
+      exactly `computed`, `computed_with_caveat`, `excluded_out_of_scope` exist
+      today, confirming the new fallback branch is unreachable with current live
+      data and is a pure forward-safety net, not a behavior change.
+  additional_defect_found_by_claude:
+    severity: P2
+    what: >
+      The P2 "keyboard focus styling" fix's stated CLASSES were correct
+      (`focus-visible:outline-2 focus-visible:outline-[var(--color-brand-link)]
+      focus-visible:outline-offset-2`) but incomplete: none of them ever set
+      `outline-style`, which stayed `none` (from the base `outline-none` class) in
+      EVERY state including focus-visible — meaning the outline-width/color/offset
+      values were all correctly computed but literally never painted, because
+      `outline-style: none` suppresses outline rendering regardless of the other
+      three sub-properties.
+    how_caught: >
+      Not from reading the diff — the class list looked plausible. Caught by
+      genuinely tabbing to the element via real keyboard input (`computer` tool's
+      Tab key, landed correctly on the Piotroski link after 10 tabs from a known
+      starting point) and reading the ELEMENT'S COMPUTED STYLE rather than trusting
+      the class list: `getComputedStyle(document.activeElement).outlineStyle` read
+      `"none"` even while `element.matches(':focus-visible')` was `true`. A script-
+      triggered `.focus()` call was tried first and does NOT set `:focus-visible`
+      true in this browser (an important distinction for testing this class of CSS
+      — confirmed by direct comparison of the two methods on the same element).
+    fix: >
+      Added `focus-visible:outline` to the class list — Tailwind v4 resolves both
+      `outline` and `outline-2` through a shared `--tw-outline-style` custom
+      property, and only the bare `outline` utility actually DEFINES that property
+      as `solid`; `outline-2` alone only ever read the (undefined-here) variable.
+      Verified the fix at the CSS-SOURCE level by grepping the compiled production
+      stylesheet directly for the generated rule, rather than trusting another live
+      focus test — live re-verification via simulated Tab keypresses became
+      unreliable partway through this session (see tooling_note below) after one
+      clean successful run had already proven both the original bug and, separately,
+      that keyboard-driven focus does set `:focus-visible` correctly when the
+      simulation DOES work.
+  tooling_note: >
+    Keyboard Tab-key simulation via the `computer` tool was inconsistent in this
+    session: one clean sequence (JS-focus the first link, then 10 real Tab
+    keypresses) correctly landed on the target link and was what caught the
+    outline-style bug above. Three subsequent identical attempts — including after
+    an explicit mouse click on the page body to establish real window/tab focus
+    first — left focus stuck on the very first link, as if no Tab keypresses were
+    delivered at all. This joins the day's other automation-specific artifacts
+    (recorded in story_10_1_browser_verification and story_10_2_browser_verification
+    above) as a fourth instance of the same class: this tooling's synthetic input
+    simulation is measurably less reliable for some interaction types than genuine
+    input, in a way that does not reflect real user behavior. The focus-visible fix
+    was independently confirmed correct via direct inspection of the compiled CSS
+    rule instead of a repeated live test, once the live method stopped cooperating.
+  regression_check: >
+    Full gate re-run after Codex's fixes AND the additional outline-style fix: tsc
+    clean, eslint clean, vitest 57/57 (53 prior + 4 new tests for the caveat-
+    precedence, unknown-model-domain-fallback, and non-finite-value cases), backend
+    pytest 343/343 (unaffected — frontend-only change, sanity check), `next build`
+    succeeds (every route now correctly dynamic, matching the cookie-dependent root
+    layout), production server confirmed clean on CP and Suncor in both themes.
