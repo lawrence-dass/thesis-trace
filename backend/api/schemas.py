@@ -223,6 +223,22 @@ class ReverseDcfOut(BaseModel):
     spec_version: str
 
 
+class RewardRiskItemOut(BaseModel):
+    """One headline positive or negative (Story 10.3, D12) — a SELECTION of an
+    already-computed band or open data-quality issue, never a new figure.
+    `attribution` travels with every item so a reader can never see one
+    without also seeing whose selection it is."""
+
+    kind: str  # reward | risk
+    text: str
+    section: str  # report-section anchor id, e.g. "financial-health"
+    model: str | None = None
+    fiscal_year: int | None = None
+    accession_number: str | None = None
+    attribution: str
+    spec_version: str
+
+
 class CompanyOverviewOut(BaseModel):
     cik: str
     ticker: str
@@ -241,6 +257,9 @@ class CompanyOverviewOut(BaseModel):
     #: series would be a different cost class. None when the filer resolves no year.
     reverse_dcf: ReverseDcfOut | None = None
     data_quality: list[DataQualityOut]
+    #: Story 10.3. Empty when nothing qualifies — an honest empty state, never
+    #: padded bullets.
+    rewards_risks: list[RewardRiskItemOut] = []
 
 
 class CompanyCardOut(BaseModel):

@@ -1,0 +1,85 @@
+# ============================================================================
+# THESISTRACE-AUTHORED PRESENTATION RULE — NOT AN ACADEMIC MODEL.
+# ============================================================================
+# Piotroski, Altman, Beneish and Sloan each publish their own bands; those
+# live in the four model specs beside this file and are theirs. NOTHING HERE
+# IS. This rule only SELECTS which of those already-published bands is worth
+# surfacing as a headline reward or risk, and supplies the fixed sentence
+# shape each selection is rendered into — it originates no figure, no
+# threshold, and no classification of its own (Story 10.3, D12).
+#
+# `kind` is checked by the loader: this file is deliberately NOT loadable as
+# a model formula spec, so it can never be mistaken for one (same guard as
+# trajectory_v1.yaml).
+
+kind: thesistrace_presentation_rule
+authored_by: thesistrace
+rule: rewards_and_risks
+spec_version: rewards_risks_v1
+
+description: >
+  Selects the strongest computed positives and negatives from a company's
+  already-computed Verdict and open data-quality issues, and renders each
+  into a fixed sentence citing the figure that produced it. Never computes a
+  new figure, never re-classifies a band, never uses free text or an LLM.
+
+# LOAD-BEARING, not documentation (the piotroski_v1 inputs lesson,
+# 2026-08-02: a formula spec's declared inputs must cover what the code
+# actually reads, or a comparability/audit check can silently never fire on
+# the undeclared ones). `test_rewards_risks.py` greps `engine.py`'s source
+# for every VerdictItem/DataQualityOut attribute access and asserts each one
+# is declared here.
+inputs:
+  - verdict.model
+  - verdict.category
+  - verdict.fiscal_year
+  - verdict.aggregate_value
+  - verdict.band_label
+  - data_quality.issue_type
+
+# Which of each model's OWN published bands (see the model's own spec's
+# `bands:` list, quoted verbatim here) counts as reward- or risk-worthy. This
+# selection — which existing classification deserves headline framing — IS a
+# ThesisTrace judgment, same shape as trajectory_v1.yaml's materiality
+# thresholds; the band strings themselves are not.
+reward_bands:
+  piotroski: Strong
+  altman: Safe
+  beneish: No manipulation flag
+  sloan: Low accruals (higher quality)
+
+risk_bands:
+  piotroski: Weak
+  altman: Distress
+  beneish: Manipulation risk flagged
+  sloan: High accruals (lower quality)
+
+model_label:
+  piotroski: Piotroski F-Score
+  altman: Altman Z-Score
+  beneish: Beneish M-Score
+  sloan: Sloan Accruals
+
+# {model_label} and {band_label} are the model's own published names; every
+# other field is drawn from the already-computed VerdictItem. No field here
+# is invented by this rule.
+band_reward_template: "{model_label} shows {band_label} for FY{fiscal_year}."
+band_risk_template: "{model_label} shows {band_label} for FY{fiscal_year}."
+
+# ONE risk bullet per distinct issue_type, counting every open row of that
+# type — never one bullet per row. A single filer can carry many genuinely
+# distinct ambiguous_selection rows (different concept/fiscal-year pairs,
+# same issue_type), and one bullet each would flood a summary meant to be
+# readable in ten seconds with near-identical text. Never a reward
+# counterpart — an issue being open is inherently a risk framing; a
+# CLOSED/dismissed issue is not surfaced here at all (get_company_overview
+# already excludes dismissed rows before this rule ever sees them).
+data_quality_risk_template_singular: "1 open data-quality issue: {issue_type}."
+data_quality_risk_template_plural: "{count} open data-quality issues: {issue_type}."
+
+# Displayed verbatim wherever a reward/risk bullet appears, so a reader is
+# never left to infer whose selection this is.
+attribution: >
+  This summary highlights ThesisTrace's own selection of the strongest
+  already-computed positives and negatives — it is not a rating from
+  Piotroski, Altman, Beneish or Sloan, and it never originates a new figure.

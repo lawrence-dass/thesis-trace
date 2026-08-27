@@ -37,6 +37,7 @@ from api.schemas import (
     MaturityProfileOut,
     NearTermDebtShareOut,
     Provenance,
+    RewardRiskItemOut,
     TrajectoryOut,
     RunChangeOut,
     SignalChangeOut,
@@ -53,6 +54,7 @@ from valuation.overview import DCF_CONCEPTS
 from valuation.store import load_reverse_dcf
 from diff.engine import diff_company_since, latest_filing_pivot
 from trajectory.engine import trajectories_for_scores
+from rewards_risks.engine import rewards_risks_for_overview
 
 _DERIVATION_OPERANDS = {rule.rule: rule.operands for rule in DERIVATION_RULES}
 _DERIVATION_OPERATIONS = {rule.rule: rule.operation for rule in DERIVATION_RULES}
@@ -570,6 +572,24 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
     ]
 
     lenses_live = sorted({s.model for s in scores})
+
+    # Rewards and risks (Story 10.3). Computed from `verdict` and
+    # `data_quality`, both already built above — no extra query, same shape
+    # as the trajectory pass (AD-1).
+    rewards_risks = [
+        RewardRiskItemOut(
+            kind=item.kind.value,
+            text=item.text,
+            section=item.section,
+            model=item.model,
+            fiscal_year=item.fiscal_year,
+            accession_number=item.accession_number,
+            attribution=item.attribution,
+            spec_version=item.spec_version,
+        )
+        for item in rewards_risks_for_overview(verdict, data_quality)
+    ]
+
     return CompanyOverviewOut(
         cik=issuer.cik,
         ticker=issuer.ticker,
@@ -582,6 +602,7 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
         debt_maturity_profile=debt_maturity_profile,
         reverse_dcf=reverse_dcf,
         data_quality=data_quality,
+        rewards_risks=rewards_risks,
     )
 
 

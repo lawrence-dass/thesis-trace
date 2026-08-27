@@ -44,6 +44,7 @@
 #   done                       story_10_1_codex_review
 #   done                       story_10_2_browser_verification
 #   done                       story_10_2_codex_review
+#   done                       story_10_3_browser_verification
 
 
 # Work completed after Epic 4 that no epic owns, tracked here so it is not lost.
@@ -1600,3 +1601,63 @@ story_10_2_codex_review:
     pytest 343/343 (unaffected — frontend-only change, sanity check), `next build`
     succeeds (every route now correctly dynamic, matching the cookie-dependent root
     layout), production server confirmed clean on CP and Suncor in both themes.
+
+story_10_3_browser_verification:
+  status: done
+  verified: 2026-08-27
+  how: >
+    New backend module (rewards_risks/engine.py) plus a versioned presentation-
+    rule spec (rewards_risks_v1.yaml), mirroring trajectory_v1.yaml's own
+    established pattern exactly — kind: thesistrace_presentation_rule, a loader
+    that rejects anything else, and a declared `inputs` list checked by a test
+    that greps the engine's own source (the piotroski_v1 inputs lesson, applied
+    to a presentation rule rather than a formula spec for the first time).
+    Wired into get_company_overview from data already fetched for `verdict` and
+    `data_quality` — no new query (AD-1), same shape as the trajectory pass.
+    Verified against real live data (backend running against the dev DB, not
+    fixtures) across all 7 universe filers before any frontend work, then in a
+    real production frontend server in both themes.
+  what_was_verified:
+    - "Only a model's OWN published best/worst band (quoted verbatim from that model's own formula spec, e.g. Piotroski's 'Strong'/'Weak') produces a bullet — a middle band (Caveat/Grey/Middle) produces nothing, confirmed on CP (Sloan reward) and SU (Sloan reward, no risks)."
+    - "A null aggregate_value never produces a bullet even when a stale band_label string is present — the same 'no value wins over caveat' precedence VerdictGlyph's axisState already applies (Story 10.2), now applied a second time in an independent rule and unit-tested identically."
+    - "An unrecognized applicability/model produces nothing (forward safety net, not a live behavior change — same verification method as Story 10.2: cross-checked against the real backend enum)."
+    - "Every bullet carries the spec's attribution and links to a real report-section anchor derived from the VerdictItem's own `category` field (not a second hardcoded model->section table — reuses the same mapping the read API already assigns) or, for data-quality bullets, to Integrity & Evidence."
+    - "Click-through confirmed live: dispatched a real click on a rendered risk bullet's anchor and confirmed the URL hash updated to the correct section."
+    - "Both themes confirmed correct and legible, including one screenshot that briefly looked broken (very low-contrast numbers mid-toggle) — re-screenshotted after a 1s wait and confirmed it was a caught CSS-transition frame, not a real defect, before reporting it either way."
+  defect_found_and_fixed:
+    severity: P1
+    what: >
+      The FIRST live check, before any frontend work, showed CP producing 8
+      NEARLY-IDENTICAL risk bullets — one per open data_quality row, all
+      reading "An open data-quality issue: ambiguous_selection." Confirmed via
+      the rows' own `detail` field that these were NOT duplicates (a real,
+      already-tracked class of bug in this project — see
+      ambiguity_flagging_had_no_idempotency_key above): they were 9 genuinely
+      DISTINCT issues (different canonical_concept/fiscal_year pairs, e.g.
+      cash_and_equivalents FY2008, depreciation FY2009, ebit FY2009...) that
+      the bullet's own template simply didn't have enough detail to
+      distinguish, defeating the story's own "readable in ten seconds" goal
+      before a single frontend file was even touched.
+    fix: >
+      Redesigned data-quality handling to emit ONE bullet per DISTINCT
+      issue_type, counting every open row of that type, with singular/plural
+      spec-declared templates ("1 open data-quality issue: X." / "{count} open
+      data-quality issues: X."). No single accession_number is attached to a
+      counted bullet — attaching one arbitrarily-chosen row's accession to a
+      bullet covering N rows would misrepresent it as the citation for all of
+      them; the section link (which lists every row individually) is the
+      correct citation for an aggregate. Re-verified live: CP now shows one
+      genuinely scannable "9 open data-quality issues: ambiguous_selection."
+      bullet instead of nine near-duplicates. Caught by checking real backend
+      output before writing a single line of frontend code — the standing
+      "render it in a browser" rule earning its keep at the API layer, not
+      just the page layer, for the first time on this project.
+  regression_check: >
+    Full gate: tsc/eslint clean, vitest 57/57 (unmodified — this story is
+    backend-computed, so the frontend component has no pure logic worth unit
+    testing beyond what TypeScript already checks), backend pytest 364/364 (343
+    prior + 21 new: reward/risk selection per model, absence precedence, unknown-
+    model/applicability safety, data-quality aggregation and its singular/
+    plural boundary, attribution, loader guards, and the declared-inputs
+    coverage test), `next build` succeeds, production server confirmed clean
+    across CP and Suncor in both themes with zero console errors.

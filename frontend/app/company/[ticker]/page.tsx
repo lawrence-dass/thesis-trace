@@ -21,6 +21,7 @@ import {
 } from "../../components/MaturityProfile";
 import { ReverseDcfCard, type ReverseDcf } from "../../components/ReverseDcf";
 import { VerdictGlyph, type VerdictItem } from "../../components/VerdictGlyph";
+import { RewardsRisks, type RewardRiskItem } from "../../components/RewardsRisks";
 import { AlertIcon, ChevronIcon } from "../../components/ui/icons";
 
 // Report sections (Story 10.1, D12). Order is the reading order AND the nav
@@ -77,6 +78,8 @@ type Overview = {
   data_quality?: DataQuality[];
   verdict?: VerdictItem[];
   lenses_pending?: string[];
+  // Story 10.3. Empty when nothing qualifies — an honest empty state.
+  rewards_risks?: RewardRiskItem[];
 };
 type Explanation = { model: string; text: string; citations: string[] };
 
@@ -300,6 +303,10 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                 never blended. Sits above the detail cards below, which are
                 unchanged and still the place for the full per-model read. */}
             <VerdictGlyph verdict={data.verdict} />
+            {/* Story 10.3: readable in ten seconds, evidence one click away —
+                a SELECTION of the already-computed states above, not a new
+                figure. Sits between the glyph and the full detail cards. */}
+            <RewardsRisks items={data.rewards_risks ?? []} />
             <p className="text-sm text-[var(--color-ink-faint)]">
               Each model&apos;s own published threshold classification, shown side by side — not a
               buy/sell recommendation.
