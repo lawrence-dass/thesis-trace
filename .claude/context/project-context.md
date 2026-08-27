@@ -52,6 +52,7 @@
 ## Standing/locked decisions
 
 - Phase 1 company universe: CP, QSR, OTEX, SHOP (cross-listed Canadian, US-GAAP 10-K filers, non-financial sector) — do not silently re-litigate.
+- **D11 (2026-08-27): the universe follows the researcher.** D8's Canada-first *posture* is superseded (its technical consequences — IFRS/40-F support, derivations, per-filer validation — all stand). Universe = companies Lawrence genuinely researches; US-primary in practice. All seven existing filers stay. The first US filer is named by the first decision packet (D10), never by a planning doc. "Not a screener", SM-C1 and the live-data DoD govern every addition. [Source: `foundational-decisions.md#D11`]
 - All four deterministic models are in scope for Phase 1 (Piotroski, Altman, Beneish, Sloan). Value + Growth lenses are Phase 2.
 - Verdict is always a transparent per-model threshold classification shown side by side — never a blended/weighted single score.
 - Golden-dataset verification (PRD OQ1 / SM-1) is **CLOSED** as of 2026-07-29 — all four companies hand-verified against real EDGAR data. See `backend/tests/golden/phase1_golden.yaml`.

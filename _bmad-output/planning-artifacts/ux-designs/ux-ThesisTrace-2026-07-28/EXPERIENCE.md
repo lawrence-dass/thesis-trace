@@ -13,7 +13,7 @@ updated: 2026-07-29
 
 # ThesisTrace — Experience Spine
 
-> Web-only, responsive, no native app (D4/D7). Next.js 16 App Router + Tailwind v4, a small hand-rolled component kit (no shadcn/MUI — `DESIGN.md` is the from-scratch visual identity, not a delta on an inherited system). Primary audience: Daniel, a Canada-first retail investor screening for genuine quality, not a day trader (PRD §2.2 explicitly excludes candlestick/technical-analysis users). ~20% secondary audience: technical evaluators assessing the engineering (PRD §2.1) — same surface, different motivation, never a separate mode.
+> Web-only, responsive, no native app (D4/D7). Next.js 16 App Router + Tailwind v4, a small hand-rolled component kit (no shadcn/MUI — `DESIGN.md` is the from-scratch visual identity, not a delta on an inherited system). Primary audience: Daniel, a diligence-driven retail investor screening for genuine quality (D2; universe posture per D11), not a day trader (PRD §2.2 explicitly excludes candlestick/technical-analysis users). ~20% secondary audience: technical evaluators assessing the engineering (PRD §2.1) — same surface, different motivation, never a separate mode.
 
 ## Foundation
 
@@ -106,9 +106,9 @@ Web-only, no native mobile app (D4/D7) — the product must still be fully usabl
 
 ## Key Flows
 
-Verbatim from the PRD (§2.3) — this spine does not restate them with different names; it specifies how each beat is realized on-surface. Persona: **Daniel**, Canada-first retail investor.
+Verbatim from the PRD (§2.3) — this spine does not restate them with different names; it specifies how each beat is realized on-surface. Persona: **Daniel**, diligence-driven retail investor (D2; D11).
 
-### Flow 1 — UJ-1: Daniel checks whether a Canadian industrial name's numbers actually hold up
+### Flow 1 — UJ-1: Daniel checks whether an industrial name's numbers actually hold up
 
 1. Unauthenticated, first visit, lands on `/`. Sees the Phase-1 starter list (CP, QSR, OTEX, SHOP) as explorable cards — no quiz, no gate.
 2. Clicks Canadian Pacific Kansas City → `/company/CP`. Sees the Verdict grid up top (nutshell classification per model), expandable sub-factor breakdowns underneath.
