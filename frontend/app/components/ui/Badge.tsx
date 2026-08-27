@@ -14,7 +14,7 @@ const VARIANT_STYLE: Record<BadgeVariant, string> = {
   caveat: "text-[var(--color-signal-caveat)] bg-[var(--color-signal-caveat-bg)] border-[var(--color-signal-caveat-border)]",
   pending: "text-[var(--color-signal-pending)] bg-[var(--color-signal-pending-bg)] border-[var(--color-signal-pending-border)]",
   excluded: "text-[var(--color-signal-excluded)] bg-[var(--color-signal-excluded-bg)] border-[var(--color-signal-excluded-border)]",
-  brand: "text-[var(--color-brand-700)] bg-[var(--color-brand-50)] border-[var(--color-brand-100)]",
+  brand: "text-[var(--color-brand-badge)] bg-[var(--color-brand-50)] border-[var(--color-brand-100)]",
   neutral: "text-[var(--color-ink-muted)] bg-[var(--color-canvas)] border-[var(--color-border)]",
 };
 

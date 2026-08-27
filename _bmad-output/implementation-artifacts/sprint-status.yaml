@@ -6,18 +6,18 @@
 # this file — they were split out on 2026-08-20, when this file had reached
 # 1,279 lines of which only ~115 were status.
 #
-# STATUS AT A GLANCE (40 of 47 stories done, 6 of 10 epics complete)
+# STATUS AT A GLANCE (41 of 47 stories done, 6 of 10 epics complete)
 #
-#   Epic 1  done      10/10        Foundation & First Evidence (Walking Skeleton)
-#   Epic 2  done      6/6          Complete the Four Lenses
-#   Epic 3  done      6/6          Verdict, Methodology & Explanation
-#   Epic 4  done      4/4          Discovery & Comparison
-#   Epic 5  done      7/7          Filing Change Detection & Quality-Lens Depth
-#   Epic 6  done      7/7          Narrow Valuation — Reverse DCF
-#   Epic 7  blocked   no stories   Thesis Journal & Thesis Diff
-#   Epic 8  blocked   no stories   Growth Trends
-#   Epic 9  blocked   no stories   Filing Q&A
-#   Epic 10 backlog   0/7          Report-Style Company Page
+#   Epic 1  done         10/10        Foundation & First Evidence (Walking Skeleton)
+#   Epic 2  done         6/6          Complete the Four Lenses
+#   Epic 3  done         6/6          Verdict, Methodology & Explanation
+#   Epic 4  done         4/4          Discovery & Comparison
+#   Epic 5  done         7/7          Filing Change Detection & Quality-Lens Depth
+#   Epic 6  done         7/7          Narrow Valuation — Reverse DCF
+#   Epic 7  blocked      no stories   Thesis Journal & Thesis Diff
+#   Epic 8  blocked      no stories   Growth Trends
+#   Epic 9  blocked      no stories   Filing Q&A
+#   Epic 10 in-progress  1/7          Report-Style Company Page
 #
 # Epic 10 (added 2026-08-27, D12) is the only buildable epic: presentation-only,
 # re-presenting already-computed figures, so D9's capability gate does not apply
@@ -141,8 +141,8 @@ development_status:
   # Epic 10 added 2026-08-27 (D12): report-style company page. Presentation-only —
   # re-presents already-computed figures — so it is `backlog`, not `blocked`:
   # D9's capability gate does not govern it. Story keys derived from epics.md.
-  epic-10: backlog
-  10-1-report-shell-section-navigation-and-dark-first-theme: backlog
+  epic-10: in-progress
+  10-1-report-shell-section-navigation-and-dark-first-theme: done
   10-2-verdict-constellation: backlog
   10-3-rewards-and-risks-derived-from-computed-signals: backlog
   10-4-fundamentals-summary-and-earnings-waterfall: backlog

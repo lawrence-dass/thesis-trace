@@ -23,7 +23,7 @@
 # CURATED_SECTIONS in backend/tests/test_sprint_status.py, and give it a
 # `status:` of open|done. Do NOT put it in sprint-status.yaml.
 #
-# INDEX (status as of 2026-08-20)
+# INDEX (status as of 2026-08-27)
 #   reference                  epic_decomposition_rationale   (from epic_catalog)
 #   reference                  action_item_evidence           (closed action items)
 #   5 entries, all closed      post_epic_work
@@ -39,7 +39,8 @@
 #   open                       reverse_dcf_capital_intensity_distortion
 #   done                       shop_local_history_is_not_edgar_coverage
 #   done                       story_6_1_reverse_dcf_coverage_spike
-#   open                       shop_convertible_debt_unmapped
+#   done                       shop_convertible_debt_unmapped (corrected — resolved by PR #81, this line was stale)
+#   done                       story_10_1_browser_verification
 
 
 # Work completed after Epic 4 that no epic owns, tracked here so it is not lost.
@@ -1263,3 +1264,118 @@ ambiguity_flagging_had_no_idempotency_key:
     is not resurrected as a fresh needs_review one. Guarded by
     test_an_ambiguity_is_flagged_once_not_once_per_mapping_version, verified to fail
     when the guard is removed. Dev store deduplicated: 59 rows to 31.
+
+story_10_1_browser_verification:
+  status: done
+  verified: 2026-08-27
+  how: >
+    Live dev server (Next.js dev, not a static build) against the real dev database
+    and a running backend, two filers chosen for opposite code paths — not for
+    convenience — per the live-data DoD.
+  filers_checked:
+    CP: >-
+      Full resolution: all 4 models compute across ~19 fiscal years each, reverse
+      DCF resolves (37.2% implied vs 6.6% achieved), near-term debt share AND a
+      published maturity/repayment schedule both present, open data-quality
+      warnings (ambiguous_selection). Exercises every section's "everything present"
+      path and the longest realistic Financial Health section (2 models x ~19 years).
+    SU: >-
+      Sparse/degraded: Beneish and Altman both carry a Caveat (missing SG&A Ratio,
+      missing Retained Earnings under IFRS by-nature presentation), reverse DCF
+      resolves to insufficient_data ("no free cash flow for this fiscal year") per
+      AD-16 rather than being hidden, near-term debt share present (973.0M of
+      9.99B — the exact figure PR #74's compactAmount fix targeted) but NO
+      maturity/repayment schedule (renders nothing, not a placeholder), and no
+      open data-quality warnings. Exercises every section's degraded/absent path.
+  what_was_verified:
+    - "All 5 sections (Overview, Valuation, Past Performance, Financial Health, Integrity & Evidence) render with correct content in their new homes, on both filers."
+    - "Persistent section nav's scrollspy correctly tracks the active section as the real page scrolls (verified via mouse-wheel scroll, see defect note below on how in-page click navigation was verified)."
+    - "URL hash updates and is independently addressable (direct #anchor jump on load, and via nav click)."
+    - "Dark theme is the default on first load with no stored preference; ThemeToggle correctly switches to light and back, in both directions, with badges/gauges/cards legible in both themes."
+    - "Every existing capability confirmed still reachable: Verdict grid, WhatChanged, ReverseDcfCard (both resolved and insufficient_data branches), per-model expandable breakdowns with citations, NearTermDebtShareCard, MaturityProfileCard (both present and render-nothing branches), data-quality warning banner (both present and absent branches)."
+    - "All 47 pre-existing frontend unit tests pass unmodified; tsc and eslint clean; production build succeeds."
+  defects_found_and_fixed:
+    - >
+      React hydration-mismatch console error on every page load: the blocking
+      theme-init script sets `data-theme` on `<html>` before hydration (by design,
+      to avoid a flash of the wrong theme), which server-rendered HTML never
+      carries — React correctly flagged the resulting attribute mismatch. Fixed
+      with `suppressHydrationWarning` on `<html>` (scoped to that element only,
+      the same technique the next-themes library uses for this exact case).
+      Confirmed clean console after the fix, on a fresh navigation.
+  tooling_note: >
+    In-page anchor-click navigation could not be visually confirmed as "smooth"
+    through the browser-automation tab specifically: `scroll-behavior: smooth`
+    (CSS) animates via requestAnimationFrame, and this automation tab appears to
+    be treated as backgrounded/non-visible by Chrome, which throttles rAF-driven
+    animation near to a halt — confirmed by three independent tests: (1) a real
+    mouse-wheel scroll moved the page instantly and correctly, (2) `window.scrollTo`
+    and `scrollIntoView` had zero effect while `scroll-behavior` computed as
+    `smooth`, (3) setting `scroll-behavior: auto` at runtime made the identical
+    `scrollTo` call apply instantly. This is an artifact of the automation
+    environment's tab-visibility handling, not a defect in the shipped CSS — a
+    real user's foreground tab is never subject to this throttling. All 5-section
+    functional verification above was done with `scroll-behavior` forced to `auto`
+    for observability; the shipped code still ships `smooth` (globals.css).
+
+story_10_1_codex_review:
+  status: done
+  reviewed: 2026-08-27
+  by: "Codex, independent pass against PR #87 per the project's cross-model review convention"
+  findings: 10
+  all_confirmed_and_fixed: true
+  fixed:
+    - "P1: dark-mode brand token reused for two opposite contrast needs (text-on-dark-surface vs white-on-filled-button), producing sub-AA contrast in places. Split into named roles (--color-brand-link, --color-brand-action, --color-brand-badge) with --color-brand-600/700 kept as aliases so no consumer needed a rename beyond the shared components (Button, Badge)."
+    - "P1: header overflowed at a 320px viewport. Responsive padding/gap classes added (px-3 sm:px-6, gap-1 sm:gap-5, min-w-0, whitespace-nowrap)."
+    - "P2: ThemeToggle showed the wrong icon/label for one frame before mount, and an early click could invert state incorrectly. Now disabled with a neutral placeholder until mounted, and toggle() reads the DOM attribute directly as the source of truth rather than trusting React state."
+    - "P2: ReportNav's scrollspy only inspected the IntersectionObserver's changed entries per callback (a delta, not a full snapshot), so an active section could be set incorrectly when multiple sections intersected at once. Now keeps a persistent per-target intersection map and recomputes the topmost intersecting section on every callback."
+    - "P2: a short final section (e.g. Integrity & Evidence on a filer with little content) could never enter the observer's activation band and so never became active. Added a scroll-position fallback that force-activates the last section once the document is scrolled to its true bottom."
+    - "P2: pending-badge and faint-text dark tokens were both under the 4.5:1 AA floor. Brightened --color-ink-faint-dark and --color-signal-pending-dark."
+    - "P2: scroll-behavior: smooth was unconditional, ignoring prefers-reduced-motion. Now gated behind @media (prefers-reduced-motion: no-preference)."
+    - "P2: Next's default 404 page ignored the app's theme (hard-coded white body under the dark header). Added app/not-found.tsx using the same design tokens."
+    - "P2: architecture-page Mermaid diagrams kept their authored light palette even in dark mode. Added a light->dark hex-swap at the render boundary (frontend/app/components/MermaidDiagram.tsx), re-rendering live on theme change via a MutationObserver on data-theme."
+  independently_reverified_by_claude:
+    contrast_math: >
+      Recomputed every stated contrast ratio from the actual color-mix formulas rather than
+      trusting Codex's numbers — WCAG 2.1 relative-luminance formula, sRGB channel lerp matching
+      `color-mix(in srgb, ...)`. All pass AA: primary button 5.29:1, link-on-surface 7.14:1,
+      pending-badge 5.03:1, nav-faint-text 5.29:1. One is thin: brand badge text on brand-50 is
+      4.56:1 against a 4.5:1 floor — passes, but only just, and a future token tweak on either
+      side could silently fail it with nothing to catch that. No automated contrast test exists;
+      this was hand-verified, not enforced.
+    mobile_header_320px: >
+      Could not get an actual 320px render — `resize_window` did not affect this tab's viewport
+      at all on the original tab (stuck at 1728px regardless), and a fresh tab clamped to a
+      500px floor rather than reaching 320px, evidently an environment constraint rather than
+      the tool's failure to act. Confirmed clean (no overflow) at 500px, genuinely below the
+      sm:640px breakpoint so the mobile-first base classes are the ones active. Measured the
+      real mobile-variant values there (12px each-side padding, 4px nav gap, 101px logo, 198px
+      nav) and summed them: ~323px minimum content width. At literally 320px this could still
+      overflow by a few px — a large improvement over the original ~355px, but not certainly
+      zero. Recommend a real-device or DevTools spot-check before treating this specific number
+      as fully closed.
+    scrollspy_final_section: >
+      First check (via JS `window.scrollTo` to the document bottom) showed the nav stuck on
+      "Overview" even after a 2s wait — looked like the fix hadn't worked. Re-tested with a
+      GENUINE mouse-wheel scroll (computer tool's scroll action) to the identical scrollY
+      (16774.5) and the nav correctly read "Integrity & Evidence". Same position, different
+      input method, opposite result — confirms `scrollTo()` does not reliably dispatch the
+      native `scroll` event this fix's fallback listens for in this specific automation
+      environment (the same class of artifact already recorded for smooth-scroll in
+      story_10_1_browser_verification above), not a defect in the shipped fix. Real user input
+      (wheel/trackpad/touch/scrollbar) fires genuine scroll events and is unaffected.
+    mermaid_dark_theming: >
+      Confirmed the re-render is genuinely live, not just correct on initial dark load: toggled
+      theme light->dark->light on the /architecture page and the diagram's palette flipped
+      correctly both directions, matching the MutationObserver-driven re-render in the diff.
+    404_and_reduced_motion: >
+      404 confirmed dark-themed by navigating to a genuinely non-existent route (distinct from
+      the app's own "not yet covered" state for an out-of-universe ticker, which still renders
+      correctly and separately). prefers-reduced-motion gating verified by reading the CSS
+      source only — no motion-preference emulation was available in this session's tooling to
+      confirm the media query actually flips at runtime.
+  regression_check: >
+    Full gate re-run after the fixes: tsc clean, eslint clean, vitest 47/47 (unmodified),
+    backend pytest 343/343 (unaffected — frontend-only change, run as a sanity check), next
+    build succeeds including the new /_not-found route, browser console clean on a fresh
+    navigation (no hydration warnings reintroduced).

@@ -76,7 +76,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   return (
     <main className="mx-auto w-full max-w-7xl space-y-6">
       <section className="space-y-2">
-        <p className="text-sm font-semibold uppercase tracking-wide text-[var(--color-brand-600)]">Comparison</p>
+        <p className="text-sm font-semibold uppercase tracking-wide text-[var(--color-brand-link)]">Comparison</p>
         <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-ink)] sm:text-3xl">
           {list.join(" · ")}
         </h1>
