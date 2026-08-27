@@ -19,6 +19,7 @@ import enum
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from string import Formatter
 
 import yaml
 
@@ -88,6 +89,7 @@ def load_rewards_risks_spec() -> dict:
             "as one. Academic model specs must not be applied as presentation rules."
         )
     for required in (
+        "inputs",
         "reward_bands",
         "risk_bands",
         "model_label",
@@ -105,6 +107,10 @@ def load_rewards_risks_spec() -> dict:
     for field in ("reward_bands", "risk_bands", "model_label"):
         if not isinstance(data[field], dict):
             raise RewardsRisksSpecError(f"Rewards/risks spec field '{field}' must be a mapping")
+    if not isinstance(data["inputs"], list) or not all(
+        isinstance(item, str) and item.strip() for item in data["inputs"]
+    ):
+        raise RewardsRisksSpecError("Rewards/risks spec field 'inputs' must be a list of text paths")
     for field in (
         "band_reward_template",
         "band_risk_template",
@@ -116,6 +122,22 @@ def load_rewards_risks_spec() -> dict:
     ):
         if not isinstance(data[field], str) or not data[field].strip():
             raise RewardsRisksSpecError(f"Rewards/risks spec field '{field}' must be non-empty text")
+
+    required_template_fields = {
+        "band_reward_template": {"model_label", "band_label", "fiscal_year", "caveat_suffix"},
+        "band_risk_template": {"model_label", "band_label", "fiscal_year", "caveat_suffix"},
+        "data_quality_risk_template_singular": {"issue_type"},
+        "data_quality_risk_template_plural": {"issue_type", "count"},
+    }
+    for field, expected in required_template_fields.items():
+        try:
+            names = {name for _, name, _, _ in Formatter().parse(data[field]) if name is not None}
+        except ValueError as exc:
+            raise RewardsRisksSpecError(f"Rewards/risks spec template '{field}' is invalid") from exc
+        if not expected.issubset(names):
+            raise RewardsRisksSpecError(
+                f"Rewards/risks spec template '{field}' must expose {sorted(expected)}"
+            )
 
     # The reward/risk rule deliberately quotes the academic models' labels, but
     # the model specs remain authoritative. Fail at load time if a future model

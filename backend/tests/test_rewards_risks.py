@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
+import yaml
 
 from formulas.engine import load_spec as load_formula_spec
 from rewards_risks.engine import (
@@ -270,6 +271,23 @@ def test_loader_rejects_empty_or_scalar_specs(tmp_path, monkeypatch) -> None:
     for contents in ("", "just a scalar"):
         bad = tmp_path / "malformed.yaml"
         bad.write_text(contents)
+        monkeypatch.setattr("rewards_risks.engine.SPEC_PATH", bad)
+        load_rewards_risks_spec.cache_clear()
+        try:
+            with pytest.raises(RewardsRisksSpecError):
+                load_rewards_risks_spec()
+        finally:
+            load_rewards_risks_spec.cache_clear()
+
+
+def test_loader_rejects_specs_with_missing_inputs_or_template_fields(tmp_path, monkeypatch) -> None:
+    spec = load_rewards_risks_spec()
+    for malformed in (
+        {**spec, "inputs": None},
+        {**spec, "band_reward_template": "{model_label} only"},
+    ):
+        bad = tmp_path / "malformed.yaml"
+        bad.write_text(yaml.safe_dump(malformed))
         monkeypatch.setattr("rewards_risks.engine.SPEC_PATH", bad)
         load_rewards_risks_spec.cache_clear()
         try:
