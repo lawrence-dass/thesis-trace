@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
@@ -37,6 +37,7 @@ from api.schemas import (
     MaturityProfileOut,
     NearTermDebtShareOut,
     Provenance,
+    RewardRiskItemOut,
     TrajectoryOut,
     RunChangeOut,
     SignalChangeOut,
@@ -53,6 +54,7 @@ from valuation.overview import DCF_CONCEPTS
 from valuation.store import load_reverse_dcf
 from diff.engine import diff_company_since, latest_filing_pivot
 from trajectory.engine import trajectories_for_scores
+from rewards_risks.engine import rewards_risks_for_overview
 
 _DERIVATION_OPERANDS = {rule.rule: rule.operands for rule in DERIVATION_RULES}
 _DERIVATION_OPERATIONS = {rule.rule: rule.operation for rule in DERIVATION_RULES}
@@ -502,12 +504,19 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
             spec_version=base.spec_version,
         )
 
-    # Open data-quality warnings for this issuer's filings (AD-17, FR-8) — never hidden.
+    # Open data-quality warnings for this issuer (AD-17, FR-8) — never hidden.
+    # Most rows point at a filing; keep canonical-fact-only issues visible too,
+    # since both foreign keys are nullable on the quality-issue table.
     dq_rows = (
         await session.execute(
             select(DataQualityIssue, Filing.issuer_cik)
-            .join(Filing, Filing.accession_number == DataQualityIssue.accession_number)
-            .where(Filing.issuer_cik == issuer.cik, DataQualityIssue.status != IssueStatus.dismissed)
+            .outerjoin(Filing, Filing.accession_number == DataQualityIssue.accession_number)
+            .outerjoin(CanonicalFact, CanonicalFact.id == DataQualityIssue.canonical_fact_id)
+            .where(
+                or_(Filing.issuer_cik == issuer.cik, CanonicalFact.issuer_cik == issuer.cik),
+                DataQualityIssue.status == IssueStatus.needs_review,
+            )
+            .order_by(DataQualityIssue.issue_type, DataQualityIssue.accession_number, DataQualityIssue.id)
         )
     ).all()
     data_quality = [
@@ -570,6 +579,24 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
     ]
 
     lenses_live = sorted({s.model for s in scores})
+
+    # Rewards and risks (Story 10.3). Computed from `verdict` and
+    # `data_quality`, both already built above — no extra query, same shape
+    # as the trajectory pass (AD-1).
+    rewards_risks = [
+        RewardRiskItemOut(
+            kind=item.kind.value,
+            text=item.text,
+            section=item.section,
+            model=item.model,
+            fiscal_year=item.fiscal_year,
+            accession_number=item.accession_number,
+            attribution=item.attribution,
+            spec_version=item.spec_version,
+        )
+        for item in rewards_risks_for_overview(verdict, data_quality)
+    ]
+
     return CompanyOverviewOut(
         cik=issuer.cik,
         ticker=issuer.ticker,
@@ -582,6 +609,7 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
         debt_maturity_profile=debt_maturity_profile,
         reverse_dcf=reverse_dcf,
         data_quality=data_quality,
+        rewards_risks=rewards_risks,
     )
 
 
