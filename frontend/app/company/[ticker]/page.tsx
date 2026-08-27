@@ -210,7 +210,9 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                     {lens.aggregate_value}
                   </span>
                 ) : null}
-                {lens.applicability !== "computed" ? (
+                {lens.aggregate_value === null ? (
+                  <Badge variant="pending">Insufficient data</Badge>
+                ) : lens.applicability !== "computed" ? (
                   <Badge variant={applicabilityVariant(lens.applicability)}>
                     {applicabilityLabel(lens.applicability)}
                   </Badge>
@@ -311,14 +313,14 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                   <div className="font-mono text-2xl font-semibold tabular-nums text-[var(--color-ink)]">
                     {v.aggregate_value ?? "—"}
                   </div>
-                  {v.applicability !== "computed" ? (
+                  {v.aggregate_value === null ? (
+                    <Badge variant="pending">Insufficient data</Badge>
+                  ) : v.applicability !== "computed" ? (
                     <Badge variant={applicabilityVariant(v.applicability)}>{applicabilityLabel(v.applicability)}</Badge>
                   ) : v.band_label ? (
                     <Badge variant={bandTone(v.band_label)} icon={false}>
                       {v.band_label}
                     </Badge>
-                  ) : v.aggregate_value === null ? (
-                    <Badge variant="pending">Insufficient data</Badge>
                   ) : null}
                   {v.aggregate_value === null && v.missing_signals.length > 0 ? (
                     <p className="text-xs leading-snug text-[var(--color-ink-faint)]">

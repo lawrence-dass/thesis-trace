@@ -69,6 +69,28 @@ describe("axisState", () => {
     expect(excluded.pct).not.toBe(0);
   });
 
+  it("lets no value take precedence over a caveat", () => {
+    const s = axisState(
+      verdict({ model: "altman", aggregate_value: null, applicability: "computed_with_caveat" }),
+    );
+    expect(s.label).toBe("Insufficient data");
+    expect(s.tone).toBe("pending");
+    expect(s.dashed).toBe(true);
+  });
+
+  it("uses the Gauge fallback domain for an unknown model key", () => {
+    const s = axisState(verdict({ model: "future-model", aggregate_value: 3, band_label: null }));
+    expect(s.pct).toBe(50);
+    expect(s.tone).toBe("neutral");
+  });
+
+  it("treats a non-finite value as unavailable rather than drawing NaN geometry", () => {
+    const s = axisState(verdict({ model: "piotroski", aggregate_value: Number.NaN }));
+    expect(s.label).toBe("Insufficient data");
+    expect(s.tone).toBe("pending");
+    expect(s.dashed).toBe(true);
+  });
+
   it("falls back to a neutral tone for a computed value with no band label at all", () => {
     const s = axisState(verdict({ model: "sloan", aggregate_value: 0.01, band_label: null }));
     expect(s.dashed).toBe(false);

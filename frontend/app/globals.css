@@ -129,10 +129,9 @@
 
 /*
  * Light theme — the ORIGINAL palette this file carried before D12, kept
- * verbatim as an explicit opt-in rather than the default. Set by the
- * blocking inline script in `layout.tsx` (reads localStorage, defaults to
- * dark) before first paint, so there is no flash of the wrong theme.
- * Toggled at runtime via `ThemeToggle.tsx`.
+ * verbatim as an explicit opt-in rather than the default. The `layout.tsx`
+ * server component reads the theme cookie before first paint, so there
+ * is no flash of the wrong theme. Toggled at runtime via `ThemeToggle.tsx`.
  */
 :root[data-theme="light"] {
   --color-canvas: #f6f7fb;

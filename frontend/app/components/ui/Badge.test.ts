@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bandTone } from "./Badge";
+import { applicabilityLabel, applicabilityVariant, bandTone } from "./Badge";
 
 /** `bandTone` colors a backend-authored band label. It classifies nothing — the
  *  string is already fixed by `backend/formulas/specs/*.yaml` — so the only way
@@ -71,5 +71,12 @@ describe("bandTone", () => {
     expect(bandTone(null)).toBe("neutral");
     expect(bandTone("")).toBe("neutral");
     expect(bandTone("Some future band")).toBe("neutral");
+  });
+});
+
+describe("applicability", () => {
+  it("does not turn an unknown applicability value into a computed pass", () => {
+    expect(applicabilityVariant("future_state")).toBe("pending");
+    expect(applicabilityLabel("future_state")).toBe("Unavailable");
   });
 });

@@ -37,18 +37,37 @@ export type AxisState = {
   tone: BadgeVariant;
   pct: number; // 0-100, spoke length as % of the max radius
   dashed: boolean; // true when `pct` is a fixed placeholder, not a real position
+  fiscalYear?: number;
 };
 
 // Deliberately short but never zero (AD-16) and always dashed/pending- or
 // excluded-toned, so it cannot be mistaken for a real, low value.
 const NOMINAL_PCT = 22;
+const KNOWN_APPLICABILITY = new Set(["computed", "computed_with_caveat", "excluded_out_of_scope"]);
+
+function absenceState(v: VerdictItem, label = "Insufficient data"): AxisState {
+  return { model: v.model, label, tone: "pending", pct: NOMINAL_PCT, dashed: true, fiscalYear: v.fiscal_year };
+}
 
 export function axisState(v: VerdictItem): AxisState {
   if (v.applicability === "excluded_out_of_scope") {
-    return { model: v.model, label: applicabilityLabel(v.applicability), tone: applicabilityVariant(v.applicability), pct: NOMINAL_PCT, dashed: true };
+    return {
+      model: v.model,
+      label: applicabilityLabel(v.applicability),
+      tone: applicabilityVariant(v.applicability),
+      pct: NOMINAL_PCT,
+      dashed: true,
+      fiscalYear: v.fiscal_year,
+    };
   }
-  if (v.aggregate_value === null) {
-    return { model: v.model, label: "Insufficient data", tone: "pending", pct: NOMINAL_PCT, dashed: true };
+  if (v.aggregate_value === null || !Number.isFinite(v.aggregate_value)) {
+    // No value to plot takes precedence over a caveat attached to the run.
+    return absenceState(v);
+  }
+  if (!KNOWN_APPLICABILITY.has(v.applicability)) {
+    // Never turn an enum value the UI does not understand into a measured
+    // pass/fail-looking spoke.
+    return absenceState(v, "Unavailable");
   }
   const pct = domainPct(v.model, v.aggregate_value);
   if (v.applicability === "computed_with_caveat") {
@@ -56,12 +75,19 @@ export function axisState(v: VerdictItem): AxisState {
     // differs, matching the existing Verdict grid card's own choice to show
     // "Caveat" as the primary badge while the gauge beneath it still marks
     // the real classification.
-    return { model: v.model, label: applicabilityLabel(v.applicability), tone: bandTone(v.band_label), pct, dashed: false };
+    return {
+      model: v.model,
+      label: applicabilityLabel(v.applicability),
+      tone: bandTone(v.band_label),
+      pct,
+      dashed: false,
+      fiscalYear: v.fiscal_year,
+    };
   }
   if (v.band_label) {
-    return { model: v.model, label: v.band_label, tone: bandTone(v.band_label), pct, dashed: false };
+    return { model: v.model, label: v.band_label, tone: bandTone(v.band_label), pct, dashed: false, fiscalYear: v.fiscal_year };
   }
-  return { model: v.model, label: String(v.aggregate_value), tone: "neutral", pct, dashed: false };
+  return { model: v.model, label: String(v.aggregate_value), tone: "neutral", pct, dashed: false, fiscalYear: v.fiscal_year };
 }
 
 const MODEL_SHORT_LABEL: Record<string, string> = {
@@ -86,44 +112,63 @@ const SECTION_FOR_MODEL: Record<string, string> = {
   sloan: "#integrity-evidence",
 };
 
-// Sized so a two-line label (model name + state) has real room outside
-// MAX_RADIUS in every direction — the first pass at these numbers left only
-// ~6px of edge margin and clipped every label against the SVG's own default
-// `overflow: hidden` viewBox boundary, caught rendering in a real browser
-// (top/bottom labels sliced to their bottom half; left/right labels sliced
-// to their last 1-2 characters, since text-anchor="end"/"start" grows AWAY
-// from the axis and needs headroom the old LABEL_RADIUS never budgeted).
+// The label coordinates reserve a safe text box inside the viewBox. Side-axis
+// statuses are wrapped because text-anchor="end"/"start" otherwise grows away
+// from the axis and can clip long labels such as Beneish's "Manipulation risk
+// flagged" on narrow screens. `overflow="visible"` remains a safety net for
+// browser font metrics, not the primary layout mechanism.
 const SIZE = 260;
 const CENTER = SIZE / 2;
 const MAX_RADIUS = 82;
-const LABEL_RADIUS = MAX_RADIUS + 22;
+const LABEL_LINE_HEIGHT = 14;
+const SIDE_LABEL_MAX_CHARS = 14;
+
+const LABEL_POSITION: Record<number, { x: number; y: number; anchor: "middle" | "start" | "end" }> = {
+  0: { x: CENTER, y: 14, anchor: "middle" },
+  1: { x: 178, y: 112, anchor: "start" },
+  2: { x: CENTER, y: 218, anchor: "middle" },
+  3: { x: 82, y: 112, anchor: "end" },
+};
 
 function point(axisIndex: number, radius: number): { x: number; y: number } {
   const angle = -Math.PI / 2 + axisIndex * (Math.PI / 2);
   return { x: CENTER + radius * Math.cos(angle), y: CENTER + radius * Math.sin(angle) };
 }
 
-function labelAnchor(axisIndex: number): "middle" | "start" | "end" {
-  if (axisIndex === 1) return "start"; // right
-  if (axisIndex === 3) return "end"; // left
-  return "middle"; // top, bottom
+function wrapLabel(label: string): string[] {
+  const words = label.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let line = "";
+  for (const word of words) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (line && candidate.length > SIDE_LABEL_MAX_CHARS) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = candidate;
+    }
+  }
+  if (line) lines.push(line);
+  return lines.length > 0 ? lines : [label];
 }
 
 export function VerdictGlyph({ verdict }: { verdict: VerdictItem[] }) {
   const byModel = new Map(verdict.map((v) => [v.model, v]));
   const axes = AXIS_ORDER.map((model, i) => {
     const v = byModel.get(model);
-    const state = v ? axisState(v) : { model, label: "Not covered", tone: "pending" as BadgeVariant, pct: NOMINAL_PCT, dashed: true };
+    const state = v
+      ? axisState(v)
+      : { model, label: "Not covered", tone: "pending" as BadgeVariant, pct: NOMINAL_PCT, dashed: true };
     return { index: i, model, state };
-  }).filter((a) => byModel.has(a.model));
+  });
 
-  if (axes.length === 0) return null;
+  if (verdict.length === 0) return null;
 
   return (
     <div className="flex justify-center py-2">
       <svg
         viewBox={`0 0 ${SIZE} ${SIZE}`}
-        role="img"
+        role="group"
         aria-label="Verdict constellation: each model's classification on its own independent axis, never combined into one score"
         // Safety net alongside the sized-for-real-content margins above: a
         // label a browser's own font metrics render wider than expected
@@ -135,8 +180,13 @@ export function VerdictGlyph({ verdict }: { verdict: VerdictItem[] }) {
         {axes.map(({ index, model, state }) => {
           const full = point(index, MAX_RADIUS);
           const tip = point(index, (state.pct / 100) * MAX_RADIUS);
-          const labelPt = point(index, LABEL_RADIUS);
-          const anchor = labelAnchor(index);
+          const labelPosition = LABEL_POSITION[index];
+          const statusLines = index === 1 || index === 3 ? wrapLabel(state.label) : [state.label];
+          const labelLines = [
+            MODEL_SHORT_LABEL[model] ?? model,
+            ...statusLines,
+            ...(state.fiscalYear !== undefined ? [`FY ${state.fiscalYear}`] : []),
+          ];
           const color = TONE_SOLID[state.tone];
 
           return (
@@ -147,14 +197,16 @@ export function VerdictGlyph({ verdict }: { verdict: VerdictItem[] }) {
             // disagreed on it (`<title>` doubles as HTML page-metadata,
             // which the SSR string-render treats specially in a way the
             // client's real DOM does not). An attribute is a plain string
-            // prop with no such ambiguity, and the anchor's accessible name
-            // still comes correctly from its own visible text content
-            // either way.
+            // prop with no such ambiguity, and the anchor receives an
+            // explicit accessible name below.
             <a
               key={model}
               href={SECTION_FOR_MODEL[model]}
               title={`${MODEL_SHORT_LABEL[model] ?? model}: ${state.label}`}
-              className="cursor-pointer"
+              aria-label={`${MODEL_SHORT_LABEL[model] ?? model}: ${state.label}${state.fiscalYear !== undefined ? `, FY ${state.fiscalYear}` : ""}`}
+              role="link"
+              tabIndex={0}
+              className="cursor-pointer outline-none focus-visible:outline-2 focus-visible:outline-[var(--color-brand-link)] focus-visible:outline-offset-2"
             >
               {/* Invisible, wide hit-area — the visible track below is only
                   2px, far too thin a target to reliably click; this widens
@@ -188,17 +240,22 @@ export function VerdictGlyph({ verdict }: { verdict: VerdictItem[] }) {
                 strokeDasharray={state.dashed ? "3 4" : undefined}
               />
               <circle cx={tip.x} cy={tip.y} r={5} fill={color} stroke="var(--color-surface)" strokeWidth={2} />
-              <text
-                x={labelPt.x}
-                y={labelPt.y - 4}
-                textAnchor={anchor}
-                className="text-[11px] font-semibold"
-                fill="var(--color-ink)"
-              >
-                {MODEL_SHORT_LABEL[model] ?? model}
-              </text>
-              <text x={labelPt.x} y={labelPt.y + 10} textAnchor={anchor} className="text-[10px]" fill={color}>
-                {state.label}
+              <text x={labelPosition.x} y={labelPosition.y} textAnchor={labelPosition.anchor} className="text-[11px] font-semibold" fill="var(--color-ink)">
+                {labelLines.map((line, lineIndex) => (
+                  <tspan
+                    key={lineIndex}
+                    x={labelPosition.x}
+                    dy={lineIndex === 0 ? 0 : LABEL_LINE_HEIGHT}
+                    fill={
+                      lineIndex === 0 || (state.fiscalYear !== undefined && lineIndex === labelLines.length - 1)
+                        ? "var(--color-ink)"
+                        : color
+                    }
+                    className={lineIndex === 0 ? "text-[11px] font-semibold" : "text-[10px] font-normal"}
+                  >
+                    {line}
+                  </tspan>
+                ))}
               </text>
             </a>
           );

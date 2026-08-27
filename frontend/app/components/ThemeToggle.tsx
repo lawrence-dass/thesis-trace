@@ -11,13 +11,35 @@
 // a hydration mismatch, because there isn't one: server and client agree
 // from the first frame.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MoonIcon, SunIcon } from "./ui/icons";
 
 const THEME_COOKIE = "thesistrace-theme";
 
+function persistTheme(next: "dark" | "light") {
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=31536000; SameSite=Lax${secure}`;
+}
+
 export function ThemeToggle({ initialTheme }: { initialTheme: "dark" | "light" }) {
   const [theme, setTheme] = useState(initialTheme);
+
+  useEffect(() => {
+    // Story 10.1 stored the preference in localStorage. Migrate that one
+    // legacy value after hydration so existing light-mode users are not
+    // silently reset, without mutating <html> before React has attached.
+    try {
+      const hasCookie = document.cookie.split(";").some((part) => part.trim().startsWith(`${THEME_COOKIE}=`));
+      if (!hasCookie && window.localStorage.getItem(THEME_COOKIE) === "light") {
+        persistTheme("light");
+        document.documentElement.setAttribute("data-theme", "light");
+        setTheme("light");
+      }
+    } catch {
+      // Storage/cookie access can be blocked by privacy settings. The
+      // server-rendered theme remains authoritative in that case.
+    }
+  }, []);
 
   function toggle() {
     const next = theme === "light" ? "dark" : "light";
@@ -25,7 +47,7 @@ export function ThemeToggle({ initialTheme }: { initialTheme: "dark" | "light" }
     // A cookie, not localStorage: the SERVER reads this on the next request
     // to render the correct `data-theme` directly, which is what makes the
     // choice stick without a client-only script racing hydration.
-    document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=31536000; SameSite=Lax`;
+    persistTheme(next);
     setTheme(next);
   }
 
