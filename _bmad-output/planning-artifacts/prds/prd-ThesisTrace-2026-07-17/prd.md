@@ -15,30 +15,30 @@ This PRD is for Lawrence (sole PM, engineer, and primary user of the finished pr
 
 ThesisTrace is an evidence-backed equity intelligence platform for retail investors who want proof, not opinions, before they commit capital. Rather than trusting a single opaque score or a stranger's hot take, an investor sees a company's financial health, valuation, growth durability, and earnings integrity broken into four distinct, transparent lenses — every conclusion traceable back to the actual filing line item it came from.
 
-It starts narrow and honest: a small set of cross-listed Canadian companies with clean, verifiable US-GAAP data, computed with the same deterministic forensic models professional analysts use (Piotroski, Altman, Beneish, Sloan) — not an LLM guessing at a number. An AI layer explains what's already been computed and answers filing-grounded questions, but it never originates a score or tells the investor what to do. The investor forms their own thesis; ThesisTrace's job is to make sure that thesis is built on evidence that actually holds up — and, uniquely, to keep checking that evidence against reality as new filings arrive.
+It starts narrow and honest: a small, curated set of companies the investor is genuinely researching — it began with cross-listed Canadian filers and grows wherever that research leads, US-primary in practice (`foundational-decisions.md` D11) — computed with the same deterministic forensic models professional analysts use (Piotroski, Altman, Beneish, Sloan) — not an LLM guessing at a number. An AI layer explains what's already been computed and answers filing-grounded questions, but it never originates a score or tells the investor what to do. The investor forms their own thesis; ThesisTrace's job is to make sure that thesis is built on evidence that actually holds up — and, uniquely, to keep checking that evidence against reality as new filings arrive.
 
 ## 2. Target User
 
 ### 2.1 Jobs To Be Done
 
-- **Functional:** When I'm considering a Canadian-relevant equity, I want to see whether its financials actually hold up, so I can tell a genuine opportunity from a value trap.
+- **Functional:** When I'm seriously considering an equity, I want to see whether its financials actually hold up, so I can tell a genuine opportunity from a value trap.
 - **Functional:** When I've found a company that looks cheap or fast-growing, I want to check its earnings quality before I trust the headline numbers.
 - **Functional:** When I've researched two or more candidates, I want to compare them side by side so I can decide between them with evidence, not memory.
 - **Emotional:** I want confidence that I'm reasoning from evidence, not being sold a narrative — including my own optimism.
-- **Identity/social:** I want to back companies genuinely worth owning because they're Canadian-connected and strong — not just because they're familiar.
+- **Identity/social:** I want to be a disciplined value/growth investor who backs companies because I understand them to the core and they're genuinely worth owning — not just because they're familiar.
 - **Contextual (secondary, ~20% weighting):** As the builder, I want this to visibly demonstrate real skill — financial modeling, deterministic engineering, AI orchestration, full-stack, cloud — to technical evaluators in the financial-engineering space.
 
 ### 2.2 Non-Users (v1)
 
 - Day traders / technical (chart-pattern) analysts — no candlestick tools, no technical indicators, no TradingView-style widgets (see `foundational-decisions.md` D7).
-- Investors wanting full market coverage (S&P 500, broad TSX/TSXV) — only 4 companies in v1.
+- Investors wanting full market coverage (S&P 500, broad TSX/TSXV) — the universe is a deliberately small, curated set (7 filers as of 2026-08-27; see D11 for how it grows).
 - Anyone wanting portfolio management, trade execution, or brokerage/fee comparison — explicitly out of v1 (see Non-Goals).
 - Institutional or compliance users needing audit-grade formal reports — this is a personal research tool, not a compliance product.
 
 ### 2.3 Key User Journeys
 
-- **UJ-1. Daniel checks whether a Canadian industrial name's numbers actually hold up.**
-  - **Persona + context:** Daniel, a Canada-first retail investor who wants to back companies genuinely worth owning — not just familiar names. He's screening for his next position.
+- **UJ-1. Daniel checks whether an industrial name's numbers actually hold up.**
+  - **Persona + context:** Daniel, a diligence-driven retail investor (D2) who wants to back companies genuinely worth owning — not just familiar names. He's researching his next position.
   - **Entry state:** Unauthenticated, first visit, landing page directly (no login anywhere in v1).
   - **Path:** Lands on the homepage, sees the Phase 1 starter list (CP, QSR, OTEX, SHOP) as explorable cards — no quiz, no gate. Clicks into Canadian Pacific Kansas City. Sees a company overview: a nutshell verdict up top, with expandable sub-factor breakdowns underneath (Piotroski, Altman, Beneish, Sloan — each showing its pass/fail signals). Expands the Integrity lens specifically — sees why a signal failed or passed, each tied to the actual line item in CP's real EDGAR filing.
   - **Climax:** He can see, in plain terms backed by real filing citations, whether CP's reported numbers are trustworthy and financially healthy — not an opaque score he has to just believe.

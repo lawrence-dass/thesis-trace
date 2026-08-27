@@ -83,6 +83,11 @@ Checked every major cross-listed Canadian ticker against `data.sec.gov` for annu
 supporting Canadian MJDS filers who report under IFRS on Form 40-F. D6's blanket exclusion of
 IFRS filers is **narrowed, not kept**.
 
+> **Posture superseded 2026-08-27 by D11** — the universe now follows the researcher
+> (US-primary in practice). Everything technical below — 40-F/`ifrs-full` support, the derived
+> concepts, the rollout — stands unchanged as retained capability, and all filers added under
+> D8 remain in the universe.
+
 **Why D6 was only partly right.** D6 excluded 40-F/`ifrs-full` filers on the grounds they
 "would break the Piotroski/Altman/Beneish/Sloan formulas." Verified live against
 `data.sec.gov` on 2026-07-29, that reasoning does not hold in general:
@@ -224,6 +229,53 @@ D9 selects on a single item; a list defers the judgment the packet exists to for
 **What this does not change.** D9's ordering and its selection criterion stand exactly as written;
 this defines the unit D9 already referred to. D3 is unchanged — this makes its second condition
 measurable, not easier. D5, D4 and D7 are untouched.
+
+## D11 — The universe follows the researcher (supersedes D8's Canada-first posture, 2026-08-27)
+
+**Decision.** ThesisTrace's company universe is defined by one criterion: **companies user zero
+(D2) is genuinely researching for a real value/growth investment decision.** It is
+market-agnostic in principle and US-primary in practice, because that is where the researcher's
+candidate list now points. D8's *posture* sentence — "ThesisTrace is Canada-first, expanding to
+the US market later" — is superseded. Every technical consequence of D8 stands unchanged:
+40-F/`ifrs-full` support, the derived-concept rules, the per-filer live-validation process, and
+the regime-as-data design in `backend/canonicalization/taxonomies.py`.
+
+**Why.** Lawrence's stated goal (2026-08-27) is to practice value and growth investing as a
+personal discipline — understanding the business, the accounting and the forensic evidence
+himself, with ThesisTrace as the instrument rather than the oracle. D2 already named exactly
+this user ("someone practicing value and/or growth investing"; user zero is Lawrence) and never
+made that user Canadian — the Canada framing entered through D8's positioning and the PRD
+persona, not through the primary-user definition. Meanwhile D9 requires Phase 2 to be validated
+against a company Lawrence is *genuinely researching*, and D3.2/D10 remain open awaiting exactly
+that. If the names he genuinely researches are US-listed, a Canada-bounded universe does not
+merely misposition the product — it structurally prevents the one decision packet the whole
+roadmap waits on. Defining the universe by the researcher's real decisions makes D9's
+validation criterion and the universe definition the same thing.
+
+**What stays, explicitly.**
+
+1. **All seven current filers remain** — CP, QSR, OTEX, SHOP (10-K/`us-gaap`) and CCJ, BCE, SU
+   (40-F/`ifrs-full`). They are hand-verified, scored nightly, and the two-regime support they
+   exercise is retained capability, not legacy. Nothing is retired.
+2. **No new filer is named by this decision.** Selection is deferred to the first decision
+   packet (D10): the packet's company is the first US addition, chosen because it is being
+   researched — not researched because it was chosen. The packet's section 1 is written before
+   the filer is ingested.
+3. **"Not a screener" and "no full market coverage" stand** (PRD non-goals, counter-metric
+   SM-C1). US-primary means the next filers are *expected* to be 10-K/`us-gaap` — the
+   already-supported regime — not that breadth becomes a goal. Curated lists, fair-value
+   opinions and moat-style ratings remain excluded by the deterministic/no-advice boundary.
+4. **OQ8's resolution stands:** manual, on-demand, per-filer live EDGAR validation under the
+   live-data Definition of Done (`CLAUDE.md`), extending `phase1_golden.yaml` in the same
+   change — SM-1 reopens with every addition.
+
+**Consequences applied in the same change** (per the 2026-08-04 learning that a superseding
+decision is not landed until every document it contradicts is updated): the PRD's vision (§1),
+JTBD (§2.1), non-user list (§2.2) and UJ-1 persona (§2.3) are reworded from Canada-framing to
+researcher-framing; `EXPERIENCE.md`'s persona lines likewise; `SPEC.md`'s universe constraint
+gains the D11 selection principle. SPEC's non-goals are untouched — "No SEDAR+/TSX-only
+(non-EDGAR) companies" and "no full market coverage" were never Canada-first claims. The open
+"Canada-specific legal review" item stays open, since three Canadian filers remain.
 
 ## Open items before PRD
 
