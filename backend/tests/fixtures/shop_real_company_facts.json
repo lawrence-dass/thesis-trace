@@ -779,6 +779,30 @@
       }
      ]
     }
+   },
+   "ConvertibleDebtNoncurrent": {
+    "label": "Convertible Debt, Noncurrent",
+    "description": "Carrying amount of convertible debt classified as noncurrent.",
+    "units": {
+     "USD": [
+      {
+       "end": "2023-12-31",
+       "val": 916000000,
+       "accn": "0001594805-25-000012",
+       "fy": 2024,
+       "fp": "FY",
+       "form": "10-K"
+      },
+      {
+       "end": "2024-12-31",
+       "val": 0,
+       "accn": "0001594805-25-000012",
+       "fy": 2024,
+       "fp": "FY",
+       "form": "10-K"
+      }
+     ]
+    }
    }
   },
   "dei": {}

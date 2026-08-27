@@ -78,6 +78,7 @@ CURATED_SECTIONS = (
     # `TRACKER_CURATED`. Protected here for the same reason as the rest.
     "epic_decomposition_rationale",
     "action_item_evidence",
+    "ambiguity_flagging_had_no_idempotency_key",
 )
 
 pytestmark = pytest.mark.skipif(
