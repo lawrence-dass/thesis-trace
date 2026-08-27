@@ -277,6 +277,45 @@ gains the D11 selection principle. SPEC's non-goals are untouched — "No SEDAR+
 (non-EDGAR) companies" and "no full market coverage" were never Canada-first claims. The open
 "Canada-specific legal review" item stays open, since three Canadian filers remain.
 
+## D12 — Report-style presentation, and the visual-blend prohibition (2026-08-27)
+
+**Decision.** The company page is rebuilt as a **sectioned stock report** in the presentation
+style of Simply Wall St — persistent section navigation (Overview / Valuation / Past
+Performance / Financial Health / Integrity & Evidence), a rewards-vs-risks summary, a
+big-figure fundamentals block with an earnings waterfall, a provenance/freshness footer, and a
+dark-first aesthetic. What is adopted is the **way of presenting**; the content model is not.
+Decomposed as **Epic 10** in `epics.md`.
+
+**Two hard guards, both binding on every future visual:**
+
+1. **No visual blend.** Simply Wall St's "snowflake" is a filled multi-axis polygon the eye
+   reads as one overall rating — a *visual* blended score — and SWS claims a registered US
+   design patent on it (their footer cites 29/544,281). ThesisTrace's hero visual is an
+   **original four-model glyph**: one axis per model (Piotroski, Altman, Beneish, Sloan), each
+   individually labelled and coloured by its own band vocabulary, never filled into a single
+   shape, and never accompanied by an aggregate number, grade or shape summarizing multiple
+   models. This is the locked Verdict decision ("never a blended/weighted single score")
+   applied to pixels.
+2. **Deterministic content only.** Every element of the report re-presents figures the
+   pipeline already computes. The rewards/risks bullets are derived by versioned deterministic
+   rules over existing signal states — spec data with published rationale, LLM not in the
+   loop. SWS's analyst forecasts, fair values, price targets, community narratives and news
+   feeds are **not** adopted; they are the originated-opinion content the
+   deterministic/no-advice boundary exists to exclude.
+
+**Design-register change, made deliberately.** `DESIGN.md`'s register previously read
+"explicitly not a … gamified consumer-fintech register", and SWS is the canonical
+consumer-fintech look. That register line is revised in the same change: ThesisTrace adopts
+SWS's visual clarity, density and dark-first presentation while keeping the sober,
+citation-forward substance — no community/social features, no gamification mechanics, no
+scores as rewards.
+
+**Relation to D9.** Epic 10 is presentation-only: no new computation, ingestion, figure or
+capability. D9's binding gate governs which *capability* is built next, so it does not apply —
+Epic 10 is buildable now, while Epics 7-9 remain blocked on the first decision packet (D10).
+If Epic 10's build starts consuming new data or computing new figures, it has left this
+decision's cover and D9 applies again.
+
 ## Open items before PRD
 
 1. ~~Filing-type validation~~ — **done, see D6**, narrowed by **D8** (40-F/IFRS now supported).

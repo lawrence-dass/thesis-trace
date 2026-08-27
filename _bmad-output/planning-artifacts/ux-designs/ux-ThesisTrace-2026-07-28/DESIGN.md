@@ -1,8 +1,8 @@
 ---
 name: ThesisTrace
 status: final
-description: Institutional equity-research register (Morningstar/YCharts/stockanalysis.com analog) — sober, citation-forward, data-dense; explicitly not a trading-terminal or gamified consumer-fintech register.
-updated: 2026-07-29
+description: Modern report register (Simply Wall St analog in presentation, per D12 2026-08-27) — dark-first, visual, citation-forward, data-dense; still not a trading terminal, still no social/gamification mechanics, and never a visual blend of model scores. Revised from the earlier institutional Morningstar/YCharts register by D12; the substance rules (sober, provenance-forward) carry over unchanged.
+updated: 2026-08-27
 colors:
   # Light mode (existing, formalized as named tokens — carried forward from globals.css, kept as-is)
   canvas: '#f6f7fb'
@@ -119,10 +119,23 @@ spacing:
 
 ## Brand & Style
 
-Institutional equity-research register — the closest analogs from the competitive pass are **Morningstar** (achromatic, disciplined star rating; single restrained accent — "Morningstar Red"; codified design system rather than ad hoc styling) and **stockanalysis.com** (chrome-free, dense spreadsheet-style tables, no upsells, no gamification, speed and clarity over decoration), with **YCharts**' advisor-facing "tear sheet" polish as a close third. This is the register `EXPERIENCE.md`'s Foundation already locked (Bloomberg Research / FactSet / Morningstar Direct, not a trading-platform or consumer-fintech register) — the research confirms it and gives it concrete texture.
+**Revised 2026-08-27 by D12.** The register originally locked here was the institutional
+Morningstar/stockanalysis.com analog; D12 moves it to a **modern report register in Simply
+Wall St's presentation style** — sectioned stock report, dark-first, visual summaries (the
+four-model hero glyph, rewards-vs-risks, the earnings waterfall) leading into dense cited
+detail. The original research's rejection of SWS is thereby **narrowed to specific elements,
+not discarded**:
 
-Explicitly rejected registers, by name, from the same research:
-- **Simply Wall St / TipRanks** — a single colorful "hero visualization" (the Snowflake, the Smart Score gauge) as the product's signature graphic, broad green/red applied to overall "quality" rather than just price deltas, card/infographic layout over raw tables, "less intimidating" onboarding copy. ThesisTrace's tri-state signal palette already exists and must stay disciplined/local to each signal — never expand into a single blended hero score (this is also locked at AD-12, independent of the design research).
+Explicitly rejected elements, by name (revised from the original register rejection):
+- **From Simply Wall St / TipRanks, still rejected:** the *blended* hero visualization — the
+  Snowflake's filled polygon, the Smart Score gauge, and any "score of scores" (locked at
+  AD-12 and D12 guard 1; SWS's snowflake is additionally design-patented); broad green/red
+  applied to overall company "quality" rather than to each signal's own tri-state; community
+  fair values, social feeds and every analyst-opinion surface (deterministic/no-advice
+  boundary); gamification mechanics. **Now adopted:** the sectioned report structure,
+  visual-summary-first layout, card/infographic presentation over raw tables, and the
+  dark-first aesthetic. ThesisTrace's tri-state signal palette stays disciplined and local to
+  each signal.
 - **Bloomberg Terminal / Koyfin** — the amber-on-black CRT aesthetic and the `TICKER <FUNCTION> <GO>` command-key culture are trading-desk signifiers ThesisTrace should not adopt literally; Daniel is doing research, not executing trades, and `EXPERIENCE.md`'s Interaction Primitives already reject a keyboard-power-user-first model for this reason. The one thing worth keeping from this pair, decoupled from its trading connotation: a command bar / keyboard shortcut *reads* as a serious tool, and ThesisTrace's minimal `/`-search-to-ticker pattern already gestures at this without the terminal cosplay.
 
 Overall posture: content-forward, low-chrome, data as the primary visual material — never illustration, never a mascot, never a single "score of scores." Every visual decision below serves legibility of a specific cited number over decorative polish.
@@ -164,7 +177,7 @@ Existing radius scale (`sm`/`md`/`lg`/`full` in frontmatter, mapped from the cur
 
 Per-component visual specs; behavioral rules live in `EXPERIENCE.md.Component Patterns`.
 
-**Gauge** (`{components.gauge}`) — the audit's single biggest concrete redesign target: today a bare 6px linear band with a dot marker, no zone boundaries drawn. Redesign: a `{components.gauge.track-height}` (10px) horizontal band on `{components.gauge.track-color}`, with tick marks (`{components.gauge.tick-color}`) at each band-boundary threshold so the classification zones are visible as *shape*, not just inferred from marker position — a colorblind reader can read "which zone" from the tick divisions and marker position alone, per the Accessibility Floor. The marker itself is a `{components.gauge.marker-size}` circle with a `{colors.surface}` ring, filled with the zone's signal color (`fill-pass`/`fill-fail`/`fill-caveat`). Deliberately *not* a radial/circular dial or an arc gauge — the research flagged the radial dial (Simply Wall St's Snowflake, TipRanks' Smart Score circle) as the consumer-fintech "hero visualization" pattern to avoid; a horizontal band with tick-marked zones reads as a measurement instrument, not a mascot. Always paired with the band-label badge per the existing Do's-and-Don'ts rule (never hue alone).
+**Gauge** (`{components.gauge}`) — the audit's single biggest concrete redesign target: today a bare 6px linear band with a dot marker, no zone boundaries drawn. Redesign: a `{components.gauge.track-height}` (10px) horizontal band on `{components.gauge.track-color}`, with tick marks (`{components.gauge.tick-color}`) at each band-boundary threshold so the classification zones are visible as *shape*, not just inferred from marker position — a colorblind reader can read "which zone" from the tick divisions and marker position alone, per the Accessibility Floor. The marker itself is a `{components.gauge.marker-size}` circle with a `{colors.surface}` ring, filled with the zone's signal color (`fill-pass`/`fill-fail`/`fill-caveat`). Deliberately *not* a radial/circular dial or an arc gauge — the research flagged the radial dial (Simply Wall St's Snowflake, TipRanks' Smart Score circle) as the consumer-fintech "hero visualization" pattern to avoid; a horizontal band with tick-marked zones reads as a measurement instrument, not a mascot. Always paired with the band-label badge per the existing Do's-and-Don'ts rule (never hue alone). *(Clarified 2026-08-27 by D12: what is rejected is a radial dial rendering a single or blended score. The D12 hero glyph is radial but not a dial — four separate, labelled, unblended axes with no aggregate; see the addendum. Per-signal gauges stay horizontal as specified here.)*
 
 **Badge** (`{components.badge}`) — existing signal-chip pattern, kept: pill shape (`{rounded.full}`), icon + label + color always paired, sized to `{typography.label}`. No visual change; already meets the discipline the research's institutional cluster (Morningstar's achromatic-but-clear star rating) exemplifies.
 
@@ -185,4 +198,24 @@ Locked already (from the project's own standing decisions, not from research):
 | Use a real charting library (Recharts/visx are explicitly named in D7) for genuinely custom visualizations over ThesisTrace's own computed data | Use TradingView or any off-the-shelf ticker/candlestick widget suite |
 | Render every value with resolvable provenance, ideally as an actual link to the source filing (AD-19) | Display a value with no resolvable provenance as if it were fact |
 | Keep Verdict as a per-model juxtaposition | Blend models into a single composite "buy/sell" score for visual simplicity |
-| Draw gauges as a tick-marked horizontal band (a measurement instrument) | Draw a radial/circular "hero dial" for any score (Simply Wall St Snowflake / TipRanks Smart Score pattern — rejected register) |
+| Draw gauges as a tick-marked horizontal band (a measurement instrument) | Draw a radial dial rendering any single or blended score (Simply Wall St Snowflake / TipRanks Smart Score pattern — still rejected under D12; the D12 hero glyph is radial but multi-axis and unblended, see the 2026-08-27 addendum) |
+
+## Addendum 2026-08-27 — Report-style direction (D12, Epic 10)
+
+The register moves from "institutional research page" to "sectioned stock report" in the
+presentation style of Simply Wall St, per `foundational-decisions.md` D12. What this changes
+and what it does not:
+
+- **Dark-first.** The dark tokens above (previously the secondary mode) become the primary
+  presentation; light mode is retained. Story 10.1 does the detailed pass — this addendum
+  records the direction, not the pixel decisions.
+- **Hero visual.** An original four-model glyph (Story 10.2): one axis per model, per-model
+  band colouring, axes never filled into a single shape. The Simply Wall St snowflake is
+  design-patented and is a visual blended score — both reasons it is prohibited, permanently
+  (D12 guard 1).
+- **Unchanged:** semantic tokens in `frontend/app/globals.css` remain the single source;
+  hand-rolled component kit (no shadcn/MUI); custom visualizations only (D7); provenance and
+  `insufficient_data` states are first-class visual citizens, never hidden for polish.
+- **Not adopted from SWS:** community/social surfaces, portfolio widgets, gamification
+  mechanics, and every analyst-opinion element (fair values, forecasts, price targets,
+  narratives) — excluded by the deterministic/no-advice boundary, not by taste.
