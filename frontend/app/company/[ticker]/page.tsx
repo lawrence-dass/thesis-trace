@@ -44,6 +44,11 @@ type Provenance = {
   accession_number: string;
   canonical_concept: string;
   fiscal_year: number;
+  // The balance-sheet date this fact reflects — NOT the filing date (a filing
+  // can be submitted months after its own period end). Already sent by the
+  // API's Provenance schema; only newly consumed here (Story 10.5), not a
+  // contract change.
+  period_end?: string | null;
   // null = filed tag; set = computed by ThesisTrace (see CitationChip).
   derivation?: string | null;
 };
@@ -125,6 +130,34 @@ const SIGNAL_LABEL: Record<string, string> = {
 };
 
 const MODELS = ["piotroski", "altman", "beneish", "sloan"];
+
+// Section-level data freshness (Story 10.5 AC): the latest fiscal year any
+// score in this section reflects, and the latest balance-sheet date among
+// its signals' own provenance. Computed purely from data already on the
+// wire — no new query, no API contract change — the same "project over
+// already-fetched rows" shape as every other presentation rule on this page.
+export function sectionFreshness(lenses: LensScore[]): { fiscalYear: number | null; periodEnd: string | null } {
+  let fiscalYear: number | null = null;
+  let periodEnd: string | null = null;
+  for (const lens of lenses) {
+    if (fiscalYear === null || lens.fiscal_year > fiscalYear) fiscalYear = lens.fiscal_year;
+    for (const signal of lens.signals) {
+      for (const p of signal.provenance) {
+        if (p.period_end && (periodEnd === null || p.period_end > periodEnd)) periodEnd = p.period_end;
+      }
+    }
+  }
+  return { fiscalYear, periodEnd };
+}
+
+function FreshnessNote({ fiscalYear, periodEnd }: { fiscalYear: number | null; periodEnd: string | null }) {
+  if (fiscalYear === null) return null;
+  return (
+    <p className="text-xs text-[var(--color-ink-faint)]">
+      Reflects FY{fiscalYear} data{periodEnd ? `, as of ${periodEnd}` : ""}.
+    </p>
+  );
+}
 
 async function getBands(model: string): Promise<BandClass[]> {
   try {
@@ -280,6 +313,13 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
 
   const financialHealthLenses = renderLensCards("quality_health");
   const integrityLenses = renderLensCards("integrity");
+  // Story 10.5: each section states its own freshness. Same category filter
+  // `renderLensCards` uses internally, applied to the raw rows rather than
+  // the rendered cards so the underlying fiscal years/provenance are visible.
+  const financialHealthFreshness = sectionFreshness(
+    data.scores?.filter((l) => l.category === "quality_health") ?? []
+  );
+  const integrityFreshness = sectionFreshness(data.scores?.filter((l) => l.category === "integrity") ?? []);
 
   return (
     <main className="mx-auto w-full max-w-7xl space-y-10">
@@ -366,6 +406,12 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
           them produced the figure. */}
       <section id="valuation" className="scroll-mt-28 space-y-3">
         <h2 className="text-title font-semibold text-[var(--color-ink)]">Valuation</h2>
+        <FreshnessNote
+          fiscalYear={data.reverse_dcf?.fiscal_year ?? null}
+          periodEnd={
+            data.reverse_dcf?.operands?.find((o) => o.period_end)?.period_end ?? null
+          }
+        />
         <ReverseDcfCard dcf={data.reverse_dcf} cik={data.cik} />
       </section>
 
@@ -380,6 +426,10 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
 
       <section id="financial-health" className="scroll-mt-28 space-y-3">
         <h2 className="text-title font-semibold text-[var(--color-ink)]">Financial Health</h2>
+        <FreshnessNote
+          fiscalYear={financialHealthFreshness.fiscalYear}
+          periodEnd={financialHealthFreshness.periodEnd}
+        />
         <div className="space-y-3">
           {financialHealthLenses}
           {/* Near-term debt share sits inside Financial Health (Story 5.6),
@@ -394,6 +444,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
 
       <section id="integrity-evidence" className="scroll-mt-28 space-y-3">
         <h2 className="text-title font-semibold text-[var(--color-ink)]">Integrity & Evidence</h2>
+        <FreshnessNote fiscalYear={integrityFreshness.fiscalYear} periodEnd={integrityFreshness.periodEnd} />
         <div className="space-y-3">
           {data.data_quality && data.data_quality.length > 0 ? (
             <div className="flex gap-3 rounded-[var(--radius-card)] border border-[var(--color-signal-caveat-border)] bg-[var(--color-signal-caveat-bg)] p-4">

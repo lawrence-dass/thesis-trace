@@ -1748,3 +1748,64 @@ story_10_4_browser_verification:
     — same root cause across all 6, not touched by this story's diff, and
     intentionally left unfixed to keep this PR scoped. Flagged for a
     follow-up story.
+
+story_10_5_browser_verification:
+  status: done
+  verified: 2026-08-27
+  how: >
+    ZERO backend changes (git status confirms `backend/` untouched) — the AC's
+    "no computation, API contract or figure changes, asserted by the backend
+    test suite passing unmodified" is satisfied trivially rather than by
+    running the suite and hoping nothing regressed. Before writing any code,
+    read the full current `page.tsx` (already loaded fresh during Story 10.4)
+    against the AC's model->section mapping and found the real work was
+    already done: Stories 10.1-10.4 had already homed reverse DCF under
+    Valuation, WhatChanged under Past Performance, Piotroski/Altman/debt
+    cards under Financial Health, and Beneish/Sloan/data-quality under
+    Integrity & Evidence, as a natural consequence of how those stories were
+    implemented — this AC was largely written before 10.1-10.4 existed and
+    was overtaken by their implementation (same class as the 2026-08-04
+    "check whether an open question has been overtaken by events" learning).
+    The one genuinely new requirement was per-section data freshness, which
+    did not exist. Queried score_runs directly (not fixtures) across all 7
+    universe filers to find live examples of every state variant before
+    choosing verification subjects.
+  what_was_verified:
+    - "Section freshness (new): Valuation, Financial Health and Integrity & Evidence each render 'Reflects FY{year} data, as of {date}.' under their h2, computed client-side from data already on the wire (extended the local `Provenance` TS type to consume `period_end`, which the API schema already sent but the frontend previously ignored — not a contract change). Confirmed live on CP and Suncor that the date shown is the MAX across every card in that section, not the first or last."
+    - "Past Performance already states its own freshness via WhatChanged's existing 'Compared against {date}' line (Story 5.3) — no duplicate note added there."
+    - "State variants confirmed live: RESOLVED (e.g. Suncor Piotroski FY2025), INSUFFICIENT_DATA with reason (Beneish is insufficient_data at its own latest year for BCE/CP/OTEX/QSR/SHOP/Suncor — Beneish's own applicability is 'computed', not excluded; only its aggregate is null, confirmed via score_runs), CAVEAT (Suncor: Altman/Beneish/Piotroski/Sloan all caveated for IFRS by-nature presentation; CP: Altman capital-intensity caveat)."
+    - "A second Past Performance state variant found live and not previously called out: a filer with no prior scored state (Suncor) renders 'No earlier record to compare against yet' rather than a comparison list or an error — pre-existing WhatChanged behavior, confirmed still correct."
+    - "Trajectory chips (Story 5.5) deliberately NOT relocated to Past Performance despite the AC's literal 'what-changed and trajectory under Past Performance' wording. Trajectory stays inline on each lens card's own summary row in Financial Health/Integrity & Evidence, per Story 5.5's explicit, already-defended design rationale ('alongside the level and the band, never replacing either'). Moving it would separate an annotation from the score it explains and undo a settled decision for a literal reading of a pre-implementation planning doc. Judgment call, documented rather than silently made."
+  defect_found_and_fixed:
+    severity: P3
+    what: >
+      `Badge.test.ts` tested the applicability->variant/label mapping for an
+      unknown value but never asserted `excluded_out_of_scope` ->
+      "excluded"/"Out of scope" — the one state variant this story's AC asks
+      to verify that cannot be exercised live. `excluded_out_of_scope` fires
+      only for `is_financial_sector` (`scoring/altman.py`,
+      `scoring/beneish.py`), and Phase 1's 7-filer universe is deliberately
+      non-financial-sector (a standing decision, not a gap) — confirmed live
+      that zero score_runs rows carry this applicability anywhere in the
+      dataset. A live screenshot can never cover this state under the current
+      universe.
+    fix: >
+      Added a unit test pinning the mapping directly, since it is the only
+      verification method available for a state the universe cannot produce.
+      Documents WHY the state is unreachable so a future universe expansion
+      into financial-sector filers (if it ever happens) has a clear pointer
+      to what must then be verified live for real.
+  regression_check: >
+    Full gate: tsc clean, eslint clean, `next build` succeeds, vitest 65/65
+    (59 prior + 5 new: `sectionFreshness`'s pure geometry, mirroring the
+    `bandGeometry`/`waterfallSegments` precedent — max-across-all-items, a
+    missing period_end never suppressing a real one, empty-section nulls —
+    plus 1 new `excluded_out_of_scope` Badge mapping test). Backend suite not
+    re-run because backend was not touched at all — `git status` on
+    `backend/` is empty, which is the actual proof the AC asks for, not a
+    green run that could coincidentally pass despite an accidental edit.
+    Live-verified on CP and Suncor, chosen because between them they exercise
+    every reachable state variant (resolved, insufficient_data, caveat) plus
+    both Past Performance shapes (populated history, and first-ever-scored
+    empty state). Zero console errors on a fresh Suncor load with console
+    tracking active from before navigation.
