@@ -1,75 +1,54 @@
-# Handover — 2026-08-16 | Claude Opus 5 — WRITTEN FOR A CLOUD SESSION
+# Handover — 2026-08-27 | Claude Fable 5
 
 ## Mode
-General handover. No agent work is queued. The one blocker is Lawrence's to clear.
+General handover after a two-decision pivot day. No agent work is queued mid-task.
 
 ## Focus
-- **Task**: none in flight. Post-Epic-6 cleanup is finished.
+- **Task**: none in flight. The D11/D12 documentation pivot is merged (PRs #83, #85).
 - **Branch**: start from `main`. Create your own (`claude/<task>-<date>`).
-- **State**: blocked — Epics 7-9 cannot start until the first decision packet exists.
+- **State**: Epic 10 is `backlog` and buildable now. Epics 7-9 remain blocked on the
+  decision packet (D10/D3.2), which only Lawrence can write.
 
-## ⚠️ Read this before planning anything
-`development_status` now reads `epic-7/8/9: blocked` (not `backlog`). That is real:
-D9 forbids picking the next epic from list order. The choice must come from the
-largest research failure named in a **decision packet (D10)**, which is also **D3.2**
-and has never existed — `_bmad-output/decision-packets/` holds only `TEMPLATE.md`.
-**An agent cannot write it**: D10 requires a real judgment on real money, section 1
-written *before* opening the app. Do not draft one, and do not "unblock" an epic.
+## What changed on 2026-08-27 (read before trusting anything older)
+- **D11 (PR #83):** the universe follows the researcher — D8's Canada-first *posture* is
+  superseded; all 7 filers stay; US-primary in practice; the first US filer will be named
+  by the first decision packet, never by a planning doc. Sweep updated SPEC/PRD/EXPERIENCE/
+  project-context in the same change.
+- **D12 + Epic 10 (PR #85):** company page becomes a sectioned, dark-first stock report in
+  Simply Wall St's *presentation* style. Two binding guards: never a visual blend of the
+  four models (SWS's snowflake is design-patented AND a visual blended score), and
+  deterministic content only (rewards/risks are rule-derived spec data; no analyst-opinion
+  surfaces). Epic 10 = 7 stories in `epics.md`, tracked `backlog` in `sprint-status.yaml`
+  (all 17 tracker tests pass). Presentation-only, so D9's capability gate does not apply.
+- **Motivation recorded in D11/D12:** Lawrence is practicing value/growth investing as a
+  personal discipline; the app is the instrument, not the oracle.
 
-## Cloud-session constraints — the part that differs from a desktop session
-- **There is no database and no `.env`.** Without one, ~120 of 339 backend tests skip
-  SILENTLY (you get 219 and a green run). To get the full suite, start a `postgres:17`
-  and copy CI's env exactly — see `.github/workflows/ci.yml`, which sets **both**
-  `DATABASE_URL` and `TEST_DATABASE_URL` to the same `thesistrace_test` DB.
-- **That CI pattern is safe ONLY where the database is disposable.** On a real dev box
-  the two must stay distinct: test teardown drops all tables and has wiped a dev DB
-  before. Never collapse them outside a throwaway container.
-- **The dev store's data is local to Lawrence's machine and you will not have it.**
-  A fresh DB renders no reverse DCF at all until the pipeline runs (correct CQRS
-  behaviour after PR #69, not a bug). Do not diagnose a blank card as a defect.
-- **Live EDGAR/Tiingo/Bank-of-Canada fetches need `EDGAR_CONTACT` + `TIINGO_API_KEY`
-  and Lawrence's permission.** Ask ONCE, naming every ticker/CIK up front.
-- **Much live verification is already recorded — read before re-fetching.**
-  `engineering-findings.yaml` carries `story_6_1_reverse_dcf_coverage_spike`,
-  `story_6_2_live_verification`, `story_6_6_browser_verification`, `d8_ifrs_track`.
+## Open PRs — Lawrence's review, per the Codex-handoff convention (do NOT merge for him)
+- **#81** SHOP convertible debt mapped at `concepts_v9`, flagged not plain (bumps
+  MAPPING_VERSION; extends golden + fixtures). CI green, MERGEABLE CLEAN vs today's main.
+- **#82** Suppress the reverse-DCF caveat when there is no figure to annotate (frontend).
+  **Stacked on #81's branch** — merge #81 first, and delete #81's branch only AFTER #82
+  retargets, or #82 gets auto-closed (this exact thing happened to #84 today; it was
+  reopened as #85).
+- After #81 merges: `concepts_v9` needs a re-canonicalization pass on the dev store
+  (no EDGAR fetch needed — see project-context 2026-08-05 learning), or debt cards render
+  empty while model cards look healthy.
 
-## Open PRs — merge these first
-- **#76** `bandTone` band vocabulary pinned + stale follow-up closed. Also carries a
-  `project-context.md` learning commit (BCE mapping vs tag-switch).
-- **#77** adds **rule 5** to `CLAUDE.md`: one `git worktree` per concurrent session.
-- **This PR** — the handover you are reading.
-
-## What Happened Last Session
-- Merged #69, #71, #72, #73 and #70; then #74 (`compactAmount` boundary fix) and
-  #75 (`blocked` epic status, bound to `epic_catalog` by a two-way test).
-- Ran the batch pipeline live for all 7 filers. **OTEX advanced FY2025 → FY2026**
-  (June FYE); implied growth 9.7% → 0.6%. BCE's weekend date fixed (Sun → Fri).
-- Two sessions collided in one checkout — see #77 for the mechanism and detection.
-
-## Decisions Made
-- **BCE's reverse DCF stopping at FY2023 is CORRECT — do not "fix" it.**
-  `CurrentPortionOfLongtermBorrowings` covers FY2016-2023 and stops, which looks
-  exactly like the CP PP&E tag-switch bug. It is the opposite: a live-verified
-  comparability decision at `ifrs-full_v4.yaml:217`. The wider tag adds commercial
-  paper the denominator excludes. Absent years are correct `insufficient_data`.
-- **`compactAmount`** now tests, per branch, the integer count of the unit it renders,
-  so gate and display cannot disagree.
-
-## Local-only state (NOT in git — ignore unless on Lawrence's machine)
-Two extra worktrees exist locally (`../ThesisTrace-wt-claude-md`,
-`../ThesisTrace-wt-handover`), removable once #77 and this PR merge.
-
-## Next Action
-Merge #76, #77 and this PR. Then the only remaining work is Lawrence writing the
-first decision packet from `_bmad-output/decision-packets/TEMPLATE.md`.
+## Next Action (in order)
+1. Lawrence reviews/merges #81 then #82 (mind the stacked-branch note above).
+2. Build **Story 10.1** (report shell, section nav, dark-first theme) on a fresh branch —
+   first story of Epic 10, foundation for the rest.
+3. Standing gate unchanged: the first decision packet (from
+   `_bmad-output/decision-packets/TEMPLATE.md`, section 1 before opening the app) closes
+   D3.2, unblocks Epics 7-9, and names the first US filer.
 
 ## References
-- `_bmad-output/decision-packets/TEMPLATE.md` — the packet that unblocks Epics 7-9
-- `_bmad-output/planning-artifacts/foundational-decisions.md` — D9, D10, D3.2
-- `_bmad-output/implementation-artifacts/sprint-status.yaml` — what is done / what is left
-- `_bmad-output/implementation-artifacts/engineering-findings.yaml` — spikes and findings
+- `_bmad-output/planning-artifacts/foundational-decisions.md` — D11, D12 (new), D9/D10
+- `_bmad-output/planning-artifacts/epics.md` — Epic 10 stories 10.1-10.7
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — tracker (17 tests bind it)
+- `_bmad-output/planning-artifacts/ux-designs/ux-ThesisTrace-2026-07-28/DESIGN.md` —
+  revised register + 2026-08-27 addendum (dark-first, glyph rules)
 - `.claude/context/project-context.md` — durable rules; read every session
-- `.github/workflows/ci.yml` — the only reference for a working DB environment
 
 ---
-*Generated by /session-end — 2026-08-16*
+*Written by the session that merged PRs #83/#85 — 2026-08-27*
