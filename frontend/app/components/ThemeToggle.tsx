@@ -24,7 +24,10 @@ export function ThemeToggle() {
   }, []);
 
   function toggle() {
-    const next = theme === "light" ? "dark" : "light";
+    // Read the attribute as the source of truth so even an unusually early
+    // click cannot invert the still-null React state incorrectly.
+    const current = document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+    const next = current === "light" ? "dark" : "light";
     document.documentElement.setAttribute("data-theme", next);
     try {
       window.localStorage.setItem(STORAGE_KEY, next);
@@ -35,19 +38,26 @@ export function ThemeToggle() {
     setTheme(next);
   }
 
-  // Render dark's icon (the default theme) until mounted, matching what the
-  // blocking script already painted — avoids a one-frame icon swap on load.
-  const showingDark = theme !== "light";
+  // Keep a stable, non-theme-dependent placeholder until the effect has read
+  // the script-selected attribute. An assumed icon/label can be wrong for a
+  // returning light-mode visitor during that first client render.
+  const mounted = theme !== null;
+  const showingDark = theme === "dark";
 
   return (
     <button
       type="button"
       onClick={toggle}
-      aria-label={showingDark ? "Switch to light theme" : "Switch to dark theme"}
-      title={showingDark ? "Switch to light theme" : "Switch to dark theme"}
+      disabled={!mounted}
+      aria-label={mounted ? (showingDark ? "Switch to light theme" : "Switch to dark theme") : "Theme"}
+      title={mounted ? (showingDark ? "Switch to light theme" : "Switch to dark theme") : "Theme"}
       className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-control)] text-[var(--color-ink-muted)] transition-colors hover:bg-[var(--color-border)]/40 hover:text-[var(--color-ink)]"
     >
-      {showingDark ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />}
+      {mounted ? (
+        showingDark ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />
+      ) : (
+        <span className="h-4 w-4" aria-hidden="true" />
+      )}
     </button>
   );
 }

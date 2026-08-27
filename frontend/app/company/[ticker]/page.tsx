@@ -267,7 +267,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
               </ul>
               <a
                 href={`/methodology/${lens.model}`}
-                className="inline-flex items-center gap-1 text-sm font-medium text-[var(--color-brand-600)] hover:text-[var(--color-brand-700)]"
+                className="inline-flex items-center gap-1 text-sm font-medium text-[var(--color-brand-link)] hover:text-[var(--color-brand-link-hover)]"
               >
                 Methodology →
               </a>
@@ -285,7 +285,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
     <main className="mx-auto w-full max-w-7xl space-y-10">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="font-mono text-sm font-semibold text-[var(--color-brand-600)]">{data.ticker}</p>
+          <p className="font-mono text-sm font-semibold text-[var(--color-brand-link)]">{data.ticker}</p>
           <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-ink)] sm:text-3xl">{data.name}</h1>
         </div>
         <AddToCompare ticker={data.ticker ?? ticker.toUpperCase()} />

@@ -394,11 +394,11 @@ function BandPlot({ dcf }: { dcf: ReverseDcf }) {
             marks and one name on a card whose entire purpose is telling them
             apart — caught in browser verification, not by the type checker. */}
         <div
-          className="absolute top-4 h-6 w-[3px] -translate-x-1/2 rounded-full bg-[var(--color-brand-600)]"
+          className="absolute top-4 h-6 w-[3px] -translate-x-1/2 rounded-full bg-[var(--color-brand-link)]"
           style={{ left: `${pos(implied)}%` }}
         />
         <span
-          className="absolute top-11 -translate-x-1/2 whitespace-nowrap text-[10px] font-medium text-[var(--color-brand-600)]"
+          className="absolute top-11 -translate-x-1/2 whitespace-nowrap text-[10px] font-medium text-[var(--color-brand-link)]"
           style={{ left: `${pos(implied)}%` }}
         >
           implied

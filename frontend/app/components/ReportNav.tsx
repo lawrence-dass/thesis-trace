@@ -23,23 +23,40 @@ export function ReportNav({ sections }: { sections: ReportSection[] }) {
 
     // Treat the band just below the sticky header+nav as "current" — a
     // section counts as active once its heading crosses that line, not
-    // only while fully in view, which is what lets the LAST section become
-    // active even though it can never fill 60%+ of a tall viewport.
+    // only while fully in view. Keep the latest intersection state for every
+    // target: IntersectionObserver entries are deltas, not a complete snapshot.
+    const intersecting = new Map<string, boolean>();
+    const updateActive = () => {
+      const visible = targets
+        .filter((target) => intersecting.get(target.id))
+        .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
+      if (visible.length > 0) setActive(visible[0].id);
+    };
+
     const observer = new IntersectionObserver(
       (entries) => {
-        setActive((current) => {
-          const intersecting = entries.filter((e) => e.isIntersecting);
-          if (intersecting.length === 0) return current;
-          const topmost = intersecting.reduce((a, b) =>
-            a.boundingClientRect.top < b.boundingClientRect.top ? a : b,
-          );
-          return topmost.target.id;
-        });
+        entries.forEach((entry) => intersecting.set(entry.target.id, entry.isIntersecting));
+        updateActive();
       },
       { rootMargin: "-112px 0px -60% 0px", threshold: 0 },
     );
     targets.forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
+
+    // A short final section may never enter the observer band because the
+    // document cannot scroll far enough to place its heading there. At the
+    // document bottom, the final section is the only remaining destination.
+    const onScroll = () => {
+      if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 1) {
+        setActive(targets[targets.length - 1].id);
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("scroll", onScroll);
+    };
   }, [sections]);
 
   return (

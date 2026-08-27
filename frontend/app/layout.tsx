@@ -45,18 +45,18 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           {THEME_INIT_SCRIPT}
         </Script>
         <header className="sticky top-0 z-10 border-b border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur">
-          <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-            <Link href="/" className="flex items-baseline gap-2 no-underline">
+          <div className="mx-auto flex min-w-0 max-w-5xl items-center justify-between px-3 py-4 sm:px-6">
+            <Link href="/" className="flex min-w-0 items-baseline gap-1 no-underline sm:gap-2">
               <span className="text-lg font-semibold tracking-tight text-[var(--color-ink)]">ThesisTrace</span>
               <span className="hidden text-xs font-medium text-[var(--color-ink-faint)] sm:inline">
                 evidence-backed equity intelligence
               </span>
             </Link>
-            <nav className="flex items-center gap-5 text-sm font-medium text-[var(--color-ink-muted)]">
-              <Link href="/" className="transition-colors hover:text-[var(--color-ink)]">
+            <nav className="flex shrink-0 items-center gap-1 text-sm font-medium text-[var(--color-ink-muted)] sm:gap-5">
+              <Link href="/" className="whitespace-nowrap transition-colors hover:text-[var(--color-ink)]">
                 Companies
               </Link>
-              <Link href="/architecture" className="transition-colors hover:text-[var(--color-ink)]">
+              <Link href="/architecture" className="whitespace-nowrap transition-colors hover:text-[var(--color-ink)]">
                 Architecture
               </Link>
               <ThemeToggle />

@@ -33,15 +33,21 @@
   --color-ink-muted: var(--color-ink-muted-dark);
   --color-ink-faint: var(--color-ink-faint-dark);
 
-  /* Brand — primary actions, links, "live" indicators. Only one dark swatch
-     is pre-defined (DESIGN.md [ASSUMPTION]); -50/-100 tints and the -600/-700
-     hover steps are derived mechanically via color-mix rather than
-     hand-picked, per DESIGN.md's own guidance for exactly this gap. */
+  /* Brand — keep action fills, inline links, and badge text separate. A single
+     dark swatch is pre-defined (DESIGN.md [ASSUMPTION]), so each role derives
+     its contrast-safe step mechanically via color-mix. */
   --color-brand-50: color-mix(in srgb, var(--color-brand-dark) 14%, var(--color-surface-dark));
   --color-brand-100: color-mix(in srgb, var(--color-brand-dark) 26%, var(--color-surface-dark));
   --color-brand-500: var(--color-brand-dark);
-  --color-brand-600: color-mix(in srgb, var(--color-brand-dark) 88%, black);
-  --color-brand-700: color-mix(in srgb, var(--color-brand-dark) 74%, black);
+  --color-brand-link: color-mix(in srgb, var(--color-brand-dark) 80%, white);
+  --color-brand-link-hover: color-mix(in srgb, var(--color-brand-dark) 75%, white);
+  --color-brand-action: color-mix(in srgb, var(--color-brand-dark) 74%, black);
+  --color-brand-action-hover: color-mix(in srgb, var(--color-brand-dark) 64%, black);
+  --color-brand-badge: var(--color-brand-dark);
+  /* Backwards-compatible aliases for any feature-specific accent that has not
+     yet migrated to one of the explicit roles above. */
+  --color-brand-600: var(--color-brand-action);
+  --color-brand-700: var(--color-brand-action-hover);
 
   /* Signal semantics — the tri-state/verdict vocabulary (AD-16, AD-17, AD-20).
      Only the foreground hue is pre-swatched per signal; -bg/-border are
@@ -112,12 +118,12 @@
   --color-border-dark: #2a3140;
   --color-ink-dark: #e8eaf0;
   --color-ink-muted-dark: #9ba3b4;
-  --color-ink-faint-dark: #6b7280;
+  --color-ink-faint-dark: #858e9f;
   --color-brand-dark: #5b8dff;
   --color-signal-pass-dark: #3ddc97;
   --color-signal-fail-dark: #ff6b5e;
   --color-signal-caveat-dark: #e8a83c;
-  --color-signal-pending-dark: #8992a3;
+  --color-signal-pending-dark: #9ba3b4;
   --color-signal-excluded-dark: #b48ee0;
 }
 
@@ -142,6 +148,11 @@
   --color-brand-500: #2f6fed;
   --color-brand-600: #1f56d6;
   --color-brand-700: #1a45ad;
+  --color-brand-link: #1f56d6;
+  --color-brand-link-hover: #1a45ad;
+  --color-brand-action: #1f56d6;
+  --color-brand-action-hover: #1a45ad;
+  --color-brand-badge: #1a45ad;
 
   --color-signal-pass: #0f8a5f;
   --color-signal-pass-bg: #e6f6ee;
@@ -168,10 +179,15 @@
 
 :root {
   color-scheme: dark;
-  /* Smooth in-page section jumps (persistent report nav, Story 10.1) — pure
-     CSS, so a plain <a href="#id"> already satisfies "addressable by a
-     stable URL anchor" without JS-driven scrolling. */
-  scroll-behavior: smooth;
+  /* Plain anchors remain addressable with JS disabled. Only opt into animated
+     jumps when the user has not requested reduced motion. */
+  scroll-behavior: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :root {
+    scroll-behavior: smooth;
+  }
 }
 
 body {

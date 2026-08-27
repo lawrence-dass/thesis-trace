@@ -24,7 +24,7 @@ export default async function Home() {
   return (
     <main className="mx-auto w-full max-w-5xl space-y-10">
       <section className="space-y-3">
-        <p className="text-sm font-semibold uppercase tracking-wide text-[var(--color-brand-600)]">
+        <p className="text-sm font-semibold uppercase tracking-wide text-[var(--color-brand-link)]">
           Evidence-backed equity intelligence
         </p>
         <h1 className="text-3xl font-semibold tracking-tight text-[var(--color-ink)] sm:text-4xl">
@@ -54,7 +54,7 @@ export default async function Home() {
                   <span className="font-mono text-lg font-semibold tracking-tight text-[var(--color-ink)]">
                     {c.ticker}
                   </span>
-                  <ArrowRightIcon className="h-4 w-4 text-[var(--color-ink-faint)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--color-brand-600)]" />
+                  <ArrowRightIcon className="h-4 w-4 text-[var(--color-ink-faint)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--color-brand-link)]" />
                 </div>
                 <div className="text-sm text-[var(--color-ink-muted)]">{c.name}</div>
                 {c.last_updated ? (

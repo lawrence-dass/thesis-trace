@@ -55,7 +55,7 @@ export default async function MethodologyPage({ params }: { params: Promise<{ mo
   return (
     <main className="mx-auto w-full max-w-5xl space-y-8">
       <section className="space-y-2">
-        <p className="text-sm font-semibold uppercase tracking-wide text-[var(--color-brand-600)]">Methodology</p>
+        <p className="text-sm font-semibold uppercase tracking-wide text-[var(--color-brand-link)]">Methodology</p>
         <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-ink)] sm:text-3xl">{m.model}</h1>
         <p className="font-mono text-sm text-[var(--color-ink-faint)]">{m.formula_version}</p>
       </section>

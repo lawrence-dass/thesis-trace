@@ -1317,3 +1317,65 @@ story_10_1_browser_verification:
     real user's foreground tab is never subject to this throttling. All 5-section
     functional verification above was done with `scroll-behavior` forced to `auto`
     for observability; the shipped code still ships `smooth` (globals.css).
+
+story_10_1_codex_review:
+  status: done
+  reviewed: 2026-08-27
+  by: "Codex, independent pass against PR #87 per the project's cross-model review convention"
+  findings: 10
+  all_confirmed_and_fixed: true
+  fixed:
+    - "P1: dark-mode brand token reused for two opposite contrast needs (text-on-dark-surface vs white-on-filled-button), producing sub-AA contrast in places. Split into named roles (--color-brand-link, --color-brand-action, --color-brand-badge) with --color-brand-600/700 kept as aliases so no consumer needed a rename beyond the shared components (Button, Badge)."
+    - "P1: header overflowed at a 320px viewport. Responsive padding/gap classes added (px-3 sm:px-6, gap-1 sm:gap-5, min-w-0, whitespace-nowrap)."
+    - "P2: ThemeToggle showed the wrong icon/label for one frame before mount, and an early click could invert state incorrectly. Now disabled with a neutral placeholder until mounted, and toggle() reads the DOM attribute directly as the source of truth rather than trusting React state."
+    - "P2: ReportNav's scrollspy only inspected the IntersectionObserver's changed entries per callback (a delta, not a full snapshot), so an active section could be set incorrectly when multiple sections intersected at once. Now keeps a persistent per-target intersection map and recomputes the topmost intersecting section on every callback."
+    - "P2: a short final section (e.g. Integrity & Evidence on a filer with little content) could never enter the observer's activation band and so never became active. Added a scroll-position fallback that force-activates the last section once the document is scrolled to its true bottom."
+    - "P2: pending-badge and faint-text dark tokens were both under the 4.5:1 AA floor. Brightened --color-ink-faint-dark and --color-signal-pending-dark."
+    - "P2: scroll-behavior: smooth was unconditional, ignoring prefers-reduced-motion. Now gated behind @media (prefers-reduced-motion: no-preference)."
+    - "P2: Next's default 404 page ignored the app's theme (hard-coded white body under the dark header). Added app/not-found.tsx using the same design tokens."
+    - "P2: architecture-page Mermaid diagrams kept their authored light palette even in dark mode. Added a light->dark hex-swap at the render boundary (frontend/app/components/MermaidDiagram.tsx), re-rendering live on theme change via a MutationObserver on data-theme."
+  independently_reverified_by_claude:
+    contrast_math: >
+      Recomputed every stated contrast ratio from the actual color-mix formulas rather than
+      trusting Codex's numbers — WCAG 2.1 relative-luminance formula, sRGB channel lerp matching
+      `color-mix(in srgb, ...)`. All pass AA: primary button 5.29:1, link-on-surface 7.14:1,
+      pending-badge 5.03:1, nav-faint-text 5.29:1. One is thin: brand badge text on brand-50 is
+      4.56:1 against a 4.5:1 floor — passes, but only just, and a future token tweak on either
+      side could silently fail it with nothing to catch that. No automated contrast test exists;
+      this was hand-verified, not enforced.
+    mobile_header_320px: >
+      Could not get an actual 320px render — `resize_window` did not affect this tab's viewport
+      at all on the original tab (stuck at 1728px regardless), and a fresh tab clamped to a
+      500px floor rather than reaching 320px, evidently an environment constraint rather than
+      the tool's failure to act. Confirmed clean (no overflow) at 500px, genuinely below the
+      sm:640px breakpoint so the mobile-first base classes are the ones active. Measured the
+      real mobile-variant values there (12px each-side padding, 4px nav gap, 101px logo, 198px
+      nav) and summed them: ~323px minimum content width. At literally 320px this could still
+      overflow by a few px — a large improvement over the original ~355px, but not certainly
+      zero. Recommend a real-device or DevTools spot-check before treating this specific number
+      as fully closed.
+    scrollspy_final_section: >
+      First check (via JS `window.scrollTo` to the document bottom) showed the nav stuck on
+      "Overview" even after a 2s wait — looked like the fix hadn't worked. Re-tested with a
+      GENUINE mouse-wheel scroll (computer tool's scroll action) to the identical scrollY
+      (16774.5) and the nav correctly read "Integrity & Evidence". Same position, different
+      input method, opposite result — confirms `scrollTo()` does not reliably dispatch the
+      native `scroll` event this fix's fallback listens for in this specific automation
+      environment (the same class of artifact already recorded for smooth-scroll in
+      story_10_1_browser_verification above), not a defect in the shipped fix. Real user input
+      (wheel/trackpad/touch/scrollbar) fires genuine scroll events and is unaffected.
+    mermaid_dark_theming: >
+      Confirmed the re-render is genuinely live, not just correct on initial dark load: toggled
+      theme light->dark->light on the /architecture page and the diagram's palette flipped
+      correctly both directions, matching the MutationObserver-driven re-render in the diff.
+    404_and_reduced_motion: >
+      404 confirmed dark-themed by navigating to a genuinely non-existent route (distinct from
+      the app's own "not yet covered" state for an out-of-universe ticker, which still renders
+      correctly and separately). prefers-reduced-motion gating verified by reading the CSS
+      source only — no motion-preference emulation was available in this session's tooling to
+      confirm the media query actually flips at runtime.
+  regression_check: >
+    Full gate re-run after the fixes: tsc clean, eslint clean, vitest 47/47 (unmodified),
+    backend pytest 343/343 (unaffected — frontend-only change, run as a sanity check), next
+    build succeeds including the new /_not-found route, browser console clean on a fresh
+    navigation (no hydration warnings reintroduced).

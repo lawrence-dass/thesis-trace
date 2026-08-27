@@ -18,16 +18,69 @@ type Props = {
 
 type State = "loading" | "ready" | "error";
 
+// Architecture sources intentionally keep their authored light palette in
+// docs/diagrams/*.md. Mermaid classDef colors override Mermaid's base theme,
+// so map that known palette to dark equivalents at the rendering boundary.
+// This keeps the source diagrams readable as standalone documentation while
+// ensuring the in-app dark-first theme does not produce pale panels on a dark
+// canvas.
+const DARK_PALETTE: Array<[string, string]> = [
+  ["#F3E8FF", "#2d2140"],
+  ["#7E22CE", "#b48ee0"],
+  ["#3B0764", "#f0e8ff"],
+  ["#DBEAFE", "#1d3154"],
+  ["#2563EB", "#7ca4ff"],
+  ["#1E3A8A", "#e4edff"],
+  ["#DCFCE7", "#17392d"],
+  ["#16A34A", "#3ddc97"],
+  ["#14532D", "#e0fff1"],
+  ["#FEF3C7", "#3b2f1a"],
+  ["#D97706", "#e8a83c"],
+  ["#78350F", "#fff3d6"],
+  ["#FFF7ED", "#3d281b"],
+  ["#EA580C", "#ff8a5e"],
+  ["#9A3412", "#ffe9de"],
+  ["#FCE7F3", "#3d2432"],
+  ["#DB2777", "#ff7eb0"],
+  ["#831843", "#ffe7f1"],
+  ["#E0F2FE", "#17384a"],
+  ["#0284C7", "#6bd6ff"],
+  ["#0C4A6E", "#e4f8ff"],
+  ["#EDE9FE", "#30214a"],
+  ["#7C3AED", "#c39bff"],
+  ["#4C1D95", "#f2e8ff"],
+];
+
+function chartForTheme(chart: string, theme: "dark" | "light") {
+  if (theme === "light") return chart;
+  return DARK_PALETTE.reduce((source, [light, dark]) => source.replaceAll(light, dark), chart);
+}
+
 export function MermaidDiagram({ id, chart }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<State>("loading");
   const [message, setMessage] = useState<string>("");
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
   // Default to fit so the whole shape is visible on arrival; actual size is one
   // click away for reading the labels.
   const [fit, setFit] = useState(true);
 
   useEffect(() => {
+    const readTheme = () => {
+      setTheme(document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark");
+    };
+    readTheme();
+
+    const observer = new MutationObserver(readTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
+    setState("loading");
+    setMessage("");
+    if (ref.current) ref.current.innerHTML = "";
 
     async function render() {
       try {
@@ -36,9 +89,9 @@ export function MermaidDiagram({ id, chart }: Props) {
 
         mermaid.initialize({
           startOnLoad: false,
-          theme: "default",
-          // The diagrams carry their own classDef palette, so the base theme only
-          // needs to supply typography and a transparent canvas.
+          theme: theme === "dark" ? "dark" : "default",
+          // The diagrams carry their own classDef palette; dark mode receives
+          // the equivalent palette through chartForTheme below.
           themeVariables: {
             fontFamily: "var(--font-inter), system-ui, sans-serif",
             fontSize: "14px",
@@ -51,7 +104,7 @@ export function MermaidDiagram({ id, chart }: Props) {
           sequence: { useMaxWidth: false },
         });
 
-        const { svg } = await mermaid.render(id, chart);
+        const { svg } = await mermaid.render(id, chartForTheme(chart, theme));
         if (cancelled || !ref.current) return;
         ref.current.innerHTML = svg;
         setState("ready");
@@ -68,7 +121,7 @@ export function MermaidDiagram({ id, chart }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [id, chart]);
+  }, [id, chart, theme]);
 
   if (state === "error") {
     return (
