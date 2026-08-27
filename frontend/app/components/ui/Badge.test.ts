@@ -79,4 +79,13 @@ describe("applicability", () => {
     expect(applicabilityVariant("future_state")).toBe("pending");
     expect(applicabilityLabel("future_state")).toBe("Unavailable");
   });
+
+  // Story 10.5: this state cannot be exercised live — `excluded_out_of_scope`
+  // fires only for `is_financial_sector`, and Phase 1's 7-filer universe is
+  // deliberately non-financial-sector (a standing decision, not a gap). This
+  // pins the mapping instead, since a live screenshot can never cover it.
+  it("renders excluded_out_of_scope distinctly from insufficient data", () => {
+    expect(applicabilityVariant("excluded_out_of_scope")).toBe("excluded");
+    expect(applicabilityLabel("excluded_out_of_scope")).toBe("Out of scope");
+  });
 });
