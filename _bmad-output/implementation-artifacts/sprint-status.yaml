@@ -6,7 +6,7 @@
 # this file — they were split out on 2026-08-20, when this file had reached
 # 1,279 lines of which only ~115 were status.
 #
-# STATUS AT A GLANCE (45 of 47 stories done, 6 of 10 epics complete)
+# STATUS AT A GLANCE (46 of 47 stories done, 6 of 10 epics complete)
 #
 #   Epic 1  done         10/10        Foundation & First Evidence (Walking Skeleton)
 #   Epic 2  done         6/6          Complete the Four Lenses
@@ -17,7 +17,7 @@
 #   Epic 7  blocked      no stories   Thesis Journal & Thesis Diff
 #   Epic 8  blocked      no stories   Growth Trends
 #   Epic 9  blocked      no stories   Filing Q&A
-#   Epic 10 in-progress  5/7          Report-Style Company Page
+#   Epic 10 in-progress  6/7          Report-Style Company Page
 #
 # Epic 10 (added 2026-08-27, D12) is the only buildable epic: presentation-only,
 # re-presenting already-computed figures, so D9's capability gate does not apply
@@ -147,7 +147,7 @@ development_status:
   10-3-rewards-and-risks-derived-from-computed-signals: done
   10-4-fundamentals-summary-and-earnings-waterfall: done
   10-5-report-sections: done
-  10-6-provenance-and-freshness-footer: backlog
+  10-6-provenance-and-freshness-footer: done
   10-7-full-universe-browser-verification: backlog
   epic-10-retrospective: optional
 

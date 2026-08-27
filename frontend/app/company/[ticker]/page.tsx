@@ -23,6 +23,7 @@ import { ReverseDcfCard, type ReverseDcf } from "../../components/ReverseDcf";
 import { VerdictGlyph, type VerdictItem } from "../../components/VerdictGlyph";
 import { RewardsRisks, type RewardRiskItem } from "../../components/RewardsRisks";
 import { FundamentalsCard, type Fundamentals } from "../../components/Fundamentals";
+import { ProvenanceFooter, type ReportFooter } from "../../components/ProvenanceFooter";
 import { AlertIcon, ChevronIcon } from "../../components/ui/icons";
 
 // Report sections (Story 10.1, D12). Order is the reading order AND the nav
@@ -88,6 +89,8 @@ type Overview = {
   rewards_risks?: RewardRiskItem[];
   // Story 10.4. Null when no fiscal year resolves both revenue and net income.
   fundamentals?: Fundamentals | null;
+  // Story 10.6. Always present for a covered issuer.
+  footer?: ReportFooter | null;
 };
 type Explanation = { model: string; text: string; citations: string[] };
 
@@ -467,6 +470,12 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
           {integrityLenses}
         </div>
       </section>
+
+      {/* Story 10.6: the report ends with what the data is and when it last
+          moved, so the report's honesty is inspectable in one place. Not a
+          tracked ReportNav section — it applies to the whole report, not one
+          question within it. */}
+      <ProvenanceFooter footer={data.footer} cik={data.cik} />
     </main>
   );
 }

@@ -287,6 +287,38 @@ class FundamentalsOut(BaseModel):
     waterfall: list[WaterfallBarOut]
 
 
+class DataSourceOut(BaseModel):
+    """One external data source actually used for this filer (Story 10.6).
+
+    A source this filer does not use (e.g. Bank of Canada FX for a USD
+    reporter) is simply absent from the list — never listed generically with
+    a "not used" caveat (the AC's own wording).
+    """
+
+    name: str
+    detail: str | None = None
+
+
+class FormulaVersionOut(BaseModel):
+    model: str
+    version: str
+
+
+class ReportFooterOut(BaseModel):
+    """Provenance and freshness footer (Story 10.6). Every field is read from
+    stored data — nothing here is hardcoded (AD-1: no live fetch on a read)."""
+
+    sources: list[DataSourceOut]
+    latest_accession_number: str | None
+    latest_filing_date: str | None
+    latest_filing_form: str | None
+    #: The most recent `computed_at` across this issuer's own non-superseded
+    #: score runs — a real per-issuer pipeline timestamp, not a global one.
+    last_pipeline_run: str | None
+    mapping_version: str
+    formula_versions: list[FormulaVersionOut]
+
+
 class CompanyOverviewOut(BaseModel):
     cik: str
     ticker: str
@@ -310,6 +342,9 @@ class CompanyOverviewOut(BaseModel):
     rewards_risks: list[RewardRiskItemOut] = []
     #: Story 10.4. None when no fiscal year resolves both revenue and net income.
     fundamentals: FundamentalsOut | None = None
+    #: Story 10.6. Always present for a covered issuer — EDGAR company facts
+    #: are the one source every filer in the universe uses.
+    footer: ReportFooterOut
 
 
 class CompanyCardOut(BaseModel):

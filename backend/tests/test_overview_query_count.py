@@ -164,6 +164,11 @@ async def test_overview_query_count_does_not_grow_with_history(db_session) -> No
 #   2026-08-12   36 / 100, slope 16   first recorded; the N+1 as found
 #   2026-08-13   37 / 101, slope 16   +1 fixed cost, the reverse-DCF row lookup
 #   2026-08-13    7 /   7, slope  0   Track P: both loads batched
+#   2026-08-27    9 /   9, slope  0   Story 10.6: +2 fixed cost — the footer's
+#                                     latest-Filing lookup and MarketPrice
+#                                     existence check, each O(1) per issuer
+#                                     (constant regardless of fiscal-year
+#                                     count), never per-year.
 #
 # PER_YEAR_QUERIES IS NOW ZERO, and that is the whole point. It was 16 — sixteen
 # round trips per fiscal year, forever, so OTEX's twenty years of history cost 486
@@ -173,6 +178,6 @@ async def test_overview_query_count_does_not_grow_with_history(db_session) -> No
 #
 # If this ever goes above zero again, the overview has become an N+1 again. That is
 # the failure this file now exists to catch; the totals below are secondary.
-SHORT_HISTORY_QUERIES = 7
-LONG_HISTORY_QUERIES = 7
+SHORT_HISTORY_QUERIES = 9
+LONG_HISTORY_QUERIES = 9
 PER_YEAR_QUERIES = 0

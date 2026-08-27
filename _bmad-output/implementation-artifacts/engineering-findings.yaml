@@ -1809,3 +1809,57 @@ story_10_5_browser_verification:
     both Past Performance shapes (populated history, and first-ever-scored
     empty state). Zero console errors on a fresh Suncor load with console
     tracking active from before navigation.
+
+story_10_6_browser_verification:
+  status: done
+  verified: 2026-08-27
+  how: >
+    Unlike Story 10.5, this story genuinely needed new backend data — none of
+    it existed on the wire yet: the latest filing's own filing date (not just
+    fiscal year), a real per-issuer last-pipeline-run timestamp, and which
+    external sources actually resolved for this specific filer. Extracted the
+    assembly logic into a new `report_footer/engine.py` module (mirroring
+    `fundamentals`/`debt`'s split between a DB-querying layer and a pure,
+    independently-testable assembly layer) rather than leaving untested
+    judgment inline in `repository.py`. No versioned presentation-rule spec,
+    same reasoning as `fundamentals`: nothing here is a ThesisTrace
+    classification, only stored facts and structural presence checks.
+  what_was_verified:
+    - "`Filing.filing_date` (a real column, distinct from fiscal_year and from period_end) resolves the latest filing per issuer via ORDER BY ... LIMIT 1 — confirmed live that CP's latest filing is a 10-K/A (an amendment) filed 2026-04-23, which is honestly the most recent filing even though it isn't the original 10-K."
+    - "'Last pipeline run' is `MAX(ScoreRun.computed_at)` across the issuer's own non-superseded runs — a genuine per-issuer timestamp, not a global one. Confirmed both CP and OTEX show the same real timestamp (2026-08-21T11:24), matching when the last full-universe pipeline run actually executed, read from `_seed_issuer`/live `score_runs` rows, never fabricated."
+    - "Source list built by APPENDING only on a positive presence check, never by listing all three and marking one absent — checked live both directions: CP (CAD reporter, a MarketPrice row exists) shows all three sources including 'Bank of Canada FX (USD/CAD)'; OTEX (USD reporter) shows exactly two, with Bank of Canada FX absent entirely from the JSON, not present-and-labelled-unused."
+    - "'Bank of Canada FX used' is inferred from an ALREADY-FETCHED canonical fact reporting in CAD (no second scan of canonical_facts) rather than joining the currency-pair-keyed `fx_rates` table, which has no issuer_cik column to join on directly — the correct question is 'did this issuer need conversion', which the fact's own unit already answers."
+    - "Formula-spec versions use `latest_any_by_model` (the most RECENTLY COMPUTED run per model, regardless of whether it resolved), not `latest_by_model` (the most recent VALID run, already computed a few lines above for the Verdict grid and serving a different purpose) — 'in force' means the spec version the pipeline is applying right now, and using the wrong dict would have shown a stale version for any model whose most recent run happened to be insufficient_data."
+    - "Both themes confirmed correct with zero hardcoded colors (every fill and text color is a semantic token) — verified by toggling live, not by code inspection alone."
+  defect_found_and_fixed:
+    severity: P2
+    what: >
+      `test_overview_query_count.py`'s `test_overview_query_count_does_not_grow_with_history`
+      failed immediately: `SHORT_HISTORY_QUERIES` was still 7, and the footer's
+      two new bounded queries (latest Filing, MarketPrice existence) pushed the
+      real count to 9. This is exactly the guard this file's own docstring says
+      it exists to catch — "above zero means a per-year round trip came back" —
+      except here the per-year slope stayed correctly at 0 (both new queries
+      are O(1) per issuer, not per fiscal year); only the FIXED cost changed,
+      which is legitimate for two genuinely new per-issuer reads.
+    fix: >
+      Updated `SHORT_HISTORY_QUERIES`/`LONG_HISTORY_QUERIES` from 7 to 9 and
+      added a dated line to the file's own "HISTORY OF THESE NUMBERS" comment
+      recording why (same convention the file already used for the two prior
+      changes) — a bare constant bump with no explanation would have made the
+      next session re-derive whether 9 was correct or a regression from
+      scratch. Verified the distinction that matters by reading the test's own
+      per-year assertion separately: it never moved from 0, only the fixed
+      component did.
+  regression_check: >
+    Full gate: tsc clean, eslint clean, `next build` succeeds, vitest 67/67
+    (65 prior + 2 new: `formatDateTime`'s real-parse and invalid-string-
+    fallback cases), backend pytest 387/387 (379 prior + 8 new: source-list
+    construction from both directions, absent-filing/absent-pipeline-run
+    honesty, and version/mapping pass-through, all against the new pure
+    `report_footer.engine` module — no DB fixture needed since the module
+    takes already-resolved primitives), ruff clean. Live-verified on CP (CAD
+    reporter, all 3 sources) and OTEX (USD reporter, exactly 2 sources) with
+    the raw JSON checked first, then the rendered page in both themes,
+    zero console errors on a fresh load with tracking active before
+    navigation.
