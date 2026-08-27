@@ -81,6 +81,7 @@ CURATED_SECTIONS = (
     "ambiguity_flagging_had_no_idempotency_key",
     "story_10_1_browser_verification",
     "story_10_1_codex_review",
+    "story_10_2_browser_verification",
 )
 
 pytestmark = pytest.mark.skipif(

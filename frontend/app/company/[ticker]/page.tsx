@@ -20,6 +20,7 @@ import {
   type MaturityProfile,
 } from "../../components/MaturityProfile";
 import { ReverseDcfCard, type ReverseDcf } from "../../components/ReverseDcf";
+import { VerdictGlyph, type VerdictItem } from "../../components/VerdictGlyph";
 import { AlertIcon, ChevronIcon } from "../../components/ui/icons";
 
 // Report sections (Story 10.1, D12). Order is the reading order AND the nav
@@ -58,15 +59,6 @@ type LensScore = {
   trajectory?: Trajectory | null;
 };
 type DataQuality = { issue_type: string; status: string; raised_by: string };
-type VerdictItem = {
-  model: string;
-  category: string;
-  fiscal_year: number;
-  aggregate_value: number | null;
-  band_label: string | null;
-  applicability: string;
-  missing_signals: string[];
-};
 type Overview = {
   state: string;
   cik?: string;
@@ -302,6 +294,10 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
         {data.verdict && data.verdict.length > 0 ? (
           <>
             <h2 className="text-title font-semibold text-[var(--color-ink)]">Overview</h2>
+            {/* Story 10.2: the at-a-glance hero — four independent axes,
+                never blended. Sits above the detail cards below, which are
+                unchanged and still the place for the full per-model read. */}
+            <VerdictGlyph verdict={data.verdict} />
             <p className="text-sm text-[var(--color-ink-faint)]">
               Each model&apos;s own published threshold classification, shown side by side — not a
               buy/sell recommendation.

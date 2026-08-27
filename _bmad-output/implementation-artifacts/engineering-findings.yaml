@@ -41,6 +41,8 @@
 #   done                       story_6_1_reverse_dcf_coverage_spike
 #   done                       shop_convertible_debt_unmapped (corrected — resolved by PR #81, this line was stale)
 #   done                       story_10_1_browser_verification
+#   done                       story_10_1_codex_review
+#   done                       story_10_2_browser_verification
 
 
 # Work completed after Epic 4 that no epic owns, tracked here so it is not lost.
@@ -1379,3 +1381,110 @@ story_10_1_codex_review:
     backend pytest 343/343 (unaffected — frontend-only change, run as a sanity check), next
     build succeeds including the new /_not-found route, browser console clean on a fresh
     navigation (no hydration warnings reintroduced).
+
+story_10_2_browser_verification:
+  status: done
+  verified: 2026-08-27
+  how: >
+    Real dev server AND a real production build (`next build` + `next start`), both
+    against the live dev DB/backend — the theme defects below specifically did not
+    reproduce identically in dev vs prod, so both had to be checked. Two filers chosen
+    for opposite states, not convenience: CP (all four models resolve with real values,
+    two Caveat, one clean pass, one insufficient_data) and Suncor (two axes null/dashed
+    simultaneously — Beneish AND Altman both insufficient_data — plus two real-caveat
+    positions on Piotroski/Sloan), confirming the glyph never confuses multiple
+    simultaneous absence states.
+  what_was_verified:
+    - "Four independent spokes render, never connected into a polygon, no aggregate number/shape anywhere on the glyph (D12 guard 1)."
+    - "Each axis colored/labelled from its own band vocabulary (bandTone/applicabilityVariant applied per-VerdictItem, not a shared assumption) — confirmed correct on both a full-resolution filer (CP) and a sparse one (SU) with different band values throughout."
+    - "insufficient_data and excluded_out_of_scope render as a short, dashed, non-zero spoke — verified two such axes rendering simultaneously (SU: Beneish + Altman) without visual ambiguity."
+    - "computed_with_caveat keeps its REAL position and REAL band tone, matching the Gauge on the same model's detail card below — verified CP's Altman axis (Caveat label, but positioned and colored per its actual 'Grey'-equivalent band, not a placeholder)."
+    - "Clicking an axis navigates to its section (Piotroski/Altman -> #financial-health, Beneish/Sloan -> #integrity-evidence) — confirmed via direct event dispatch on both target anchors after coordinate-based clicks proved unreliable for SVG-embedded anchors specifically (see tooling note)."
+    - "Dark and light themes both render correctly and legibly; light mode confirmed to survive a full fresh navigation to a DIFFERENT page (not just a client-side re-render), proving the theme is genuinely server-rendered, not client-patched."
+    - "Zero console errors/warnings on a clean navigation, in both dev and a real production build."
+  defects_found_and_fixed:
+    - >
+      Every axis label was clipped by the SVG's own default `overflow: hidden` viewBox
+      boundary — top/bottom labels sliced to their bottom half, left/right labels
+      sliced to their last 1-2 characters. Caused by LABEL_RADIUS leaving only ~6px of
+      margin to the viewBox edge for a two-line label needing ~26px. Fixed by
+      recomputing the geometry (SIZE 240->260, MAX_RADIUS 88->82, more margin) and
+      adding `overflow="visible"` as a safety net against any remaining font-metric
+      variance. Caught immediately on first render — the AC's "verified in a browser"
+      requirement earned its keep on the very first screenshot of this story.
+    - >
+      Clicking the thin (2px) visible spoke line silently did nothing — a `transparent`
+      stroke is not hit-tested under SVG's default `pointer-events: visiblePainted`.
+      Added an invisible, wide (20px) hit-area line with `pointer-events="stroke"`
+      explicitly set, widening the clickable region without changing what's painted.
+    - >
+      MAJOR — a genuine React hydration mismatch, thrown as an unrecoverable error in
+      production (React #418) and a full-detail warning in dev, both pointing at the
+      SVG `<title>` child element inside each axis's `<a>`: React's server HTML string
+      serializer and the browser's real SVG-namespace DOM disagreed on it (`<title>`
+      doubles as HTML page-metadata, which the SSR renderer evidently treats specially
+      in a way that does not survive real SVG-namespace parsing). Fixed by using a
+      plain `title` ATTRIBUTE on the `<a>` instead of a `<title>` CHILD ELEMENT — a
+      plain string prop has no such serialization ambiguity, and the anchor's
+      accessible name still derives correctly from its own visible text content
+      regardless. This was ALSO the true cause of a batch of "duplicate React key"
+      console errors that looked unrelated (leverage_decreasing-long_term_debt,
+      roa_increasing-net_income, etc.) — those were fallout from React discarding and
+      client-rebuilding the mismatched subtree, not an independent bug; they
+      disappeared completely once the real hydration mismatch was fixed. Lesson: when
+      a hydration mismatch forces a subtree rebuild, treat every OTHER error in that
+      same render pass as suspect fallout before investigating it as separate.
+    - >
+      MAJOR, and NOT actually new to this story — a pre-existing, previously
+      undetected defect in Story 10.1's theme mechanism, surfaced only because this
+      story's own hydration-mismatch investigation forced a close look at `<html>`.
+      The `next/script strategy="beforeInteractive"` blocking script that was supposed
+      to set `data-theme` before first paint never actually executed: confirmed live
+      that `data-theme` stayed `null` in BOTH `next dev` and a real `next build` +
+      `next start` production server, on a completely fresh tab, with zero stored
+      cookie/localStorage state. The script tag existed in the raw SSR HTML with
+      correct content (confirmed via direct fetch of the page source) and its own
+      logic worked perfectly when executed manually — but as rendered by
+      `next/script`'s special runtime, the tag was hoisted into `<head>` with `async`
+      set on a src-less inline script, and never ran. The site still LOOKED correct
+      throughout Story 10.1 and its Codex-review fixes, because the CSS itself
+      defaults to dark with no attribute at all — masking the fact that a user who
+      chose LIGHT mode would see it silently discarded on every subsequent full page
+      load, since nothing else ever re-applied a stored preference. Two follow-on
+      attempts before finding the real fix: switching to a plain native `<script>` (no
+      next/script) still left `data-theme` null; removing `suppressHydrationWarning`
+      to diagnose surfaced React error #418 on `<html>` and restoring it made the
+      error silent but did NOT restore the attribute — proving React's hydration
+      reconciliation resets attribute mismatches to match its own render regardless of
+      `suppressHydrationWarning`, which only suppresses the console WARNING for
+      TEXT-content mismatches, not attribute reconciliation. The actual fix replaces
+      the entire pre-hydration-script approach: `RootLayout` now reads the theme from
+      a COOKIE server-side (`next/headers`'s `cookies()`) and renders `data-theme`
+      directly as a normal React prop on `<html>`, so server and client agree from the
+      first frame — no script, no race, nothing to reconcile. `ThemeToggle` now writes
+      the cookie (not localStorage) on toggle, and takes the server-known theme as a
+      prop instead of discovering it via a post-mount effect. Verified light mode now
+      survives a full fresh navigation to a different page. This is the idiomatic
+      Next.js App Router pattern for exactly this problem, and structurally cannot
+      recur the way the script-based approach did.
+  tooling_note: >
+    Coordinate-based `computer.left_click` on the glyph's SVG-embedded `<a>` elements
+    was unreliable in this browser-automation session — clicks that landed exactly on
+    the correct element per `elementFromPoint` still did not trigger navigation.
+    Isolated with a clean A/B: `anchor.dispatchEvent(new MouseEvent('click', ...))`
+    navigated correctly every time on the same elements. `SVGAElement` also has no
+    `.click()` convenience method (an HTML-only API), confirmed separately. This joins
+    two other automation-specific artifacts already recorded in
+    story_10_1_browser_verification (smooth-scroll stalling on a backgrounded tab;
+    `scrollTo()` not firing native scroll events) as a now-third instance of the same
+    class: this tooling's synthetic pointer/scroll simulation is less reliable for
+    certain interactive element types than genuine input. Real users are unaffected —
+    plain `<a href="#id">` navigation, SVG-embedded or not, is standard, universally
+    supported browser behavior with no framework code in the path.
+  regression_check: >
+    Full gate re-run after all fixes: tsc clean, eslint clean, vitest 53/53 (47
+    pre-existing unmodified + 6 new for `axisState`'s pure logic), backend pytest
+    343/343 (unaffected — frontend-only change, run as a sanity check), `next build`
+    succeeds, and a real production server (`next start`) confirmed clean — zero
+    console errors/warnings on a fresh navigation, `data-theme` correctly server-
+    rendered, light mode surviving a full navigation to a different route.
