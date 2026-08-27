@@ -20,6 +20,7 @@ from app.models import (
     Filing,
     IssueStatus,
     Issuer,
+    MarketPrice,
     ScoreInput,
     ScoreResult,
     ScoreRun,
@@ -31,7 +32,9 @@ from api.schemas import (
     CompanyOverviewOut,
     DataQualityChangeOut,
     DataQualityOut,
+    DataSourceOut,
     FactChangeOut,
+    FormulaVersionOut,
     FundamentalsFigureOut,
     FundamentalsOut,
     LensScoreOut,
@@ -39,6 +42,7 @@ from api.schemas import (
     MaturityProfileOut,
     NearTermDebtShareOut,
     Provenance,
+    ReportFooterOut,
     RewardRiskItemOut,
     TrajectoryOut,
     RunChangeOut,
@@ -55,6 +59,7 @@ from debt.engine import DENOMINATOR_CONCEPT, NUMERATOR_CONCEPT, shares_for_facts
 from debt.profile import PROFILE_CONCEPTS, profile_for_facts
 from fundamentals.engine import FUNDAMENTALS_CONCEPTS, FundamentalsFigure, fundamentals_for_facts
 from raw_store.market_prices import resolve_fye_price
+from report_footer.engine import FormulaVersion, build_report_footer
 from valuation.overview import DCF_CONCEPTS
 from valuation.store import load_reverse_dcf
 from diff.engine import diff_company_since, latest_filing_pivot
@@ -704,6 +709,59 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
         for item in rewards_risks_for_overview(verdict, data_quality)
     ]
 
+    # Provenance and freshness footer (Story 10.6). Every field reads stored
+    # data — no live fetch on a read (AD-1), nothing hardcoded.
+    latest_filing = (
+        await session.execute(
+            select(Filing)
+            .where(Filing.issuer_cik == issuer.cik)
+            .order_by(Filing.filing_date.desc())
+            .limit(1)
+        )
+    ).scalars().first()
+
+    has_market_price = (
+        await session.execute(
+            select(MarketPrice.id).where(MarketPrice.issuer_cik == issuer.cik).limit(1)
+        )
+    ).first() is not None
+
+    # A filer that reports any monetary figure in CAD needed the Bank of
+    # Canada rate to combine it with Tiingo's USD close (Altman X4, reverse
+    # DCF's market cap) — checked against facts already fetched above rather
+    # than a second scan of canonical_facts.
+    uses_cad = any((f.unit or "").strip().upper() == "CAD" for f in debt_facts)
+
+    # The most RECENTLY computed run per model, regardless of whether it
+    # resolved — "in force" means the spec version the pipeline is applying
+    # right now, not the version behind whichever year last happened to
+    # produce a value (that is `latest_by_model`'s own, different, purpose
+    # a few lines above, for the Verdict grid).
+    raw_footer = build_report_footer(
+        latest_accession_number=latest_filing.accession_number if latest_filing else None,
+        latest_filing_date=latest_filing.filing_date if latest_filing else None,
+        latest_filing_form=latest_filing.form_type if latest_filing else None,
+        has_market_price=has_market_price,
+        uses_cad=uses_cad,
+        last_pipeline_run=max((r.computed_at for r in runs), default=None),
+        mapping_version=MAPPING_VERSION,
+        formula_versions=[
+            FormulaVersion(model=model, version=s.formula_version)
+            for model, s in sorted(latest_any_by_model.items())
+        ],
+    )
+    footer = ReportFooterOut(
+        sources=[DataSourceOut(name=s.name, detail=s.detail) for s in raw_footer.sources],
+        latest_accession_number=raw_footer.latest_accession_number,
+        latest_filing_date=raw_footer.latest_filing_date.isoformat() if raw_footer.latest_filing_date else None,
+        latest_filing_form=raw_footer.latest_filing_form,
+        last_pipeline_run=raw_footer.last_pipeline_run.isoformat() if raw_footer.last_pipeline_run else None,
+        mapping_version=raw_footer.mapping_version,
+        formula_versions=[
+            FormulaVersionOut(model=fv.model, version=fv.version) for fv in raw_footer.formula_versions
+        ],
+    )
+
     return CompanyOverviewOut(
         cik=issuer.cik,
         ticker=issuer.ticker,
@@ -718,6 +776,7 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
         data_quality=data_quality,
         rewards_risks=rewards_risks,
         fundamentals=fundamentals,
+        footer=footer,
     )
 
 
