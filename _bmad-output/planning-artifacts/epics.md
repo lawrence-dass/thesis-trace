@@ -123,8 +123,9 @@ A visitor discovers the Company Universe from the landing page, searches for tic
 Sequenced by **`foundational-decisions.md` D9** — around one real investment decision, not around the
 lens list. Epics 1–4 are complete; Phase 2 begins at Epic 5.
 
-> **Decomposition is deliberately uneven, and that is the decision, not an omission.** Epics 5 and 6
-> are fully decomposed. Epic 7 carries intent and scope but no stories. Epics 8–9 are headlines only.
+> **Decomposition is deliberately uneven, and that is the decision, not an omission.** Epics 5, 6
+> and 10 are fully decomposed. Epic 7 carries intent and scope but no stories. Epics 8–9 are
+> headlines only.
 >
 > **Corrected 2026-08-06.** This note previously read that decomposing an epic "would commit to an
 > ordering the first real decision packet is explicitly allowed to overturn," and used that to defer
@@ -162,6 +163,10 @@ Growth trajectory metrics across each company's genuinely available history, at 
 ### Epic 9: Filing Q&A *(headline only — do not decompose yet)*
 Citation-grounded Q&A over a company's filings via LangGraph's self-verifying citation loop. Last by design (D9): it is the heaviest lift in the roadmap and depends on a citation-evaluation framework that does not yet exist.
 **FRs covered:** FR-15
+
+### Epic 10: Report-Style Company Page
+Lawrence opens a company and reads a sectioned stock report — an overview with an original four-model glyph and rule-derived rewards/risks, then Valuation, Past Performance, Financial Health, and Integrity & Evidence — presented with Simply Wall St-grade visual clarity but built exclusively from ThesisTrace's own already-computed deterministic figures (**D12**, added 2026-08-27). Presentation-only by definition: no new computation, ingestion or figures, which is why it is buildable now while Epics 7-9 stay blocked — D9's gate governs new capabilities, and this adds none.
+**FRs covered:** none new — re-presents the shipped surfaces of FR-9, FR-10, FR-5, FR-8, FR-22 and FR-16
 
 ---
 
@@ -838,4 +843,119 @@ So that SM-1 continues to hold over the capability, not only over the four acade
 **And** every operand is compared, not only the final rate, because two wrong operands can agree on an aggregate
 **And** Suncor's `insufficient_data` and its reason are asserted, so its absence can never later be mistaken for a coverage bug
 **And** the golden entries are added in the **same change** as the capability — SM-1 is a claim about the universe, and shipping the feature first would silently break it
+
+## Epic 10: Report-Style Company Page
+
+Decomposed 2026-08-27 under **D12**. Presentation-only: every story re-presents figures the
+pipeline already computes; no story may add ingestion, computation or a new figure without
+leaving D12's cover (at which point D9 applies).
+
+### Story 10.1: Report shell, section navigation and dark-first theme
+
+As Lawrence (investor),
+I want the company page organized as a navigable, sectioned report,
+So that reading a company feels like working through a structured dossier rather than scrolling a feed.
+
+**Acceptance Criteria:**
+
+**Given** a company page
+**When** it renders
+**Then** content is organized into sections — Overview, Valuation, Past Performance, Financial Health, Integrity & Evidence — with a persistent section nav that tracks scroll position, and each section addressable by a stable URL anchor
+**And** dark becomes the primary theme using `DESIGN.md`'s existing dark tokens, with light mode retained and both themes rendering correctly
+**And** every existing capability (Verdict, what-changed, reverse DCF, debt cards, provenance popovers, comparison, methodology links) remains reachable — this story moves furniture, it removes nothing, asserted by the existing frontend tests passing unmodified
+**And** the page is verified in a browser on filers chosen by which code paths they exercise, per the live-data DoD — not by convenience
+
+### Story 10.2: Verdict constellation — the four-model hero glyph
+
+As Lawrence (investor),
+I want one custom visual at the top showing each model's verdict on its own labelled axis,
+So that I get the at-a-glance read a snowflake gives without a blended score.
+
+**Acceptance Criteria:**
+
+**Given** a company with stored score runs
+**When** the Overview section renders
+**Then** an original radial glyph shows one axis per model — Piotroski, Altman, Beneish, Sloan — each individually labelled and coloured by its own band vocabulary, carried as per-model data rather than a shared enum (the `bandTone` lesson)
+**And** the axes are never filled into a single polygon area, and no aggregate number, shape or grade summarizing multiple models appears anywhere on the glyph (D12 guard 1 — the Verdict decision applied to pixels)
+**And** a model with `insufficient_data` or an exclusion renders that state explicitly on its axis per AD-16, never as a zero-length or empty axis that reads as a bad score
+**And** clicking an axis navigates to that model's section of the report
+**And** the glyph is original work, visually distinct from Simply Wall St's design-patented snowflake — custom SVG, no off-the-shelf charting (D7)
+**And** verified in a browser in both themes before the story closes
+
+### Story 10.3: Rewards and risks derived from computed signals
+
+As Lawrence (investor),
+I want a rewards-vs-risks summary at the top of the report,
+So that the strongest computed positives and negatives are readable in ten seconds with the evidence one click away.
+
+**Acceptance Criteria:**
+
+**Given** a company's stored signal states, bands, caveats and open data-quality issues
+**When** the Overview renders
+**Then** a rewards list and a risks list appear, each bullet produced by a versioned deterministic rule that maps existing computed states to fixed sentences — spec data with a published `rationale`, never free prose and never an LLM (the `derivations_v2`/`trajectory_v1` lesson: user-visible rationale is a published field)
+**And** each bullet cites the figure that produced it and links to the section where that figure lives
+**And** no bullet originates a new figure, threshold or judgment — selection and wording are the spec's own, labelled as ThesisTrace's, distinct from the four academic models
+**And** a company with no qualifying states shows an honest empty state, never padded bullets
+**And** the rule spec declares its inputs and a test asserts declared ⊇ actually-read (the `piotroski_v1` inputs lesson)
+
+### Story 10.4: Fundamentals summary and earnings waterfall
+
+As Lawrence (investor),
+I want a big-figure fundamentals block and an income waterfall,
+So that the scale and shape of the business are visible before the forensic detail.
+
+**Acceptance Criteria:**
+
+**Given** canonical facts for the latest complete fiscal year
+**When** the Overview renders
+**Then** a fundamentals block shows headline figures (revenue, earnings, and market value where price data exists) with compact formatting in which every gate tests the integer count of the unit its branch renders (the `compactAmount` boundary lesson)
+**And** a revenue → cost → gross profit → other → earnings waterfall renders from canonical facts only, as a custom visualization
+**And** a filer whose taxonomy lacks a component degrades honestly — CP has no COGS, a by-nature IFRS filer has no SG&A — the affected bar is absent with its stated reason, never rendered as zero
+**And** every figure carries provenance to its accession number
+**And** verified in a browser on CP and one by-nature IFRS filer, chosen because they exercise the missing-component path
+
+### Story 10.5: Report sections — valuation, performance, health, integrity
+
+As Lawrence (investor),
+I want the existing capabilities re-homed into their report sections,
+So that each research question — is the price reasonable, what changed, is it healthy, can I trust the numbers — has one place to be answered.
+
+**Acceptance Criteria:**
+
+**Given** the existing overview capabilities
+**When** the restructure lands
+**Then** reverse DCF and its sensitivity range live under Valuation; what-changed and trajectory under Past Performance; Altman, Piotroski and the debt cards under Financial Health; Beneish, Sloan and data-quality issues under Integrity & Evidence
+**And** no computation, API contract or figure changes — presentation-only, asserted by the backend test suite passing unmodified
+**And** each section states its own data freshness (latest score run and filing date it reflects)
+**And** every state variant of each capability (resolved, `insufficient_data` with reason, caveat, exclusion) renders correctly in its new home
+**And** verified in a browser across filers chosen to exercise every section variant
+
+### Story 10.6: Provenance and freshness footer
+
+As Lawrence (investor),
+I want the report to end with what the data is and when it last moved,
+So that the report's honesty is inspectable in one place.
+
+**Acceptance Criteria:**
+
+**Given** a rendered company report
+**When** the footer renders
+**Then** it states the data sources actually used for this filer (EDGAR company facts; Tiingo close; Bank of Canada FX where the filer reports in CAD), the latest accession number and its filing date, the last pipeline run, and the mapping and formula-spec versions in force
+**And** every statement is read from stored data — nothing in the footer is hardcoded
+**And** a source the filer does not use is absent, not listed generically
+**And** verified in a browser
+
+### Story 10.7: Full-universe browser verification
+
+As Lawrence (developer),
+I want the finished report rendered for every universe filer in both themes,
+So that the redesign cannot ship verified only against the filers it happened to be built on.
+
+**Acceptance Criteria:**
+
+**Given** the completed Epic 10 stories
+**When** the closing verification runs
+**Then** every universe filer's page is rendered in a real browser in both light and dark themes, and the results are recorded in `engineering-findings.yaml`
+**And** the filers examined in detail are chosen by code path — missing-component, `insufficient_data`, caveat, exclusion, and IFRS derived-concept variants — the Story 6.6 lesson that a spot-check covers only the paths its subjects exercise
+**And** any defect found is fixed or explicitly recorded before the epic closes
 **And** corrupting an expected value fails the suite, confirming the guard bites.

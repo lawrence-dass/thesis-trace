@@ -13,6 +13,14 @@ updated: 2026-07-29
 
 # ThesisTrace — Experience Spine
 
+> **Direction change 2026-08-27 (D12, Epic 10):** the company page is being rebuilt as a
+> sectioned, dark-first stock report — persistent section nav (Overview / Valuation / Past
+> Performance / Financial Health / Integrity & Evidence), a four-model hero glyph (original,
+> never a filled/blended polygon), rule-derived rewards-vs-risks, a fundamentals block with an
+> earnings waterfall, and a provenance/freshness footer. The flows below remain valid — their
+> beats re-home into report sections as Epic 10 lands; this spine is updated per story rather
+> than rewritten speculatively. See `DESIGN.md`'s 2026-08-27 addendum for the register change.
+>
 > Web-only, responsive, no native app (D4/D7). Next.js 16 App Router + Tailwind v4, a small hand-rolled component kit (no shadcn/MUI — `DESIGN.md` is the from-scratch visual identity, not a delta on an inherited system). Primary audience: Daniel, a diligence-driven retail investor screening for genuine quality (D2; universe posture per D11), not a day trader (PRD §2.2 explicitly excludes candlestick/technical-analysis users). ~20% secondary audience: technical evaluators assessing the engineering (PRD §2.1) — same surface, different motivation, never a separate mode.
 
 ## Foundation
