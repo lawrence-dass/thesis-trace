@@ -1662,3 +1662,89 @@ story_10_3_browser_verification:
     guards, and the declared-inputs coverage test), `next build` succeeds,
     production server confirmed clean across CP and Suncor in both themes with
     zero console errors.
+
+story_10_4_browser_verification:
+  status: done
+  verified: 2026-08-27
+  how: >
+    New backend module (fundamentals/engine.py) — NO versioned presentation-
+    rule spec, unlike rewards_risks/debt: unlike those two, nothing here is a
+    ThesisTrace-authored classification (band/threshold/selection judgment),
+    only filed canonical facts and plain subtraction between them, the same
+    class as reverse DCF's `free_cash_flow` operand. Wired into
+    get_company_overview by widening the SAME single fact query the debt
+    cards already use (AD-1) rather than a second query. Before any frontend
+    work, queried live canonical_facts directly (not fixtures) across all 7
+    universe filers for revenue/cogs/gross_profit/net_income coverage to
+    choose the two live-data DoD subjects — confirmed CP and QSR carry
+    neither cogs nor gross_profit for any year (railroad / franchise models,
+    no cost-of-revenue line to tag), Suncor carries cogs but no gross_profit
+    (IFRS by-nature presentation), and BCE/CCJ/OTEX/SHOP carry both with
+    revenue - cogs exactly equal to the filed gross_profit in every observed
+    year. CP and Suncor verified live in a real production frontend server,
+    both themes.
+  what_was_verified:
+    - "CP's waterfall degrades exactly as designed: cost-of-revenue and gross-profit bars both absent with the shared stated reason, 'other' derived as revenue - earnings, and the visible bars close correctly (15.08B - 10.94B = 4.14B)."
+    - "Suncor's waterfall shows a filed cost-of-revenue bar, a DERIVED gross-profit bar (revenue - cogs, marked 'derived' with the correct derivation-rule citation, not presented as filed — AD-19), and closes correctly (52.38B - 36.10B = 16.28B; 16.28B - 10.36B = 5.92B)."
+    - "Market value resolves via the same persisted Tiingo/FX price store the reverse DCF uses, independently for fundamentals' own latest complete fiscal year (not necessarily reverse DCF's year)."
+    - "Both themes (light and dark) render correctly with no hardcoded colors — every fill and text color is a semantic CSS token, confirmed by toggling live rather than by code inspection alone."
+  defect_found_and_fixed:
+    - severity: P1
+      what: >
+        The waterfall chart's first live screenshot (CP) showed every bar
+        label and value as an illegible smeared mess overlapping the bars.
+        Root cause: the SVG used a 0-100 percentage-style viewBox
+        (100 x 204, a PORTRAIT aspect) combined with
+        `preserveAspectRatio="none"` inside a landscape card container
+        (~1000px x 224px). "none" stretches X and Y independently to fill the
+        container, and the mismatch between the viewBox's portrait aspect and
+        the container's landscape aspect meant X was stretched roughly 10x
+        more than Y — every glyph rendered ~10x wider than tall. Rects
+        survived as plausible-looking rectangles (a distorted rectangle still
+        reads as a rectangle); text did not.
+      fix: >
+        Replaced the percentage viewBox with one shaped like the chart
+        actually is (700 x 192, a landscape aspect matching a bar chart),
+        dropped `preserveAspectRatio="none"` entirely (default `xMidYMid
+        meet` scales uniformly), and let the SVG derive its height from the
+        viewBox's own aspect ratio (`width: 100%`, no CSS height) instead of
+        forcing a fixed pixel height that fought the viewBox proportions.
+        Re-verified live on CP and Suncor: all labels legible, bars correctly
+        proportioned, no distortion at any card width.
+    - severity: P2
+      what: >
+        Per the story's own AC ("every figure carries provenance to its
+        accession number"), only the two headline stat tiles (Revenue,
+        Earnings) exposed a citation — the three waterfall-only bars (cost of
+        revenue, gross profit, other), despite the API already carrying full
+        provenance for each, had no visible citation anywhere in the UI.
+      fix: >
+        Wrapped each PRESENT bar in the SVG in a native `<a>` linking to its
+        EDGAR source filing (exported `edgarFilingUrl`/`DERIVATION_LABEL` from
+        CitationChip.tsx rather than duplicating them), with a `title`
+        attribute (never an SVG `<title>` child — that causes a real
+        hydration mismatch, Story 10.2's lesson) distinguishing a filed
+        citation from a derived one. This surfaced a second, related defect
+        before it shipped: the `<svg>` carried `role="img"`, which tells
+        assistive tech to flatten everything inside into one non-interactive
+        picture — incompatible with real `<a>` children, which ARIA treats as
+        presentational-only under an img-role ancestor regardless of what the
+        DOM actually contains. Removed `role="img"`, kept `aria-label` for
+        the chart's own accessible name. Verified live via the accessibility
+        tree (not just a visual screenshot) that all 5 bars expose the
+        correct link text, including the two derived bars reading "Derived,
+        not filed: computed as {rule}..." with the correct accession number.
+  regression_check: >
+    Full gate: tsc/eslint clean, vitest 61/61 (59 prior + 2 new — the pure
+    `waterfallSegments` geometry function, mirroring ReverseDcf's
+    `bandGeometry` precedent), backend pytest 385/385 (379 prior + 6 new:
+    filed-gross-profit preference, cogs-present-no-gross-profit derivation,
+    no-cost-detail-at-all degradation, absent-year handling, latest-year
+    selection requiring BOTH revenue and net income), `next build` succeeds,
+    production server confirmed clean across CP and Suncor in both themes.
+    Also surfaced a PRE-EXISTING, unrelated defect: WhatChanged.tsx (Story
+    5.3) emits 6 duplicate-React-key console errors on CP
+    (`leverage_decreasing_long_term_debt`, `roa_increasing_net_income`, etc.)
+    — same root cause across all 6, not touched by this story's diff, and
+    intentionally left unfixed to keep this PR scoped. Flagged for a
+    follow-up story.

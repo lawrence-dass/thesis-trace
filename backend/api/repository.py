@@ -32,6 +32,8 @@ from api.schemas import (
     DataQualityChangeOut,
     DataQualityOut,
     FactChangeOut,
+    FundamentalsFigureOut,
+    FundamentalsOut,
     LensScoreOut,
     MaturityBucketOut,
     MaturityProfileOut,
@@ -46,10 +48,13 @@ from api.schemas import (
     ReverseDcfOperandOut,
     ReverseDcfOut,
     SensitivityCellOut,
+    WaterfallBarOut,
 )
 from canonicalization.mappings import DERIVATION_RULES, MAPPING_VERSION
 from debt.engine import DENOMINATOR_CONCEPT, NUMERATOR_CONCEPT, shares_for_facts
 from debt.profile import PROFILE_CONCEPTS, profile_for_facts
+from fundamentals.engine import FUNDAMENTALS_CONCEPTS, FundamentalsFigure, fundamentals_for_facts
+from raw_store.market_prices import resolve_fye_price
 from valuation.overview import DCF_CONCEPTS
 from valuation.store import load_reverse_dcf
 from diff.engine import diff_company_since, latest_filing_pivot
@@ -98,6 +103,41 @@ def _append_reverse_dcf_fact_operand(
     )
     for dependency in dependencies:
         _append_reverse_dcf_fact_operand(operands, facts_by_name, dependency, fiscal_year, seen)
+
+
+def _fundamentals_figure_out(
+    figure: FundamentalsFigure, *, derived_concept: str, anchor: CanonicalFact
+) -> FundamentalsFigureOut:
+    """One fundamentals headline figure or waterfall bar (Story 10.4).
+
+    A filed figure cites its own fact directly. A derived one (gross profit
+    from revenue minus cost, or the catch-all "other" bucket) cites `anchor` —
+    always the revenue fact, which is present whenever this module produces
+    anything at all — as the provenance root, the same "correct root, no such
+    line item" reasoning `CanonicalFact.derivation` already documents for a
+    canonicalization-time derivation (AD-19). An absent figure carries its
+    reason instead of a citation.
+    """
+    if figure.value is None:
+        return FundamentalsFigureOut(value=None, reason=figure.reason)
+    if figure.fact is not None:
+        f = figure.fact
+        provenance = Provenance(
+            accession_number=f.accession_number,
+            canonical_concept=f.canonical_concept,
+            fiscal_year=f.fiscal_year,
+            period_end=f.period_end.isoformat() if f.period_end else None,
+            derivation=None,
+        )
+    else:
+        provenance = Provenance(
+            accession_number=anchor.accession_number,
+            canonical_concept=derived_concept,
+            fiscal_year=anchor.fiscal_year,
+            period_end=anchor.period_end.isoformat() if anchor.period_end else None,
+            derivation=figure.derivation,
+        )
+    return FundamentalsFigureOut(value=_f(figure.value), provenance=provenance)
 
 # Lens category per model (FR-5 Quality/Health vs FR-8 Integrity).
 LENS_CATEGORY = {
@@ -287,7 +327,13 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
                 CanonicalFact.issuer_cik == issuer.cik,
                 CanonicalFact.mapping_version == MAPPING_VERSION,
                 CanonicalFact.canonical_concept.in_(
-                    (NUMERATOR_CONCEPT, DENOMINATOR_CONCEPT, *PROFILE_CONCEPTS, *DCF_CONCEPTS)
+                    (
+                        NUMERATOR_CONCEPT,
+                        DENOMINATOR_CONCEPT,
+                        *PROFILE_CONCEPTS,
+                        *DCF_CONCEPTS,
+                        *FUNDAMENTALS_CONCEPTS,
+                    )
                 ),
             )
         )
@@ -336,6 +382,67 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
         )
         for _, p in sorted(profile_for_facts(debt_facts).items(), reverse=True)
     ]
+
+    # Fundamentals summary and earnings waterfall (Story 10.4). Same single
+    # fact pass as the debt cards above (AD-1) — `debt_facts` was widened with
+    # FUNDAMENTALS_CONCEPTS for exactly this. The one extra query below is a
+    # single persisted market-price lookup for market value, mirroring the
+    # reverse-DCF market-cap resolution but scoped to fundamentals' OWN latest
+    # complete fiscal year — not necessarily the same year reverse DCF resolves,
+    # which additionally requires cash-flow and debt operands.
+    fundamentals = None
+    fund = fundamentals_for_facts(debt_facts)
+    if fund is not None:
+        anchor = fund.revenue.fact  # always filed when `fund` is not None
+        waterfall = [
+            WaterfallBarOut(
+                stage=bar.stage,
+                bar_type=bar.bar_type,
+                figure=_fundamentals_figure_out(bar.figure, derived_concept=bar.stage, anchor=anchor),
+            )
+            for bar in fund.waterfall
+        ]
+
+        market_value = FundamentalsFigureOut(value=None, reason="No shares outstanding on file for this fiscal year")
+        shares_fact = next(
+            (
+                f
+                for f in debt_facts
+                if f.canonical_concept == "shares_outstanding" and f.fiscal_year == fund.fiscal_year
+            ),
+            None,
+        )
+        if shares_fact is not None:
+            shares_value = Decimal(str(shares_fact.value))
+            if shares_value <= 0:
+                market_value = FundamentalsFigureOut(
+                    value=None, reason="Shares outstanding is zero or negative for this fiscal year"
+                )
+            else:
+                price_resolution = await resolve_fye_price(
+                    session,
+                    issuer_cik=issuer.cik,
+                    fiscal_year_end=shares_fact.period_end,
+                    reporting_currency=anchor.unit,
+                )
+                if price_resolution.price is not None:
+                    market_value = FundamentalsFigureOut(
+                        value=_f(shares_value * price_resolution.price),
+                        as_of=price_resolution.price_date.isoformat() if price_resolution.price_date else None,
+                        source=price_resolution.price_source,
+                    )
+                else:
+                    market_value = FundamentalsFigureOut(
+                        value=None, reason=price_resolution.reason or "No market price available for this fiscal year"
+                    )
+
+        fundamentals = FundamentalsOut(
+            fiscal_year=fund.fiscal_year,
+            revenue=_fundamentals_figure_out(fund.revenue, derived_concept="revenue", anchor=anchor),
+            earnings=_fundamentals_figure_out(fund.earnings, derived_concept="net_income", anchor=anchor),
+            market_value=market_value,
+            waterfall=waterfall,
+        )
 
     # Reverse DCF (Epic 6). READS THE MATERIALIZED ROW — it does not solve (AD-1).
     # This previously called `reverse_dcf_for_issuer` here, so every page load
@@ -610,6 +717,7 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
         reverse_dcf=reverse_dcf,
         data_quality=data_quality,
         rewards_risks=rewards_risks,
+        fundamentals=fundamentals,
     )
 
 

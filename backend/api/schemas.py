@@ -241,6 +241,52 @@ class RewardRiskItemOut(BaseModel):
     spec_version: str
 
 
+class FundamentalsFigureOut(BaseModel):
+    """One headline figure or waterfall bar (Story 10.4, D12). Canonical facts
+    only — no ThesisTrace judgment, so there is no `attribution` field here
+    unlike the presentation-rule outputs above.
+
+    Exactly one of (`value` is None) or (`provenance` present) holds for a
+    present figure; an absent one carries `reason` instead — the AD-16
+    convention applied to this module's own structural gaps (a filer whose
+    taxonomy has no cost-of-revenue or gross-profit line at all).
+    """
+
+    value: float | None
+    provenance: Provenance | None = None
+    reason: str | None = None
+    #: Market value only — a price observation has no accession to cite, so it
+    #: carries its own date/source instead of `provenance` (same fields
+    #: `ReverseDcfOperandOut` uses for the identical persisted-price lookup).
+    as_of: str | None = None
+    source: str | None = None
+
+
+class WaterfallBarOut(BaseModel):
+    stage: Literal["revenue", "cost_of_revenue", "gross_profit", "other", "earnings"]
+    #: "total" bars are drawn from zero (revenue, gross profit, earnings);
+    #: "decrease" bars float between the previous and next total bar.
+    bar_type: Literal["total", "decrease"]
+    figure: FundamentalsFigureOut
+
+
+class FundamentalsOut(BaseModel):
+    """Fundamentals summary and earnings waterfall (Story 10.4, D12). The
+    latest fiscal year that resolves both revenue and net income — not
+    necessarily the same year as `reverse_dcf`, which additionally requires
+    cash-flow and debt operands.
+    """
+
+    fiscal_year: int
+    revenue: FundamentalsFigureOut
+    earnings: FundamentalsFigureOut
+    #: None when no market price is available for this fiscal year end —
+    #: "market value where price data exists" (Story 10.4 AC), never a
+    #: required figure for the block to render.
+    market_value: FundamentalsFigureOut
+    waterfall: list[WaterfallBarOut]
+
+
 class CompanyOverviewOut(BaseModel):
     cik: str
     ticker: str
@@ -262,6 +308,8 @@ class CompanyOverviewOut(BaseModel):
     #: Story 10.3. Empty when nothing qualifies — an honest empty state, never
     #: padded bullets.
     rewards_risks: list[RewardRiskItemOut] = []
+    #: Story 10.4. None when no fiscal year resolves both revenue and net income.
+    fundamentals: FundamentalsOut | None = None
 
 
 class CompanyCardOut(BaseModel):
