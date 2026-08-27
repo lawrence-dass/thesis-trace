@@ -92,7 +92,7 @@ type Overview = {
   // Story 10.6. Always present for a covered issuer.
   footer?: ReportFooter | null;
 };
-type Explanation = { model: string; text: string; citations: string[] };
+type Explanation = { model: string; fiscal_year: number; text: string; citations: string[] };
 
 const MODEL_LABEL: Record<string, string> = {
   piotroski: "Piotroski F-Score",
@@ -214,7 +214,14 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
   const { ticker } = await params;
   const data = await getOverview(ticker);
   const explanations = data.state === "ok" ? await getExplanations(ticker) : [];
-  const explanationByModel = new Map(explanations.map((e) => [e.model, e]));
+  // Keyed by (model, fiscal_year), not model alone: a filer with N scored
+  // years renders N cards per model (renderLensCards below has no
+  // fiscal-year filter), and the API returns one explanation per scored
+  // year — keying by model alone silently kept only the LAST year's
+  // explanation and applied it to every card of that model, mismatching
+  // the card's own header for every year but one (found live on BCE,
+  // Story 10.7).
+  const explanationByModel = new Map(explanations.map((e) => [`${e.model}-${e.fiscal_year}`, e]));
   const bandsByModel = data.state === "ok" ? await getAllBands() : {};
   const changes = data.state === "ok" ? await getChanges(ticker) : { state: "skipped" };
 
@@ -238,7 +245,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
   function renderLensCards(cat: string) {
     const lenses = data.scores?.filter((l) => l.category === cat) ?? [];
     return lenses.map((lens) => {
-      const exp = explanationByModel.get(lens.model);
+      const exp = explanationByModel.get(`${lens.model}-${lens.fiscal_year}`);
       return (
         <Card key={`${lens.model}-${lens.fiscal_year}`} className="p-0">
           {/* In-page expandable breakdown (FR-10) via native <details>. */}

@@ -47,6 +47,22 @@ export type FactChange = {
   current_provenance: ChangeProvenance | null;
 };
 
+/** A React key for one fact-change list item (Story 10.7).
+ *
+ *  `signal_key`+`canonical_concept` alone is NOT unique: a signal that reads
+ *  the same concept across two comparison years (leverage_decreasing needs
+ *  BOTH years' long_term_debt) legitimately produces two DISTINCT fact
+ *  changes sharing that pair — confirmed live on SHOP and CP, same key,
+ *  different `current_provenance.fiscal_year`, both real data, not
+ *  duplicates. `index` is a safe final tiebreaker: this list is static per
+ *  render (a single fetch, never reordered), so index-based key churn is not
+ *  a concern here the way it would be for an editable/reorderable list.
+ */
+export function factChangeKey(f: FactChange, index: number): string {
+  const year = f.current_provenance?.fiscal_year ?? f.prior_provenance?.fiscal_year ?? index;
+  return `${f.signal_key}-${f.canonical_concept}-${year}`;
+}
+
 export type RunChange = {
   model: string;
   fiscal_year: number;
@@ -286,8 +302,8 @@ export function WhatChanged({ changes, cik }: { changes: Changes; cik: string })
                   Source figures
                 </p>
                 <ul className="space-y-2 text-sm">
-                  {r.fact_changes.map((f) => (
-                    <li key={`${f.signal_key}-${f.canonical_concept}`} className="space-y-1">
+                  {r.fact_changes.map((f, i) => (
+                    <li key={factChangeKey(f, i)} className="space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[var(--color-ink-muted)]">{f.canonical_concept}</span>
                         <Transition from={num(f.prior_value)} to={num(f.current_value)} />

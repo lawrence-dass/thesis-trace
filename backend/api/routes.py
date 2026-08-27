@@ -84,5 +84,7 @@ async def explanation(ticker: str, polish_text: bool = False, session: AsyncSess
     out = []
     for lens in lenses:
         text = await polish(lens.text) if polish_text else lens.text
-        out.append({"model": lens.model, "text": text, "citations": lens.citations})
+        out.append(
+            {"model": lens.model, "fiscal_year": lens.fiscal_year, "text": text, "citations": lens.citations}
+        )
     return {"state": "ok", "ticker": overview.ticker, "llm_rewrite": rewrite_enabled() and polish_text, "explanations": out}

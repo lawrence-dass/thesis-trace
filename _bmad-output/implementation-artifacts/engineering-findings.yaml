@@ -1863,3 +1863,98 @@ story_10_6_browser_verification:
     the raw JSON checked first, then the rendered page in both themes,
     zero console errors on a fresh load with tracking active before
     navigation.
+
+story_10_7_full_universe_verification:
+  status: done
+  verified: 2026-08-27
+  how: >
+    Closing verification for Epic 10. All 7 universe filers rendered in a
+    real production frontend server; subjects for detailed examination
+    chosen by code path per the Story 6.6 lesson (a spot-check only covers
+    the paths its subjects exercise), not by convenience:
+      - CP, QSR: missing-component degradation (no cost-of-revenue tag at
+        all — a railroad and a franchisor, two different business reasons
+        for the identical structural gap).
+      - SU: IFRS by-nature presentation (cogs filed, gross_profit derived).
+      - BCE: heaviest live derived-concept usage — 4 distinct
+        canonicalization-time derivation rules fire for this one filer
+        (cash_plus_cash_equivalents, ebit_pbt_plus_interest,
+        revenue_minus_cost_of_sales, total_debt_current_plus_noncurrent),
+        found by querying canonical_facts directly for non-null
+        `derivation` before choosing subjects, not assumed.
+      - CCJ: IFRS by-function, full coverage, moderate derivation.
+      - OTEX, SHOP: US-GAAP, full coverage, long history (OTEX ~20 years).
+    `excluded_out_of_scope` remains structurally unreachable under the
+    current non-financial-sector-only universe (Story 10.5 already closed
+    this gap with a unit test rather than a live screenshot, since one is
+    impossible) — re-confirmed, not re-investigated.
+  what_was_verified:
+    - "All 7 filers render with zero console errors in both light and dark theme (BCE, CCJ, CP, OTEX, QSR, SHOP, SU) — checked via read_console_messages with tracking active from before navigation on each, not inferred from a clean screenshot alone."
+    - "BCE's four live derived concepts (gross_profit, ebit, cash_and_equivalents, total_debt) render correctly: the Fundamentals waterfall's gross_profit bar is FILED (matches revenue - cogs exactly, as in every full-coverage filer), while Financial Health signal citations for the other three correctly show the 'derived' badge and a working EDGAR link when expanded."
+    - "QSR reproduces CP's Story 10.4 missing-component degradation independently (revenue and earnings present, cost-of-revenue and gross-profit both absent with the shared stated reason) — confirms the degradation logic generalizes across two structurally different filers (railroad vs. franchisor) rather than having been tuned to CP's specific data."
+    - "QSR's Verdict shows a genuinely new state variant not previously exercised this epic: Altman 'Distress' as a live RISK bullet (not a caveat) — confirms rewards_risks surfaces risk bands correctly, not just rewards, and that the Verdict's per-model 'latest year that resolved' fallback works live (Beneish's representative year is FY2023, not the insufficient FY2025)."
+  defect_found_and_fixed:
+    - severity: P1
+      what: >
+        BCE's Piotroski FY2025 card (score 6, 'Middle') rendered an expanded
+        explanation reading '...for FY2015 is 0.0 — classified Weak.' — a
+        different fiscal year's figures entirely, contradicting the card's
+        own header. Root cause: `build_explanations` already produced one
+        `LensExplanation` per (model, fiscal_year) — every scored year, not
+        just the latest — but neither the dataclass nor the
+        `/companies/{ticker}/explanation` API response exposed
+        `fiscal_year`. The frontend's `Map` was keyed by model alone, so it
+        silently kept only the LAST-iterated year's explanation and applied
+        that same text to every card of that model. This is not new to
+        Epic 10 — `renderLensCards` has rendered every scored year (not
+        just latest) since Story 10.1 — but nothing surfaced it until a
+        detail-subject choice (BCE, picked for its derived-concept coverage)
+        happened to expand a card whose true explanation-year diverged
+        visibly from its header year.
+      fix: >
+        Added `fiscal_year: int` to `LensExplanation` and the API response;
+        frontend `Map` now keys on `${model}-${fiscal_year}`. Verified live
+        on BCE post-fix: FY2025's card now shows '...for FY2025 is 6.0 —
+        classified Middle', matching its own header exactly. Two new
+        backend unit tests pin the fix directly (no DB fixture — pure
+        `build_explanations` over a hand-built `CompanyOverviewOut`), and
+        the fix was deliberately CORRUPTED (fiscal_year hardcoded to 2000)
+        to confirm both new tests fail with a clear error before restoring
+        the correct code — the guard genuinely bites, per this story's own
+        AC.
+    - severity: P3
+      what: >
+        Confirmed the Story 10.4-documented pre-existing WhatChanged.tsx
+        duplicate-React-key defect (Story 5.3) also reproduces on SHOP, with
+        different keys (`shares_not_diluted-shares_outstanding`,
+        `leverage_decreasing-long_term_debt`) than the CP instance already
+        on record. Investigated the actual API payload rather than assuming
+        it was the same shape: both SHOP duplicates are genuinely DISTINCT
+        fact changes (same signal_key + canonical_concept, different
+        `current_provenance.fiscal_year`) — a signal that reads the same
+        concept across two comparison years legitimately produces two
+        separate change events. Not a data bug.
+      fix: >
+        Deferred in Story 10.4 to keep that PR scoped; fixed here because
+        this IS the epic-closing verification story and the AC explicitly
+        wants defects fixed or recorded before Epic 10 closes, not deferred
+        a second time. Extracted `factChangeKey(f, index)` (exported,
+        testable) that disambiguates by `current_provenance.fiscal_year`,
+        falling back to `prior_provenance`'s year and then the array index.
+        Three new unit tests pin it, including the exact live SHOP payload
+        that reproduced the collision. Re-verified live on both SHOP and CP
+        (the original Story 10.4 finding) — zero console errors on either,
+        confirmed via a `clear: true` console read followed by a fresh
+        navigation, not by trusting a stale buffer (the first re-check
+        showed the same 4 errors, all timestamped BEFORE the fix; only after
+        clearing and reloading did the true post-fix state show).
+  regression_check: >
+    Full gate: tsc clean, eslint clean, `next build` succeeds, vitest 70/70
+    (67 prior + 3 new: `factChangeKey`'s disambiguation and both fallback
+    paths), backend pytest 389/389 (387 prior + 2 new:
+    `build_explanations`'s per-year distinctness, pinning the exact BCE
+    defect shape). The corrupt-and-confirm-failure cycle for the explanation
+    fix is recorded above rather than merely asserted — this is the AC's
+    "corrupting an expected value fails the suite" requirement, exercised
+    directly rather than by inspection. All 7 universe filers verified live
+    in both themes with zero console errors post-fix.
