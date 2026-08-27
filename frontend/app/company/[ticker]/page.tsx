@@ -22,6 +22,7 @@ import {
 import { ReverseDcfCard, type ReverseDcf } from "../../components/ReverseDcf";
 import { VerdictGlyph, type VerdictItem } from "../../components/VerdictGlyph";
 import { RewardsRisks, type RewardRiskItem } from "../../components/RewardsRisks";
+import { FundamentalsCard, type Fundamentals } from "../../components/Fundamentals";
 import { AlertIcon, ChevronIcon } from "../../components/ui/icons";
 
 // Report sections (Story 10.1, D12). Order is the reading order AND the nav
@@ -80,6 +81,8 @@ type Overview = {
   lenses_pending?: string[];
   // Story 10.3. Empty when nothing qualifies — an honest empty state.
   rewards_risks?: RewardRiskItem[];
+  // Story 10.4. Null when no fiscal year resolves both revenue and net income.
+  fundamentals?: Fundamentals | null;
 };
 type Explanation = { model: string; text: string; citations: string[] };
 
@@ -296,6 +299,9 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
 
       <section id="overview" className="scroll-mt-28 space-y-3">
         <h2 className="text-title font-semibold text-[var(--color-ink)]">Overview</h2>
+        {/* Story 10.4: the scale and shape of the business — canonical facts
+            only, no ThesisTrace judgment — before the forensic detail below. */}
+        <FundamentalsCard data={data.fundamentals} cik={data.cik} />
         {/* Verdict: each live model's own cited classification, side by side (FR-9, AD-12). */}
         {data.verdict && data.verdict.length > 0 ? (
           <>

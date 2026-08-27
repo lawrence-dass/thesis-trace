@@ -6,15 +6,18 @@
 // from cik + accession_number; no backend change needed.
 import { ExternalLinkIcon } from "./icons";
 
-function edgarFilingUrl(cik: string, accessionNumber: string): string {
+export function edgarFilingUrl(cik: string, accessionNumber: string): string {
   const cikNoLeadingZeros = String(Number(cik));
   const accessionNoDashes = accessionNumber.replace(/-/g, "");
   return `https://www.sec.gov/Archives/edgar/data/${cikNoLeadingZeros}/${accessionNoDashes}/`;
 }
 
 // Human-readable description of a derivation rule, for the chip's tooltip.
-const DERIVATION_LABEL: Record<string, string> = {
+export const DERIVATION_LABEL: Record<string, string> = {
   assets_minus_equity: "total assets − shareholders' equity",
+  "fundamentals_v1.gross_profit_from_revenue_minus_cogs": "revenue − cost of revenue",
+  "fundamentals_v1.other_from_gross_profit_minus_earnings": "gross profit − net income",
+  "fundamentals_v1.other_from_revenue_minus_earnings": "revenue − net income",
 };
 
 export function CitationChip({
