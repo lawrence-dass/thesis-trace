@@ -168,6 +168,10 @@ Citation-grounded Q&A over a company's filings via LangGraph's self-verifying ci
 Lawrence opens a company and reads a sectioned stock report — an overview with an original four-model glyph and rule-derived rewards/risks, then Valuation, Past Performance, Financial Health, and Integrity & Evidence — presented with Simply Wall St-grade visual clarity but built exclusively from ThesisTrace's own already-computed deterministic figures (**D12**, added 2026-08-27). Presentation-only by definition: no new computation, ingestion or figures, which is why it is buildable now while Epics 7-9 stay blocked — D9's gate governs new capabilities, and this adds none.
 **FRs covered:** none new — re-presents the shipped surfaces of FR-9, FR-10, FR-5, FR-8, FR-22 and FR-16
 
+### Epic 11: UI Redesign — Instrument Panel
+Lawrence's stated concern (2026-08-28): Epic 10's report shell is functionally complete but still reads as a data dashboard, not something that teaches the four models while it reports them. A five-direction design-exploration pass (published as comparable Artifacts, real QSR data, both themes) selected **Instrument Panel** — terminal-precision JetBrains Mono, a muted amber accent, and click-to-expand inline definitions on every jargon term as the core teaching mechanism. This epic re-skins Epic 10's report end to end and adds the one genuinely new capability the exploration surfaced: inline term definitions, reusable everywhere a signal key or model term appears. Presentation-only in the same sense as Epic 10 — no score, figure, or computation changes; D9's capability gate does not govern it.
+**FRs covered:** none new — re-skins the shipped surfaces of Epic 10; the inline-definition component is new UI, not a new capability under D9
+
 ---
 
 ## Epic 1: Foundation & First Evidence (Walking Skeleton)
@@ -959,3 +963,159 @@ So that the redesign cannot ship verified only against the filers it happened to
 **And** the filers examined in detail are chosen by code path — missing-component, `insufficient_data`, caveat, exclusion, and IFRS derived-concept variants — the Story 6.6 lesson that a spot-check covers only the paths its subjects exercise
 **And** any defect found is fixed or explicitly recorded before the epic closes
 **And** corrupting an expected value fails the suite, confirming the guard bites.
+
+## Epic 11: UI Redesign — Instrument Panel
+
+Re-skins Epic 10's report shell to the Instrument Panel direction chosen from a five-way design
+exploration (2026-08-28): JetBrains Mono, a muted amber accent, terminal-precision density, and
+click-to-expand inline definitions on every jargon term as the answer to Lawrence's "don't just
+throw numbers at the user" concern. Presentation-layer only (AD-8) — no story in this epic may
+change a score, a formula, an API contract, or a stored figure. The two reference mockups
+(`https://claude.ai/code/artifact/7a68fd99-e188-4b4e-95ca-934000769e68`, extended to cover the
+full report) are direction-setting references, not source to copy verbatim — they use an inverted
+token structure (bare `:root` = light) because they were built standalone; the real app keeps its
+own existing convention (bare `:root` = dark, per D12, with `:root[data-theme="light"]` as the
+explicit opt-in) and re-skins the *values*, not the structure.
+
+### Story 11.1: Design-token migration to the Instrument Panel palette
+
+As Lawrence (investor learning through the tool),
+I want the design tokens re-skinned to the Instrument Panel palette and typography,
+So that every component built on top of them inherits the new direction automatically instead of
+each story reinventing colors.
+
+**Acceptance Criteria:**
+
+**Given** `frontend/app/globals.css`'s existing Tailwind v4 `@theme` token layer
+**When** this story lands
+**Then** `--font-sans`/`--font-mono` are replaced with JetBrains Mono as the primary read face (loaded via the Google Fonts `<link>` pattern already used for Inter, with a real monospace fallback stack), and `--color-brand-*` moves to the muted amber family
+**And** the existing bare-`:root`-is-dark / `:root[data-theme="light"]` structure is preserved unchanged — only the hex values move, matching D12's convention rather than the standalone mockup's inverted one
+**And** all five signal states — `pass`, `fail`, `caveat`, `pending`, `excluded` — keep distinct, contrast-safe colors in both themes; `excluded` (currently purple) is not dropped just because the mockup exploration never rendered it (it is real, structurally-unreachable-but-coded product state, not decoration)
+**And** the named type scale (`--text-display`…`--text-caption`) and radius/shadow tokens are re-tuned for the terminal-density aesthetic (tighter line-height, sharper corners) rather than left at their SaaS-dashboard defaults
+**And** both themes are verified in a browser side by side before this story closes — token work is invisible until something renders it, so a second, throwaway component is an acceptable way to check contrast, not a reason to skip the check
+
+### Story 11.2: Core UI primitives
+
+As Lawrence (investor learning through the tool),
+I want the shared primitives — `Badge`, `Card`, `Button`, `Gauge`, `CitationChip`, `TrajectoryChip`,
+the icon set — rebuilt on the new tokens,
+So that every screen built from them is consistent by construction, the same way the current
+SaaS-dashboard look is.
+
+**Acceptance Criteria:**
+
+**Given** the Story 11.1 token layer
+**When** each primitive in `frontend/app/components/ui/` is migrated
+**Then** every existing variant/prop each component currently supports still exists and still maps to the same semantic meaning (a `Badge variant="fail"` still means fail) — this story restyles, it does not change any component's public interface, asserted by existing frontend tests passing unmodified
+**And** `Gauge` is redrawn to the terminal-precision visual language (the mockup's flat readout-row treatment, not a rounded-pill gauge) while keeping its band-boundary math untouched
+**And** `CitationChip`'s expand-to-provenance interaction is preserved exactly — this story changes its skin, not its behavior
+**And** every primitive renders correctly in both themes
+
+### Story 11.3: Report shell and navigation
+
+As Lawrence (investor learning through the tool),
+I want the page shell, section nav, and theme toggle re-skinned,
+So that the report reads as one coherent terminal document from the header down, not a redesigned
+interior inside old chrome.
+
+**Acceptance Criteria:**
+
+**Given** `frontend/app/layout.tsx`, `ReportNav.tsx`, and `ThemeToggle.tsx`
+**When** this story lands
+**Then** the persistent scroll-tracking section nav (Story 10.1) keeps its exact tracking behavior, restyled to the terminal aesthetic (the mockup's `// SECTION` label convention is a reasonable reference, not mandatory)
+**And** `ThemeToggle` continues to set `data-theme` on `<html>` exactly as it does today (Story 11.1 changed only the values that attribute selects between) and the server-side cookie read that prevents a flash-of-wrong-theme is unaffected
+**And** the ticker/company header block adopts the new type scale
+**And** verified in a browser in both themes on at least one filer before closing
+
+### Story 11.4: Overview — Verdict glyph, Fundamentals, Rewards & Risks
+
+As Lawrence (investor learning through the tool),
+I want the Overview section's hero content re-skinned,
+So that the first thing the report shows already reads in the new direction.
+
+**Acceptance Criteria:**
+
+**Given** `VerdictGlyph.tsx`, `Fundamentals.tsx`, and `RewardsRisks.tsx`
+**When** this story lands
+**Then** the four-model glyph keeps every D12 guard intact — one axis per model, each carrying its own band vocabulary as data (the `bandTone` lesson), never filled into a single polygon, no aggregate number/shape/grade anywhere on it — restyled to the new palette, not redesigned in shape or logic
+**And** the SVG continues to use a `title` *attribute*, never a `<title>` child element, per the Story 10.2 hydration-mismatch lesson already fixed once in this component
+**And** the Fundamentals waterfall and Rewards & Risks cards adopt the new visual language while every existing degradation path (missing-component, honest-empty-state) still renders correctly
+**And** verified in a browser on a filer that exercises at least one `insufficient_data` axis and one missing-component fundamentals gap, not just a fully-covered filer
+
+### Story 11.5: Inline term-definition component (new capability)
+
+As Lawrence (investor learning through the tool),
+I want jargon and signal terms to expand inline into a plain-language definition when clicked,
+So that reading a report doesn't require knowing the vocabulary before I start, and I don't lose
+my place jumping to a glossary page.
+
+**Acceptance Criteria:**
+
+**Given** a signal key, model term, or other jargon rendered anywhere in the report
+**When** it is marked as a definable term
+**Then** it renders with the underlined-amber-term treatment from the mockup, and clicking it expands a definition inline (no navigation, no page jump) and collapses on a second click
+**And** definitions are a versioned, spec-owned dataset (one definition per term, keyed consistently — e.g. co-located with or adjacent to `SIGNAL_LABEL` in `page.tsx`, or promoted to its own spec file if the term list grows past what a page-local map should hold), never free text generated at render time — this is presentation content, not an LLM output, per AD-8
+**And** the component is a single reusable primitive (not duplicated per section) so Story 11.7 can wire it into every signal table without reimplementing the interaction
+**And** keyboard-accessible (focusable, expandable via Enter/Space, not click-only) and respects `prefers-reduced-motion` for the expand transition
+**And** at least the sub-signal keys already listed in `page.tsx`'s `SIGNAL_LABEL` map have real definitions before this story closes — not placeholders
+
+### Story 11.6: Valuation and Past Performance
+
+As Lawrence (investor learning through the tool),
+I want the Valuation and Past Performance sections re-skinned,
+So that the reverse-DCF assumptions and the what-changed narrative read in the same terminal
+language as the rest of the report.
+
+**Acceptance Criteria:**
+
+**Given** `ReverseDcf.tsx` and `WhatChanged.tsx`
+**When** this story lands
+**Then** both re-skin cleanly with no change to the data they render or the deliberate visual separation between ThesisTrace's own reverse-DCF assumptions and the four published models (Story 6.6's separation stays intact — same section, still visually distinct from the Verdict grid)
+**And** any jargon in these sections (e.g. "implied growth rate", "terminal value", "sensitivity range") is wired into the Story 11.5 inline-definition component, not left unexplained just because it lives outside the four-model signal tables
+**And** verified in a browser on a filer whose reverse DCF resolves and one whose it does not (the `insufficient_data` / no-year-resolves state)
+
+### Story 11.7: Financial Health, Integrity & Evidence, and the provenance footer
+
+As Lawrence (investor learning through the tool),
+I want the four model cards, the debt cards, and the closing provenance footer re-skinned and
+wired to the new inline-definition component,
+So that the densest, most jargon-heavy part of the report is exactly where the teaching mechanism
+does the most work.
+
+**Acceptance Criteria:**
+
+**Given** the Financial Health and Integrity & Evidence sections (model cards, `NearTermDebtShare.tsx`,
+`MaturityProfile.tsx`, the data-quality warning block, `ProvenanceFooter.tsx`)
+**When** this story lands
+**Then** every sub-signal key in every model's expanded `<details>` breakdown uses the Story 11.5
+inline-definition component (this is the section the mockup's own reference build proved the
+mechanism against — Piotroski's nine signals — extend that pattern to Altman, Beneish, and Sloan's
+signal sets)
+**And** the data-quality warning block and provenance footer re-skin without changing what they
+assert — every footer statement remains read from stored data, nothing hardcoded (Story 10.6's
+guarantee)
+**And** verified in a browser on a filer that exercises a caveat state (e.g. BCE's derived-concept
+citations) and one that exercises an open data-quality warning
+
+### Story 11.8: Full-universe browser verification
+
+As Lawrence (developer),
+I want the redesigned report rendered for every universe filer in both themes,
+So that the redesign cannot ship verified only against the filers it happened to be built and
+screenshotted on — the same closing discipline Epic 10 applied to itself in Story 10.7.
+
+**Acceptance Criteria:**
+
+**Given** the completed Epic 11 stories
+**When** the closing verification runs
+**Then** every universe filer's page is rendered in a real browser in both light and dark themes,
+and the results are recorded in `engineering-findings.yaml`
+**And** the filers examined in detail are chosen by code path per the Story 6.6 lesson — at minimum
+one missing-component filer, one IFRS derived-concept filer, one filer with an open data-quality
+issue, and one filer whose reverse DCF does not resolve — not by convenience
+**And** the inline-definition component (Story 11.5) is specifically exercised on at least one term
+per model to confirm the expand/collapse interaction survives real content, not just the mockup's
+fixed example
+**And** any defect found is fixed or explicitly recorded before the epic closes
+**And** the existing backend and frontend test suites pass unmodified — this epic is presentation-only
+by definition, and a test needing to change would mean that boundary was crossed
