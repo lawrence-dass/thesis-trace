@@ -277,6 +277,16 @@ gains the D11 selection principle. SPEC's non-goals are untouched — "No SEDAR+
 (non-EDGAR) companies" and "no full market coverage" were never Canada-first claims. The open
 "Canada-specific legal review" item stays open, since three Canadian filers remain.
 
+**Addendum (2026-08-28) — reaffirmed, with the rationale corrected.** A full rip-out of
+40-F/`ifrs-full` support was briefly proposed, on the premise that Canadian filers are
+data-constrained in EDGAR. That premise does not hold — the coverage table above (BCE 288
+concepts, Cameco 250, all live-verified, all golden-tested) already disproves it — and the
+decision reverted to D11 as written; nothing here changes what stays. Recorded because the
+correct framing matters for how ThesisTrace is presented going forward: two-regime support is a
+**differentiator** (a harder accounting problem — IFRS presentation variance — solved correctly),
+not a limitation tolerated because removing it was too costly. New filer growth still targets
+`us-gaap` per point 3 above.
+
 ## D12 — Report-style presentation, and the visual-blend prohibition (2026-08-27)
 
 **Decision.** The company page is rebuilt as a **sectioned stock report** in the presentation
