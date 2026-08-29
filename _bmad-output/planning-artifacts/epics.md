@@ -169,8 +169,8 @@ Lawrence opens a company and reads a sectioned stock report — an overview with
 **FRs covered:** none new — re-presents the shipped surfaces of FR-9, FR-10, FR-5, FR-8, FR-22 and FR-16
 
 ### Epic 11: UI Redesign — Instrument Panel
-Lawrence's stated concern (2026-08-28): Epic 10's report shell is functionally complete but still reads as a data dashboard, not something that teaches the four models while it reports them. A five-direction design-exploration pass (published as comparable Artifacts, real QSR data, both themes) selected **Instrument Panel** — terminal-precision JetBrains Mono, a muted amber accent, and click-to-expand inline definitions on every jargon term as the core teaching mechanism. This epic re-skins Epic 10's report end to end and adds the one genuinely new capability the exploration surfaced: inline term definitions, reusable everywhere a signal key or model term appears. Presentation-only in the same sense as Epic 10 — no score, figure, or computation changes; D9's capability gate does not govern it.
-**FRs covered:** none new — re-skins the shipped surfaces of Epic 10; the inline-definition component is new UI, not a new capability under D9
+Lawrence's stated concern (2026-08-28): Epic 10's report shell is functionally complete but still reads as a data dashboard, not something that teaches the four models while it reports them. A five-direction design-exploration pass (published as comparable Artifacts, real QSR data, both themes) selected **Instrument Panel** — terminal-precision JetBrains Mono, a muted amber accent, and click-to-expand inline definitions on every jargon term as the core teaching mechanism. This epic re-skins Epic 10's report end to end and adds two new presentation-layer capabilities the exploration surfaced: inline term definitions (reusable everywhere a signal key or model term appears) and model-level "why this works" explainers with worked examples on the existing `/methodology/[model]` pages, closing the gap between mechanical signal-level definitions and actually teaching the four models. Presentation-only in the same sense as Epic 10 — no score, figure, or computation changes; D9's capability gate does not govern it.
+**FRs covered:** none new — re-skins the shipped surfaces of Epic 10 and extends Epic 3's methodology pages; the inline-definition component and the methodology explainers are new UI/content, not a new capability under D9
 
 ---
 
@@ -1119,3 +1119,39 @@ fixed example
 **And** any defect found is fixed or explicitly recorded before the epic closes
 **And** the existing backend and frontend test suites pass unmodified — this epic is presentation-only
 by definition, and a test needing to change would mean that boundary was crossed
+
+### Story 11.9: Methodology pages — model-level explainers and worked examples
+
+As Lawrence (investor learning through the tool),
+I want each model's `/methodology/[model]` page to explain *why* the score works, not just what it
+computes, with a worked example against a real filer,
+So that the report teaches the four models instead of assuming I already know them — the gap
+Story 11.5's signal-level definitions don't close, because "net income ÷ total assets is positive"
+explains a mechanic, not why financial strength shows up that way in the first place.
+
+**Acceptance Criteria:**
+
+**Given** `frontend/app/methodology/[model]/page.tsx` and the `/api/methodology/{model}` payload
+(which already carries `description`, per-signal `description`s, `bands.citation`, `source`, and
+`derivations` — Story 11.9 adds narrative content, not a new API field)
+**When** this story lands
+**Then** each of the four pages gains a "why this works" explainer in plain language — the
+intuition the model is built on (e.g. Beneish: a manipulated earnings figure tends to leave
+statistical fingerprints across receivables, margins, and accruals simultaneously, which is why it
+takes eight signals rather than one) — grounded in and citing the model's own primary source, not
+a secondary summary
+**And** each page includes one worked example computed from a real universe filer's actual stored
+signals — deriving the aggregate score step by step from real values (the mockup's "Journal"
+direction already proved this pattern live against QSR's Piotroski 6.0; extend the same technique
+to Altman, Beneish, and Sloan)
+**And** any jargon in the new explainer or worked-example text reuses the Story 11.5
+inline-definition component rather than introducing a second, inconsistent glossary mechanism
+**And** every claim about *why* a model works is verified against the model's own primary paper
+before publishing — secondary sources (blog posts, explainer sites) may inform tone and structure
+but never supply a mechanical claim unverified, per the project's standing rule that a cited claim
+is only as good as the source it names
+**And** the Beneish five-variable coefficient question already on record as OPEN (`research-beneish-five-variable-model.md`
+— whether the published `0.107` coefficient belongs to DEPI or TATA) is not silently resolved by
+this story picking one reading for the explainer text; if the five-signal model is in scope for this
+page at all, the ambiguity is stated as ambiguous, not smoothed over for readability
+**And** verified in a browser for all four models before this story closes
