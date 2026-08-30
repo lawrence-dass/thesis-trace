@@ -92,8 +92,13 @@ export function Gauge({
       {/* Tick-marked horizontal band (DESIGN.md Components: a measurement
           instrument, not a radial "hero dial") — zone boundaries render as a
           visible tick, not just a color transition, so the classification
-          zones read as shape even without color (Accessibility Floor). */}
-      <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-[var(--color-canvas)]">
+          zones read as shape even without color (Accessibility Floor).
+          Story 11.2: flat readout treatment, not a rounded-pill meter — a
+          bordered rectangular track (matching Card/Badge's own flat corners)
+          and a vertical needle marker instead of a filled dot, reading as an
+          instrument-panel gauge rather than a SaaS progress bar. Band-boundary
+          math above (zoneRange/domainPct/clamp) is untouched by this story. */}
+      <div className="relative h-2 w-full overflow-hidden rounded-[var(--radius-chip)] border border-[var(--color-border)] bg-[var(--color-canvas)]">
         {zones.map((z, i) => (
           <div
             key={i}
@@ -107,11 +112,12 @@ export function Gauge({
           />
         ))}
         <div
-          className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+          className="absolute top-1/2 w-[2px] -translate-x-1/2 -translate-y-1/2"
           style={{
             left: `${valuePct}%`,
+            height: "calc(100% + 6px)",
             backgroundColor: TONE_SOLID[markerTone],
-            boxShadow: "0 0 0 2px var(--color-surface)",
+            boxShadow: "0 0 0 1px var(--color-surface)",
           }}
         />
       </div>

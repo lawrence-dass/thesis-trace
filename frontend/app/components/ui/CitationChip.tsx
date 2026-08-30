@@ -57,7 +57,8 @@ export function CitationChip({
       <span>{canonicalConcept}</span>
       <span className="font-mono tabular-nums">FY{fiscalYear}</span>
       {isDerived ? (
-        <span className="rounded-[var(--radius-chip)] bg-[var(--color-signal-caveat-bg)] px-1 text-[var(--color-signal-caveat)]">
+        // Story 11.2: uppercase, matching Badge's terminal-precision typography.
+        <span className="rounded-[var(--radius-chip)] bg-[var(--color-signal-caveat-bg)] px-1 uppercase tracking-[var(--tracking-label)] text-[var(--color-signal-caveat)]">
           derived
         </span>
       ) : null}
