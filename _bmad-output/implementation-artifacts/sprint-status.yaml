@@ -45,11 +45,11 @@
 #   ways, so neither can change without the other.
 #
 # generated: 2026-07-21
-# last_updated: 2026-08-29
+# last_updated: 2026-08-30
 # project: ThesisTrace
 
 generated: 2026-07-21
-last_updated: 2026-08-29
+last_updated: 2026-08-30
 project: ThesisTrace
 project_key: NOKEY
 tracking_system: file-system
@@ -160,7 +160,7 @@ development_status:
   # Epic 11 is `in-progress`, not `blocked`. Story keys derived from epics.md.
   epic-11: in-progress
   11-1-design-token-migration-to-the-instrument-panel-palette: done
-  11-2-core-ui-primitives: backlog
+  11-2-core-ui-primitives: review
   11-3-report-shell-and-navigation: backlog
   11-4-overview: backlog
   11-5-inline-term-definition-component: backlog

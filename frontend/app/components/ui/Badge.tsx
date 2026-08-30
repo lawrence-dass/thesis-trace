@@ -36,8 +36,13 @@ export function Badge({
   children: ReactNode;
 }) {
   return (
+    // Story 11.2: terminal-precision typography — uppercase + tracked, tighter
+    // padding than the SaaS-era pill. Icons (not the mockup's plain "●" dot)
+    // stay: they carry the pass/fail/caveat/pending/excluded distinction in
+    // SHAPE as well as color, which a uniform dot would not (Accessibility
+    // Floor, same principle Gauge.tsx already documents for its own zones).
     <span
-      className={`inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] border px-2.5 py-1 text-xs font-medium ${VARIANT_STYLE[variant]}`}
+      className={`inline-flex items-center gap-1 rounded-[var(--radius-pill)] border px-2 py-0.5 text-[0.6875rem] font-medium uppercase tracking-[var(--tracking-label)] ${VARIANT_STYLE[variant]}`}
     >
       {icon && VARIANT_ICON[variant]}
       {children}
