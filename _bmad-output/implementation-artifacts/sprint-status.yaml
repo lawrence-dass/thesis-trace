@@ -161,7 +161,7 @@ development_status:
   epic-11: in-progress
   11-1-design-token-migration-to-the-instrument-panel-palette: done
   11-2-core-ui-primitives: done
-  11-3-report-shell-and-navigation: backlog
+  11-3-report-shell-and-navigation: review
   11-4-overview: backlog
   11-5-inline-term-definition-component: backlog
   11-6-valuation-and-past-performance: backlog
