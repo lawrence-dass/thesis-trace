@@ -10,8 +10,15 @@
  * one-off color for a status elsewhere — extend this palette instead.
  */
 @theme {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+  /*
+   * Story 11.1 (Epic 11, Instrument Panel direction, 2026-08-28): JetBrains
+   * Mono replaces Inter as the primary read face — this is a terminal/report
+   * read, not a SaaS-dashboard one, so body text is monospace throughout.
+   * --font-mono keeps the same family for numeric/code contexts; both point
+   * at the one loaded font plus a real monospace fallback stack.
+   */
+  --font-sans: var(--font-jetbrains-mono), ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
   /*
    * Semantic tokens — DARK is the primary/default value (D12, 2026-08-27:
@@ -73,15 +80,24 @@
   --color-signal-excluded-bg: color-mix(in srgb, var(--color-signal-excluded-dark) 18%, var(--color-surface-dark));
   --color-signal-excluded-border: color-mix(in srgb, var(--color-signal-excluded-dark) 40%, var(--color-surface-dark));
 
-  --radius-card: 1rem;
-  --radius-control: 0.6rem;
-  --radius-pill: 999px;
+  /*
+   * Story 11.1: sharper corners throughout — the pill/rounded-lg SaaS-dashboard
+   * vocabulary reads wrong for a terminal/instrument-panel report. --radius-pill
+   * keeps its name (Story 11.2 owns renaming it when it touches Badge.tsx) but
+   * no longer produces an actual pill — flat 2px corners like every other shape.
+   */
+  --radius-card: 0.25rem;
+  --radius-control: 0.1875rem;
+  --radius-pill: 0.125rem;
   /* Finer step below --radius-control, for dense chip-level elements
      (e.g. the provenance citation chip) — DESIGN.md Shapes. */
-  --radius-chip: 0.4rem;
+  --radius-chip: 0.125rem;
 
-  --shadow-card: 0 1px 2px rgba(18, 20, 28, 0.04), 0 8px 24px -12px rgba(18, 20, 28, 0.12);
-  --shadow-card-hover: 0 2px 4px rgba(18, 20, 28, 0.06), 0 16px 32px -12px rgba(18, 20, 28, 0.16);
+  /* Story 11.1: flatter shadows — a glowing drop-shadow reads as SaaS-card
+     chrome, not instrument-panel precision. Kept subtle rather than removed
+     outright so raised cards are still distinguishable from the canvas. */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.18);
+  --shadow-card-hover: 0 1px 3px rgba(0, 0, 0, 0.24);
   /* Border-only, no shadow — for dense list rows (e.g. an expanded sub-factor's
      signal list) where a full card-shadow per row is too heavy. DESIGN.md
      Elevation & Depth. */
@@ -93,37 +109,48 @@
    * automatically with --text-<name>, so `text-headline` etc. below carry
    * both. Font-weight/tracking still compose separately (e.g. `font-semibold`).
    */
+  /* Story 11.1: tighter line-heights across the scale — a monospace terminal
+     read sits denser than the Inter/SaaS original; each step tightened ~0.1. */
   --text-display: 2.5rem;
-  --text-display--line-height: 1.15;
+  --text-display--line-height: 1.05;
   --text-headline: 1.75rem;
-  --text-headline--line-height: 1.25;
+  --text-headline--line-height: 1.15;
   --text-title: 1.25rem;
-  --text-title--line-height: 1.3;
+  --text-title--line-height: 1.2;
   --text-label: 0.875rem;
-  --text-label--line-height: 1.4;
+  --text-label--line-height: 1.3;
   --text-caption: 0.75rem;
-  --text-caption--line-height: 1.4;
+  --text-caption--line-height: 1.3;
   --text-data: 0.9375rem;
-  --text-data--line-height: 1.4;
-  --tracking-label: 0.01em;
+  --text-data--line-height: 1.3;
+  --tracking-label: 0.02em;
 
   /*
    * Raw dark swatches (DESIGN.md Colors) — wired as the DEFAULT semantic
    * values above (Story 10.1, D12). badge bg/border derive from these via
    * color-mix, per DESIGN.md's original guidance for that gap.
    */
-  --color-canvas-dark: #0d1117;
-  --color-surface-dark: #151a23;
-  --color-surface-raised-dark: #1c222d;
-  --color-border-dark: #2a3140;
-  --color-ink-dark: #e8eaf0;
-  --color-ink-muted-dark: #9ba3b4;
-  --color-ink-faint-dark: #858e9f;
-  --color-brand-dark: #5b8dff;
-  --color-signal-pass-dark: #3ddc97;
-  --color-signal-fail-dark: #ff6b5e;
-  --color-signal-caveat-dark: #e8a83c;
-  --color-signal-pending-dark: #9ba3b4;
+  /* Story 11.1: canvas/surface/border/ink shift from Inter-era near-black-blue
+     to a graphite-green terminal ground, matching the Instrument Panel
+     mockup's palette rather than a generic dark-mode invert. */
+  --color-canvas-dark: #0e1210;
+  --color-surface-dark: #151b17;
+  --color-surface-raised-dark: #1b2320;
+  --color-border-dark: #2a332e;
+  --color-ink-dark: #d7e4d0;
+  --color-ink-muted-dark: #93a38c;
+  --color-ink-faint-dark: #667064;
+  --color-brand-dark: #d99a4e;
+  --color-signal-pass-dark: #6fbf73;
+  --color-signal-fail-dark: #e2645a;
+  /* Caveat is intentionally NOT the same hue as brand-dark above (#d99a4e,
+     ~32° orange-amber) — with amber now the interactive/accent color, an
+     identical-hue caveat badge would read as a link, not a warning. Shifted
+     toward gold (~48°) so the tri-state vocabulary stays visually distinct
+     from the accent it now sits beside constantly (every inline term, every
+     citation link). */
+  --color-signal-caveat-dark: #d1b02e;
+  --color-signal-pending-dark: #8b9686;
   --color-signal-excluded-dark: #b48ee0;
 }
 
@@ -142,28 +169,33 @@
   --color-ink-muted: #565c6d;
   --color-ink-faint: #8b91a1;
 
-  --color-brand-50: #eef4ff;
-  --color-brand-100: #dbe7fe;
-  --color-brand-500: #2f6fed;
-  --color-brand-600: #1f56d6;
-  --color-brand-700: #1a45ad;
-  --color-brand-link: #1f56d6;
-  --color-brand-link-hover: #1a45ad;
-  --color-brand-action: #1f56d6;
-  --color-brand-action-hover: #1a45ad;
-  --color-brand-badge: #1a45ad;
+  /* Story 11.1: blue -> muted brown-amber, desaturated from the dark theme's
+     glowing #d99a4e rather than pasted verbatim — a light background needs
+     less saturation to read as intentional instead of a warning color. */
+  --color-brand-50: #fbf1e2;
+  --color-brand-100: #f3e0bb;
+  --color-brand-500: #9c6a1e;
+  --color-brand-600: #7d5518;
+  --color-brand-700: #5f4012;
+  --color-brand-link: #7d5518;
+  --color-brand-link-hover: #5f4012;
+  --color-brand-action: #7d5518;
+  --color-brand-action-hover: #5f4012;
+  --color-brand-badge: #5f4012;
 
-  --color-signal-pass: #0f8a5f;
-  --color-signal-pass-bg: #e6f6ee;
-  --color-signal-pass-border: #b9e5cd;
+  --color-signal-pass: #2f7d3a;
+  --color-signal-pass-bg: #e2f0e2;
+  --color-signal-pass-border: #b9d9ba;
 
-  --color-signal-fail: #c4392b;
-  --color-signal-fail-bg: #fbeae8;
-  --color-signal-fail-border: #f2c3bd;
+  --color-signal-fail: #b5382c;
+  --color-signal-fail-bg: #f7e5e2;
+  --color-signal-fail-border: #e5bdb4;
 
-  --color-signal-caveat: #a86b06;
-  --color-signal-caveat-bg: #fdf3de;
-  --color-signal-caveat-border: #f2debb;
+  /* Same hue-separation-from-brand rationale as the dark caveat swatch above
+     (gold, not the brand's orange-amber) — see that comment for why. */
+  --color-signal-caveat: #96790a;
+  --color-signal-caveat-bg: #faf1d6;
+  --color-signal-caveat-border: #e8d6a0;
 
   --color-signal-pending: #5c6270;
   --color-signal-pending-bg: #eef0f4;

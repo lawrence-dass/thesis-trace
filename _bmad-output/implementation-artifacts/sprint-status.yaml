@@ -18,7 +18,7 @@
 #   Epic 8  blocked      no stories   Growth Trends
 #   Epic 9  blocked      no stories   Filing Q&A
 #   Epic 10 done         7/7          Report-Style Company Page
-#   Epic 11 backlog      0/9          UI Redesign — Instrument Panel
+#   Epic 11 in-progress  0/9          UI Redesign — Instrument Panel
 #
 # Epics 10 and 11 are the only buildable epics: both presentation-only, re-skinning
 # or re-presenting already-computed figures, so D9's capability gate does not apply
@@ -158,8 +158,8 @@ development_status:
   # Epic 11 added 2026-08-28: UI redesign to the Instrument Panel direction,
   # chosen from a five-way design exploration. Presentation-only, same as
   # Epic 10 — `backlog`, not `blocked`. Story keys derived from epics.md.
-  epic-11: backlog
-  11-1-design-token-migration-to-the-instrument-panel-palette: backlog
+  epic-11: in-progress
+  11-1-design-token-migration-to-the-instrument-panel-palette: review
   11-2-core-ui-primitives: backlog
   11-3-report-shell-and-navigation: backlog
   11-4-overview: backlog

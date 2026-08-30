@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
-import { Inter } from "next/font/google";
+import { JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
 import { ThemeToggle } from "./components/ThemeToggle";
 import "./globals.css";
@@ -25,7 +25,14 @@ import "./globals.css";
 // the first frame, no script-timing race and nothing to reconcile.
 const THEME_COOKIE = "thesistrace-theme";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+// Story 11.1 (Epic 11, Instrument Panel): JetBrains Mono is the primary read
+// face, not a code-only accent — every weight the report actually uses.
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-jetbrains-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "ThesisTrace",
@@ -37,7 +44,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const theme = cookieStore.get(THEME_COOKIE)?.value === "light" ? "light" : "dark";
 
   return (
-    <html lang="en" className={inter.variable} data-theme={theme}>
+    <html lang="en" className={jetbrainsMono.variable} data-theme={theme}>
       <body>
         <header className="sticky top-0 z-10 border-b border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur">
           <div className="mx-auto flex min-w-0 max-w-5xl items-center justify-between px-3 py-4 sm:px-6">
