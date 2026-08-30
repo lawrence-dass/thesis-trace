@@ -48,7 +48,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body>
         <header className="sticky top-0 z-10 border-b border-[var(--color-border-strong)] bg-[var(--color-surface)]/90 backdrop-blur">
           <div className="mx-auto flex min-w-0 max-w-5xl items-center justify-between px-3 py-4 sm:px-6">
-            <Link href="/" className="flex min-w-0 items-baseline gap-1 no-underline sm:gap-2">
+            <Link
+              href="/"
+              className="flex min-w-0 items-baseline gap-1 no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-brand-link)] focus-visible:outline-offset-2 sm:gap-2"
+            >
               <span className="text-title font-bold uppercase tracking-[var(--tracking-label)] text-[var(--color-ink)]">
                 ThesisTrace
               </span>
@@ -57,12 +60,15 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               </span>
             </Link>
             <nav className="flex shrink-0 items-center gap-1 text-caption font-medium uppercase tracking-[var(--tracking-label)] text-[var(--color-ink-muted)] sm:gap-5">
-              <Link href="/" className="whitespace-nowrap transition-colors hover:text-[var(--color-brand-500)]">
+              <Link
+                href="/"
+                className="whitespace-nowrap transition-colors hover:text-[var(--color-brand-link-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-brand-link)] focus-visible:outline-offset-2"
+              >
                 Companies
               </Link>
               <Link
                 href="/architecture"
-                className="whitespace-nowrap transition-colors hover:text-[var(--color-brand-500)]"
+                className="whitespace-nowrap transition-colors hover:text-[var(--color-brand-link-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-brand-link)] focus-visible:outline-offset-2"
               >
                 Architecture
               </Link>
