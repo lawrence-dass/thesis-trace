@@ -86,9 +86,10 @@ export function Gauge({
 
   const valuePct = domainPct(model, value);
   const markerTone = bandTone(bandLabel);
+  const gaugeDescription = `${bandLabel ?? value} (${value} on this model's own scale)`;
 
   return (
-    <div className="pt-1" title={`${bandLabel ?? value} (${value} on this model's own scale)`}>
+    <div className="pt-1" role="img" aria-label={gaugeDescription} title={gaugeDescription}>
       {/* Tick-marked horizontal band (DESIGN.md Components: a measurement
           instrument, not a radial "hero dial") — zone boundaries render as a
           visible tick, not just a color transition, so the classification
@@ -98,7 +99,10 @@ export function Gauge({
           and a vertical needle marker instead of a filled dot, reading as an
           instrument-panel gauge rather than a SaaS progress bar. Band-boundary
           math above (zoneRange/domainPct/clamp) is untouched by this story. */}
-      <div className="relative h-2 w-full overflow-hidden rounded-[var(--radius-chip)] border border-[var(--color-border)] bg-[var(--color-canvas)]">
+      <div
+        className="relative h-2 w-full rounded-[var(--radius-chip)] border border-[var(--color-border)] bg-[var(--color-canvas)]"
+        style={{ clipPath: "inset(-4px 0)" }}
+      >
         {zones.map((z, i) => (
           <div
             key={i}
