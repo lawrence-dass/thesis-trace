@@ -6,7 +6,7 @@
 # this file — they were split out on 2026-08-20, when this file had reached
 # 1,279 lines of which only ~115 were status.
 #
-# STATUS AT A GLANCE (48 of 56 stories done, 7 of 11 epics complete)
+# STATUS AT A GLANCE (49 of 56 stories done, 7 of 11 epics complete)
 #
 #   Epic 1  done         10/10        Foundation & First Evidence (Walking Skeleton)
 #   Epic 2  done         6/6          Complete the Four Lenses
@@ -18,7 +18,7 @@
 #   Epic 8  blocked      no stories   Growth Trends
 #   Epic 9  blocked      no stories   Filing Q&A
 #   Epic 10 done         7/7          Report-Style Company Page
-#   Epic 11 in-progress  1/9          UI Redesign — Instrument Panel
+#   Epic 11 in-progress  2/9          UI Redesign — Instrument Panel
 #
 # Epics 10 and 11 are the only buildable epics: both presentation-only, re-skinning
 # or re-presenting already-computed figures, so D9's capability gate does not apply
@@ -160,7 +160,7 @@ development_status:
   # Epic 11 is `in-progress`, not `blocked`. Story keys derived from epics.md.
   epic-11: in-progress
   11-1-design-token-migration-to-the-instrument-panel-palette: done
-  11-2-core-ui-primitives: review
+  11-2-core-ui-primitives: done
   11-3-report-shell-and-navigation: backlog
   11-4-overview: backlog
   11-5-inline-term-definition-component: backlog
