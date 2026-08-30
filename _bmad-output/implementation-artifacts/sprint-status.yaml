@@ -45,11 +45,11 @@
 #   ways, so neither can change without the other.
 #
 # generated: 2026-07-21
-# last_updated: 2026-08-28
+# last_updated: 2026-08-29
 # project: ThesisTrace
 
 generated: 2026-07-21
-last_updated: 2026-08-28
+last_updated: 2026-08-29
 project: ThesisTrace
 project_key: NOKEY
 tracking_system: file-system
@@ -157,7 +157,7 @@ development_status:
 
   # Epic 11 added 2026-08-28: UI redesign to the Instrument Panel direction,
   # chosen from a five-way design exploration. Presentation-only, same as
-  # Epic 10 — `backlog`, not `blocked`. Story keys derived from epics.md.
+  # Epic 11 is `in-progress`, not `blocked`. Story keys derived from epics.md.
   epic-11: in-progress
   11-1-design-token-migration-to-the-instrument-panel-palette: review
   11-2-core-ui-primitives: backlog

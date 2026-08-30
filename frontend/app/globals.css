@@ -48,7 +48,8 @@
   --color-brand-500: var(--color-brand-dark);
   --color-brand-link: color-mix(in srgb, var(--color-brand-dark) 80%, white);
   --color-brand-link-hover: color-mix(in srgb, var(--color-brand-dark) 75%, white);
-  --color-brand-action: color-mix(in srgb, var(--color-brand-dark) 74%, black);
+  /* 70% keeps white primary-action text above 4.5:1 with the amber swatch. */
+  --color-brand-action: color-mix(in srgb, var(--color-brand-dark) 70%, black);
   --color-brand-action-hover: color-mix(in srgb, var(--color-brand-dark) 64%, black);
   --color-brand-badge: var(--color-brand-dark);
   /* Backwards-compatible aliases for any feature-specific accent that has not
@@ -139,10 +140,10 @@
   --color-border-dark: #2a332e;
   --color-ink-dark: #d7e4d0;
   --color-ink-muted-dark: #93a38c;
-  --color-ink-faint-dark: #667064;
+  --color-ink-faint-dark: #7b887c;
   --color-brand-dark: #d99a4e;
   --color-signal-pass-dark: #6fbf73;
-  --color-signal-fail-dark: #e2645a;
+  --color-signal-fail-dark: #ec7369;
   /* Caveat is intentionally NOT the same hue as brand-dark above (#d99a4e,
      ~32° orange-amber) — with amber now the interactive/accent color, an
      identical-hue caveat badge would read as a link, not a warning. Shifted
@@ -150,7 +151,7 @@
      from the accent it now sits beside constantly (every inline term, every
      citation link). */
   --color-signal-caveat-dark: #d1b02e;
-  --color-signal-pending-dark: #8b9686;
+  --color-signal-pending-dark: #949e8f;
   --color-signal-excluded-dark: #b48ee0;
 }
 
@@ -167,7 +168,7 @@
   --color-border-strong: #c7cbd6;
   --color-ink: #12141c;
   --color-ink-muted: #565c6d;
-  --color-ink-faint: #8b91a1;
+  --color-ink-faint: #6a7080;
 
   /* Story 11.1: blue -> muted brown-amber, desaturated from the dark theme's
      glowing #d99a4e rather than pasted verbatim — a light background needs
@@ -183,7 +184,7 @@
   --color-brand-action-hover: #5f4012;
   --color-brand-badge: #5f4012;
 
-  --color-signal-pass: #2f7d3a;
+  --color-signal-pass: #2d7837;
   --color-signal-pass-bg: #e2f0e2;
   --color-signal-pass-border: #b9d9ba;
 
@@ -193,7 +194,7 @@
 
   /* Same hue-separation-from-brand rationale as the dark caveat swatch above
      (gold, not the brand's orange-amber) — see that comment for why. */
-  --color-signal-caveat: #96790a;
+  --color-signal-caveat: #806600;
   --color-signal-caveat-bg: #faf1d6;
   --color-signal-caveat-border: #e8d6a0;
 
