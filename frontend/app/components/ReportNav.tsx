@@ -70,7 +70,7 @@ export function ReportNav({ sections }: { sections: ReportSection[] }) {
             <a
               href={`#${s.id}`}
               aria-current={active === s.id ? "true" : undefined}
-              className={`inline-block whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium transition-colors ${
+              className={`inline-block whitespace-nowrap border-b-2 px-3 py-3 text-caption font-medium uppercase tracking-[var(--tracking-label)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-brand-link)] focus-visible:outline-offset-2 ${
                 active === s.id
                   ? "border-[var(--color-brand-500)] text-[var(--color-ink)]"
                   : "border-transparent text-[var(--color-ink-faint)] hover:text-[var(--color-ink)]"

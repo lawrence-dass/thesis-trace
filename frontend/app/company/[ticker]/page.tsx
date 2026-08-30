@@ -335,8 +335,12 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
     <main className="mx-auto w-full max-w-7xl space-y-10">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="font-mono text-sm font-semibold text-[var(--color-brand-link)]">{data.ticker}</p>
-          <h1 className="text-2xl font-semibold tracking-tight text-[var(--color-ink)] sm:text-3xl">{data.name}</h1>
+          <p className="font-mono text-label font-semibold uppercase tracking-[var(--tracking-label)] text-[var(--color-brand-link)]">
+            {data.ticker}
+          </p>
+          <h1 className="text-title font-semibold tracking-tight text-[var(--color-ink)] sm:text-headline">
+            {data.name}
+          </h1>
         </div>
         <AddToCompare ticker={data.ticker ?? ticker.toUpperCase()} />
       </div>
