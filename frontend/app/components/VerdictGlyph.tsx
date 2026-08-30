@@ -247,7 +247,13 @@ export function VerdictGlyph({ verdict }: { verdict: VerdictItem[] }) {
                 strokeDasharray={state.dashed ? "3 4" : undefined}
               />
               <circle cx={tip.x} cy={tip.y} r={5} fill={color} stroke="var(--color-surface)" strokeWidth={2} />
-              <text x={labelPosition.x} y={labelPosition.y} textAnchor={labelPosition.anchor} className="text-[11px] font-semibold" fill="var(--color-ink)">
+              <text
+                x={labelPosition.x}
+                y={labelPosition.y}
+                textAnchor={labelPosition.anchor}
+                className="text-[11px] font-semibold uppercase tracking-[var(--tracking-label)]"
+                fill="var(--color-ink)"
+              >
                 {labelLines.map((line, lineIndex) => (
                   <tspan
                     key={lineIndex}

@@ -180,6 +180,7 @@ function WaterfallChart({ bars, cik }: { bars: WaterfallBar[]; cik?: string }) {
                 textAnchor="middle"
                 fontSize={16}
                 fill="var(--color-ink-faint)"
+                className="uppercase"
               >
                 {seg.label}
               </text>
@@ -208,6 +209,7 @@ function WaterfallChart({ bars, cik }: { bars: WaterfallBar[]; cik?: string }) {
               textAnchor="middle"
               fontSize={16}
               fill="var(--color-ink-faint)"
+              className="uppercase"
             >
               {seg.label}
             </text>
@@ -251,12 +253,12 @@ function StatTile({
 }) {
   return (
     <div className="space-y-1">
-      <div className="text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
+      <div className="text-caption font-semibold uppercase tracking-[var(--tracking-label)] text-[var(--color-ink-faint)]">
         {label}
       </div>
       {figure.value !== null ? (
         <>
-          <div className="font-mono text-xl font-semibold tabular-nums text-[var(--color-ink)]">
+          <div className="font-mono text-title font-semibold tabular-nums text-[var(--color-ink)]">
             {compactAmount(figure.value)}
           </div>
           {figure.provenance && cik ? (
@@ -268,14 +270,14 @@ function StatTile({
               derivation={figure.provenance.derivation ?? null}
             />
           ) : figure.as_of ? (
-            <p className="text-xs text-[var(--color-ink-faint)]">
+            <p className="text-caption text-[var(--color-ink-faint)]">
               As of {figure.as_of}
               {figure.source ? ` · ${figure.source}` : ""}
             </p>
           ) : null}
         </>
       ) : (
-        <p className="text-sm text-[var(--color-ink-faint)]">{figure.reason ?? "Not available"}</p>
+        <p className="text-label text-[var(--color-ink-faint)]">{figure.reason ?? "Not available"}</p>
       )}
     </div>
   );
@@ -289,8 +291,10 @@ export function FundamentalsCard({ data, cik }: { data: Fundamentals | null | un
   return (
     <Card className="space-y-4">
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="text-sm font-semibold text-[var(--color-ink)]">Fundamentals</h3>
-        <span className="text-xs text-[var(--color-ink-faint)]">FY{data.fiscal_year}</span>
+        <h3 className="text-label font-semibold uppercase tracking-[var(--tracking-label)] text-[var(--color-ink)]">
+          Fundamentals
+        </h3>
+        <span className="text-caption text-[var(--color-ink-faint)]">FY{data.fiscal_year}</span>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -302,13 +306,13 @@ export function FundamentalsCard({ data, cik }: { data: Fundamentals | null | un
       <div>
         <WaterfallChart bars={data.waterfall} cik={cik} />
         {absentStages.length > 0 ? (
-          <p className="mt-1 text-xs leading-relaxed text-[var(--color-ink-faint)]">
+          <p className="mt-1 text-caption leading-relaxed text-[var(--color-ink-faint)]">
             {absentStages.map((b) => b.figure.reason).filter(Boolean)[0]}
           </p>
         ) : null}
       </div>
 
-      <p className="border-t border-[var(--color-border)] pt-2 text-xs leading-relaxed text-[var(--color-ink-faint)]">
+      <p className="border-t border-[var(--color-border)] pt-2 text-caption leading-relaxed text-[var(--color-ink-faint)]">
         &quot;Other&quot; is gross profit minus earnings (or revenue minus earnings when cost of
         revenue is not disclosed) — operating expenses, interest and tax combined, computed by
         ThesisTrace from filed figures rather than filed itself.
