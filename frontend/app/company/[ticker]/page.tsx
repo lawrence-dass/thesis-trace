@@ -21,6 +21,7 @@ import {
 } from "../../components/MaturityProfile";
 import { ReverseDcfCard, type ReverseDcf } from "../../components/ReverseDcf";
 import { Term } from "../../components/ui/Term";
+import { TERM_DEFINITIONS, type TermId } from "../../components/ui/termDefinitions";
 import { VerdictGlyph, type VerdictItem } from "../../components/VerdictGlyph";
 import { RewardsRisks, type RewardRiskItem } from "../../components/RewardsRisks";
 import { FundamentalsCard, type Fundamentals } from "../../components/Fundamentals";
@@ -134,6 +135,15 @@ export const SIGNAL_LABEL: Record<string, string> = {
 };
 
 const MODELS = ["piotroski", "altman", "beneish", "sloan"];
+
+/** Story 11.7: every sub-signal key across all four models' expanded
+ *  breakdown is wired to the Term component — a runtime check because
+ *  `s.signal_key` is a string off the wire, not the fixed TermId union.
+ *  Falls back to plain (non-clickable) text for a key TERM_DEFINITIONS
+ *  doesn't cover, rather than crashing on an unrecognized future signal. */
+function isTermId(key: string): key is TermId {
+  return Object.prototype.hasOwnProperty.call(TERM_DEFINITIONS, key);
+}
 
 // Section-level data freshness (Story 10.5 AC): the latest fiscal year any
 // score in this section reflects, and the latest balance-sheet date among
@@ -288,7 +298,13 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                     key={s.signal_key}
                     className="flex flex-wrap items-center gap-2 border-b border-[var(--color-border)] pb-2 text-sm last:border-0 last:pb-0"
                   >
-                    <Badge variant={signalVariant(s.status)}>{s.signal_key}</Badge>
+                    <Badge variant={signalVariant(s.status)}>
+                      {/* Story 11.7: the badge's own icon + background/border
+                          still carry the tri-state status color (AD-16
+                          Accessibility Floor) even where Term's own text
+                          color takes over the label itself. */}
+                      {isTermId(s.signal_key) ? <Term id={s.signal_key}>{s.signal_key}</Term> : s.signal_key}
+                    </Badge>
                     {s.value !== null ? (
                       <span className="font-mono tabular-nums text-[var(--color-ink-muted)]">{s.value}</span>
                     ) : null}
@@ -465,13 +481,15 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
           {data.data_quality && data.data_quality.length > 0 ? (
             <div className="flex gap-3 rounded-[var(--radius-card)] border border-[var(--color-signal-caveat-border)] bg-[var(--color-signal-caveat-bg)] p-4">
               <AlertIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--color-signal-caveat)]" />
-              <div className="space-y-1 text-sm">
-                <p className="font-semibold text-[var(--color-signal-caveat)]">Data-quality warnings</p>
+              <div className="space-y-1 text-label">
+                <p className="font-semibold uppercase tracking-[var(--tracking-label)] text-[var(--color-signal-caveat)]">
+                  Data-quality warnings
+                </p>
                 <ul className="space-y-0.5 text-[var(--color-ink-muted)]">
                   {data.data_quality.map((dq, i) => (
                     <li key={i}>
                       {dq.issue_type}{" "}
-                      <span className="text-[var(--color-ink-faint)]">
+                      <span className="text-caption text-[var(--color-ink-faint)]">
                         ({dq.status}, raised by {dq.raised_by})
                       </span>
                     </li>

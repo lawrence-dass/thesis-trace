@@ -4,17 +4,37 @@
 // formula's own sub-signal, it never originates a figure or a judgment.
 //
 // Signal-key entries mirror `SIGNAL_LABEL` in `company/[ticker]/page.tsx`
-// (Beneish's 8, Altman's 5, Sloan's 1 = 14) — Piotroski's 9 sub-signals are
-// out of scope for this story and Story 11.7, which is explicit about the
-// three models it extends the mechanism to.
+// (Beneish's 8, Altman's 5, Sloan's 1 = 14).
 //
 // v2 (Story 11.6) adds the reverse-DCF and free-cash-flow/enterprise-value
 // jargon rendered in ReverseDcf.tsx — a distinct vocabulary from the
 // four published models' own sub-signals above, since the reverse DCF is
 // ThesisTrace's own assumption-driven exercise, not a published model.
-export const TERM_DEFINITIONS_VERSION = "v2";
+//
+// v3 (Story 11.7) adds Piotroski's 9 signals. Story 11.5's own comment
+// read Piotroski as out of scope for this story too — re-reading the AC's
+// top-line clause ("every sub-signal key in EVERY model's... breakdown")
+// against its parenthetical (which names Piotroski as the mockup's already-
+// proven reference case, not an exclusion) on implementing this story shows
+// that was a misreading: page.tsx's renderLensCards renders all four
+// models' signal lists through one shared code path, so wiring Term there
+// covers Piotroski as a natural consequence regardless. Descriptions
+// sourced verbatim from piotroski_v1.yaml's own `signals[].description`,
+// the authoritative source, not reworded from the mockup's prose.
+export const TERM_DEFINITIONS_VERSION = "v3";
 
 export const TERM_DEFINITIONS = {
+  // Piotroski F-Score's 9 binary signals (piotroski_v1.yaml).
+  roa_positive: "Return on assets (net income ÷ total assets) is positive.",
+  cfo_positive: "Cash from operations is positive.",
+  roa_increasing: "Return on assets increased year over year.",
+  accruals: "Cash from operations ÷ total assets exceeds return on assets — an earnings-quality check: when accounting profit outruns actual cash, the gap is accruals, which can reverse.",
+  leverage_decreasing: "The long-term debt ratio decreased year over year.",
+  current_ratio_increasing: "The current ratio (current assets ÷ current liabilities) increased year over year.",
+  shares_not_diluted: "Shares outstanding did not increase year over year.",
+  gross_margin_increasing: "Gross margin increased year over year.",
+  asset_turnover_increasing: "Asset turnover (revenue ÷ total assets) increased year over year.",
+
   // Beneish M-Score sub-indices.
   dsri: "Days Sales in Receivables Index — year-over-year change in receivables relative to sales. A large jump can signal revenue inflation.",
   gmi: "Gross Margin Index — deteriorating margins add pressure toward manipulation.",

@@ -40,12 +40,12 @@ export function NearTermDebtShareCard({ rows }: { rows: NearTermDebtShare[] }) {
     <Card className="space-y-3 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-[var(--color-ink)]">Near-term debt share</h3>
-          <p className="text-xs text-[var(--color-ink-muted)]">
+          <h3 className="text-label font-semibold text-[var(--color-ink)]">Near-term debt share</h3>
+          <p className="text-caption text-[var(--color-ink-muted)]">
             Long-term debt due within twelve months
           </p>
         </div>
-        <span className="text-xs text-[var(--color-ink-faint)]">FY{latest.fiscal_year}</span>
+        <span className="text-caption text-[var(--color-ink-faint)]">FY{latest.fiscal_year}</span>
       </div>
 
       {latest.insufficient_data ? (
@@ -57,19 +57,19 @@ export function NearTermDebtShareCard({ rows }: { rows: NearTermDebtShare[] }) {
               missing there is the other half of the denominator. One phrasing has to
               be honest for both causes, so it states what ThesisTrace could not do
               rather than accusing the filer of an omission. */}
-          <p className="text-xs text-[var(--color-ink-muted)]">
+          <p className="text-caption text-[var(--color-ink-muted)]">
             Both figures this needs could not be resolved for FY{latest.fiscal_year}.
           </p>
         </div>
       ) : (
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="text-2xl font-semibold tabular-nums text-[var(--color-ink)]">
+          <span className="font-mono text-headline font-semibold tabular-nums text-[var(--color-ink)]">
             {(latest.share! * 100).toFixed(1)}%
           </span>
           <Badge variant={toneVariant(latest.tone)} icon={false}>
             {latest.band_label}
           </Badge>
-          <span className="text-xs tabular-nums text-[var(--color-ink-faint)]">
+          <span className="text-caption tabular-nums text-[var(--color-ink-faint)]">
             {compactAmount(latest.near_term_debt ?? 0)} of {compactAmount(latest.total_debt ?? 0)}
           </span>
         </div>
@@ -77,14 +77,14 @@ export function NearTermDebtShareCard({ rows }: { rows: NearTermDebtShare[] }) {
 
       {withValues.length > 0 ? (
         <details className="group">
-          <summary className="cursor-pointer text-xs text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]">
+          <summary className="cursor-pointer text-caption text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]">
             Earlier years ({withValues.length})
           </summary>
           <ul className="mt-2 space-y-1">
             {withValues.map((r) => (
               <li
                 key={r.fiscal_year}
-                className="flex items-baseline justify-between gap-3 text-xs tabular-nums"
+                className="flex items-baseline justify-between gap-3 text-caption tabular-nums"
               >
                 <span className="text-[var(--color-ink-faint)]">FY{r.fiscal_year}</span>
                 <span className="text-[var(--color-ink-muted)]">{r.band_label}</span>
@@ -100,7 +100,7 @@ export function NearTermDebtShareCard({ rows }: { rows: NearTermDebtShare[] }) {
       {/* Travels with the figure, never optional: it names whose judgment the
           bands are AND states the short-term-borrowings exclusion, which is the
           single most likely way to misread this number. */}
-      <p className="border-t border-[var(--color-border)] pt-2 text-xs text-[var(--color-ink-faint)]">
+      <p className="border-t border-[var(--color-border)] pt-2 text-caption text-[var(--color-ink-faint)]">
         {latest.attribution}
       </p>
     </Card>

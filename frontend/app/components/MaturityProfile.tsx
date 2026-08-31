@@ -74,17 +74,17 @@ export function MaturityProfileCard({
     <Card className="space-y-3 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-[var(--color-ink)]">Repayment schedule</h3>
-          <p className="text-xs text-[var(--color-ink-muted)]">
+          <h3 className="text-label font-semibold text-[var(--color-ink)]">Repayment schedule</h3>
+          <p className="text-caption text-[var(--color-ink-muted)]">
             As published by the company{latest.unit ? `, in ${latest.unit}` : ""}
           </p>
         </div>
-        <span className="text-xs text-[var(--color-ink-faint)]">FY{latest.fiscal_year}</span>
+        <span className="text-caption text-[var(--color-ink-faint)]">FY{latest.fiscal_year}</span>
       </div>
 
       <ul className="space-y-1.5">
         {latest.buckets.map((bucket) => (
-          <li key={bucket.canonical_concept} className="flex items-center gap-3 text-xs">
+          <li key={bucket.canonical_concept} className="flex items-center gap-3 text-caption">
             <span className="w-24 flex-shrink-0 text-[var(--color-ink-muted)]">{bucket.label}</span>
             <span className="h-2 flex-1 overflow-hidden rounded-[var(--radius-pill)] bg-[var(--color-canvas)]">
               {/* A filed zero draws NO bar. It is a real value — the company
@@ -117,7 +117,7 @@ export function MaturityProfileCard({
       </ul>
 
       {anyTruncated && truncationMessage ? (
-        <p className="rounded-[var(--radius-chip)] bg-[var(--color-canvas)] p-2 text-xs text-[var(--color-ink-muted)]">
+        <p className="rounded-[var(--radius-chip)] bg-[var(--color-canvas)] p-2 text-caption text-[var(--color-ink-muted)]">
           {truncationMessage}
           {!latest.truncated ? " Years marked * below are affected." : ""}
         </p>
@@ -125,11 +125,11 @@ export function MaturityProfileCard({
 
       {earlier.length > 0 ? (
         <details>
-          <summary className="cursor-pointer text-xs text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]">
+          <summary className="cursor-pointer text-caption text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]">
             Earlier years ({earlier.length})
           </summary>
           <div className="mt-2 overflow-x-auto">
-            <table className="w-full min-w-[28rem] text-xs tabular-nums">
+            <table className="w-full min-w-[28rem] text-caption tabular-nums">
               <thead>
                 <tr className="text-[var(--color-ink-faint)]">
                   <th className="py-1 text-left font-normal">FY</th>
@@ -169,7 +169,7 @@ export function MaturityProfileCard({
 
       {/* States that this does NOT add up to the total debt above it, and that its
           first row is not the near-term share — the two likeliest misreadings. */}
-      <p className="border-t border-[var(--color-border)] pt-2 text-xs text-[var(--color-ink-faint)]">
+      <p className="border-t border-[var(--color-border)] pt-2 text-caption text-[var(--color-ink-faint)]">
         {latest.attribution}
       </p>
     </Card>

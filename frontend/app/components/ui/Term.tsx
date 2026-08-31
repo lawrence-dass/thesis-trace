@@ -21,6 +21,13 @@
 // (possibly collapsed) panel, by ordinary block-in-inline layout rules, not
 // a bug in this component. Prefer ending a sentence AT the term rather than
 // following it with more inline text/punctuation in the same paragraph.
+//
+// The definition text is pinned `normal-case` regardless of an ambient
+// `uppercase` ancestor (Story 11.7: Badge sets `uppercase` on everything it
+// contains, since its own children are normally short signal-key labels —
+// fine for the trigger word, but multi-sentence prose in the definition
+// panel becomes materially harder to read in all-caps). The trigger itself
+// deliberately inherits whatever casing its context sets.
 "use client";
 
 import { useId, useState } from "react";
@@ -50,7 +57,7 @@ export function Term({ id, children }: { id: TermId; children: React.ReactNode }
           expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
         }`}
       >
-        <span className="block overflow-hidden pt-1 text-caption leading-relaxed text-[var(--color-ink-faint)]">
+        <span className="block overflow-hidden pt-1 text-caption normal-case leading-relaxed text-[var(--color-ink-faint)]">
           {TERM_DEFINITIONS[id]}
         </span>
       </span>

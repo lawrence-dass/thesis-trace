@@ -44,8 +44,8 @@ export function ProvenanceFooter({ footer, cik }: { footer?: ReportFooter | null
   if (!footer) return null;
 
   return (
-    <footer className="space-y-4 border-t border-[var(--color-border)] pt-6 text-sm text-[var(--color-ink-muted)]">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
+    <footer className="space-y-4 border-t border-[var(--color-border)] pt-6 text-label text-[var(--color-ink-muted)]">
+      <h2 className="text-caption font-semibold uppercase tracking-[var(--tracking-label)] text-[var(--color-ink-faint)]">
         Data and provenance
       </h2>
 
