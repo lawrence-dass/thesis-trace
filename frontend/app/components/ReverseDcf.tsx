@@ -16,6 +16,8 @@ import { Badge } from "./ui/Badge";
 import { Card } from "./ui/Card";
 import { CitationChip } from "./ui/CitationChip";
 import { compactAmount } from "./ui/format";
+import { Term } from "./ui/Term";
+import type { TermId } from "./ui/termDefinitions";
 
 export type SensitivityCell = {
   discount_rate: number;
@@ -96,6 +98,15 @@ const OPERAND_LABEL: Record<string, string> = {
   cash_equivalents: "Cash equivalents",
 };
 
+// Only the two operand names whose meaning genuinely isn't self-evident from
+// the label alone get wired to a Term (Story 11.6) — the rest (shares
+// outstanding, cash, total debt, ...) don't need a definition to be
+// understood.
+const OPERAND_TERM: Partial<Record<string, TermId>> = {
+  free_cash_flow: "free-cash-flow",
+  enterprise_value: "enterprise-value",
+};
+
 export function labelFor(name: string): string {
   return OPERAND_LABEL[name] ?? name.replace(/_/g, " ");
 }
@@ -172,14 +183,14 @@ export function ReverseDcfCard({ dcf, cik }: { dcf?: ReverseDcf | null; cik?: st
 
   return (
     <section className="space-y-3">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
+      <h2 className="text-label font-semibold uppercase tracking-[var(--tracking-label)] text-[var(--color-ink-faint)]">
         What the price implies
       </h2>
       {/* AC: the assumptions must read as ThesisTrace's, distinctly from the four
           academic models above, so the page cannot be mistaken for a published
           model's output. Stated here in the section lead, again on the assumption
           chips, and once more in the API's own attribution line at the foot. */}
-      <p className="text-sm text-[var(--color-ink-faint)]">
+      <p className="text-label text-[var(--color-ink-faint)]">
         Not a published model and not a valuation — ThesisTrace runs a discounted cash
         flow backwards to ask what growth today&apos;s price would require.
       </p>
@@ -187,12 +198,14 @@ export function ReverseDcfCard({ dcf, cik }: { dcf?: ReverseDcf | null; cik?: st
       <Card className="space-y-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-semibold text-[var(--color-ink)]">Implied revenue growth</h3>
+            <h3 className="text-label font-semibold text-[var(--color-ink)]">
+              <Term id="implied-growth-rate">Implied revenue growth</Term>
+            </h3>
             <Badge variant="brand" icon={false}>
               ThesisTrace assumptions
             </Badge>
           </div>
-          <span className="text-xs text-[var(--color-ink-faint)]">FY{dcf.fiscal_year}</span>
+          <span className="text-caption text-[var(--color-ink-faint)]">FY{dcf.fiscal_year}</span>
         </div>
 
         {hasNoFigure(dcf) ? <InsufficientData dcf={dcf} /> : <Resolved dcf={dcf} />}
@@ -200,7 +213,7 @@ export function ReverseDcfCard({ dcf, cik }: { dcf?: ReverseDcf | null; cik?: st
         {showsCaveats(dcf) ? (
           <ul className="space-y-1 border-t border-[var(--color-border)] pt-3">
             {(dcf.caveats ?? []).map((c, i) => (
-              <li key={i} className="text-xs leading-snug text-[var(--color-ink-muted)]">
+              <li key={i} className="text-caption leading-snug text-[var(--color-ink-muted)]">
                 {c}
               </li>
             ))}
@@ -213,7 +226,7 @@ export function ReverseDcfCard({ dcf, cik }: { dcf?: ReverseDcf | null; cik?: st
 
         {/* The API's own words, not a paraphrase — it states that the discount
             rate is a setting rather than a fact about this company. */}
-        <p className="border-t border-[var(--color-border)] pt-3 text-xs leading-relaxed text-[var(--color-ink-faint)]">
+        <p className="border-t border-[var(--color-border)] pt-3 text-caption leading-relaxed text-[var(--color-ink-faint)]">
           {dcf.attribution}
         </p>
       </Card>
@@ -230,7 +243,7 @@ function InsufficientData({ dcf }: { dcf: ReverseDcf }) {
       <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-3xl font-semibold tabular-nums text-[var(--color-ink-faint)]">
+            <span className="font-mono text-headline font-semibold tabular-nums text-[var(--color-ink-faint)]">
               —
             </span>
             <Badge variant="pending">Insufficient data</Badge>
@@ -243,7 +256,7 @@ function InsufficientData({ dcf }: { dcf: ReverseDcf }) {
         <Achieved dcf={dcf} />
       </div>
       {dcf.reason ? (
-        <p className="text-sm leading-relaxed text-[var(--color-ink-muted)]">{dcf.reason}</p>
+        <p className="text-label leading-relaxed text-[var(--color-ink-muted)]">{dcf.reason}</p>
       ) : null}
       {/* A base can be insufficient while some grid cells still resolve (the
           implied rate falls outside the solver's search bounds at the base pair
@@ -252,7 +265,7 @@ function InsufficientData({ dcf }: { dcf: ReverseDcf }) {
           band would invert the contract's rule that failed cells are shown, not
           silently removed. */}
       {dcf.range_low !== null && dcf.range_high !== null ? (
-        <p className="text-xs text-[var(--color-ink-muted)]">
+        <p className="text-caption text-[var(--color-ink-muted)]">
           Some assumption combinations still resolve:{" "}
           <span className="font-medium tabular-nums text-[var(--color-ink)]">
             {formatRate(dcf.range_low)} to {formatRate(dcf.range_high)}
@@ -273,10 +286,10 @@ function Achieved({ dcf }: { dcf: ReverseDcf }) {
   if (dcf.historical_revenue_cagr === null) return null;
   return (
     <div>
-      <div className="font-mono text-xl font-semibold tabular-nums text-[var(--color-ink-muted)]">
+      <div className="font-mono text-title font-semibold tabular-nums text-[var(--color-ink-muted)]">
         {formatRate(dcf.historical_revenue_cagr)}
       </div>
-      <p className="text-xs text-[var(--color-ink-faint)]">
+      <p className="text-caption text-[var(--color-ink-faint)]">
         actually achieved
         {dcf.historical_from_fiscal_year && dcf.historical_to_fiscal_year
           ? `, FY${dcf.historical_from_fiscal_year}–FY${dcf.historical_to_fiscal_year}`
@@ -293,10 +306,10 @@ function Resolved({ dcf }: { dcf: ReverseDcf }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
         <div>
-          <div className="font-mono text-3xl font-semibold tabular-nums text-[var(--color-ink)]">
+          <div className="font-mono text-headline font-semibold tabular-nums text-[var(--color-ink)]">
             {formatRate(implied)}
           </div>
-          <p className="text-xs text-[var(--color-ink-faint)]">
+          <p className="text-caption text-[var(--color-ink-faint)]">
             a year for {dcf.horizon_years} years, at a {formatRate(dcf.discount_rate, 0)} discount rate
           </p>
         </div>
@@ -398,7 +411,7 @@ function BandPlot({ dcf }: { dcf: ReverseDcf }) {
           style={{ left: `${pos(implied)}%` }}
         />
         <span
-          className="absolute top-11 -translate-x-1/2 whitespace-nowrap text-[10px] font-medium text-[var(--color-brand-link)]"
+          className="absolute top-11 -translate-x-1/2 whitespace-nowrap text-[10px] font-medium uppercase tracking-[var(--tracking-label)] text-[var(--color-brand-link)]"
           style={{ left: `${pos(implied)}%` }}
         >
           implied
@@ -413,7 +426,7 @@ function BandPlot({ dcf }: { dcf: ReverseDcf }) {
               style={{ left: `${pos(historical)}%` }}
             />
             <span
-              className="absolute top-11 -translate-x-1/2 whitespace-nowrap text-[10px] font-medium text-[var(--color-ink)]"
+              className="absolute top-11 -translate-x-1/2 whitespace-nowrap text-[10px] font-medium uppercase tracking-[var(--tracking-label)] text-[var(--color-ink)]"
               style={{ left: `${pos(historical)}%` }}
             >
               achieved
@@ -422,12 +435,15 @@ function BandPlot({ dcf }: { dcf: ReverseDcf }) {
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--color-ink-muted)]">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-caption text-[var(--color-ink-muted)]">
+        {/* Term ends the span rather than sitting mid-sentence — trailing
+            content after a Term in the same inline run gets pushed onto a
+            new line once expanded (see Term.tsx's own comment on this). */}
         <span>
-          Range across the assumption grid:{" "}
           <span className="font-medium tabular-nums text-[var(--color-ink)]">
             {formatRate(low)} to {formatRate(high)}
-          </span>
+          </span>{" "}
+          across the <Term id="sensitivity-range">sensitivity range</Term>
         </span>
         {/* Stated whenever the grid is not fully resolved, so a partial band is
             never read as a complete one. */}
@@ -444,24 +460,29 @@ function BandPlot({ dcf }: { dcf: ReverseDcf }) {
 /** The assumptions that produced the figure. Without these the number means
  *  nothing, so they are visible without interaction. */
 function Assumptions({ dcf }: { dcf: ReverseDcf }) {
-  const items = [
-    { label: "Discount rate", value: formatRate(dcf.discount_rate, 0) },
-    { label: "Terminal growth", value: formatRate(dcf.terminal_growth) },
-    { label: "Horizon", value: `${dcf.horizon_years} years` },
+  const items: { label: string; termId: TermId; value: string }[] = [
+    { label: "Discount rate", termId: "discount-rate", value: formatRate(dcf.discount_rate, 0) },
+    { label: "Terminal growth", termId: "terminal-growth", value: formatRate(dcf.terminal_growth) },
+    { label: "Horizon", termId: "reverse-dcf-horizon", value: `${dcf.horizon_years} years` },
   ];
   return (
     <dl className="flex flex-wrap gap-x-6 gap-y-1 border-t border-[var(--color-border)] pt-3">
       {items.map((it) => (
         <div key={it.label} className="flex items-baseline gap-1.5">
-          <dt className="text-xs text-[var(--color-ink-faint)]">{it.label}</dt>
-          <dd className="font-mono text-xs font-medium tabular-nums text-[var(--color-ink-muted)]">
+          {/* dt is the whole Term (label ends the element, nothing trailing
+              inside it) so the definition panel can expand without pushing
+              the dd value onto a new line — they are separate flex items. */}
+          <dt className="text-caption text-[var(--color-ink-faint)]">
+            <Term id={it.termId}>{it.label}</Term>
+          </dt>
+          <dd className="font-mono text-caption font-medium tabular-nums text-[var(--color-ink-muted)]">
             {it.value}
           </dd>
         </div>
       ))}
       <div className="flex items-baseline gap-1.5">
-        <dt className="text-xs text-[var(--color-ink-faint)]">Spec</dt>
-        <dd className="font-mono text-xs text-[var(--color-ink-faint)]">{dcf.spec_version}</dd>
+        <dt className="text-caption text-[var(--color-ink-faint)]">Spec</dt>
+        <dd className="font-mono text-caption text-[var(--color-ink-faint)]">{dcf.spec_version}</dd>
       </div>
     </dl>
   );
@@ -481,13 +502,17 @@ function Operands({
 }) {
   return (
     <details className="border-t border-[var(--color-border)] pt-3">
-      <summary className="cursor-pointer text-xs text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]">
+      <summary className="cursor-pointer text-caption text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]">
         Inputs ({operands.length})
       </summary>
       <ul className="mt-2 space-y-1.5">
-        {operands.map((op) => (
-          <li key={op.name} className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="w-40 flex-shrink-0 text-[var(--color-ink-muted)]">{labelFor(op.name)}</span>
+        {operands.map((op) => {
+          const termId = OPERAND_TERM[op.name];
+          return (
+          <li key={op.name} className="flex flex-wrap items-center gap-2 text-caption">
+            <span className="w-40 flex-shrink-0 text-[var(--color-ink-muted)]">
+              {termId ? <Term id={termId}>{labelFor(op.name)}</Term> : labelFor(op.name)}
+            </span>
             <span className="font-medium tabular-nums text-[var(--color-ink)]">
               {compactAmount(op.value)}
               {op.unit ? <span className="ml-1 text-[var(--color-ink-faint)]">{op.unit}</span> : null}
@@ -535,7 +560,8 @@ function Operands({
               </span>
             ) : null}
           </li>
-        ))}
+          );
+        })}
       </ul>
     </details>
   );

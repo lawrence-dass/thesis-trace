@@ -161,7 +161,7 @@ function signalRows(r: RunChange): SignalChange[] {
  *  never a judgement about whether it is good news. */
 function Transition({ from, to }: { from: string; to: string }) {
   return (
-    <span className="inline-flex items-center gap-2 font-mono text-sm tabular-nums">
+    <span className="inline-flex items-center gap-2 font-mono text-label tabular-nums">
       <span className="text-[var(--color-ink-faint)] line-through decoration-1">{from}</span>
       <span aria-hidden className="text-[var(--color-ink-faint)]">&rarr;</span>
       <span className="font-semibold text-[var(--color-ink)]">{to}</span>
@@ -183,7 +183,7 @@ export function WhatChanged({ changes, cik }: { changes: Changes; cik: string })
   if (state === "no_prior_state") {
     return (
       <Section>
-        <p className="text-sm text-[var(--color-ink-muted)]">
+        <p className="text-label text-[var(--color-ink-muted)]">
           No earlier record to compare against yet — this is the first scored state ThesisTrace has
           for this company. Changes will appear here once a later filing is processed.
         </p>
@@ -194,7 +194,7 @@ export function WhatChanged({ changes, cik }: { changes: Changes; cik: string })
   if (state === "no_change" || (runs.length === 0 && dq.length === 0)) {
     return (
       <Section since={when} sinceAccession={changes.since_accession}>
-        <p className="text-sm text-[var(--color-ink-muted)]">
+        <p className="text-label text-[var(--color-ink-muted)]">
           No change since {when}. Scores, signals and source figures are all unchanged.
         </p>
       </Section>
@@ -207,9 +207,9 @@ export function WhatChanged({ changes, cik }: { changes: Changes; cik: string })
         {runs.map((r) => (
           <Card key={`${r.model}-${r.fiscal_year}`} className="space-y-3">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h3 className="text-sm font-semibold text-[var(--color-ink)]">
+              <h3 className="text-label font-semibold text-[var(--color-ink)]">
                 {MODEL_LABEL[r.model] ?? r.model}{" "}
-                <span className="font-mono text-xs font-normal text-[var(--color-ink-faint)]">
+                <span className="font-mono text-caption font-normal text-[var(--color-ink-faint)]">
                   FY{r.fiscal_year}
                 </span>
               </h3>
@@ -226,7 +226,7 @@ export function WhatChanged({ changes, cik }: { changes: Changes; cik: string })
                 published classifications rather than as a number delta. */}
             {r.kinds.includes("band_change") ? (
               <div className="flex flex-wrap items-center gap-2 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-canvas)] px-3 py-2">
-                <span className="text-xs font-medium uppercase tracking-wide text-[var(--color-ink-faint)]">
+                <span className="text-caption font-medium uppercase tracking-[var(--tracking-label)] text-[var(--color-ink-faint)]">
                   Classification
                 </span>
                 {r.prior_band_label ? (
@@ -249,11 +249,11 @@ export function WhatChanged({ changes, cik }: { changes: Changes; cik: string })
 
             {/* A value move that did NOT cross a band: quieter, no badges. */}
             {r.kinds.includes("aggregate_change") ? (
-              <p className="flex flex-wrap items-center gap-2 text-sm text-[var(--color-ink-muted)]">
+              <p className="flex flex-wrap items-center gap-2 text-label text-[var(--color-ink-muted)]">
                 <span>Score</span>
                 <Transition from={num(r.prior_aggregate)} to={num(r.current_aggregate)} />
                 {!r.kinds.includes("band_change") ? (
-                  <span className="text-xs text-[var(--color-ink-faint)]">
+                  <span className="text-caption text-[var(--color-ink-faint)]">
                     (within the same classification)
                   </span>
                 ) : null}
@@ -268,12 +268,12 @@ export function WhatChanged({ changes, cik }: { changes: Changes; cik: string })
                 time as a meaningless "1 -> 1" value transition, because the
                 signal's own value did not move. */}
             {signalRows(r).length > 0 ? (
-              <ul className="space-y-1.5 text-sm">
+              <ul className="space-y-1.5 text-label">
                 {signalRows(r).map((s) => {
                   const isCoverage = s.kind === "coverage_gained" || s.kind === "coverage_lost";
                   return (
                     <li key={s.signal_key} className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-xs text-[var(--color-ink-faint)]">
+                      <span className="font-mono text-caption text-[var(--color-ink-faint)]">
                         {s.signal_key}
                       </span>
                       {isCoverage ? (
@@ -298,10 +298,10 @@ export function WhatChanged({ changes, cik }: { changes: Changes; cik: string })
 
             {r.fact_changes.length > 0 ? (
               <div className="space-y-1.5">
-                <p className="text-xs font-medium uppercase tracking-wide text-[var(--color-ink-faint)]">
+                <p className="text-caption font-medium uppercase tracking-[var(--tracking-label)] text-[var(--color-ink-faint)]">
                   Source figures
                 </p>
-                <ul className="space-y-2 text-sm">
+                <ul className="space-y-2 text-label">
                   {r.fact_changes.map((f, i) => (
                     <li key={factChangeKey(f, i)} className="space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -340,7 +340,7 @@ export function WhatChanged({ changes, cik }: { changes: Changes; cik: string })
             {r.version_caveat ? (
               <div className="flex gap-2 rounded-[var(--radius-card)] border border-[var(--color-signal-caveat-border)] bg-[var(--color-signal-caveat-bg)] px-3 py-2">
                 <AlertIcon className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-[var(--color-signal-caveat)]" />
-                <p className="text-xs leading-snug text-[var(--color-ink-muted)]">{r.version_caveat}</p>
+                <p className="text-caption leading-snug text-[var(--color-ink-muted)]">{r.version_caveat}</p>
               </div>
             ) : null}
           </Card>
@@ -348,15 +348,15 @@ export function WhatChanged({ changes, cik }: { changes: Changes; cik: string })
 
         {dq.length > 0 ? (
           <Card className="space-y-2">
-            <h3 className="text-sm font-semibold text-[var(--color-ink)]">Data-quality changes</h3>
-            <ul className="space-y-1 text-sm text-[var(--color-ink-muted)]">
+            <h3 className="text-label font-semibold text-[var(--color-ink)]">Data-quality changes</h3>
+            <ul className="space-y-1 text-label text-[var(--color-ink-muted)]">
               {dq.map((d, i) => (
                 <li key={`${d.issue_type}-${i}`} className="flex flex-wrap items-center gap-2">
                   <Badge variant={d.kind === "data_quality_opened" ? "caveat" : "pass"} icon={false}>
                     {d.kind === "data_quality_opened" ? "Opened" : "Closed"}
                   </Badge>
                   <span>{ISSUE_LABEL[d.issue_type] ?? d.issue_type}</span>
-                  <span className="text-xs text-[var(--color-ink-faint)]">raised by {d.raised_by}</span>
+                  <span className="text-caption text-[var(--color-ink-faint)]">raised by {d.raised_by}</span>
                 </li>
               ))}
             </ul>
@@ -379,11 +379,11 @@ function Section({
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
+        <h2 className="text-label font-semibold uppercase tracking-[var(--tracking-label)] text-[var(--color-ink-faint)]">
           What changed
         </h2>
         {since ? (
-          <p className="text-xs text-[var(--color-ink-faint)]">
+          <p className="text-caption text-[var(--color-ink-faint)]">
             Compared against {since}
             {sinceAccession ? (
               <span className="ml-1 font-mono">(before filing {sinceAccession})</span>
