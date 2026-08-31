@@ -19,7 +19,7 @@ export type RewardRiskItem = {
 
 function List({ items, emptyLabel }: { items: RewardRiskItem[]; emptyLabel: string }) {
   if (items.length === 0) {
-    return <p className="text-sm text-[var(--color-ink-faint)]">{emptyLabel}</p>;
+    return <p className="text-label text-[var(--color-ink-faint)]">{emptyLabel}</p>;
   }
   return (
     <ul className="space-y-2">
@@ -27,7 +27,7 @@ function List({ items, emptyLabel }: { items: RewardRiskItem[]; emptyLabel: stri
         <li key={i}>
           <a
             href={`#${item.section}`}
-            className="block rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-sm text-[var(--color-ink)] no-underline transition-colors hover:border-[var(--color-border-strong)]"
+            className="block rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-label text-[var(--color-ink)] no-underline transition-colors hover:border-[var(--color-border-strong)]"
           >
             {item.text}
           </a>
@@ -51,7 +51,7 @@ export function RewardsRisks({ items }: { items: RewardRiskItem[] }) {
   // beneath it.
   if (recognized.length === 0) {
     return (
-      <p className="text-sm text-[var(--color-ink-faint)]">
+      <p className="text-label text-[var(--color-ink-faint)]">
         No standout rewards or risks in this company&apos;s current classifications.
       </p>
     );
@@ -73,7 +73,7 @@ export function RewardsRisks({ items }: { items: RewardRiskItem[] }) {
           <List items={risks} emptyLabel="None currently." />
         </div>
       </div>
-      <p className="text-xs leading-relaxed text-[var(--color-ink-faint)]">{recognized[0].attribution}</p>
+      <p className="text-caption leading-relaxed text-[var(--color-ink-faint)]">{recognized[0].attribution}</p>
     </div>
   );
 }
