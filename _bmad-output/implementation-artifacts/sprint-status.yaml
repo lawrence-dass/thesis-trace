@@ -6,7 +6,7 @@
 # this file — they were split out on 2026-08-20, when this file had reached
 # 1,279 lines of which only ~115 were status.
 #
-# STATUS AT A GLANCE (52 of 56 stories done, 7 of 11 epics complete)
+# STATUS AT A GLANCE (53 of 56 stories done, 7 of 11 epics complete)
 #
 #   Epic 1  done         10/10        Foundation & First Evidence (Walking Skeleton)
 #   Epic 2  done         6/6          Complete the Four Lenses
@@ -164,7 +164,7 @@ development_status:
   11-3-report-shell-and-navigation: done
   11-4-overview: done
   11-5-inline-term-definition-component: done
-  11-6-valuation-and-past-performance: review
+  11-6-valuation-and-past-performance: done
   11-7-financial-health-integrity-evidence-and-the-provenance-footer: backlog
   11-8-full-universe-browser-verification: backlog
   11-9-methodology-pages: backlog
