@@ -247,6 +247,14 @@ export function VerdictGlyph({ verdict }: { verdict: VerdictItem[] }) {
                 strokeDasharray={state.dashed ? "3 4" : undefined}
               />
               <circle cx={tip.x} cy={tip.y} r={5} fill={color} stroke="var(--color-surface)" strokeWidth={2} />
+              {/* text-[11px]/text-[10px] below are deliberately arbitrary, not
+                  the named --text-* scale (smallest defined token is
+                  --text-caption at 12px) — wrapLabel's SIDE_LABEL_MAX_CHARS
+                  and LABEL_LINE_HEIGHT above are calibrated against these
+                  exact pixel sizes, and Story 11.4's AC forbids redesigning
+                  this glyph's shape/geometry, only its palette. Same
+                  un-tokenized 11px tier Badge.tsx already uses
+                  (`text-[0.6875rem]`) for the app's smallest text. */}
               <text
                 x={labelPosition.x}
                 y={labelPosition.y}
