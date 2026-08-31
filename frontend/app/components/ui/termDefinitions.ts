@@ -7,7 +7,12 @@
 // (Beneish's 8, Altman's 5, Sloan's 1 = 14) — Piotroski's 9 sub-signals are
 // out of scope for this story and Story 11.7, which is explicit about the
 // three models it extends the mechanism to.
-export const TERM_DEFINITIONS_VERSION = "v1";
+//
+// v2 (Story 11.6) adds the reverse-DCF and free-cash-flow/enterprise-value
+// jargon rendered in ReverseDcf.tsx — a distinct vocabulary from the
+// four published models' own sub-signals above, since the reverse DCF is
+// ThesisTrace's own assumption-driven exercise, not a published model.
+export const TERM_DEFINITIONS_VERSION = "v2";
 
 export const TERM_DEFINITIONS = {
   // Beneish M-Score sub-indices.
@@ -32,6 +37,16 @@ export const TERM_DEFINITIONS = {
 
   // General report jargon, not tied to one model's sub-signal set.
   "why-not-blended": "Each test measures something different — strength trend, distress distance, manipulation risk, earnings quality. Averaging them would hide which one is actually driving a concern. ThesisTrace never originates a combined figure; it only shows what each published model already outputs.",
+
+  // Reverse-DCF jargon (Story 11.6) — ThesisTrace's own assumption-driven
+  // exercise (Story 6.6), distinct from the four published models above.
+  "implied-growth-rate": "The constant annual revenue growth rate that would make a standard discounted cash flow model land on today's market price. Not a forecast — it's what the price is already assuming.",
+  "discount-rate": "The annual rate future cash flows are reduced by to express them in today's money. A higher rate values cash further in the future less.",
+  "terminal-growth": "The growth rate cash flows are assumed to keep compounding at forever, past the modeled horizon. Small changes here move the answer a lot — which is why it's shown as a labelled assumption, not hidden inside the figure.",
+  "reverse-dcf-horizon": "How many years of explicit growth the model solves for before switching to the terminal growth rate.",
+  "sensitivity-range": "How much the implied growth rate moves across a grid of alternative discount-rate and terminal-growth assumptions. The range is the honest answer — a single number here would claim a precision the exercise doesn't have.",
+  "free-cash-flow": "Cash from operations minus capital expenditure — the cash a company generates after reinvesting in itself, available to return to owners or grow the business.",
+  "enterprise-value": "Market capitalisation plus total debt minus cash and equivalents — what it would cost to acquire the whole business, not just its equity.",
 } as const;
 
 export type TermId = keyof typeof TERM_DEFINITIONS;
