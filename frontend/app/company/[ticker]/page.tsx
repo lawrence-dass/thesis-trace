@@ -20,6 +20,7 @@ import {
   type MaturityProfile,
 } from "../../components/MaturityProfile";
 import { ReverseDcfCard, type ReverseDcf } from "../../components/ReverseDcf";
+import { Term } from "../../components/ui/Term";
 import { VerdictGlyph, type VerdictItem } from "../../components/VerdictGlyph";
 import { RewardsRisks, type RewardRiskItem } from "../../components/RewardsRisks";
 import { FundamentalsCard, type Fundamentals } from "../../components/Fundamentals";
@@ -115,7 +116,7 @@ const MODEL_CAPTION: Record<string, string> = {
 // rather than showing a bare dash with no reason. Presentational only; the
 // underlying pass/fail/insufficient_data classification is never recomputed
 // here (AD-8, AD-16).
-const SIGNAL_LABEL: Record<string, string> = {
+export const SIGNAL_LABEL: Record<string, string> = {
   dsri: "Days Sales in Receivables",
   gmi: "Gross Margin",
   aqi: "Asset Quality",
@@ -369,7 +370,8 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
             <RewardsRisks items={data.rewards_risks ?? []} />
             <p className="text-sm text-[var(--color-ink-faint)]">
               Each model&apos;s own published threshold classification, shown side by side — not a
-              buy/sell recommendation.
+              buy/sell recommendation. Not blended into one score — see{" "}
+              <Term id="why-not-blended">why not</Term>
             </p>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               {data.verdict.map((v) => (
