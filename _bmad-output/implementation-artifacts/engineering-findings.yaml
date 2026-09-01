@@ -2224,3 +2224,214 @@ story_11_9_code_review_round_2:
     added actually works: the banner rendered with the correct convertible-
     notes text, and the arithmetic (-1.981461) matched this file's own
     prior SHOP golden value exactly. Reverted to QSR before committing.
+
+story_12_1_coverage_spike:
+  status: done
+  resolved: 2026-09-01
+  question: >
+    Does every concept the four models and the reverse-DCF solver actually read —
+    not just revenue — have live, per-year coverage against real data.sec.gov
+    company-facts for CPB (CIK 0000016732) and ZTS (CIK 0001555280)? And is ZTS's
+    single-year FY2014 revenue gap (found in the earlier ticker-selection check) a
+    tag switch or a real gap?
+  verdict: >
+    22 canonical concepts checked (Piotroski's 9, Altman's 5, Beneish's 8, Sloan's
+    3, the reverse-DCF's 5 FCF/enterprise-value operands plus near_term_debt/
+    total_debt, all deduplicated). Both filers resolve cleanly for 20 of 22 with no
+    new mapping work. ZTS's FY2014 gap is a TAG SWITCH, not a real gap, and is
+    already resolved by an existing fallback tag this file records below. Two real
+    findings carry forward to Story 12.3: CPB's early-history revenue tag must be
+    REJECTED (it measures something different, not the same concept renamed), and
+    ZTS has no ebit at all under the current us-gaap mapping, though a fix is
+    concretely identified.
+  method_note: >
+    Fetched live data.sec.gov/api/xbrl/companyfacts JSON for both CIKs directly
+    (SEC fair-access User-Agent, matching backend/ingestion/edgar.py's
+    EDGAR_CONTACT convention) — nothing is ingested yet, so raw_facts had nothing
+    to read from. Bucketed every fact on its own `end` date against each issuer's
+    real fiscal-year-end (CPB 08/03, ZTS 12/31, both from the submissions API's
+    own fiscalYearEnd field, not assumed), filtered to form 10-K/10-K/A, and for
+    duration concepts required a 350-380 day span to exclude quarterly and
+    "selected quarterly financial data" footnote sub-periods (see CPB's GrossProfit
+    below — exactly that trap). Concept list and its us-gaap source tags read
+    directly from the live mapping spec (us-gaap_v8.yaml) and derivations_v4.yaml,
+    not re-derived from scratch.
+  per_concept_coverage:
+    note: >-
+      Full per-year detail (every qualifying fact, its accession and form) saved
+      to this session's scratchpad as coverage_CPB.json / coverage_ZTS.json —
+      not committed (ephemeral working data); the ranges below are the durable
+      record. "clean" means no internal gaps within the stated range.
+    CPB:
+      - "total_assets: FY2009-2025, clean"
+      - "current_assets: FY2009-2025, clean"
+      - "current_liabilities: FY2009-2025, clean"
+      - "net_income: FY2008-2025, clean"
+      - "cash_from_operations: FY2008-2025, clean"
+      - "shares_outstanding: FY2008-2025, clean"
+      - "total_liabilities: FY2009-2025, clean"
+      - "retained_earnings: FY2009-2025, clean"
+      - "ebit: FY2008-2025, clean (OperatingIncomeLoss tagged every year)"
+      - "revenue: FY2017-2025 under the CURRENT mapping (Revenues only). SEE FINDING 1 below — the earlier fallback candidate is REJECTED, not silently addable."
+      - "cogs: FY2017-2025, clean (CostOfGoodsAndServicesSold)"
+      - "sga: FY2008-2025, clean (GeneralAndAdministrativeExpense)"
+      - "receivables: FY2010-2025, clean"
+      - "ppe_net: FY2009-2025, clean"
+      - "depreciation: FY2008-2025, clean"
+      - "long_term_debt: FY2009-2025, clean, but crosses a tag switch — SEE FINDING 3"
+      - "gross_profit: NO full-year coverage in any year. SEE FINDING 2 — expected, not a defect."
+      - "near_term_debt: FY2010-2025, clean (LongTermDebtCurrent)"
+      - "total_debt: filed tag (LongTermDebt) only FY2010-2018; the existing total_debt_current_plus_noncurrent derivation extends it to FY2010-2025 via near_term_debt + long_term_debt, both of which cover that full range. No action needed — confirms the derivation earns its keep for a filer it wasn't built for."
+      - "capex: FY2008-2025, clean (PaymentsToAcquirePropertyPlantAndEquipment — the common tag; CPB never needs OTEX's ProductiveAssets variant)"
+      - "cash_and_equivalents: FY2007-2025, clean (CashAndCashEquivalentsAtCarryingValue every year; the restricted-inclusive fallback also happens to be tagged FY2022-2025 but is never needed since the primary tag never lapses)"
+    ZTS:
+      - "total_assets: FY2012-2025, clean"
+      - "current_assets: FY2012-2025, clean"
+      - "current_liabilities: FY2012-2025, clean"
+      - "net_income: FY2011-2025, clean"
+      - "cash_from_operations: FY2011-2025, clean"
+      - "shares_outstanding: FY2011-2025, clean"
+      - "total_liabilities: FY2012-2025, clean"
+      - "retained_earnings: FY2012-2025, clean"
+      - "ebit: NO coverage in any year. SEE FINDING 4 — real gap, fix identified, not fixed here."
+      - "revenue: FY2016-2025 under the CURRENT mapping (Revenues only); FY2011-2025 once the accepted fallback is added. SEE FINDING 1 — this is the ticker-selection session's FY2014 gap, and it resolves."
+      - "cogs: FY2011-2025, clean (CostOfGoodsAndServicesSold)"
+      - "sga: FY2011-2025, clean (SellingGeneralAndAdministrativeExpense)"
+      - "receivables: FY2012-2025, clean"
+      - "ppe_net: FY2012-2025, clean"
+      - "depreciation: FY2011-2025, clean"
+      - "long_term_debt: FY2012-2025, clean, single tag throughout (LongTermDebtNoncurrent, no switch)"
+      - "gross_profit: NO GrossProfit tag exists at all for ZTS. SEE FINDING 2 — expected, not a defect, same consequence as CPB and as the existing QSR case."
+      - "near_term_debt: FY2014-2025, clean (LongTermDebtCurrent)"
+      - "total_debt: no filed total tag at all; the total_debt_current_plus_noncurrent derivation gives FY2014-2025 (near_term_debt's floor). FY2012-2013 stay insufficient_data — long_term_debt alone is not a total. Minor, expected, not actionable."
+      - "capex: FY2011-2025, clean (PaymentsToAcquirePropertyPlantAndEquipment)"
+      - "cash_and_equivalents: FY2010-2025, clean, but crosses a tag switch — SEE FINDING 5 (verified safe)"
+  findings:
+    - id: 1
+      title: "CPB's pre-2017 revenue tag REJECTED; ZTS's pre-2016 revenue tag ACCEPTED — same-shaped candidate, opposite outcome"
+      detail: >
+        Both filers have a legacy pre-ASC-606 revenue tag not in us-gaap_v8.yaml's
+        current fallback chain (Revenues, RevenueFromContractWithCustomerExcluding
+        AssessedTax): CPB tags SalesRevenueGoodsNet FY2008-2018, ZTS tags
+        SalesRevenueNet FY2011-2017. Checked overlap-year equality against
+        Revenues before treating either as admissible, per this project's standing
+        rule that a same-named-sounding tag needs proof, not assumption.
+
+        ZTS: SalesRevenueNet == Revenues to the dollar in both overlap years
+        (FY2016: $4,888M both; FY2017: $5,307M both). This is a clean tag switch,
+        not a measurement change. Adding it as a fallback extends ZTS revenue to
+        FY2011-2025 and SPECIFICALLY RESOLVES the FY2014 single-year gap flagged
+        in the 2026-09-01 ticker-selection check (FY2014 value: $4,785,000,000,
+        accession 0001555280-16-000344, confirmed present).
+
+        CPB: SalesRevenueGoodsNet DISAGREES with Revenues in both overlap years by
+        ~35% (FY2017: $7,890M vs $5,837M; FY2018: $8,685M vs $6,615M). These are
+        not the same concept renamed — SalesRevenueGoodsNet is evidently a gross
+        or segment-level figure (CPB also tags a separate SalesReturnsGoods line,
+        consistent with GoodsNet being pre-allowance). Admitting it would inflate
+        CPB's revenue ~35% for FY2008-2016 and corrupt every revenue-derived
+        signal (Piotroski's implicit margin context, Altman X5, Beneish
+        SGI/DSRI). REJECTED. CPB's revenue-dependent signals correctly stay
+        insufficient_data for FY2008-2016 — that is the honest answer, not a
+        finding to fix.
+      action: >
+        Story 12.3: add SalesRevenueNet as a revenue fallback source for ZTS only
+        (do not add SalesRevenueGoodsNet for CPB). Bump us-gaap mapping spec
+        version and record the overlap-year proof in its note field, matching the
+        QSR restricted-cash and SHOP/OTEX gross-profit precedents already in that
+        file.
+    - id: 2
+      title: "Neither filer will ever resolve gross_profit as a filed concept — expected, matches QSR's existing shape"
+      detail: >
+        ZTS never tags GrossProfit at all. CPB DOES tag GrossProfit, but every
+        instance is a quarterly sub-period from the 10-K's "selected quarterly
+        financial data" footnote (88 facts checked, all ~90-day spans, none a
+        350-380 day full year) — the exact quarterly-footnote sharp edge already
+        documented in project-context.md's 2026-07-29 learnings, confirmed live
+        rather than assumed. Consequence for both: gross_profit is insufficient_data
+        in every fiscal year.
+
+        This is NOT a defect. derivations_v4.yaml's revenue_minus_cost_of_sales
+        rule is deliberately scoped to ifrs-full only (requires_source restricts
+        it to the CostOfSales tag) — us-gaap filers were excluded on purpose after
+        the QSR investigation found the subtraction unsafe there. beneish.py's
+        _gross_profit_validated() already handles a filer with zero gross_profit
+        coverage correctly: GMI is still computed from revenue/cogs directly, and
+        the run carries a "computed_with_caveat" (unvalidated margin) annotation
+        rather than insufficient_data — the same mechanism already live for QSR.
+        Both CPB and ZTS will carry that caveat permanently. Confirmed as the
+        intended behavior, not a gap to close.
+      action: "None. Record only, so Story 12.4's golden entries expect the caveat rather than treating it as a bug."
+    - id: 3
+      title: "CPB's long_term_debt crosses a tag switch at FY2014 — verified a clean rename, not a measurement change"
+      detail: >
+        CPB tags LongTermDebtNoncurrent FY2009-2014 then switches to
+        LongTermDebtAndCapitalLeaseObligations FY2014-2025 (the same variant CP
+        uses, per us-gaap_v8.yaml's existing note). The one overlap year
+        (FY2014) agrees exactly: $2,244,000,000 both tags. Unlike CP — which has
+        NO non-lease-inclusive tag at all, making the two measurement bases
+        genuinely different — CPB's single shared year shows no lease component
+        distorting the figure at the switch point. Weaker evidence than ZTS's
+        3-year cash-tag proof or QSR's cash proof (only one overlap year exists
+        here), stated plainly rather than overstated.
+      action: >
+        No mapping change needed — us-gaap_v8.yaml's existing fallback order
+        (LongTermDebtNoncurrent, then LongTermDebtAndCapitalLeaseObligations)
+        already covers CPB correctly. Record the live verification so a future
+        session doesn't re-flag this switch as a suspected bug (the exact BCE
+        debt-tag trap from the 2026-08-14 learnings).
+    - id: 4
+      title: "ZTS has NO ebit under the current us-gaap mapping — real, permanent gap; fix identified but not applied here"
+      detail: >
+        ZTS never tags OperatingIncomeLoss in any year (confirmed absent from its
+        full us-gaap concept list, not just missing from the coverage window).
+        Altman's X3 (EBIT / total assets) will read insufficient_data for ZTS in
+        every fiscal year unless this is fixed. derivations_v4.yaml already has an
+        ebit_pbt_plus_interest DECISION rule (pretax income + interest expense),
+        but its operands (profit_before_tax, interest_expense) are currently
+        mapped under ifrs-full ONLY — us-gaap_v8.yaml maps neither, so the rule is
+        de facto unreachable for any us-gaap filer today, ZTS included.
+
+        Checked feasibility: ZTS tags InterestExpense and
+        IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItems
+        NoncontrollingInterest (the same pretax-income tag name already used
+        under ifrs-full) for ALL 15 years, FY2011-2025, with zero gaps. A us-gaap
+        extension of the same reconstruction would give ZTS complete ebit
+        coverage.
+      action: >
+        Story 12.3 decision, not a Story 12.1 fix (D8 consequence 3 — a
+        reconstruction is a DECISION, needs its own rationale on the methodology
+        page, and changing derivations_v4.yaml's scope is exactly the kind of
+        change that belongs in its own reviewed step, not folded into a spike).
+        Concretely recommended: map profit_before_tax and interest_expense for
+        us-gaap using ZTS's two tags above, and confirm live whether CPB's
+        OperatingIncomeLoss coverage is truly universal for the whole universe
+        before deciding whether to extend the rule generally or scope it to ZTS
+        alone the way total_debt's fallback is filer-specific.
+    - id: 5
+      title: "ZTS's cash_and_equivalents crosses to the restricted-inclusive tag at FY2018 — verified safe, same technique as QSR"
+      detail: >
+        ZTS tags CashAndCashEquivalentsAtCarryingValue only through FY2017, then
+        relies on CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents
+        for FY2018-2025 — structurally the exact QSR pattern this project's
+        mapping spec already documents and gates behind proof. Checked: the two
+        tags agree to the dollar in all 3 overlap years (FY2015: $1,154M; FY2016:
+        $727M; FY2017: $1,564M), so ZTS carries no restricted cash and the
+        inclusive tag IS its unrestricted cash for FY2018-2025 — same proof
+        strength as QSR's (3 overlap years, exact match).
+      action: >
+        No mapping change needed — us-gaap_v8.yaml's existing fallback order
+        already covers this. Confirm test_cash_tags_agree_wherever_a_filer_files_both
+        (already generic across the universe) picks up ZTS once ingested rather
+        than needing a ZTS-specific addition.
+  carry_forward: >
+    Story 12.2 (ingestion) needs no changes from this spike — nothing here blocks
+    ingesting raw facts as-is. Story 12.3 (canonicalization) inherits four concrete
+    mapping decisions: add SalesRevenueNet for ZTS (finding 1, do NOT add
+    SalesRevenueGoodsNet for CPB), decide on the us-gaap ebit reconstruction for
+    ZTS (finding 4), and two record-only confirmations (findings 3 and 5) that
+    need no code change but should be cited in us-gaap_v8's notes so a future
+    session doesn't re-investigate them as suspected bugs. Story 12.4's golden
+    entries should expect both filers' Beneish runs to carry the unvalidated-
+    gross-margin caveat permanently (finding 2), and ZTS's Altman to be
+    insufficient_data for X3 unless finding 4 is actioned first.
