@@ -52,10 +52,11 @@ async function getWorkedExample(model: string): Promise<WorkedExample | null> {
     const fiscalYear = overview.verdict.find((v) => v.model === model)?.fiscal_year;
     if (fiscalYear === undefined) return unavailable;
     const run = overview.scores.find((s) => s.model === model && s.fiscal_year === fiscalYear);
-    // A null aggregate would render the closing summary line with the score
-    // silently missing (AD-16: never present a figure that isn't there) —
-    // treated the same as no matching run at all.
-    if (!run || run.aggregate_value === null) return unavailable;
+    // A null (or, from an unvalidated payload, undefined) aggregate would
+    // render the closing summary line with the score silently missing
+    // (AD-16: never present a figure that isn't there) — treated the same
+    // as no matching run at all. Loose comparison deliberately catches both.
+    if (!run || run.aggregate_value == null) return unavailable;
     return { status: "ok", name: overview.name ?? ticker, ticker, run };
   } catch {
     return unavailable;
@@ -220,9 +221,11 @@ export default async function MethodologyPage({ params }: { params: Promise<{ mo
         <section className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
             Worked example
-            {workedExample.status === "ok" ? ` — ${workedExample.name} (${workedExample.ticker}), FY${workedExample.run.fiscal_year}` : null}
+            {workedExample.status === "ok" && m.signals && m.signals.length > 0
+              ? ` — ${workedExample.name} (${workedExample.ticker}), FY${workedExample.run.fiscal_year}`
+              : null}
           </h2>
-          {workedExample.status === "ok" ? (
+          {workedExample.status === "ok" && m.signals && m.signals.length > 0 ? (
             <Card className="space-y-3">
               <p className="text-sm leading-relaxed text-[var(--color-ink-muted)]">
                 Every figure below is {workedExample.ticker}&rsquo;s actual stored value for this fiscal
@@ -276,7 +279,7 @@ function renderWorkedExampleRows(model: string, methodologySignals: Signal[] | u
   const describe = (key: string) => signals.find((s) => s.key === key)?.description ?? key;
 
   if (model === "piotroski") {
-    const passCount = run.signals.filter((s) => s.status === "pass").length;
+    const passCount = (run.signals ?? []).filter((s) => s.status === "pass").length;
     return (
       <>
         {signals.map((sig) => {

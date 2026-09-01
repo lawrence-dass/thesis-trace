@@ -2127,8 +2127,54 @@ story_11_9_code_review_and_fixes:
     - "ALTMAN_SIGNAL_ORDER/BENEISH_SIGNAL_ORDER were separately hand-maintained arrays duplicating what the already-fetched /api/methodology payload's own m.signals already provides in the correct order (Blind Hunter + Edge Case Hunter + Codex) — FIXED: removed both constants; row order is now derived directly from m.signals, so it cannot drift from the backend spec's own declared order."
     - "Beneish coefficient display precision mismatch: the formula card above shows '0.920*DSRI' (3 decimals, from beneish_v1.yaml's own description text) while the worked-example row showed '0.92' (JS's default number-to-string) — same value, different digit count on the same page (Blind Hunter) — FIXED: coefficients now format with .toFixed(3) in the worked-example rows to match exactly."
     - "Beneish AC-compliance wording nuance: 'his introduction names TATA as the fifth' could be misread as taking a side on the disputed, UNSHIPPED five-variable model's coefficient question (Acceptance Auditor, flagged as a border case not a violation) — tightened the surrounding comment and prose to make explicit this describes the introduction's own framing of the shipped 8-variable model, not the disputed 5-variable model's coefficients."
-  investigated_and_found_false:
-    - "Blind Hunter claimed 'QSR's Beneish run is computed_with_caveat' (citing beneish_v1.yaml's gross_margin_validation guard comment, which uses QSR as an ILLUSTRATIVE example of the general class of problem). Checked the actual live QSR FY2023 Beneish run directly: applicability='computed', caveat_reason=null — no caveat exists on this specific run. The claim was a misread of the yaml comment's illustrative mention as the current live state. Not fixed (nothing to fix), but the underlying structural gap it pointed at (the type not carrying the field at all) was fixed anyway per above, since it's cheap and the project's caveat-surfacing convention is strong enough to warrant defending against a REAL future case."
+  investigated_and_found_false_then_reopened_and_resolved_precisely:
+    - >-
+      Round 1: Blind Hunter claimed "QSR's Beneish run is computed_with_caveat"
+      (citing beneish_v1.yaml's gross_margin_validation guard comment, which
+      uses QSR as an ILLUSTRATIVE example). Checked the live QSR FY2023
+      Beneish run directly: applicability='computed', caveat_reason=null —
+      recorded as false.
+
+      Round 2: the Acceptance Auditor reopened this, with real evidence —
+      running the CURRENT backend scoring code
+      (compute_beneish + the gross_margin_validation guard, both untouched
+      by this story) against this repo's own
+      tests/fixtures/qsr_company_facts.json in a throwaway Postgres produced
+      applicability=computed_with_caveat for FY2022/2023, matching
+      test_beneish_gross_margin_guard.py's own passing assertions and the
+      exact golden -2.219847 value. That is a real, correct result — the
+      current CODE does compute a caveat for QSR.
+
+      Resolution: re-fetched the LIVE production API fresh (not from cache)
+      at the moment of this investigation — https://thesis-trace.onrender.com
+      /api/companies/QSR/overview still returns
+      applicability='computed', caveat_reason=null for both FY2022 and
+      FY2023, confirmed twice. Both findings are true simultaneously and are
+      NOT in conflict: they answer different questions. The Auditor's
+      fixture-based test answers "what would current code compute if
+      rerun"; the live API answers "what does the deployed app actually
+      serve today." `git log` confirms the gross_margin_validation guard
+      was added on 2026-08-02 (commit 68089e8) — the most plausible
+      explanation is that QSR's live, already-persisted score_runs predate
+      that guard and have not been recomputed since, since this project's
+      scores are computed once and stored, not computed fresh per request.
+      This is a genuine backend data-freshness question (the deployed
+      score_runs table may be stale relative to the current formula spec)
+      but it is a PRE-EXISTING, OUT-OF-SCOPE issue for a frontend-only
+      story — recomputing/backfilling production score_runs is a separate
+      operational task this story has no tool to safely trigger, and doing
+      so unprompted would be an unauthorized production data change.
+      Flagging here for a future session with reason to investigate score_run
+      staleness, not fixing it.
+
+      The caveat-RENDERING CODE itself (added this story) is verified
+      correct regardless of which QSR state is true: temporarily pointed
+      WORKED_EXAMPLE_TICKER.beneish at SHOP (whose live FY2024 Beneish run
+      IS applicability=computed_with_caveat today, re-confirmed fresh) and
+      confirmed live in a browser that the caveat banner renders correctly,
+      with the real convertible-notes caveat text, alongside the correct
+      -1.981461 arithmetic matching this file's own prior SHOP golden value.
+      Reverted to QSR (the AC-specified filer) before committing.
   considered_and_not_fixed:
     - "Fetch timeout/AbortController on the overview fetch (Edge Case Hunter, Codex): would introduce a pattern not used by ANY fetch in this file, including the pre-existing getMethodology — inconsistent with established convention; not added."
     - "verdict.find() dedup for a hypothetical duplicate model entry (Edge Case Hunter): backend/api/repository.py constructs verdict from a dict keyed by model before converting to a list, so duplicate models are structurally impossible; false-positive edge case."
@@ -2143,3 +2189,38 @@ story_11_9_code_review_and_fixes:
     browser, both light and dark theme, after applying every fix above —
     zoomed screenshots confirmed the Term layout fix specifically (the one
     finding static review couldn't fully settle). No backend files touched.
+
+story_11_9_code_review_round_2:
+  what: >
+    A second round of the same four review passes (Codex CLI agentic exec,
+    plus bmad-code-review's Blind Hunter/Edge Case Hunter/Acceptance
+    Auditor), scoped specifically to the round-1 fix commit (18c4751), to
+    verify each claimed fix actually worked and hunt for anything the fix
+    itself introduced.
+  confirmed_real_and_fixed:
+    - "page.tsx's Piotroski branch computed passCount from unguarded run.signals.filter(...) even though the byKey Map two lines above it was correctly guarded with (run.signals ?? []) — independently caught by Blind Hunter, Edge Case Hunter, AND Codex (3 of 4 reviewers). The round-1 engineering-findings entry's claim 'FIXED: guarded with (run.signals ?? [])' was true for byKey but false for this second, adjacent use of the same field. FIXED: passCount now uses (run.signals ?? [])."
+    - "Codex's sharpest round-2 catch: termDefinitions.ts's existing depi/sgai entries said a slowing DEPI 'can inflate reported income' and a rising SGAI 'can signal deteriorating sales efficiency' — real causal claims — while narratives.tsx's round-1 fix added an explicit disclaimer right next to Terms linking to those same definitions ('no claim is made here about why each one specifically signals manipulation risk'). Clicking through contradicted the disclaimer sitting right above it. FIXED: softened both termDefinitions.ts entries to purely mechanical descriptions (matching lvgi's existing style), consistent with the disclaimer. dsri/gmi/sgi were left untouched — those three ARE among the five variables Beneish's own introduction names explicitly, so their causal framing is primary-source-grounded, unlike depi/sgai."
+    - "Codex: narratives.tsx described TATA as 'accruals relative to cash flow', which could be misread as a ratio (accruals/CFO) rather than what TATA actually is — (net income - cash from operations) / total assets. FIXED: reworded to 'reported income running ahead of actual cash flow — accruals, scaled by total assets', matching the formula and termDefinitions.ts's own accurate phrasing."
+    - "Acceptance Auditor: narratives.tsx's top comment cited beneish_v1.yaml as the source for DEPI/SGAI/LVGI's mechanical descriptions, but beneish_v1.yaml only gives bare names ('Depreciation Index') with no directionality — the actual mechanics ('a slowing depreciation rate', 'SG&A growing out of step with sales') are only derivable from scoring/beneish.py's formulas. FIXED: corrected the citation in the file's own top comment."
+    - "Blind Hunter: Sloan's Term reference for accruals_ratio was relocated to a disconnected 'See: Accruals ratio' line, technically satisfying the layout constraint but reading as a bolted-on footnote rather than integrated prose. FIXED: folded it back into the fixation paragraph's closing clause ('...the exact risk flagged by an unusually high accruals ratio'), ending the sentence naturally at the Term."
+    - "Edge Case Hunter + Codex: getWorkedExample's aggregate_value !== null check would pass an omitted (undefined) field from an unvalidated payload straight through, rendering '= undefined — the {model} score...'. FIXED: changed to a loose (== null) comparison that catches both null and undefined."
+    - "Edge Case Hunter + Codex: renderWorkedExampleRows derives row order from methodologySignals ?? [], but if m.signals is empty/undefined (the two /api/methodology and /api/companies/.../overview fetches are independent Promise.all calls, so one can succeed while the other returns a degenerate payload), the worked example silently renders a broken partial table — Beneish shows only the constant, Piotroski shows 'N of 0'. FIXED: the 'ok' render branch now also requires m.signals.length > 0, falling back to the same explicit 'not available' card otherwise."
+  investigated_and_confirmed_correct_as_is:
+    - "Acceptance Auditor's headline round-2 finding (QSR Beneish caveat) — see the dedicated, detailed entry above (investigated_and_found_false_then_reopened_and_resolved_precisely). Both the round-1 and round-2 claims turned out to be true simultaneously, answering different questions; resolved by re-fetching the live API fresh and reasoning through the timeline, not by picking a side."
+    - "Codex confirmed the Term-layout fix holds across every usage in both files (including via an automated check: transpiling the TSX and inspecting emitted text-node structure around each Term) — no residual or newly-introduced violation."
+    - "Codex confirmed the Beneish coefficient .toFixed(3) fix is display-only and doesn't affect the underlying arithmetic (contribution is computed from the raw, unrounded coefficient)."
+    - "Codex confirmed Altman/Beneish row order from m.signals matches the original hardcoded order (X1-X5, DSRI-first) for a normal payload."
+  considered_and_not_fixed_this_round:
+    - "The unused applicability field on OverviewScore (Blind Hunter, round 1): kept as-is — cheap to carry, and turned out to matter directly to the round-2 caveat investigation above, so removing it would have been the wrong call in hindsight."
+    - "Distinguishing failure-reason messages in the 'not available' card (Blind Hunter, round 1 spirit, not re-raised as strongly in round 2): the single unified message remains honest and functional; more granular messaging is a reasonable future nicety, not a defect."
+  regression_check: >
+    Frontend: npx tsc --noEmit clean, eslint clean (including the `== null`
+    idiom), vitest 78/78 passed, npm run build succeeds. Re-verified all
+    four /methodology/[model] pages live against the deployed backend after
+    every round-2 fix. Additionally — and this is the one check no prior
+    round could do — temporarily pointed WORKED_EXAMPLE_TICKER.beneish at
+    SHOP (a filer with a real, live, currently-active Beneish caveat) and
+    confirmed in a browser that the caveat-rendering code path this story
+    added actually works: the banner rendered with the correct convertible-
+    notes text, and the arithmetic (-1.981461) matched this file's own
+    prior SHOP golden value exactly. Reverted to QSR before committing.

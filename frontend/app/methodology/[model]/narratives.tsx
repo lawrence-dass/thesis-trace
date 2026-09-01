@@ -15,9 +15,17 @@
 //     primary-sourced claims about the five variables his own introduction
 //     names explicitly: DSRI/receivables, GMI/margins, AQI/asset quality,
 //     SGI/sales growth, TATA/accruals. DEPI, SGAI and LVGI are described
-//     purely by what they compute (per beneish_v1.yaml), with an explicit
-//     disclaimer that no causal "why" claim is made about them — the
-//     preprint doesn't reach the section that would verify one).
+//     purely by what they compute (per their formulas in scoring/beneish.py —
+//     beneish_v1.yaml itself gives only bare names, no directionality), with
+//     an explicit disclaimer that no causal "why" claim is made about them —
+//     the preprint doesn't reach the section that would verify one. The same
+//     two indices' entries in termDefinitions.ts were softened to match this
+//     disclaimer (code review, round 2): they previously said a slowing
+//     DEPI "can inflate reported income" and a rising SGAI "can signal
+//     deteriorating sales efficiency" — a real causal claim, surfaced right
+//     next to this file's explicit "no claim is made" disclaimer via the
+//     same Term component. Now purely mechanical, matching LVGI's existing
+//     style.
 //   - Sloan, R. (1996), "Do Stock Prices Fully Reflect Information in
 //     Accruals and Cash Flows...", The Accounting Review (CUHK open copy,
 //     read in full for the persistence mechanism and the market-fixation
@@ -145,7 +153,10 @@ export const WHY_IT_WORKS: Record<string, ReactNode> = {
           High sales growth — the precondition, since growth firms face the most
           pressure to keep the story going: <Term id="sgi">SGI</Term>
         </li>
-        <li>Rising accruals relative to cash flow, which his introduction names as the fifth: <Term id="tata">TATA</Term></li>
+        <li>
+          Reported income running ahead of actual cash flow — accruals, scaled by total
+          assets — which his introduction names as the fifth: <Term id="tata">TATA</Term>
+        </li>
       </ul>
       <p>
         The eight-variable model this product implements adds three further indices,
@@ -184,11 +195,11 @@ export const WHY_IT_WORKS: Record<string, ReactNode> = {
         The reason this shows up in stock prices at all is what Sloan calls market
         &ldquo;fixation&rdquo;: investors tend to treat a dollar of earnings as a dollar
         of earnings, without disentangling how much of it came from cash versus
-        accruals. A company with an unusually high accruals ratio is priced as if this
-        year&rsquo;s earnings level will persist — and when the accrual portion
-        reverses the way accruals mechanically do, the market is caught by surprise.
+        accruals. A company priced as if this year&rsquo;s earnings level will persist
+        gets caught by surprise when the accrual portion reverses the way accruals
+        mechanically do — the exact risk flagged by an unusually high{" "}
+        <Term id="accruals_ratio">accruals ratio</Term>
       </p>
-      <p>See: <Term id="accruals_ratio">Accruals ratio</Term></p>
       <p className="text-[var(--color-ink-faint)]">
         One honest gap: Sloan&rsquo;s own paper sorts firms into return deciles rather
         than publishing a single bright-line cutoff. The 0.10 &ldquo;high

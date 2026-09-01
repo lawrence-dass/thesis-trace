@@ -49,8 +49,8 @@ export const TERM_DEFINITIONS = {
   gmi: "Gross Margin Index — deteriorating margins add pressure toward manipulation.",
   aqi: "Asset Quality Index — rising non-core / soft assets relative to total assets.",
   sgi: "Sales Growth Index — high-growth firms face more pressure to manage earnings.",
-  depi: "Depreciation Index — a slowing depreciation rate can inflate reported income.",
-  sgai: "SG&A Index — a disproportionate rise can signal deteriorating sales efficiency.",
+  depi: "Depreciation Index — year-over-year change in the depreciation rate (depreciation relative to net PP&E).",
+  sgai: "SG&A Index — year-over-year change in SG&A expense relative to sales.",
   tata: "Total Accruals to Total Assets — the non-cash component of reported earnings.",
   lvgi: "Leverage Index — rising leverage year over year.",
 
