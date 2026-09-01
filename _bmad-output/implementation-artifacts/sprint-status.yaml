@@ -177,8 +177,10 @@ development_status:
 
   # Epic 12 added 2026-09-01: US universe expansion (CPB, ZTS), driven by real
   # decision packets per D11. Story keys derived from epics.md.
-  epic-12: backlog
-  12-1-live-edgar-concept-coverage-spike-for-campbell-s-and-zoetis: backlog
+  epic-12: in-progress
+  # Codex review 2026-09-01: PR #105 remains in review; findings are recorded
+  # under story_12_1_coverage_spike before Story 12.2 can begin.
+  12-1-live-edgar-concept-coverage-spike-for-campbell-s-and-zoetis: review
   12-2-edgar-ingestion-for-campbell-s-and-zoetis: backlog
   12-3-canonicalization-and-validation-for-campbell-s-and-zoetis: backlog
   12-4-golden-dataset-coverage-for-campbell-s-and-zoetis: backlog

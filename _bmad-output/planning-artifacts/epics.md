@@ -173,7 +173,7 @@ Lawrence's stated concern (2026-08-28): Epic 10's report shell is functionally c
 **FRs covered:** none new — re-skins the shipped surfaces of Epic 10 and extends Epic 3's methodology pages; the inline-definition component and the methodology explainers are new UI/content, not a new capability under D9
 
 ### Epic 12: US Universe Expansion — Campbell's & Zoetis
-Lawrence has a real, staked decision to buy CPB and ZTS (decision packets `2026-09-01-CPB.md`, `2026-09-01-ZTS.md`, satisfying D11 — each filer is added because it is being researched, not researched because it was added). Both are plain US-GAAP 10-K filers with long, gap-free EDGAR history (live-verified 2026-09-01: CPB 2010-2025 revenue coverage with no gaps; ZTS 2013-2025 with a single-year gap at FY2014 needing investigation), so this is the same shape of work as Epic 1's original onboarding and D8's IFRS track — ingest, canonicalize, extend the golden dataset, verify live — not a new taxonomy or a new capability. Universe growth under D11, not an Epic 7-9 capability, so D9's gate does not apply.
+Lawrence has a real, staked decision to buy CPB and ZTS (decision packets `2026-09-01-CPB.md`, `2026-09-01-ZTS.md`, satisfying D11 — each filer is added because it is being researched, not researched because it was added). Both are plain US-GAAP 10-K filers. Live coverage verification on 2026-09-01 found CPB's current canonical revenue range at FY2017-2025 and ZTS's at FY2016-2025; ZTS's legacy `SalesRevenueNet` explains the FY2014 gap but is not yet mapped, while CPB's `SalesRevenueGoodsNet` remains rejected pending continuing-operations reconciliation. ZTS's restricted-inclusive cash tag also requires issuer-specific handling. This is the same shape of work as Epic 1's original onboarding and D8's IFRS track — ingest, canonicalize, extend the golden dataset, verify live — not a new taxonomy or a new capability. Universe growth under D11, not an Epic 7-9 capability, so D9's gate does not apply.
 **FRs covered:** none new — extends the existing ingestion/canonicalization/scoring pipeline (FR-1 through FR-14, FR-22, FR-16) to two additional filers already-supported under `us-gaap`
 
 ---
@@ -1167,11 +1167,14 @@ page at all, the ambiguity is stated as ambiguous, not smoothed over for readabi
 Onboard CPB and ZTS, both plain `us-gaap` 10-K filers, driven by Lawrence's real, staked decision
 to buy each (decision packets `_bmad-output/decision-packets/2026-09-01-CPB.md` and
 `2026-09-01-ZTS.md`, section 1 written before ingestion, per D11). Live-verified 2026-09-01 against
-`data.sec.gov`: CPB's revenue coverage runs FY2010-2025 with no gaps; ZTS's runs FY2013-2025 with a
-single-year gap at FY2014 that needs investigation before it can be treated as a genuine tag switch
-versus a coverage artifact. This is universe growth under an already-supported taxonomy — the same
-shape as Epic 1's original onboarding and D8's IFRS track — not a new capability, so D9's gate does
-not apply; D11 is the governing decision, and the two decision packets are its evidence.
+`data.sec.gov`: under the current `us-gaap_v8` mapping CPB's revenue coverage is FY2017-2025 and
+ZTS's is FY2016-2025. ZTS's legacy `SalesRevenueNet` matches `Revenues` in FY2016-2017 and explains
+the FY2014 gap, but that fallback is not yet in the mapping. CPB's `SalesRevenueGoodsNet` differs
+from continuing-operations `Revenues` and remains rejected pending basis reconciliation. ZTS's
+restricted-inclusive cash tag also requires issuer-specific handling because its 2019 10-K discloses
+restricted cash after the tag switch. This is universe growth under an already-supported taxonomy —
+the same shape as Epic 1's original onboarding and D8's IFRS track — not a new capability, so D9's
+gate does not apply; D11 is the governing decision, and the two decision packets are its evidence.
 
 ### Story 12.1: Live EDGAR concept-coverage spike for Campbell's and Zoetis
 

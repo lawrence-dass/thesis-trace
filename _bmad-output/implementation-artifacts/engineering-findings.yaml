@@ -2224,3 +2224,1328 @@ story_11_9_code_review_round_2:
     added actually works: the banner rendered with the correct convertible-
     notes text, and the arithmetic (-1.981461) matched this file's own
     prior SHOP golden value exactly. Reverted to QSR before committing.
+
+story_12_1_coverage_spike:
+  status: done
+  resolved: 2026-09-01
+  question: >
+    Does every concept the four models and the reverse-DCF solver actually read —
+    not just revenue — have live, per-year coverage against real data.sec.gov
+    company-facts for CPB (CIK 0000016732) and ZTS (CIK 0001555280)? And is ZTS's
+    single-year FY2014 revenue gap (found in the earlier ticker-selection check) a
+    tag switch or a real gap?
+  verdict: >
+    23 concepts checked: the deduplicated union of the four scoring specs' declared
+    inputs (9 Piotroski, 8 Altman, 13 Beneish including its gross-margin guard, and
+    3 Sloan inputs) plus all 11 concepts in valuation.overview.DCF_CONCEPTS. The
+    per-year rows, selected source, accession, form and candidate count are now
+    committed below. CPB's current canonical revenue begins FY2017; its legacy
+    SalesRevenueGoodsNet candidate is not admitted until the continuing-operations
+    basis is reconciled. ZTS's FY2014 revenue gap is explained by a validated
+    SalesRevenueNet tag switch, but the fallback remains a Story 12.3 mapping change,
+    not a production fix. ZTS has a real ebit gap under the current us-gaap mapping.
+    ZTS's restricted-inclusive cash fallback is not safe to approve: the overlap
+    equality is real, but filed restricted-cash disclosures appear after the switch.
+  method_note: >
+    Fetched live data.sec.gov/api/xbrl/companyfacts JSON for both CIKs directly
+    (SEC fair-access User-Agent, matching backend/ingestion/edgar.py's
+    EDGAR_CONTACT convention) — nothing is ingested yet, so raw_facts had nothing
+    to read from. Bucketed every fact on its own `end` date against each issuer's
+    real fiscal-year-end (CPB 08/03, ZTS 12/31, both from the submissions API's
+    own fiscalYearEnd field, not assumed), filtered to form 10-K/10-K/A, and for
+    duration concepts required a 350-380 day span to exclude quarterly and
+    "selected quarterly financial data" footnote sub-periods (see CPB's GrossProfit
+    below — exactly that trap). Concept list and its us-gaap source tags read
+    directly from the live mapping spec (us-gaap_v8.yaml) and derivations_v4.yaml,
+    not re-derived from scratch.
+  per_concept_coverage:
+    note: >-
+      The ranges below are a convenience summary. The durable machine-readable
+      evidence is in coverage_evidence: every selected annual row records its
+      period_end, period_start where applicable, value, unit, form, accession,
+      source tag, candidate count and selection status. "clean" means no internal
+      gaps within the stated range; missing years are explicit in both records.
+    CPB:
+      - "total_assets: FY2009-2025, clean"
+      - "current_assets: FY2009-2025, clean"
+      - "current_liabilities: FY2009-2025, clean"
+      - "net_income: FY2008-2025, clean"
+      - "cash_from_operations: FY2008-2025, clean"
+      - "shares_outstanding: FY2008-2025, clean"
+      - "total_liabilities: FY2009-2025, clean"
+      - "retained_earnings: FY2009-2025, clean"
+      - "ebit: FY2008-2025, clean (OperatingIncomeLoss tagged every year)"
+      - "revenue: FY2017-2025 under the CURRENT mapping (Revenues only). SEE FINDING 1 below — the earlier fallback candidate is REJECTED, not silently addable."
+      - "cogs: FY2017-2025, clean (CostOfGoodsAndServicesSold)"
+      - "sga: FY2008-2025, clean (GeneralAndAdministrativeExpense)"
+      - "receivables: FY2010-2025, clean"
+      - "ppe_net: FY2009-2025, clean"
+      - "depreciation: FY2008-2025, clean"
+      - "long_term_debt: FY2009-2025, clean, but crosses a tag switch — SEE FINDING 3"
+      - "gross_profit: NO full-year coverage in any year. SEE FINDING 2 — expected, not a defect."
+      - "near_term_debt: FY2010-2025, clean (LongTermDebtCurrent)"
+      - "total_debt: filed tag (LongTermDebt) only FY2010-2018; the existing total_debt_current_plus_noncurrent derivation extends it to FY2010-2025 via near_term_debt + long_term_debt, both of which cover that full range. No action needed — confirms the derivation earns its keep for a filer it wasn't built for."
+      - "capex: FY2008-2025, clean (PaymentsToAcquirePropertyPlantAndEquipment — the common tag; CPB never needs OTEX's ProductiveAssets variant)"
+      - "cash_and_equivalents: FY2007-2025, clean (CashAndCashEquivalentsAtCarryingValue every year; the restricted-inclusive fallback also happens to be tagged FY2022-2025 but is never needed since the primary tag never lapses)"
+    ZTS:
+      - "total_assets: FY2012-2025, clean"
+      - "current_assets: FY2012-2025, clean"
+      - "current_liabilities: FY2012-2025, clean"
+      - "net_income: FY2011-2025, clean"
+      - "cash_from_operations: FY2011-2025, clean"
+      - "shares_outstanding: FY2011-2025, clean"
+      - "total_liabilities: FY2012-2025, clean"
+      - "retained_earnings: FY2012-2025, clean"
+      - "ebit: NO coverage in any year. SEE FINDING 4 — real gap, fix identified, not fixed here."
+      - "revenue: FY2016-2025 under the CURRENT mapping (Revenues only); SalesRevenueNet covers FY2011-2017 and is a validated future fallback. SEE FINDING 1 — FY2014 is explained, not yet fixed in the mapping."
+      - "cogs: FY2011-2025, clean (CostOfGoodsAndServicesSold)"
+      - "sga: FY2011-2025, clean (SellingGeneralAndAdministrativeExpense)"
+      - "receivables: FY2012-2025, clean"
+      - "ppe_net: FY2012-2025, clean"
+      - "depreciation: FY2011-2025, clean"
+      - "long_term_debt: FY2012-2025, clean, single tag throughout (LongTermDebtNoncurrent, no switch)"
+      - "gross_profit: NO GrossProfit tag exists at all for ZTS. SEE FINDING 2 — expected, not a defect, same consequence as CPB and as the existing QSR case."
+      - "near_term_debt: FY2014-2025, clean (LongTermDebtCurrent)"
+      - "total_debt: no filed total tag at all; the total_debt_current_plus_noncurrent derivation gives FY2014-2025 (near_term_debt's floor). FY2012-2013 stay insufficient_data — long_term_debt alone is not a total. Minor, expected, not actionable."
+      - "capex: FY2011-2025, clean (PaymentsToAcquirePropertyPlantAndEquipment)"
+      - "cash_and_equivalents: FY2010-2025, clean as raw tag coverage, but the FY2018 switch is restricted-inclusive and is NOT approved for current canonicalization — SEE FINDING 5"
+  coverage_evidence:
+    generated_from: "live data.sec.gov company-facts JSON fetched 2026-09-01; current us-gaap_v8 source chains"
+    row_fields: [fiscal_year, end, start, value, unit, form, accession, source_tag, candidate_count, status]
+    bucket_rule: "fiscal_year = period_end.year; EDGAR fy/fp are never used for bucketing"
+    qualification_rule: "form 10-K/10-K/A; period_end within 10 days of issuer FYE; duration facts >=300 days; instantaneous facts accepted"
+    inventory:
+      counts:
+        piotroski_inputs: 9
+        altman_inputs: 8
+        beneish_inputs: 13
+        sloan_inputs: 3
+        dcf_concepts: 11
+        deduplicated_concepts: 23
+      concepts: ["net_income", "total_assets", "cash_from_operations", "current_assets", "current_liabilities", "shares_outstanding", "gross_profit", "long_term_debt", "revenue", "retained_earnings", "ebit", "total_liabilities", "receivables", "cogs", "ppe_net", "depreciation", "sga", "capex", "total_debt", "cash_and_equivalents", "near_term_debt", "cash", "cash_equivalents"]
+      explicitly_excluded: [debt_maturity_year_1, debt_maturity_year_2, debt_maturity_year_3, debt_maturity_year_4, debt_maturity_year_5, debt_maturity_thereafter]
+      exclusion_reason: "debt maturity buckets are a separate presentation rule and are not read by the reverse-DCF solver or the four scoring models"
+    concepts:
+      net_income:
+        source_tags: ["NetIncomeLoss", "ProfitLoss"]
+        CPB:
+          status: partial
+          missing_years: [2007]
+          rows:
+            - [2008, "2008-08-03", "2007-07-30", 1165000000, "USD", "10-K", "0000950123-10-090083", "NetIncomeLoss", 1, "selected"]
+            - [2009, "2009-08-02", "2008-08-04", 736000000, "USD", "10-K", "0000950123-10-090083", "NetIncomeLoss", 3, "selected"]
+            - [2010, "2010-08-01", "2009-08-03", 844000000, "USD", "10-K", "0000950123-10-090083", "NetIncomeLoss", 5, "selected"]
+            - [2011, "2011-07-31", "2010-08-02", 805000000, "USD", "10-K", "0000950123-11-087197", "NetIncomeLoss", 6, "selected"]
+            - [2012, "2012-07-29", "2011-08-01", 774000000, "USD", "10-K", "0000016732-12-000024", "NetIncomeLoss", 6, "selected"]
+            - [2013, "2013-07-28", "2012-07-30", 458000000, "USD", "10-K", "0000016732-13-000023", "NetIncomeLoss", 6, "selected"]
+            - [2014, "2014-08-03", "2013-07-29", 818000000, "USD", "10-K", "0000016732-14-000023", "NetIncomeLoss", 6, "selected"]
+            - [2015, "2015-08-02", "2014-08-04", 691000000, "USD", "10-K", "0000016732-15-000034", "NetIncomeLoss", 6, "selected"]
+            - [2016, "2016-07-31", "2015-08-03", 563000000, "USD", "10-K", "0000016732-16-000146", "NetIncomeLoss", 6, "selected"]
+            - [2017, "2017-07-30", "2016-08-01", 887000000, "USD", "10-K", "0000016732-17-000058", "NetIncomeLoss", 6, "selected"]
+            - [2018, "2018-07-29", "2017-07-31", 261000000, "USD", "10-K", "0000016732-18-000062", "NetIncomeLoss", 6, "selected"]
+            - [2019, "2019-07-28", "2018-07-30", 211000000, "USD", "10-K", "0000016732-19-000070", "NetIncomeLoss", 6, "selected"]
+            - [2020, "2020-08-02", "2019-07-29", 1628000000, "USD", "10-K", "0000016732-20-000111", "NetIncomeLoss", 6, "selected"]
+            - [2021, "2021-08-01", "2020-08-03", 1002000000, "USD", "10-K", "0000016732-21-000103", "NetIncomeLoss", 6, "selected"]
+            - [2022, "2022-07-31", "2021-08-02", 757000000, "USD", "10-K", "0000016732-22-000093", "NetIncomeLoss", 6, "selected"]
+            - [2023, "2023-07-30", "2022-08-01", 858000000, "USD", "10-K", "0000016732-23-000109", "NetIncomeLoss", 6, "selected"]
+            - [2024, "2024-07-28", "2023-07-31", 567000000, "USD", "10-K", "0000016732-24-000130", "NetIncomeLoss", 4, "selected"]
+            - [2025, "2025-08-03", "2024-07-29", 602000000, "USD", "10-K", "0000016732-25-000112", "NetIncomeLoss", 2, "selected"]
+        ZTS:
+          status: partial
+          missing_years: [2007, 2008, 2009, 2010]
+          rows:
+            - [2011, "2011-12-31", "2011-01-01", 245000000, "USD", "10-K", "0001555280-14-000164", "NetIncomeLoss", 2, "selected"]
+            - [2012, "2012-12-31", "2012-01-01", 436000000, "USD", "10-K", "0001555280-14-000164", "NetIncomeLoss", 4, "selected"]
+            - [2013, "2013-12-31", "2013-01-01", 504000000, "USD", "10-K", "0001555280-14-000164", "NetIncomeLoss", 6, "selected"]
+            - [2014, "2014-12-31", "2014-01-01", 583000000, "USD", "10-K", "0001555280-15-000057", "NetIncomeLoss", 6, "selected"]
+            - [2015, "2015-12-31", "2015-01-01", 339000000, "USD", "10-K", "0001555280-16-000344", "NetIncomeLoss", 6, "selected"]
+            - [2016, "2016-12-31", "2016-01-01", 821000000, "USD", "10-K", "0001555280-17-000044", "NetIncomeLoss", 6, "selected"]
+            - [2017, "2017-12-31", "2017-01-01", 864000000, "USD", "10-K", "0001555280-18-000053", "NetIncomeLoss", 6, "selected"]
+            - [2018, "2018-12-31", "2018-01-01", 1428000000, "USD", "10-K", "0001555280-19-000041", "NetIncomeLoss", 6, "selected"]
+            - [2019, "2019-12-31", "2019-01-01", 1500000000, "USD", "10-K", "0001555280-20-000054", "NetIncomeLoss", 6, "selected"]
+            - [2020, "2020-12-31", "2020-01-01", 1638000000, "USD", "10-K", "0001555280-21-000098", "NetIncomeLoss", 6, "selected"]
+            - [2021, "2021-12-31", "2021-01-01", 2037000000, "USD", "10-K", "0001555280-22-000078", "NetIncomeLoss", 6, "selected"]
+            - [2022, "2022-12-31", "2022-01-01", 2114000000, "USD", "10-K", "0001555280-23-000074", "NetIncomeLoss", 6, "selected"]
+            - [2023, "2023-12-31", "2023-01-01", 2344000000, "USD", "10-K", "0001555280-24-000143", "NetIncomeLoss", 6, "selected"]
+            - [2024, "2024-12-31", "2024-01-01", 2486000000, "USD", "10-K", "0001555280-25-000102", "NetIncomeLoss", 4, "selected"]
+            - [2025, "2025-12-31", "2025-01-01", 2673000000, "USD", "10-K", "0001555280-26-000011", "NetIncomeLoss", 2, "selected"]
+      total_assets:
+        source_tags: ["Assets"]
+        CPB:
+          status: partial
+          missing_years: [2007, 2008]
+          rows:
+            - [2009, "2009-08-02", null, 6056000000, "USD", "10-K", "0000950123-10-090083", "Assets", 2, "selected"]
+            - [2010, "2010-08-01", null, 6276000000, "USD", "10-K", "0000950123-10-090083", "Assets", 2, "selected"]
+            - [2011, "2011-07-31", null, 6862000000, "USD", "10-K", "0000950123-11-087197", "Assets", 2, "selected"]
+            - [2012, "2012-07-29", null, 6530000000, "USD", "10-K", "0000016732-12-000024", "Assets", 2, "selected"]
+            - [2013, "2013-07-28", null, 8323000000, "USD", "10-K", "0000016732-13-000023", "Assets", 2, "selected"]
+            - [2014, "2014-08-03", null, 8113000000, "USD", "10-K", "0000016732-14-000023", "Assets", 2, "selected"]
+            - [2015, "2015-08-02", null, 8089000000, "USD", "10-K", "0000016732-15-000034", "Assets", 2, "selected"]
+            - [2016, "2016-07-31", null, 7837000000, "USD", "10-K", "0000016732-16-000146", "Assets", 2, "selected"]
+            - [2017, "2017-07-30", null, 7726000000, "USD", "10-K", "0000016732-17-000058", "Assets", 2, "selected"]
+            - [2018, "2018-07-29", null, 14529000000, "USD", "10-K", "0000016732-18-000062", "Assets", 2, "selected"]
+            - [2019, "2019-07-28", null, 13148000000, "USD", "10-K", "0000016732-19-000070", "Assets", 2, "selected"]
+            - [2020, "2020-08-02", null, 12372000000, "USD", "10-K", "0000016732-20-000111", "Assets", 2, "selected"]
+            - [2021, "2021-08-01", null, 11734000000, "USD", "10-K", "0000016732-21-000103", "Assets", 2, "selected"]
+            - [2022, "2022-07-31", null, 11892000000, "USD", "10-K", "0000016732-22-000093", "Assets", 2, "selected"]
+            - [2023, "2023-07-30", null, 12058000000, "USD", "10-K", "0000016732-23-000109", "Assets", 2, "selected"]
+            - [2024, "2024-07-28", null, 15235000000, "USD", "10-K", "0000016732-24-000130", "Assets", 2, "selected"]
+            - [2025, "2025-08-03", null, 14896000000, "USD", "10-K", "0000016732-25-000112", "Assets", 1, "selected"]
+        ZTS:
+          status: partial
+          missing_years: [2007, 2008, 2009, 2010, 2011]
+          rows:
+            - [2012, "2012-12-31", null, 6262000000, "USD", "10-K", "0001555280-14-000164", "Assets", 1, "selected"]
+            - [2013, "2013-12-31", null, 6558000000, "USD", "10-K", "0001555280-14-000164", "Assets", 2, "selected"]
+            - [2014, "2014-12-31", null, 6607000000, "USD", "10-K", "0001555280-15-000057", "Assets", 2, "selected"]
+            - [2015, "2015-12-31", null, 7913000000, "USD", "10-K", "0001555280-16-000344", "Assets", 2, "selected"]
+            - [2016, "2016-12-31", null, 7649000000, "USD", "10-K", "0001555280-17-000044", "Assets", 2, "selected"]
+            - [2017, "2017-12-31", null, 8586000000, "USD", "10-K", "0001555280-18-000053", "Assets", 2, "selected"]
+            - [2018, "2018-12-31", null, 10777000000, "USD", "10-K", "0001555280-19-000041", "Assets", 2, "selected"]
+            - [2019, "2019-12-31", null, 11545000000, "USD", "10-K", "0001555280-20-000054", "Assets", 2, "selected"]
+            - [2020, "2020-12-31", null, 13609000000, "USD", "10-K", "0001555280-21-000098", "Assets", 2, "selected"]
+            - [2021, "2021-12-31", null, 13900000000, "USD", "10-K", "0001555280-22-000078", "Assets", 2, "selected"]
+            - [2022, "2022-12-31", null, 14925000000, "USD", "10-K", "0001555280-23-000074", "Assets", 2, "selected"]
+            - [2023, "2023-12-31", null, 14286000000, "USD", "10-K", "0001555280-24-000143", "Assets", 2, "selected"]
+            - [2024, "2024-12-31", null, 14237000000, "USD", "10-K", "0001555280-25-000102", "Assets", 2, "selected"]
+            - [2025, "2025-12-31", null, 15467000000, "USD", "10-K", "0001555280-26-000011", "Assets", 1, "selected"]
+      cash_from_operations:
+        source_tags: ["NetCashProvidedByUsedInOperatingActivities", "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations"]
+        CPB:
+          status: partial
+          missing_years: [2007]
+          rows:
+            - [2008, "2008-08-03", "2007-07-30", 766000000, "USD", "10-K", "0000950123-10-090083", "NetCashProvidedByUsedInOperatingActivities", 1, "selected"]
+            - [2009, "2009-08-02", "2008-08-04", 1166000000, "USD", "10-K", "0000950123-10-090083", "NetCashProvidedByUsedInOperatingActivities", 2, "selected"]
+            - [2010, "2010-08-01", "2009-08-03", 1057000000, "USD", "10-K", "0000950123-10-090083", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2011, "2011-07-31", "2010-08-02", 1142000000, "USD", "10-K", "0000950123-11-087197", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2012, "2012-07-29", "2011-08-01", 1120000000, "USD", "10-K", "0000016732-12-000024", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2013, "2013-07-28", "2012-07-30", 1019000000, "USD", "10-K", "0000016732-13-000023", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2014, "2014-08-03", "2013-07-29", 899000000, "USD", "10-K", "0000016732-14-000023", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2015, "2015-08-02", "2014-08-04", 1182000000, "USD", "10-K", "0000016732-15-000034", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2016, "2016-07-31", "2015-08-03", 1463000000, "USD", "10-K", "0000016732-16-000146", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2017, "2017-07-30", "2016-08-01", 1291000000, "USD", "10-K", "0000016732-17-000058", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2018, "2018-07-29", "2017-07-31", 1305000000, "USD", "10-K", "0000016732-18-000062", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2019, "2019-07-28", "2018-07-30", 1398000000, "USD", "10-K", "0000016732-19-000070", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2020, "2020-08-02", "2019-07-29", 1396000000, "USD", "10-K", "0000016732-20-000111", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2021, "2021-08-01", "2020-08-03", 1035000000, "USD", "10-K", "0000016732-21-000103", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2022, "2022-07-31", "2021-08-02", 1181000000, "USD", "10-K", "0000016732-22-000093", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2023, "2023-07-30", "2022-08-01", 1143000000, "USD", "10-K", "0000016732-23-000109", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2024, "2024-07-28", "2023-07-31", 1185000000, "USD", "10-K", "0000016732-24-000130", "NetCashProvidedByUsedInOperatingActivities", 2, "selected"]
+            - [2025, "2025-08-03", "2024-07-29", 1131000000, "USD", "10-K", "0000016732-25-000112", "NetCashProvidedByUsedInOperatingActivities", 1, "selected"]
+        ZTS:
+          status: partial
+          missing_years: [2007, 2008, 2009, 2010]
+          rows:
+            - [2011, "2011-12-31", "2011-01-01", 497000000, "USD", "10-K", "0001555280-14-000164", "NetCashProvidedByUsedInOperatingActivities", 1, "selected"]
+            - [2012, "2012-12-31", "2012-01-01", 454000000, "USD", "10-K", "0001555280-14-000164", "NetCashProvidedByUsedInOperatingActivities", 2, "selected"]
+            - [2013, "2013-12-31", "2013-01-01", 681000000, "USD", "10-K", "0001555280-14-000164", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2014, "2014-12-31", "2014-01-01", 626000000, "USD", "10-K", "0001555280-15-000057", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2015, "2015-12-31", "2015-01-01", 664000000, "USD", "10-K", "0001555280-16-000344", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2016, "2016-12-31", "2016-01-01", 713000000, "USD", "10-K", "0001555280-17-000044", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2017, "2017-12-31", "2017-01-01", 1346000000, "USD", "10-K", "0001555280-18-000053", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2018, "2018-12-31", "2018-01-01", 1790000000, "USD", "10-K", "0001555280-19-000041", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2019, "2019-12-31", "2019-01-01", 1795000000, "USD", "10-K", "0001555280-20-000054", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2020, "2020-12-31", "2020-01-01", 2126000000, "USD", "10-K", "0001555280-21-000098", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2021, "2021-12-31", "2021-01-01", 2213000000, "USD", "10-K", "0001555280-22-000078", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2022, "2022-12-31", "2022-01-01", 1912000000, "USD", "10-K", "0001555280-23-000074", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2023, "2023-12-31", "2023-01-01", 2353000000, "USD", "10-K", "0001555280-24-000143", "NetCashProvidedByUsedInOperatingActivities", 3, "selected"]
+            - [2024, "2024-12-31", "2024-01-01", 2953000000, "USD", "10-K", "0001555280-25-000102", "NetCashProvidedByUsedInOperatingActivities", 2, "selected"]
+            - [2025, "2025-12-31", "2025-01-01", 2904000000, "USD", "10-K", "0001555280-26-000011", "NetCashProvidedByUsedInOperatingActivities", 1, "selected"]
+      current_assets:
+        source_tags: ["AssetsCurrent"]
+        CPB:
+          status: partial
+          missing_years: [2007, 2008]
+          rows:
+            - [2009, "2009-08-02", null, 1551000000, "USD", "10-K", "0000950123-10-090083", "AssetsCurrent", 1, "selected"]
+            - [2010, "2010-08-01", null, 1687000000, "USD", "10-K", "0000950123-10-090083", "AssetsCurrent", 2, "selected"]
+            - [2011, "2011-07-31", null, 1963000000, "USD", "10-K", "0000950123-11-087197", "AssetsCurrent", 2, "selected"]
+            - [2012, "2012-07-29", null, 1771000000, "USD", "10-K", "0000016732-12-000024", "AssetsCurrent", 2, "selected"]
+            - [2013, "2013-07-28", null, 2221000000, "USD", "10-K", "0000016732-13-000023", "AssetsCurrent", 2, "selected"]
+            - [2014, "2014-08-03", null, 2100000000, "USD", "10-K", "0000016732-14-000023", "AssetsCurrent", 2, "selected"]
+            - [2015, "2015-08-02", null, 2092000000, "USD", "10-K", "0000016732-15-000034", "AssetsCurrent", 2, "selected"]
+            - [2016, "2016-07-31", null, 1908000000, "USD", "10-K", "0000016732-16-000146", "AssetsCurrent", 2, "selected"]
+            - [2017, "2017-07-30", null, 1900000000, "USD", "10-K", "0000016732-17-000058", "AssetsCurrent", 2, "selected"]
+            - [2018, "2018-07-29", null, 2296000000, "USD", "10-K", "0000016732-18-000062", "AssetsCurrent", 2, "selected"]
+            - [2019, "2019-07-28", null, 1967000000, "USD", "10-K", "0000016732-19-000070", "AssetsCurrent", 2, "selected"]
+            - [2020, "2020-08-02", null, 2385000000, "USD", "10-K", "0000016732-20-000111", "AssetsCurrent", 2, "selected"]
+            - [2021, "2021-08-01", null, 1695000000, "USD", "10-K", "0000016732-21-000103", "AssetsCurrent", 2, "selected"]
+            - [2022, "2022-07-31", null, 1963000000, "USD", "10-K", "0000016732-22-000093", "AssetsCurrent", 2, "selected"]
+            - [2023, "2023-07-30", null, 2061000000, "USD", "10-K", "0000016732-23-000109", "AssetsCurrent", 2, "selected"]
+            - [2024, "2024-07-28", null, 2190000000, "USD", "10-K", "0000016732-24-000130", "AssetsCurrent", 2, "selected"]
+            - [2025, "2025-08-03", null, 2232000000, "USD", "10-K", "0000016732-25-000112", "AssetsCurrent", 1, "selected"]
+        ZTS:
+          status: partial
+          missing_years: [2007, 2008, 2009, 2010, 2011]
+          rows:
+            - [2012, "2012-12-31", null, 2864000000, "USD", "10-K", "0001555280-14-000164", "AssetsCurrent", 1, "selected"]
+            - [2013, "2013-12-31", null, 3357000000, "USD", "10-K", "0001555280-14-000164", "AssetsCurrent", 2, "selected"]
+            - [2014, "2014-12-31", null, 3465000000, "USD", "10-K", "0001555280-15-000057", "AssetsCurrent", 2, "selected"]
+            - [2015, "2015-12-31", null, 3830000000, "USD", "10-K", "0001555280-16-000344", "AssetsCurrent", 2, "selected"]
+            - [2016, "2016-12-31", null, 3390000000, "USD", "10-K", "0001555280-17-000044", "AssetsCurrent", 2, "selected"]
+            - [2017, "2017-12-31", null, 4217000000, "USD", "10-K", "0001555280-18-000053", "AssetsCurrent", 2, "selected"]
+            - [2018, "2018-12-31", null, 4399000000, "USD", "10-K", "0001555280-19-000041", "AssetsCurrent", 2, "selected"]
+            - [2019, "2019-12-31", null, 4748000000, "USD", "10-K", "0001555280-20-000054", "AssetsCurrent", 2, "selected"]
+            - [2020, "2020-12-31", null, 6611000000, "USD", "10-K", "0001555280-21-000098", "AssetsCurrent", 2, "selected"]
+            - [2021, "2021-12-31", null, 6930000000, "USD", "10-K", "0001555280-22-000078", "AssetsCurrent", 2, "selected"]
+            - [2022, "2022-12-31", null, 7506000000, "USD", "10-K", "0001555280-23-000074", "AssetsCurrent", 2, "selected"]
+            - [2023, "2023-12-31", null, 6343000000, "USD", "10-K", "0001555280-24-000143", "AssetsCurrent", 2, "selected"]
+            - [2024, "2024-12-31", null, 5986000000, "USD", "10-K", "0001555280-25-000102", "AssetsCurrent", 2, "selected"]
+            - [2025, "2025-12-31", null, 6768000000, "USD", "10-K", "0001555280-26-000011", "AssetsCurrent", 1, "selected"]
+      current_liabilities:
+        source_tags: ["LiabilitiesCurrent"]
+        CPB:
+          status: partial
+          missing_years: [2007, 2008]
+          rows:
+            - [2009, "2009-08-02", null, 1628000000, "USD", "10-K", "0000950123-10-090083", "LiabilitiesCurrent", 1, "selected"]
+            - [2010, "2010-08-01", null, 2065000000, "USD", "10-K", "0000950123-10-090083", "LiabilitiesCurrent", 2, "selected"]
+            - [2011, "2011-07-31", null, 1989000000, "USD", "10-K", "0000950123-11-087197", "LiabilitiesCurrent", 2, "selected"]
+            - [2012, "2012-07-29", null, 2070000000, "USD", "10-K", "0000016732-12-000024", "LiabilitiesCurrent", 2, "selected"]
+            - [2013, "2013-07-28", null, 3282000000, "USD", "10-K", "0000016732-13-000023", "LiabilitiesCurrent", 2, "selected"]
+            - [2014, "2014-08-03", null, 2989000000, "USD", "10-K", "0000016732-14-000023", "LiabilitiesCurrent", 2, "selected"]
+            - [2015, "2015-08-02", null, 2806000000, "USD", "10-K", "0000016732-15-000034", "LiabilitiesCurrent", 2, "selected"]
+            - [2016, "2016-07-31", null, 2555000000, "USD", "10-K", "0000016732-16-000146", "LiabilitiesCurrent", 2, "selected"]
+            - [2017, "2017-07-30", null, 2395000000, "USD", "10-K", "0000016732-17-000058", "LiabilitiesCurrent", 2, "selected"]
+            - [2018, "2018-07-29", null, 3594000000, "USD", "10-K", "0000016732-18-000062", "LiabilitiesCurrent", 2, "selected"]
+            - [2019, "2019-07-28", null, 3385000000, "USD", "10-K", "0000016732-19-000070", "LiabilitiesCurrent", 2, "selected"]
+            - [2020, "2020-08-02", null, 3075000000, "USD", "10-K", "0000016732-20-000111", "LiabilitiesCurrent", 2, "selected"]
+            - [2021, "2021-08-01", null, 1814000000, "USD", "10-K", "0000016732-21-000103", "LiabilitiesCurrent", 2, "selected"]
+            - [2022, "2022-07-31", null, 2886000000, "USD", "10-K", "0000016732-22-000093", "LiabilitiesCurrent", 2, "selected"]
+            - [2023, "2023-07-30", null, 2222000000, "USD", "10-K", "0000016732-23-000109", "LiabilitiesCurrent", 2, "selected"]
+            - [2024, "2024-07-28", null, 3576000000, "USD", "10-K", "0000016732-24-000130", "LiabilitiesCurrent", 2, "selected"]
+            - [2025, "2025-08-03", null, 2906000000, "USD", "10-K", "0000016732-25-000112", "LiabilitiesCurrent", 1, "selected"]
+        ZTS:
+          status: partial
+          missing_years: [2007, 2008, 2009, 2010, 2011]
+          rows:
+            - [2012, "2012-12-31", null, 1123000000, "USD", "10-K", "0001555280-14-000164", "LiabilitiesCurrent", 1, "selected"]
+            - [2013, "2013-12-31", null, 1415000000, "USD", "10-K", "0001555280-14-000164", "LiabilitiesCurrent", 2, "selected"]
+            - [2014, "2014-12-31", null, 1086000000, "USD", "10-K", "0001555280-15-000057", "LiabilitiesCurrent", 2, "selected"]
+            - [2015, "2015-12-31", null, 1781000000, "USD", "10-K", "0001555280-16-000344", "LiabilitiesCurrent", 2, "selected"]
+            - [2016, "2016-12-31", null, 1117000000, "USD", "10-K", "0001555280-17-000044", "LiabilitiesCurrent", 2, "selected"]
+            - [2017, "2017-12-31", null, 1094000000, "USD", "10-K", "0001555280-18-000053", "LiabilitiesCurrent", 2, "selected"]
+            - [2018, "2018-12-31", null, 1223000000, "USD", "10-K", "0001555280-19-000041", "LiabilitiesCurrent", 2, "selected"]
+            - [2019, "2019-12-31", null, 1806000000, "USD", "10-K", "0001555280-20-000054", "LiabilitiesCurrent", 2, "selected"]
+            - [2020, "2020-12-31", null, 2170000000, "USD", "10-K", "0001555280-21-000098", "LiabilitiesCurrent", 2, "selected"]
+            - [2021, "2021-12-31", null, 1797000000, "USD", "10-K", "0001555280-22-000078", "LiabilitiesCurrent", 2, "selected"]
+            - [2022, "2022-12-31", null, 3167000000, "USD", "10-K", "0001555280-23-000074", "LiabilitiesCurrent", 2, "selected"]
+            - [2023, "2023-12-31", null, 1889000000, "USD", "10-K", "0001555280-24-000143", "LiabilitiesCurrent", 2, "selected"]
+            - [2024, "2024-12-31", null, 3412000000, "USD", "10-K", "0001555280-25-000102", "LiabilitiesCurrent", 2, "selected"]
+            - [2025, "2025-12-31", null, 2235000000, "USD", "10-K", "0001555280-26-000011", "LiabilitiesCurrent", 1, "selected"]
+      shares_outstanding:
+        source_tags: ["CommonStockSharesOutstanding", "WeightedAverageNumberOfSharesOutstandingBasic"]
+        CPB:
+          status: partial
+          missing_years: [2007]
+          rows:
+            - [2008, "2008-08-03", "2007-07-30", 373000000, "shares", "10-K", "0000950123-10-090083", "WeightedAverageNumberOfSharesOutstandingBasic", 1, "selected"]
+            - [2009, "2009-08-02", "2008-08-04", 352000000, "shares", "10-K", "0000950123-10-090083", "WeightedAverageNumberOfSharesOutstandingBasic", 2, "selected"]
+            - [2010, "2010-08-01", "2009-08-03", 340000000, "shares", "10-K", "0000950123-10-090083", "WeightedAverageNumberOfSharesOutstandingBasic", 3, "selected"]
+            - [2011, "2011-07-31", "2010-08-02", 326000000, "shares", "10-K", "0000950123-11-087197", "WeightedAverageNumberOfSharesOutstandingBasic", 3, "selected"]
+            - [2012, "2012-07-29", "2011-08-01", 317000000, "shares", "10-K", "0000016732-12-000024", "WeightedAverageNumberOfSharesOutstandingBasic", 3, "selected"]
+            - [2013, "2013-07-28", "2012-07-30", 314000000, "shares", "10-K", "0000016732-13-000023", "WeightedAverageNumberOfSharesOutstandingBasic", 3, "selected"]
+            - [2014, "2014-08-03", "2013-07-29", 314000000, "shares", "10-K", "0000016732-14-000023", "WeightedAverageNumberOfSharesOutstandingBasic", 3, "selected"]
+            - [2015, "2015-08-02", "2014-08-04", 312000000, "shares", "10-K", "0000016732-15-000034", "WeightedAverageNumberOfSharesOutstandingBasic", 3, "selected"]
+            - [2016, "2016-07-31", "2015-08-03", 309000000, "shares", "10-K", "0000016732-16-000146", "WeightedAverageNumberOfSharesOutstandingBasic", 3, "selected"]
+            - [2017, "2017-07-30", "2016-08-01", 305000000, "shares", "10-K", "0000016732-17-000058", "WeightedAverageNumberOfSharesOutstandingBasic", 3, "selected"]
+            - [2018, "2018-07-29", "2017-07-31", 301000000, "shares", "10-K", "0000016732-18-000062", "WeightedAverageNumberOfSharesOutstandingBasic", 3, "selected"]
+            - [2019, "2019-07-28", "2018-07-30", 301000000, "shares", "10-K", "0000016732-19-000070", "WeightedAverageNumberOfSharesOutstandingBasic", 3, "selected"]
+            - [2020, "2020-08-02", "2019-07-29", 302000000, "shares", "10-K", "0000016732-20-000111", "WeightedAverageNumberOfSharesOutstandingBasic", 3, "selected"]
+            - [2021, "2021-08-01", "2020-08-03", 303000000, "shares", "10-K", "0000016732-21-000103", "WeightedAverageNumberOfSharesOutstandingBasic", 3, "selected"]
+            - [2022, "2022-07-31", "2021-08-02", 301000000, "shares", "10-K", "0000016732-22-000093", "WeightedAverageNumberOfSharesOutstandingBasic", 3, "selected"]
+            - [2023, "2023-07-30", "2022-08-01", 299000000, "shares", "10-K", "0000016732-23-000109", "WeightedAverageNumberOfSharesOutstandingBasic", 3, "selected"]
+            - [2024, "2024-07-28", "2023-07-31", 298000000, "shares", "10-K", "0000016732-24-000130", "WeightedAverageNumberOfSharesOutstandingBasic", 2, "selected"]
+            - [2025, "2025-08-03", "2024-07-29", 298000000, "shares", "10-K", "0000016732-25-000112", "WeightedAverageNumberOfSharesOutstandingBasic", 1, "selected"]
+        ZTS:
+          status: partial
+          missing_years: [2007, 2008, 2009, 2010]
+          rows:
+            - [2011, "2011-12-31", "2011-01-01", 500000000, "shares", "10-K", "0001555280-14-000164", "WeightedAverageNumberOfSharesOutstandingBasic", 1, "selected"]
+            - [2012, "2012-12-31", "2011-01-01", 500000000, "shares", "10-K", "0001555280-14-000164", "WeightedAverageNumberOfSharesOutstandingBasic", 3, "selected"]
+            - [2013, "2013-12-31", null, 500007428, "shares", "10-K", "0001555280-14-000164", "CommonStockSharesOutstanding", 5, "selected"]
+            - [2014, "2014-12-31", null, 501327524, "shares", "10-K", "0001555280-15-000057", "CommonStockSharesOutstanding", 5, "selected"]
+            - [2015, "2015-12-31", null, 497400113, "shares", "10-K", "0001555280-16-000344", "CommonStockSharesOutstanding", 5, "selected"]
+            - [2016, "2016-12-31", null, 492855297, "shares", "10-K", "0001555280-17-000044", "CommonStockSharesOutstanding", 5, "selected"]
+            - [2017, "2017-12-31", null, 486130461, "shares", "10-K", "0001555280-18-000053", "CommonStockSharesOutstanding", 5, "selected"]
+            - [2018, "2018-12-31", null, 479562326, "shares", "10-K", "0001555280-19-000041", "CommonStockSharesOutstanding", 5, "selected"]
+            - [2019, "2019-12-31", null, 475528210, "shares", "10-K", "0001555280-20-000054", "CommonStockSharesOutstanding", 5, "selected"]
+            - [2020, "2020-12-31", null, 475317751, "shares", "10-K", "0001555280-21-000098", "CommonStockSharesOutstanding", 5, "selected"]
+            - [2021, "2021-12-31", null, 472574090, "shares", "10-K", "0001555280-22-000078", "CommonStockSharesOutstanding", 5, "selected"]
+            - [2022, "2022-12-31", null, 463808059, "shares", "10-K", "0001555280-23-000074", "CommonStockSharesOutstanding", 5, "selected"]
+            - [2023, "2023-12-31", null, 458367358, "shares", "10-K", "0001555280-24-000143", "CommonStockSharesOutstanding", 5, "selected"]
+            - [2024, "2024-12-31", null, 448473073, "shares", "10-K", "0001555280-25-000102", "CommonStockSharesOutstanding", 4, "selected"]
+            - [2025, "2025-12-31", null, 424927535, "shares", "10-K", "0001555280-26-000011", "CommonStockSharesOutstanding", 2, "selected"]
+      gross_profit:
+        source_tags: ["GrossProfit"]
+        CPB:
+          status: no_qualifying_fact
+          missing_years: [2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
+          rows:
+        ZTS:
+          status: no_qualifying_fact
+          missing_years: [2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
+          rows:
+      long_term_debt:
+        source_tags: ["LongTermDebtNoncurrent", "LongTermDebtAndCapitalLeaseObligations", "ConvertibleDebtNoncurrent"]
+        CPB:
+          status: partial
+          missing_years: [2007, 2008]
+          rows:
+            - [2009, "2009-08-02", null, 2246000000, "USD", "10-K", "0000950123-10-090083", "LongTermDebtNoncurrent", 1, "selected"]
+            - [2010, "2010-08-01", null, 1945000000, "USD", "10-K", "0000950123-10-090083", "LongTermDebtNoncurrent", 2, "selected"]
+            - [2011, "2011-07-31", null, 2427000000, "USD", "10-K", "0000950123-11-087197", "LongTermDebtNoncurrent", 2, "selected"]
+            - [2012, "2012-07-29", null, 2004000000, "USD", "10-K", "0000016732-12-000024", "LongTermDebtNoncurrent", 2, "selected"]
+            - [2013, "2013-07-28", null, 2544000000, "USD", "10-K", "0000016732-13-000023", "LongTermDebtNoncurrent", 2, "selected"]
+            - [2014, "2014-08-03", null, 2244000000, "USD", "10-K", "0000016732-14-000023", "LongTermDebtNoncurrent", 2, "selected"]
+            - [2015, "2015-08-02", null, 2552000000, "USD", "10-K", "0000016732-15-000034", "LongTermDebtAndCapitalLeaseObligations", 2, "selected"]
+            - [2016, "2016-07-31", null, 2314000000, "USD", "10-K", "0000016732-16-000146", "LongTermDebtAndCapitalLeaseObligations", 2, "selected"]
+            - [2017, "2017-07-30", null, 2499000000, "USD", "10-K", "0000016732-17-000058", "LongTermDebtAndCapitalLeaseObligations", 2, "selected"]
+            - [2018, "2018-07-29", null, 7998000000, "USD", "10-K", "0000016732-18-000062", "LongTermDebtAndCapitalLeaseObligations", 2, "selected"]
+            - [2019, "2019-07-28", null, 7103000000, "USD", "10-K", "0000016732-19-000070", "LongTermDebtAndCapitalLeaseObligations", 2, "selected"]
+            - [2020, "2020-08-02", null, 4994000000, "USD", "10-K", "0000016732-20-000111", "LongTermDebtAndCapitalLeaseObligations", 2, "selected"]
+            - [2021, "2021-08-01", null, 5010000000, "USD", "10-K", "0000016732-21-000103", "LongTermDebtAndCapitalLeaseObligations", 2, "selected"]
+            - [2022, "2022-07-31", null, 3996000000, "USD", "10-K", "0000016732-22-000093", "LongTermDebtAndCapitalLeaseObligations", 2, "selected"]
+            - [2023, "2023-07-30", null, 4498000000, "USD", "10-K", "0000016732-23-000109", "LongTermDebtAndCapitalLeaseObligations", 2, "selected"]
+            - [2024, "2024-07-28", null, 5761000000, "USD", "10-K", "0000016732-24-000130", "LongTermDebtAndCapitalLeaseObligations", 2, "selected"]
+            - [2025, "2025-08-03", null, 6095000000, "USD", "10-K", "0000016732-25-000112", "LongTermDebtAndCapitalLeaseObligations", 1, "selected"]
+        ZTS:
+          status: partial
+          missing_years: [2007, 2008, 2009, 2010, 2011]
+          rows:
+            - [2012, "2012-12-31", null, 0, "USD", "10-K", "0001555280-14-000164", "LongTermDebtNoncurrent", 1, "selected"]
+            - [2013, "2013-12-31", null, 3642000000, "USD", "10-K", "0001555280-14-000164", "LongTermDebtNoncurrent", 2, "selected"]
+            - [2014, "2014-12-31", null, 3643000000, "USD", "10-K", "0001555280-15-000057", "LongTermDebtNoncurrent", 2, "selected"]
+            - [2015, "2015-12-31", null, 4463000000, "USD", "10-K", "0001555280-16-000344", "LongTermDebtNoncurrent", 2, "selected"]
+            - [2016, "2016-12-31", null, 4468000000, "USD", "10-K", "0001555280-17-000044", "LongTermDebtNoncurrent", 2, "selected"]
+            - [2017, "2017-12-31", null, 4953000000, "USD", "10-K", "0001555280-18-000053", "LongTermDebtNoncurrent", 2, "selected"]
+            - [2018, "2018-12-31", null, 6443000000, "USD", "10-K", "0001555280-19-000041", "LongTermDebtNoncurrent", 2, "selected"]
+            - [2019, "2019-12-31", null, 5947000000, "USD", "10-K", "0001555280-20-000054", "LongTermDebtNoncurrent", 2, "selected"]
+            - [2020, "2020-12-31", null, 6595000000, "USD", "10-K", "0001555280-21-000098", "LongTermDebtNoncurrent", 2, "selected"]
+            - [2021, "2021-12-31", null, 6592000000, "USD", "10-K", "0001555280-22-000078", "LongTermDebtNoncurrent", 2, "selected"]
+            - [2022, "2022-12-31", null, 6552000000, "USD", "10-K", "0001555280-23-000074", "LongTermDebtNoncurrent", 2, "selected"]
+            - [2023, "2023-12-31", null, 6564000000, "USD", "10-K", "0001555280-24-000143", "LongTermDebtNoncurrent", 2, "selected"]
+            - [2024, "2024-12-31", null, 5220000000, "USD", "10-K", "0001555280-25-000102", "LongTermDebtNoncurrent", 2, "selected"]
+            - [2025, "2025-12-31", null, 9042000000, "USD", "10-K", "0001555280-26-000011", "LongTermDebtNoncurrent", 1, "selected"]
+      revenue:
+        source_tags: ["Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax"]
+        CPB:
+          status: partial
+          missing_years: [2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016]
+          rows:
+            - [2017, "2017-07-30", "2016-08-01", 5837000000, "USD", "10-K", "0000016732-19-000070", "Revenues", 1, "selected"]
+            - [2018, "2018-07-29", "2017-07-31", 6615000000, "USD", "10-K", "0000016732-19-000070", "Revenues", 2, "selected"]
+            - [2019, "2019-07-28", "2018-07-30", 8107000000, "USD", "10-K", "0000016732-19-000070", "Revenues", 3, "selected"]
+            - [2020, "2020-08-02", "2019-07-29", 8691000000, "USD", "10-K", "0000016732-20-000111", "Revenues", 3, "selected"]
+            - [2021, "2021-08-01", "2020-08-03", 8476000000, "USD", "10-K", "0000016732-21-000103", "Revenues", 3, "selected"]
+            - [2022, "2022-07-31", "2021-08-02", 8562000000, "USD", "10-K", "0000016732-22-000093", "Revenues", 3, "selected"]
+            - [2023, "2023-07-30", "2022-08-01", 9357000000, "USD", "10-K", "0000016732-23-000109", "Revenues", 3, "selected"]
+            - [2024, "2024-07-28", "2023-07-31", 9636000000, "USD", "10-K", "0000016732-24-000130", "Revenues", 2, "selected"]
+            - [2025, "2025-08-03", "2024-07-29", 10253000000, "USD", "10-K", "0000016732-25-000112", "Revenues", 1, "selected"]
+        ZTS:
+          status: partial
+          missing_years: [2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015]
+          rows:
+            - [2016, "2016-12-31", "2016-01-01", 4888000000, "USD", "10-K", "0001555280-19-000041", "Revenues", 1, "selected"]
+            - [2017, "2017-12-31", "2017-01-01", 5307000000, "USD", "10-K", "0001555280-19-000041", "Revenues", 2, "selected"]
+            - [2018, "2018-12-31", "2018-01-01", 5825000000, "USD", "10-K", "0001555280-19-000041", "Revenues", 3, "selected"]
+            - [2019, "2019-12-31", "2019-01-01", 6260000000, "USD", "10-K", "0001555280-20-000054", "Revenues", 3, "selected"]
+            - [2020, "2020-12-31", "2020-01-01", 6675000000, "USD", "10-K", "0001555280-21-000098", "Revenues", 3, "selected"]
+            - [2021, "2021-12-31", "2021-01-01", 7776000000, "USD", "10-K", "0001555280-22-000078", "Revenues", 3, "selected"]
+            - [2022, "2022-12-31", "2022-01-01", 8080000000, "USD", "10-K", "0001555280-23-000074", "Revenues", 3, "selected"]
+            - [2023, "2023-12-31", "2023-01-01", 8544000000, "USD", "10-K", "0001555280-24-000143", "Revenues", 3, "selected"]
+            - [2024, "2024-12-31", "2024-01-01", 9256000000, "USD", "10-K", "0001555280-25-000102", "Revenues", 2, "selected"]
+            - [2025, "2025-12-31", "2025-01-01", 9467000000, "USD", "10-K", "0001555280-26-000011", "Revenues", 1, "selected"]
+      retained_earnings:
+        source_tags: ["RetainedEarningsAccumulatedDeficit"]
+        CPB:
+          status: partial
+          missing_years: [2007, 2008]
+          rows:
+            - [2009, "2009-08-02", null, 8288000000, "USD", "10-K", "0000950123-10-090083", "RetainedEarningsAccumulatedDeficit", 1, "selected"]
+            - [2010, "2010-08-01", null, 8760000000, "USD", "10-K", "0000950123-10-090083", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2011, "2011-07-31", null, 9185000000, "USD", "10-K", "0000950123-11-087197", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2012, "2012-07-29", null, 9584000000, "USD", "10-K", "0000016732-12-000024", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2013, "2013-07-28", null, 1772000000, "USD", "10-K", "0000016732-13-000023", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2014, "2014-08-03", null, 2198000000, "USD", "10-K", "0000016732-14-000023", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2015, "2015-08-02", null, 2494000000, "USD", "10-K", "0000016732-15-000034", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2016, "2016-07-31", null, 1927000000, "USD", "10-K", "0000016732-16-000146", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2017, "2017-07-30", null, 2385000000, "USD", "10-K", "0000016732-17-000058", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2018, "2018-07-29", null, 2224000000, "USD", "10-K", "0000016732-18-000062", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2019, "2019-07-28", null, 1993000000, "USD", "10-K", "0000016732-19-000070", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2020, "2020-08-02", null, 3190000000, "USD", "10-K", "0000016732-20-000111", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2021, "2021-08-01", null, 3742000000, "USD", "10-K", "0000016732-21-000103", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2022, "2022-07-31", null, 4040000000, "USD", "10-K", "0000016732-22-000093", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2023, "2023-07-30", null, 4451000000, "USD", "10-K", "0000016732-23-000109", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2024, "2024-07-28", null, 4569000000, "USD", "10-K", "0000016732-24-000130", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2025, "2025-08-03", null, 4694000000, "USD", "10-K", "0000016732-25-000112", "RetainedEarningsAccumulatedDeficit", 1, "selected"]
+        ZTS:
+          status: partial
+          missing_years: [2007, 2008, 2009, 2010, 2011]
+          rows:
+            - [2012, "2012-12-31", null, 0, "USD", "10-K", "0001555280-14-000164", "RetainedEarningsAccumulatedDeficit", 1, "selected"]
+            - [2013, "2013-12-31", null, 276000000, "USD", "10-K", "0001555280-14-000164", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2014, "2014-12-31", null, 709000000, "USD", "10-K", "0001555280-15-000057", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2015, "2015-12-31", null, 876000000, "USD", "10-K", "0001555280-16-000344", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2016, "2016-12-31", null, 1477000000, "USD", "10-K", "0001555280-17-000044", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2017, "2017-12-31", null, 2109000000, "USD", "10-K", "0001555280-18-000053", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2018, "2018-12-31", null, 3270000000, "USD", "10-K", "0001555280-19-000041", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2019, "2019-12-31", null, 4427000000, "USD", "10-K", "0001555280-20-000054", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2020, "2020-12-31", null, 5659000000, "USD", "10-K", "0001555280-21-000098", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2021, "2021-12-31", null, 7186000000, "USD", "10-K", "0001555280-22-000078", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2022, "2022-12-31", null, 8668000000, "USD", "10-K", "0001555280-23-000074", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2023, "2023-12-31", null, 10295000000, "USD", "10-K", "0001555280-24-000143", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2024, "2024-12-31", null, 11968000000, "USD", "10-K", "0001555280-25-000102", "RetainedEarningsAccumulatedDeficit", 2, "selected"]
+            - [2025, "2025-12-31", null, 13744000000, "USD", "10-K", "0001555280-26-000011", "RetainedEarningsAccumulatedDeficit", 1, "selected"]
+      ebit:
+        source_tags: ["OperatingIncomeLoss"]
+        CPB:
+          status: partial
+          missing_years: [2007]
+          rows:
+            - [2008, "2008-08-03", "2007-07-30", 1098000000, "USD", "10-K", "0000950123-10-090083", "OperatingIncomeLoss", 1, "selected"]
+            - [2009, "2009-08-02", "2008-08-04", 1185000000, "USD", "10-K", "0000950123-10-090083", "OperatingIncomeLoss", 2, "selected"]
+            - [2010, "2010-08-01", "2009-08-03", 1348000000, "USD", "10-K", "0000950123-10-090083", "OperatingIncomeLoss", 3, "selected"]
+            - [2011, "2011-07-31", "2010-08-02", 1279000000, "USD", "10-K", "0000950123-11-087197", "OperatingIncomeLoss", 3, "selected"]
+            - [2012, "2012-07-29", "2011-08-01", 1212000000, "USD", "10-K", "0000016732-12-000024", "OperatingIncomeLoss", 3, "selected"]
+            - [2013, "2013-07-28", "2012-07-30", 1080000000, "USD", "10-K", "0000016732-13-000023", "OperatingIncomeLoss", 3, "selected"]
+            - [2014, "2014-08-03", "2013-07-29", 1192000000, "USD", "10-K", "0000016732-14-000023", "OperatingIncomeLoss", 3, "selected"]
+            - [2015, "2015-08-02", "2014-08-04", 1095000000, "USD", "10-K", "0000016732-15-000034", "OperatingIncomeLoss", 3, "selected"]
+            - [2016, "2016-07-31", "2015-08-03", 960000000, "USD", "10-K", "0000016732-16-000146", "OperatingIncomeLoss", 3, "selected"]
+            - [2017, "2017-07-30", "2016-08-01", 1400000000, "USD", "10-K", "0000016732-17-000058", "OperatingIncomeLoss", 3, "selected"]
+            - [2018, "2018-07-29", "2017-07-31", 469000000, "USD", "10-K", "0000016732-18-000062", "OperatingIncomeLoss", 3, "selected"]
+            - [2019, "2019-07-28", "2018-07-30", 979000000, "USD", "10-K", "0000016732-19-000070", "OperatingIncomeLoss", 3, "selected"]
+            - [2020, "2020-08-02", "2019-07-29", 1107000000, "USD", "10-K", "0000016732-20-000111", "OperatingIncomeLoss", 3, "selected"]
+            - [2021, "2021-08-01", "2020-08-03", 1545000000, "USD", "10-K", "0000016732-21-000103", "OperatingIncomeLoss", 3, "selected"]
+            - [2022, "2022-07-31", "2021-08-02", 1163000000, "USD", "10-K", "0000016732-22-000093", "OperatingIncomeLoss", 3, "selected"]
+            - [2023, "2023-07-30", "2022-08-01", 1312000000, "USD", "10-K", "0000016732-23-000109", "OperatingIncomeLoss", 3, "selected"]
+            - [2024, "2024-07-28", "2023-07-31", 1000000000, "USD", "10-K", "0000016732-24-000130", "OperatingIncomeLoss", 2, "selected"]
+            - [2025, "2025-08-03", "2024-07-29", 1124000000, "USD", "10-K", "0000016732-25-000112", "OperatingIncomeLoss", 1, "selected"]
+        ZTS:
+          status: no_qualifying_fact
+          missing_years: [2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
+          rows:
+      total_liabilities:
+        source_tags: ["Liabilities"]
+        CPB:
+          status: partial
+          missing_years: [2007, 2008]
+          rows:
+            - [2009, "2009-08-02", null, 5325000000, "USD", "10-K", "0000950123-10-090083", "Liabilities", 1, "selected"]
+            - [2010, "2010-08-01", null, 5347000000, "USD", "10-K", "0000950123-10-090083", "Liabilities", 2, "selected"]
+            - [2011, "2011-07-31", null, 5766000000, "USD", "10-K", "0000950123-11-087197", "Liabilities", 2, "selected"]
+            - [2012, "2012-07-29", null, 5632000000, "USD", "10-K", "0000016732-12-000024", "Liabilities", 2, "selected"]
+            - [2013, "2013-07-28", null, 7113000000, "USD", "10-K", "0000016732-13-000023", "Liabilities", 2, "selected"]
+            - [2014, "2014-08-03", null, 6510000000, "USD", "10-K", "0000016732-14-000023", "Liabilities", 2, "selected"]
+            - [2015, "2015-08-02", null, 6713000000, "USD", "10-K", "0000016732-15-000034", "Liabilities", 2, "selected"]
+            - [2016, "2016-07-31", null, 6304000000, "USD", "10-K", "0000016732-16-000146", "Liabilities", 2, "selected"]
+            - [2017, "2017-07-30", null, 6081000000, "USD", "10-K", "0000016732-17-000058", "Liabilities", 2, "selected"]
+            - [2018, "2018-07-29", null, 13156000000, "USD", "10-K", "0000016732-18-000062", "Liabilities", 2, "selected"]
+            - [2019, "2019-07-28", null, 12036000000, "USD", "10-K", "0000016732-19-000070", "Liabilities", 2, "selected"]
+            - [2020, "2020-08-02", null, 9803000000, "USD", "10-K", "0000016732-20-000111", "Liabilities", 2, "selected"]
+            - [2021, "2021-08-01", null, 8580000000, "USD", "10-K", "0000016732-21-000103", "Liabilities", 2, "selected"]
+            - [2022, "2022-07-31", null, 8559000000, "USD", "10-K", "0000016732-22-000093", "Liabilities", 2, "selected"]
+            - [2023, "2023-07-30", null, 8395000000, "USD", "10-K", "0000016732-23-000109", "Liabilities", 2, "selected"]
+            - [2024, "2024-07-28", null, 11439000000, "USD", "10-K", "0000016732-24-000130", "Liabilities", 2, "selected"]
+            - [2025, "2025-08-03", null, 10992000000, "USD", "10-K", "0000016732-25-000112", "Liabilities", 1, "selected"]
+        ZTS:
+          status: partial
+          missing_years: [2007, 2008, 2009, 2010, 2011]
+          rows:
+            - [2012, "2012-12-31", null, 2221000000, "USD", "10-K", "0001555280-14-000164", "Liabilities", 1, "selected"]
+            - [2013, "2013-12-31", null, 5596000000, "USD", "10-K", "0001555280-14-000164", "Liabilities", 2, "selected"]
+            - [2014, "2014-12-31", null, 5270000000, "USD", "10-K", "0001555280-15-000057", "Liabilities", 2, "selected"]
+            - [2015, "2015-12-31", null, 6822000000, "USD", "10-K", "0001555280-16-000344", "Liabilities", 2, "selected"]
+            - [2016, "2016-12-31", null, 6150000000, "USD", "10-K", "0001555280-17-000044", "Liabilities", 2, "selected"]
+            - [2017, "2017-12-31", null, 6800000000, "USD", "10-K", "0001555280-18-000053", "Liabilities", 2, "selected"]
+            - [2018, "2018-12-31", null, 8592000000, "USD", "10-K", "0001555280-19-000041", "Liabilities", 2, "selected"]
+            - [2019, "2019-12-31", null, 8837000000, "USD", "10-K", "0001555280-20-000054", "Liabilities", 2, "selected"]
+            - [2020, "2020-12-31", null, 9836000000, "USD", "10-K", "0001555280-21-000098", "Liabilities", 2, "selected"]
+            - [2021, "2021-12-31", null, 9356000000, "USD", "10-K", "0001555280-22-000078", "Liabilities", 2, "selected"]
+            - [2022, "2022-12-31", null, 10522000000, "USD", "10-K", "0001555280-23-000074", "Liabilities", 2, "selected"]
+            - [2023, "2023-12-31", null, 9295000000, "USD", "10-K", "0001555280-24-000143", "Liabilities", 2, "selected"]
+            - [2024, "2024-12-31", null, 9467000000, "USD", "10-K", "0001555280-25-000102", "Liabilities", 2, "selected"]
+            - [2025, "2025-12-31", null, 12136000000, "USD", "10-K", "0001555280-26-000011", "Liabilities", 1, "selected"]
+      receivables:
+        source_tags: ["AccountsReceivableNetCurrent", "AccountsNotesAndLoansReceivableNetCurrent", "AccountsAndOtherReceivablesNetCurrent"]
+        CPB:
+          status: partial
+          missing_years: [2007, 2008, 2009]
+          rows:
+            - [2010, "2010-08-01", null, 466000000, "USD", "10-K", "0000950123-11-087197", "AccountsReceivableNetCurrent", 1, "selected"]
+            - [2011, "2011-07-31", null, 519000000, "USD", "10-K", "0000950123-11-087197", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2012, "2012-07-29", null, 513000000, "USD", "10-K", "0000016732-12-000024", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2013, "2013-07-28", null, 576000000, "USD", "10-K", "0000016732-13-000023", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2014, "2014-08-03", null, 585000000, "USD", "10-K", "0000016732-14-000023", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2015, "2015-08-02", null, 557000000, "USD", "10-K", "0000016732-15-000034", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2016, "2016-07-31", null, 554000000, "USD", "10-K", "0000016732-16-000146", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2017, "2017-07-30", null, 550000000, "USD", "10-K", "0000016732-17-000058", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2018, "2018-07-29", null, 714000000, "USD", "10-K", "0000016732-18-000062", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2019, "2019-07-28", null, 525000000, "USD", "10-K", "0000016732-19-000070", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2020, "2020-08-02", null, 530000000, "USD", "10-K", "0000016732-20-000111", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2021, "2021-08-01", null, 544000000, "USD", "10-K", "0000016732-21-000103", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2022, "2022-07-31", null, 490000000, "USD", "10-K", "0000016732-22-000093", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2023, "2023-07-30", null, 494000000, "USD", "10-K", "0000016732-23-000109", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2024, "2024-07-28", null, 587000000, "USD", "10-K", "0000016732-24-000130", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2025, "2025-08-03", null, 541000000, "USD", "10-K", "0000016732-25-000112", "AccountsReceivableNetCurrent", 1, "selected"]
+        ZTS:
+          status: partial
+          missing_years: [2007, 2008, 2009, 2010, 2011]
+          rows:
+            - [2012, "2012-12-31", null, 900000000, "USD", "10-K", "0001555280-14-000164", "AccountsReceivableNetCurrent", 1, "selected"]
+            - [2013, "2013-12-31", null, 1138000000, "USD", "10-K", "0001555280-14-000164", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2014, "2014-12-31", null, 980000000, "USD", "10-K", "0001555280-15-000057", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2015, "2015-12-31", null, 937000000, "USD", "10-K", "0001555280-16-000344", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2016, "2016-12-31", null, 913000000, "USD", "10-K", "0001555280-17-000044", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2017, "2017-12-31", null, 998000000, "USD", "10-K", "0001555280-18-000053", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2018, "2018-12-31", null, 1036000000, "USD", "10-K", "0001555280-19-000041", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2019, "2019-12-31", null, 1086000000, "USD", "10-K", "0001555280-20-000054", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2020, "2020-12-31", null, 1013000000, "USD", "10-K", "0001555280-21-000098", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2021, "2021-12-31", null, 1133000000, "USD", "10-K", "0001555280-22-000078", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2022, "2022-12-31", null, 1215000000, "USD", "10-K", "0001555280-23-000074", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2023, "2023-12-31", null, 1304000000, "USD", "10-K", "0001555280-24-000143", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2024, "2024-12-31", null, 1316000000, "USD", "10-K", "0001555280-25-000102", "AccountsReceivableNetCurrent", 2, "selected"]
+            - [2025, "2025-12-31", null, 1590000000, "USD", "10-K", "0001555280-26-000011", "AccountsReceivableNetCurrent", 1, "selected"]
+      cogs:
+        source_tags: ["CostOfRevenue", "CostOfGoodsAndServicesSold"]
+        CPB:
+          status: partial
+          missing_years: [2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016]
+          rows:
+            - [2017, "2017-07-30", "2016-08-01", 3395000000, "USD", "10-K", "0000016732-19-000070", "CostOfGoodsAndServicesSold", 1, "selected"]
+            - [2018, "2018-07-29", "2017-07-31", 4241000000, "USD", "10-K", "0000016732-19-000070", "CostOfGoodsAndServicesSold", 2, "selected"]
+            - [2019, "2019-07-28", "2018-07-30", 5414000000, "USD", "10-K", "0000016732-19-000070", "CostOfGoodsAndServicesSold", 3, "selected"]
+            - [2020, "2020-08-02", "2019-07-29", 5692000000, "USD", "10-K", "0000016732-20-000111", "CostOfGoodsAndServicesSold", 3, "selected"]
+            - [2021, "2021-08-01", "2020-08-03", 5665000000, "USD", "10-K", "0000016732-21-000103", "CostOfGoodsAndServicesSold", 3, "selected"]
+            - [2022, "2022-07-31", "2021-08-02", 5935000000, "USD", "10-K", "0000016732-22-000093", "CostOfGoodsAndServicesSold", 3, "selected"]
+            - [2023, "2023-07-30", "2022-08-01", 6440000000, "USD", "10-K", "0000016732-23-000109", "CostOfGoodsAndServicesSold", 3, "selected"]
+            - [2024, "2024-07-28", "2023-07-31", 6665000000, "USD", "10-K", "0000016732-24-000130", "CostOfGoodsAndServicesSold", 2, "selected"]
+            - [2025, "2025-08-03", "2024-07-29", 7134000000, "USD", "10-K", "0000016732-25-000112", "CostOfGoodsAndServicesSold", 1, "selected"]
+        ZTS:
+          status: partial
+          missing_years: [2007, 2008, 2009, 2010]
+          rows:
+            - [2011, "2011-12-31", "2011-01-01", 1652000000, "USD", "10-K", "0001555280-14-000164", "CostOfGoodsAndServicesSold", 1, "selected"]
+            - [2012, "2012-12-31", "2012-01-01", 1563000000, "USD", "10-K", "0001555280-14-000164", "CostOfGoodsAndServicesSold", 2, "selected"]
+            - [2013, "2013-12-31", "2013-01-01", 1669000000, "USD", "10-K", "0001555280-14-000164", "CostOfGoodsAndServicesSold", 3, "selected"]
+            - [2014, "2014-12-31", "2014-01-01", 1717000000, "USD", "10-K", "0001555280-15-000057", "CostOfGoodsAndServicesSold", 3, "selected"]
+            - [2015, "2015-12-31", "2015-01-01", 1738000000, "USD", "10-K", "0001555280-16-000344", "CostOfGoodsAndServicesSold", 3, "selected"]
+            - [2016, "2016-12-31", "2016-01-01", 1666000000, "USD", "10-K", "0001555280-17-000044", "CostOfGoodsAndServicesSold", 3, "selected"]
+            - [2017, "2017-12-31", "2017-01-01", 1775000000, "USD", "10-K", "0001555280-18-000053", "CostOfGoodsAndServicesSold", 3, "selected"]
+            - [2018, "2018-12-31", "2018-01-01", 1911000000, "USD", "10-K", "0001555280-19-000041", "CostOfGoodsAndServicesSold", 3, "selected"]
+            - [2019, "2019-12-31", "2019-01-01", 1992000000, "USD", "10-K", "0001555280-20-000054", "CostOfGoodsAndServicesSold", 3, "selected"]
+            - [2020, "2020-12-31", "2020-01-01", 2057000000, "USD", "10-K", "0001555280-21-000098", "CostOfGoodsAndServicesSold", 3, "selected"]
+            - [2021, "2021-12-31", "2021-01-01", 2303000000, "USD", "10-K", "0001555280-22-000078", "CostOfGoodsAndServicesSold", 3, "selected"]
+            - [2022, "2022-12-31", "2022-01-01", 2454000000, "USD", "10-K", "0001555280-23-000074", "CostOfGoodsAndServicesSold", 3, "selected"]
+            - [2023, "2023-12-31", "2023-01-01", 2561000000, "USD", "10-K", "0001555280-24-000143", "CostOfGoodsAndServicesSold", 3, "selected"]
+            - [2024, "2024-12-31", "2024-01-01", 2719000000, "USD", "10-K", "0001555280-25-000102", "CostOfGoodsAndServicesSold", 2, "selected"]
+            - [2025, "2025-12-31", "2025-01-01", 2666000000, "USD", "10-K", "0001555280-26-000011", "CostOfGoodsAndServicesSold", 1, "selected"]
+      ppe_net:
+        source_tags: ["PropertyPlantAndEquipmentNet", "PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization"]
+        CPB:
+          status: partial
+          missing_years: [2007, 2008]
+          rows:
+            - [2009, "2009-08-02", null, 1977000000, "USD", "10-K", "0000950123-10-090083", "PropertyPlantAndEquipmentNet", 2, "selected"]
+            - [2010, "2010-08-01", null, 2051000000, "USD", "10-K", "0000950123-10-090083", "PropertyPlantAndEquipmentNet", 3, "selected"]
+            - [2011, "2011-07-31", null, 2103000000, "USD", "10-K", "0000950123-11-087197", "PropertyPlantAndEquipmentNet", 3, "selected"]
+            - [2012, "2012-07-29", null, 2127000000, "USD", "10-K", "0000016732-12-000024", "PropertyPlantAndEquipmentNet", 3, "selected"]
+            - [2013, "2013-07-28", null, 2260000000, "USD", "10-K", "0000016732-13-000023", "PropertyPlantAndEquipmentNet", 3, "selected"]
+            - [2014, "2014-08-03", null, 2318000000, "USD", "10-K", "0000016732-14-000023", "PropertyPlantAndEquipmentNet", 3, "selected"]
+            - [2015, "2015-08-02", null, 2347000000, "USD", "10-K", "0000016732-15-000034", "PropertyPlantAndEquipmentNet", 3, "selected"]
+            - [2016, "2016-07-31", null, 2407000000, "USD", "10-K", "0000016732-16-000146", "PropertyPlantAndEquipmentNet", 3, "selected"]
+            - [2017, "2017-07-30", null, 2454000000, "USD", "10-K", "0000016732-17-000058", "PropertyPlantAndEquipmentNet", 3, "selected"]
+            - [2018, "2018-07-29", null, 3233000000, "USD", "10-K", "0000016732-18-000062", "PropertyPlantAndEquipmentNet", 3, "selected"]
+            - [2019, "2019-07-28", null, 2455000000, "USD", "10-K", "0000016732-19-000070", "PropertyPlantAndEquipmentNet", 3, "selected"]
+            - [2020, "2020-08-02", null, 2368000000, "USD", "10-K", "0000016732-20-000111", "PropertyPlantAndEquipmentNet", 2, "selected"]
+            - [2021, "2021-08-01", null, 2370000000, "USD", "10-K", "0000016732-21-000103", "PropertyPlantAndEquipmentNet", 2, "selected"]
+            - [2022, "2022-07-31", null, 2343000000, "USD", "10-K", "0000016732-22-000093", "PropertyPlantAndEquipmentNet", 2, "selected"]
+            - [2023, "2023-07-30", null, 2398000000, "USD", "10-K", "0000016732-23-000109", "PropertyPlantAndEquipmentNet", 2, "selected"]
+            - [2024, "2024-07-28", null, 2698000000, "USD", "10-K", "0000016732-24-000130", "PropertyPlantAndEquipmentNet", 2, "selected"]
+            - [2025, "2025-08-03", null, 2767000000, "USD", "10-K", "0000016732-25-000112", "PropertyPlantAndEquipmentNet", 1, "selected"]
+        ZTS:
+          status: partial
+          missing_years: [2007, 2008, 2009, 2010, 2011]
+          rows:
+            - [2012, "2012-12-31", null, 1241000000, "USD", "10-K", "0001555280-14-000164", "PropertyPlantAndEquipmentNet", 1, "selected"]
+            - [2013, "2013-12-31", null, 1295000000, "USD", "10-K", "0001555280-14-000164", "PropertyPlantAndEquipmentNet", 2, "selected"]
+            - [2014, "2014-12-31", null, 1318000000, "USD", "10-K", "0001555280-15-000057", "PropertyPlantAndEquipmentNet", 2, "selected"]
+            - [2015, "2015-12-31", null, 1307000000, "USD", "10-K", "0001555280-16-000344", "PropertyPlantAndEquipmentNet", 2, "selected"]
+            - [2016, "2016-12-31", null, 1381000000, "USD", "10-K", "0001555280-17-000044", "PropertyPlantAndEquipmentNet", 2, "selected"]
+            - [2017, "2017-12-31", null, 1435000000, "USD", "10-K", "0001555280-18-000053", "PropertyPlantAndEquipmentNet", 2, "selected"]
+            - [2018, "2018-12-31", null, 1658000000, "USD", "10-K", "0001555280-19-000041", "PropertyPlantAndEquipmentNet", 2, "selected"]
+            - [2019, "2019-12-31", null, 1940000000, "USD", "10-K", "0001555280-20-000054", "PropertyPlantAndEquipmentNet", 2, "selected"]
+            - [2020, "2020-12-31", null, 2202000000, "USD", "10-K", "0001555280-21-000098", "PropertyPlantAndEquipmentNet", 2, "selected"]
+            - [2021, "2021-12-31", null, 2422000000, "USD", "10-K", "0001555280-22-000078", "PropertyPlantAndEquipmentNet", 2, "selected"]
+            - [2022, "2022-12-31", null, 2753000000, "USD", "10-K", "0001555280-23-000074", "PropertyPlantAndEquipmentNet", 2, "selected"]
+            - [2023, "2023-12-31", null, 3204000000, "USD", "10-K", "0001555280-24-000143", "PropertyPlantAndEquipmentNet", 2, "selected"]
+            - [2024, "2024-12-31", null, 3391000000, "USD", "10-K", "0001555280-25-000102", "PropertyPlantAndEquipmentNet", 2, "selected"]
+            - [2025, "2025-12-31", null, 3681000000, "USD", "10-K", "0001555280-26-000011", "PropertyPlantAndEquipmentNet", 1, "selected"]
+      depreciation:
+        source_tags: ["DepreciationDepletionAndAmortization", "DepreciationAndAmortization", "Depreciation"]
+        CPB:
+          status: partial
+          missing_years: [2007]
+          rows:
+            - [2008, "2008-08-03", "2007-07-30", 294000000, "USD", "10-K", "0000950123-10-090083", "DepreciationDepletionAndAmortization", 1, "selected"]
+            - [2009, "2009-08-02", "2008-08-04", 264000000, "USD", "10-K", "0000950123-10-090083", "DepreciationDepletionAndAmortization", 3, "selected"]
+            - [2010, "2010-08-01", "2009-08-03", 251000000, "USD", "10-K", "0000950123-10-090083", "DepreciationDepletionAndAmortization", 5, "selected"]
+            - [2011, "2011-07-31", "2010-08-02", 268000000, "USD", "10-K", "0000950123-11-087197", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2012, "2012-07-29", "2011-08-01", 262000000, "USD", "10-K", "0000016732-12-000024", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2013, "2013-07-28", "2012-07-30", 407000000, "USD", "10-K", "0000016732-13-000023", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2014, "2014-08-03", "2013-07-29", 305000000, "USD", "10-K", "0000016732-14-000023", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2015, "2015-08-02", "2014-08-04", 303000000, "USD", "10-K", "0000016732-15-000034", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2016, "2016-07-31", "2015-08-03", 308000000, "USD", "10-K", "0000016732-16-000146", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2017, "2017-07-30", "2016-08-01", 318000000, "USD", "10-K", "0000016732-17-000058", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2018, "2018-07-29", "2017-07-31", 394000000, "USD", "10-K", "0000016732-18-000062", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2019, "2019-07-28", "2018-07-30", 446000000, "USD", "10-K", "0000016732-19-000070", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2020, "2020-08-02", "2019-07-29", 328000000, "USD", "10-K", "0000016732-20-000111", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2021, "2021-08-01", "2020-08-03", 317000000, "USD", "10-K", "0000016732-21-000103", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2022, "2022-07-31", "2021-08-02", 337000000, "USD", "10-K", "0000016732-22-000093", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2023, "2023-07-30", "2022-08-01", 387000000, "USD", "10-K", "0000016732-23-000109", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2024, "2024-07-28", "2023-07-31", 411000000, "USD", "10-K", "0000016732-24-000130", "DepreciationDepletionAndAmortization", 4, "selected"]
+            - [2025, "2025-08-03", "2024-07-29", 434000000, "USD", "10-K", "0000016732-25-000112", "DepreciationDepletionAndAmortization", 2, "selected"]
+        ZTS:
+          status: partial
+          missing_years: [2007, 2008, 2009, 2010]
+          rows:
+            - [2011, "2011-12-31", "2011-01-01", 205000000, "USD", "10-K", "0001555280-14-000164", "DepreciationDepletionAndAmortization", 2, "selected"]
+            - [2012, "2012-12-31", "2012-01-01", 200000000, "USD", "10-K", "0001555280-14-000164", "DepreciationDepletionAndAmortization", 4, "selected"]
+            - [2013, "2013-12-31", "2013-01-01", 209000000, "USD", "10-K", "0001555280-14-000164", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2014, "2014-12-31", "2014-01-01", 204000000, "USD", "10-K", "0001555280-15-000057", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2015, "2015-12-31", "2015-01-01", 199000000, "USD", "10-K", "0001555280-16-000344", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2016, "2016-12-31", "2016-01-01", 240000000, "USD", "10-K", "0001555280-17-000044", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2017, "2017-12-31", "2017-01-01", 242000000, "USD", "10-K", "0001555280-18-000053", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2018, "2018-12-31", "2018-01-01", 308000000, "USD", "10-K", "0001555280-19-000041", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2019, "2019-12-31", "2019-01-01", 412000000, "USD", "10-K", "0001555280-20-000054", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2020, "2020-12-31", "2020-01-01", 441000000, "USD", "10-K", "0001555280-21-000098", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2021, "2021-12-31", "2021-01-01", 448000000, "USD", "10-K", "0001555280-22-000078", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2022, "2022-12-31", "2022-01-01", 465000000, "USD", "10-K", "0001555280-23-000074", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2023, "2023-12-31", "2023-01-01", 491000000, "USD", "10-K", "0001555280-24-000143", "DepreciationDepletionAndAmortization", 6, "selected"]
+            - [2024, "2024-12-31", "2024-01-01", 497000000, "USD", "10-K", "0001555280-25-000102", "DepreciationDepletionAndAmortization", 4, "selected"]
+            - [2025, "2025-12-31", "2025-01-01", 487000000, "USD", "10-K", "0001555280-26-000011", "DepreciationDepletionAndAmortization", 2, "selected"]
+      sga:
+        source_tags: ["SellingGeneralAndAdministrativeExpense", "GeneralAndAdministrativeExpense"]
+        CPB:
+          status: partial
+          missing_years: [2007]
+          rows:
+            - [2008, "2008-08-03", "2007-07-30", 608000000, "USD", "10-K", "0000950123-10-090083", "GeneralAndAdministrativeExpense", 1, "selected"]
+            - [2009, "2009-08-02", "2008-08-04", 591000000, "USD", "10-K", "0000950123-10-090083", "GeneralAndAdministrativeExpense", 2, "selected"]
+            - [2010, "2010-08-01", "2009-08-03", 605000000, "USD", "10-K", "0000950123-10-090083", "GeneralAndAdministrativeExpense", 3, "selected"]
+            - [2011, "2011-07-31", "2010-08-02", 612000000, "USD", "10-K", "0000950123-11-087197", "GeneralAndAdministrativeExpense", 3, "selected"]
+            - [2012, "2012-07-29", "2011-08-01", 611000000, "USD", "10-K", "0000016732-12-000024", "GeneralAndAdministrativeExpense", 3, "selected"]
+            - [2013, "2013-07-28", "2012-07-30", 677000000, "USD", "10-K", "0000016732-13-000023", "GeneralAndAdministrativeExpense", 3, "selected"]
+            - [2014, "2014-08-03", "2013-07-29", 573000000, "USD", "10-K", "0000016732-14-000023", "GeneralAndAdministrativeExpense", 3, "selected"]
+            - [2015, "2015-08-02", "2014-08-04", 593000000, "USD", "10-K", "0000016732-15-000034", "GeneralAndAdministrativeExpense", 3, "selected"]
+            - [2016, "2016-07-31", "2015-08-03", 641000000, "USD", "10-K", "0000016732-16-000146", "GeneralAndAdministrativeExpense", 3, "selected"]
+            - [2017, "2017-07-30", "2016-08-01", 488000000, "USD", "10-K", "0000016732-17-000058", "GeneralAndAdministrativeExpense", 3, "selected"]
+            - [2018, "2018-07-29", "2017-07-31", 654000000, "USD", "10-K", "0000016732-18-000062", "GeneralAndAdministrativeExpense", 3, "selected"]
+            - [2019, "2019-07-28", "2018-07-30", 610000000, "USD", "10-K", "0000016732-19-000070", "GeneralAndAdministrativeExpense", 3, "selected"]
+            - [2020, "2020-08-02", "2019-07-29", 622000000, "USD", "10-K", "0000016732-20-000111", "GeneralAndAdministrativeExpense", 3, "selected"]
+            - [2021, "2021-08-01", "2020-08-03", 598000000, "USD", "10-K", "0000016732-21-000103", "GeneralAndAdministrativeExpense", 3, "selected"]
+            - [2022, "2022-07-31", "2021-08-02", 617000000, "USD", "10-K", "0000016732-22-000093", "GeneralAndAdministrativeExpense", 3, "selected"]
+            - [2023, "2023-07-30", "2022-08-01", 654000000, "USD", "10-K", "0000016732-23-000109", "GeneralAndAdministrativeExpense", 3, "selected"]
+            - [2024, "2024-07-28", "2023-07-31", 737000000, "USD", "10-K", "0000016732-24-000130", "GeneralAndAdministrativeExpense", 2, "selected"]
+            - [2025, "2025-08-03", "2024-07-29", 674000000, "USD", "10-K", "0000016732-25-000112", "GeneralAndAdministrativeExpense", 1, "selected"]
+        ZTS:
+          status: partial
+          missing_years: [2007, 2008, 2009, 2010]
+          rows:
+            - [2011, "2011-12-31", "2011-01-01", 1453000000, "USD", "10-K", "0001555280-14-000164", "SellingGeneralAndAdministrativeExpense", 1, "selected"]
+            - [2012, "2012-12-31", "2012-01-01", 1470000000, "USD", "10-K", "0001555280-14-000164", "SellingGeneralAndAdministrativeExpense", 2, "selected"]
+            - [2013, "2013-12-31", "2013-01-01", 1613000000, "USD", "10-K", "0001555280-14-000164", "SellingGeneralAndAdministrativeExpense", 3, "selected"]
+            - [2014, "2014-12-31", "2014-01-01", 1643000000, "USD", "10-K", "0001555280-15-000057", "SellingGeneralAndAdministrativeExpense", 3, "selected"]
+            - [2015, "2015-12-31", "2015-01-01", 1532000000, "USD", "10-K", "0001555280-16-000344", "SellingGeneralAndAdministrativeExpense", 3, "selected"]
+            - [2016, "2016-12-31", "2016-01-01", 1364000000, "USD", "10-K", "0001555280-17-000044", "SellingGeneralAndAdministrativeExpense", 3, "selected"]
+            - [2017, "2017-12-31", "2017-01-01", 1334000000, "USD", "10-K", "0001555280-18-000053", "SellingGeneralAndAdministrativeExpense", 3, "selected"]
+            - [2018, "2018-12-31", "2018-01-01", 1484000000, "USD", "10-K", "0001555280-19-000041", "SellingGeneralAndAdministrativeExpense", 3, "selected"]
+            - [2019, "2019-12-31", "2019-01-01", 1638000000, "USD", "10-K", "0001555280-20-000054", "SellingGeneralAndAdministrativeExpense", 3, "selected"]
+            - [2020, "2020-12-31", "2020-01-01", 1726000000, "USD", "10-K", "0001555280-21-000098", "SellingGeneralAndAdministrativeExpense", 3, "selected"]
+            - [2021, "2021-12-31", "2021-01-01", 2001000000, "USD", "10-K", "0001555280-22-000078", "SellingGeneralAndAdministrativeExpense", 3, "selected"]
+            - [2022, "2022-12-31", "2022-01-01", 2009000000, "USD", "10-K", "0001555280-23-000074", "SellingGeneralAndAdministrativeExpense", 3, "selected"]
+            - [2023, "2023-12-31", "2023-01-01", 2151000000, "USD", "10-K", "0001555280-24-000143", "SellingGeneralAndAdministrativeExpense", 3, "selected"]
+            - [2024, "2024-12-31", "2024-01-01", 2318000000, "USD", "10-K", "0001555280-25-000102", "SellingGeneralAndAdministrativeExpense", 2, "selected"]
+            - [2025, "2025-12-31", "2025-01-01", 2378000000, "USD", "10-K", "0001555280-26-000011", "SellingGeneralAndAdministrativeExpense", 1, "selected"]
+      capex:
+        source_tags: ["PaymentsToAcquirePropertyPlantAndEquipment", "PaymentsToAcquireProductiveAssets"]
+        CPB:
+          status: partial
+          missing_years: [2007]
+          rows:
+            - [2008, "2008-08-03", "2007-07-30", 298000000, "USD", "10-K", "0000950123-10-090083", "PaymentsToAcquirePropertyPlantAndEquipment", 1, "selected"]
+            - [2009, "2009-08-02", "2008-08-04", 345000000, "USD", "10-K", "0000950123-10-090083", "PaymentsToAcquirePropertyPlantAndEquipment", 2, "selected"]
+            - [2010, "2010-08-01", "2009-08-03", 315000000, "USD", "10-K", "0000950123-10-090083", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2011, "2011-07-31", "2010-08-02", 272000000, "USD", "10-K", "0000950123-11-087197", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2012, "2012-07-29", "2011-08-01", 323000000, "USD", "10-K", "0000016732-12-000024", "PaymentsToAcquirePropertyPlantAndEquipment", 4, "selected"]
+            - [2013, "2013-07-28", "2012-07-30", 336000000, "USD", "10-K", "0000016732-13-000023", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2014, "2014-08-03", "2013-07-29", 347000000, "USD", "10-K", "0000016732-14-000023", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2015, "2015-08-02", "2014-08-04", 380000000, "USD", "10-K", "0000016732-15-000034", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2016, "2016-07-31", "2015-08-03", 341000000, "USD", "10-K", "0000016732-16-000146", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2017, "2017-07-30", "2016-08-01", 338000000, "USD", "10-K", "0000016732-17-000058", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2018, "2018-07-29", "2017-07-31", 407000000, "USD", "10-K", "0000016732-18-000062", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2019, "2019-07-28", "2018-07-30", 384000000, "USD", "10-K", "0000016732-19-000070", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2020, "2020-08-02", "2019-07-29", 299000000, "USD", "10-K", "0000016732-20-000111", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2021, "2021-08-01", "2020-08-03", 275000000, "USD", "10-K", "0000016732-21-000103", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2022, "2022-07-31", "2021-08-02", 242000000, "USD", "10-K", "0000016732-22-000093", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2023, "2023-07-30", "2022-08-01", 370000000, "USD", "10-K", "0000016732-23-000109", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2024, "2024-07-28", "2023-07-31", 517000000, "USD", "10-K", "0000016732-24-000130", "PaymentsToAcquirePropertyPlantAndEquipment", 2, "selected"]
+            - [2025, "2025-08-03", "2024-07-29", 426000000, "USD", "10-K", "0000016732-25-000112", "PaymentsToAcquirePropertyPlantAndEquipment", 1, "selected"]
+        ZTS:
+          status: partial
+          missing_years: [2007, 2008, 2009, 2010]
+          rows:
+            - [2011, "2011-12-31", "2011-01-01", 135000000, "USD", "10-K", "0001555280-14-000164", "PaymentsToAcquirePropertyPlantAndEquipment", 1, "selected"]
+            - [2012, "2012-12-31", "2012-01-01", 126000000, "USD", "10-K", "0001555280-14-000164", "PaymentsToAcquirePropertyPlantAndEquipment", 2, "selected"]
+            - [2013, "2013-12-31", "2013-01-01", 184000000, "USD", "10-K", "0001555280-14-000164", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2014, "2014-12-31", "2014-01-01", 180000000, "USD", "10-K", "0001555280-15-000057", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2015, "2015-12-31", "2015-01-01", 224000000, "USD", "10-K", "0001555280-16-000344", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2016, "2016-12-31", "2016-01-01", 216000000, "USD", "10-K", "0001555280-17-000044", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2017, "2017-12-31", "2017-01-01", 224000000, "USD", "10-K", "0001555280-18-000053", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2018, "2018-12-31", "2018-01-01", 338000000, "USD", "10-K", "0001555280-19-000041", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2019, "2019-12-31", "2019-01-01", 460000000, "USD", "10-K", "0001555280-20-000054", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2020, "2020-12-31", "2020-01-01", 453000000, "USD", "10-K", "0001555280-21-000098", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2021, "2021-12-31", "2021-01-01", 477000000, "USD", "10-K", "0001555280-22-000078", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2022, "2022-12-31", "2022-01-01", 586000000, "USD", "10-K", "0001555280-23-000074", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2023, "2023-12-31", "2023-01-01", 732000000, "USD", "10-K", "0001555280-24-000143", "PaymentsToAcquirePropertyPlantAndEquipment", 3, "selected"]
+            - [2024, "2024-12-31", "2024-01-01", 655000000, "USD", "10-K", "0001555280-25-000102", "PaymentsToAcquirePropertyPlantAndEquipment", 2, "selected"]
+            - [2025, "2025-12-31", "2025-01-01", 621000000, "USD", "10-K", "0001555280-26-000011", "PaymentsToAcquirePropertyPlantAndEquipment", 1, "selected"]
+      total_debt:
+        source_tags: ["LongTermDebt", "LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities"]
+        derivation: "total_debt_current_plus_noncurrent = near_term_debt + long_term_debt when no direct total is selected"
+        CPB:
+          status: direct_partial_derived_complete_from_FY2010
+          missing_years: [2007, 2008, 2009]
+          rows:
+            - [2010, "2010-08-01", null, 2645000000, "USD", "10-K", "0000950123-11-087197", "LongTermDebt", 1, "selected"]
+            - [2011, "2011-07-31", null, 2427000000, "USD", "10-K", "0000950123-11-087197", "LongTermDebt", 2, "selected"]
+            - [2012, "2012-07-29", null, 2408000000, "USD", "10-K", "0000016732-12-000024", "LongTermDebt", 2, "selected"]
+            - [2013, "2013-07-28", null, 3244000000, "USD", "10-K", "0000016732-13-000023", "LongTermDebt", 2, "selected"]
+            - [2014, "2014-08-03", null, 2544000000, "USD", "10-K", "0000016732-14-000023", "LongTermDebt", 2, "selected"]
+            - [2015, "2015-08-02", null, 2552000000, "USD", "10-K", "0000016732-15-000034", "LongTermDebt", 2, "selected"]
+            - [2016, "2016-07-31", null, 2755000000, "USD", "10-K", "0000016732-16-000146", "LongTermDebt", 2, "selected"]
+            - [2017, "2017-07-30", null, 2499000000, "USD", "10-K", "0000016732-17-000058", "LongTermDebt", 2, "selected"]
+            - [2018, "2018-07-29", null, 8595000000, "USD", "10-K", "0000016732-18-000062", "LongTermDebt", 1, "selected"]
+          derived_rows:
+            row_fields: [fiscal_year, end, value, near_term_value, long_term_value, near_term_accession, long_term_accession, status]
+            rows:
+              - [2019, "2019-07-28", 7603000000, 500000000, 7103000000, "0000016732-19-000070", "0000016732-19-000070", derived]
+              - [2020, "2020-08-02", 5915000000, 921000000, 4994000000, "0000016732-20-000111", "0000016732-20-000111", derived]
+              - [2021, "2021-08-01", 5010000000, 0, 5010000000, "0000016732-21-000103", "0000016732-21-000103", derived]
+              - [2022, "2022-07-31", 4561000000, 565000000, 3996000000, "0000016732-22-000093", "0000016732-22-000093", derived]
+              - [2023, "2023-07-30", 4498000000, 0, 4498000000, "0000016732-23-000109", "0000016732-23-000109", derived]
+              - [2024, "2024-07-28", 6911000000, 1150000000, 5761000000, "0000016732-24-000130", "0000016732-24-000130", derived]
+              - [2025, "2025-08-03", 6495000000, 400000000, 6095000000, "0000016732-25-000112", "0000016732-25-000112", derived]
+        ZTS:
+          status: derived_complete_from_FY2014
+          missing_years: [2007, 2008, 2009, 2010, 2011, 2012, 2013]
+          rows:
+          derived_rows:
+            row_fields: [fiscal_year, end, value, near_term_value, long_term_value, near_term_accession, long_term_accession, status]
+            rows:
+              - [2014, "2014-12-31", 3643000000, 0, 3643000000, "0001555280-16-000344", "0001555280-15-000057", derived]
+              - [2015, "2015-12-31", 4863000000, 400000000, 4463000000, "0001555280-16-000344", "0001555280-16-000344", derived]
+              - [2016, "2016-12-31", 4468000000, 0, 4468000000, "0001555280-17-000044", "0001555280-17-000044", derived]
+              - [2017, "2017-12-31", 4953000000, 0, 4953000000, "0001555280-18-000053", "0001555280-18-000053", derived]
+              - [2018, "2018-12-31", 6443000000, 0, 6443000000, "0001555280-19-000041", "0001555280-19-000041", derived]
+              - [2019, "2019-12-31", 6447000000, 500000000, 5947000000, "0001555280-20-000054", "0001555280-20-000054", derived]
+              - [2020, "2020-12-31", 7195000000, 600000000, 6595000000, "0001555280-21-000098", "0001555280-21-000098", derived]
+              - [2021, "2021-12-31", 6592000000, 0, 6592000000, "0001555280-22-000078", "0001555280-22-000078", derived]
+              - [2022, "2022-12-31", 7902000000, 1350000000, 6552000000, "0001555280-23-000074", "0001555280-23-000074", derived]
+              - [2023, "2023-12-31", 6564000000, 0, 6564000000, "0001555280-24-000143", "0001555280-24-000143", derived]
+              - [2024, "2024-12-31", 6570000000, 1350000000, 5220000000, "0001555280-25-000102", "0001555280-25-000102", derived]
+              - [2025, "2025-12-31", 9042000000, 0, 9042000000, "0001555280-26-000011", "0001555280-26-000011", derived]
+      cash_and_equivalents:
+        source_tags: ["CashAndCashEquivalentsAtCarryingValue", "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"]
+        CPB:
+          status: complete_in_domain
+          missing_years: []
+          rows:
+            - [2007, "2007-07-29", null, 71000000, "USD", "10-K", "0000950123-10-090083", "CashAndCashEquivalentsAtCarryingValue", 1, "selected"]
+            - [2008, "2008-08-03", null, 81000000, "USD", "10-K", "0000950123-10-090083", "CashAndCashEquivalentsAtCarryingValue", 2, "selected"]
+            - [2009, "2009-08-02", null, 51000000, "USD", "10-K", "0000950123-10-090083", "CashAndCashEquivalentsAtCarryingValue", 3, "selected"]
+            - [2010, "2010-08-01", null, 254000000, "USD", "10-K", "0000950123-10-090083", "CashAndCashEquivalentsAtCarryingValue", 4, "selected"]
+            - [2011, "2011-07-31", null, 484000000, "USD", "10-K", "0000950123-11-087197", "CashAndCashEquivalentsAtCarryingValue", 4, "selected"]
+            - [2012, "2012-07-29", null, 335000000, "USD", "10-K", "0000016732-12-000024", "CashAndCashEquivalentsAtCarryingValue", 4, "selected"]
+            - [2013, "2013-07-28", null, 333000000, "USD", "10-K", "0000016732-13-000023", "CashAndCashEquivalentsAtCarryingValue", 4, "selected"]
+            - [2014, "2014-08-03", null, 232000000, "USD", "10-K", "0000016732-14-000023", "CashAndCashEquivalentsAtCarryingValue", 4, "selected"]
+            - [2015, "2015-08-02", null, 253000000, "USD", "10-K", "0000016732-15-000034", "CashAndCashEquivalentsAtCarryingValue", 4, "selected"]
+            - [2016, "2016-07-31", null, 296000000, "USD", "10-K", "0000016732-16-000146", "CashAndCashEquivalentsAtCarryingValue", 4, "selected"]
+            - [2017, "2017-07-30", null, 319000000, "USD", "10-K", "0000016732-17-000058", "CashAndCashEquivalentsAtCarryingValue", 4, "selected"]
+            - [2018, "2018-07-29", null, 226000000, "USD", "10-K", "0000016732-18-000062", "CashAndCashEquivalentsAtCarryingValue", 3, "selected"]
+            - [2019, "2019-07-28", null, 31000000, "USD", "10-K", "0000016732-19-000070", "CashAndCashEquivalentsAtCarryingValue", 3, "selected"]
+            - [2020, "2020-08-02", null, 859000000, "USD", "10-K", "0000016732-20-000111", "CashAndCashEquivalentsAtCarryingValue", 3, "selected"]
+            - [2021, "2021-08-01", null, 69000000, "USD", "10-K", "0000016732-21-000103", "CashAndCashEquivalentsAtCarryingValue", 3, "selected"]
+            - [2022, "2022-07-31", null, 109000000, "USD", "10-K", "0000016732-22-000093", "CashAndCashEquivalentsAtCarryingValue", 4, "selected"]
+            - [2023, "2023-07-30", null, 189000000, "USD", "10-K", "0000016732-23-000109", "CashAndCashEquivalentsAtCarryingValue", 3, "selected"]
+            - [2024, "2024-07-28", null, 108000000, "USD", "10-K", "0000016732-24-000130", "CashAndCashEquivalentsAtCarryingValue", 3, "selected"]
+            - [2025, "2025-08-03", null, 132000000, "USD", "10-K", "0000016732-25-000112", "CashAndCashEquivalentsAtCarryingValue", 2, "selected"]
+        ZTS:
+          status: partial
+          missing_years: [2007, 2008, 2009]
+          rows:
+            - [2010, "2010-12-31", null, 63000000, "USD", "10-K", "0001555280-14-000164", "CashAndCashEquivalentsAtCarryingValue", 1, "selected"]
+            - [2011, "2011-12-31", null, 79000000, "USD", "10-K", "0001555280-14-000164", "CashAndCashEquivalentsAtCarryingValue", 2, "selected"]
+            - [2012, "2012-12-31", null, 317000000, "USD", "10-K", "0001555280-14-000164", "CashAndCashEquivalentsAtCarryingValue", 3, "selected"]
+            - [2013, "2013-12-31", null, 610000000, "USD", "10-K", "0001555280-14-000164", "CashAndCashEquivalentsAtCarryingValue", 4, "selected"]
+            - [2014, "2014-12-31", null, 882000000, "USD", "10-K", "0001555280-15-000057", "CashAndCashEquivalentsAtCarryingValue", 4, "selected"]
+            - [2015, "2015-12-31", null, 1154000000, "USD", "10-K", "0001555280-16-000344", "CashAndCashEquivalentsAtCarryingValue", 4, "selected"]
+            - [2016, "2016-12-31", null, 727000000, "USD", "10-K", "0001555280-17-000044", "CashAndCashEquivalentsAtCarryingValue", 4, "selected"]
+            - [2017, "2017-12-31", null, 1564000000, "USD", "10-K", "0001555280-18-000053", "CashAndCashEquivalentsAtCarryingValue", 4, "selected"]
+            - [2018, "2018-12-31", null, 1602000000, "USD", "10-K", "0001555280-19-000041", "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents", 4, "selected"]
+            - [2019, "2019-12-31", null, 1934000000, "USD", "10-K", "0001555280-20-000054", "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents", 4, "selected"]
+            - [2020, "2020-12-31", null, 3604000000, "USD", "10-K", "0001555280-21-000098", "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents", 4, "selected"]
+            - [2021, "2021-12-31", null, 3485000000, "USD", "10-K", "0001555280-22-000078", "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents", 4, "selected"]
+            - [2022, "2022-12-31", null, 3581000000, "USD", "10-K", "0001555280-23-000074", "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents", 4, "selected"]
+            - [2023, "2023-12-31", null, 2041000000, "USD", "10-K", "0001555280-24-000143", "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents", 3, "selected"]
+            - [2024, "2024-12-31", null, 1987000000, "USD", "10-K", "0001555280-25-000102", "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents", 2, "selected"]
+            - [2025, "2025-12-31", null, 2312000000, "USD", "10-K", "0001555280-26-000011", "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents", 1, "selected"]
+      near_term_debt:
+        source_tags: ["LongTermDebtCurrent", "LongTermDebtAndCapitalLeaseObligationsCurrent", "ConvertibleDebtCurrent"]
+        CPB:
+          status: partial
+          missing_years: [2007, 2008, 2009]
+          rows:
+            - [2010, "2010-08-01", null, 700000000, "USD", "10-K", "0000950123-11-087197", "LongTermDebtCurrent", 1, "selected"]
+            - [2011, "2011-07-31", null, 0, "USD", "10-K", "0000016732-12-000024", "LongTermDebtCurrent", 1, "selected"]
+            - [2012, "2012-07-29", null, 404000000, "USD", "10-K", "0000016732-12-000024", "LongTermDebtCurrent", 2, "selected"]
+            - [2013, "2013-07-28", null, 700000000, "USD", "10-K", "0000016732-13-000023", "LongTermDebtCurrent", 2, "selected"]
+            - [2014, "2014-08-03", null, 300000000, "USD", "10-K", "0000016732-14-000023", "LongTermDebtCurrent", 2, "selected"]
+            - [2015, "2015-08-02", null, 0, "USD", "10-K", "0000016732-15-000034", "LongTermDebtCurrent", 2, "selected"]
+            - [2016, "2016-07-31", null, 441000000, "USD", "10-K", "0000016732-16-000146", "LongTermDebtCurrent", 2, "selected"]
+            - [2017, "2017-07-30", null, 0, "USD", "10-K", "0000016732-17-000058", "LongTermDebtCurrent", 2, "selected"]
+            - [2018, "2018-07-29", null, 597000000, "USD", "10-K", "0000016732-18-000062", "LongTermDebtCurrent", 2, "selected"]
+            - [2019, "2019-07-28", null, 500000000, "USD", "10-K", "0000016732-19-000070", "LongTermDebtCurrent", 2, "selected"]
+            - [2020, "2020-08-02", null, 921000000, "USD", "10-K", "0000016732-20-000111", "LongTermDebtCurrent", 2, "selected"]
+            - [2021, "2021-08-01", null, 0, "USD", "10-K", "0000016732-21-000103", "LongTermDebtCurrent", 2, "selected"]
+            - [2022, "2022-07-31", null, 565000000, "USD", "10-K", "0000016732-22-000093", "LongTermDebtCurrent", 2, "selected"]
+            - [2023, "2023-07-30", null, 0, "USD", "10-K", "0000016732-23-000109", "LongTermDebtCurrent", 2, "selected"]
+            - [2024, "2024-07-28", null, 1150000000, "USD", "10-K", "0000016732-24-000130", "LongTermDebtCurrent", 2, "selected"]
+            - [2025, "2025-08-03", null, 400000000, "USD", "10-K", "0000016732-25-000112", "LongTermDebtCurrent", 1, "selected"]
+        ZTS:
+          status: partial
+          missing_years: [2007, 2008, 2009, 2010, 2011, 2012, 2013]
+          rows:
+            - [2014, "2014-12-31", null, 0, "USD", "10-K", "0001555280-16-000344", "LongTermDebtCurrent", 1, "selected"]
+            - [2015, "2015-12-31", null, 400000000, "USD", "10-K", "0001555280-16-000344", "LongTermDebtCurrent", 2, "selected"]
+            - [2016, "2016-12-31", null, 0, "USD", "10-K", "0001555280-17-000044", "LongTermDebtCurrent", 2, "selected"]
+            - [2017, "2017-12-31", null, 0, "USD", "10-K", "0001555280-18-000053", "LongTermDebtCurrent", 1, "selected"]
+            - [2018, "2018-12-31", null, 0, "USD", "10-K", "0001555280-19-000041", "LongTermDebtCurrent", 2, "selected"]
+            - [2019, "2019-12-31", null, 500000000, "USD", "10-K", "0001555280-20-000054", "LongTermDebtCurrent", 2, "selected"]
+            - [2020, "2020-12-31", null, 600000000, "USD", "10-K", "0001555280-21-000098", "LongTermDebtCurrent", 2, "selected"]
+            - [2021, "2021-12-31", null, 0, "USD", "10-K", "0001555280-22-000078", "LongTermDebtCurrent", 2, "selected"]
+            - [2022, "2022-12-31", null, 1350000000, "USD", "10-K", "0001555280-23-000074", "LongTermDebtCurrent", 2, "selected"]
+            - [2023, "2023-12-31", null, 0, "USD", "10-K", "0001555280-24-000143", "LongTermDebtCurrent", 2, "selected"]
+            - [2024, "2024-12-31", null, 1350000000, "USD", "10-K", "0001555280-25-000102", "LongTermDebtCurrent", 2, "selected"]
+            - [2025, "2025-12-31", null, 0, "USD", "10-K", "0001555280-26-000011", "LongTermDebtCurrent", 1, "selected"]
+      cash:
+        source_tags: []
+        interpretation: "DCF derivation leaf; no standalone us-gaap canonical mapping"
+        CPB:
+          status: not_mapped_derivation_leaf
+          missing_years: [2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
+          rows:
+        ZTS:
+          status: not_mapped_derivation_leaf
+          missing_years: [2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
+          rows:
+      cash_equivalents:
+        source_tags: []
+        interpretation: "DCF derivation leaf; no standalone us-gaap canonical mapping"
+        CPB:
+          status: not_mapped_derivation_leaf
+          missing_years: [2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
+          rows:
+        ZTS:
+          status: not_mapped_derivation_leaf
+          missing_years: [2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
+          rows:
+
+  semantic_checks:
+    revenue_fallback:
+      ZTS:
+        source_tags: [SalesRevenueNet, Revenues]
+        rows:
+          - [2016, 4888000000, 4888000000, 0.0, "0001555280-17-000044", "0001555280-19-000041", equal]
+          - [2017, 5307000000, 5307000000, 0.0, "0001555280-18-000053", "0001555280-19-000041", equal]
+        row_fields: [fiscal_year, legacy_value, revenues_value, difference_percent, legacy_accession, revenues_accession, status]
+        decision: "validated tag switch; proposed future fallback, not yet in us-gaap_v8"
+      CPB:
+        source_tags: [SalesRevenueGoodsNet, Revenues]
+        rows:
+          - [2017, 7890000000, 5837000000, 35.17, "0000016732-17-000058", "0000016732-19-000070", different]
+          - [2018, 8685000000, 6615000000, 31.29, "0000016732-18-000062", "0000016732-19-000070", different]
+        row_fields: [fiscal_year, legacy_value, revenues_value, difference_percent, legacy_accession, revenues_accession, status]
+        decision: "do not map until total-net-sales versus continuing-operations basis is explicitly reconciled"
+        metadata: "SalesRevenueGoodsNet is net goods revenue after returns, allowances and discounts; it is not a gross/pre-allowance claim"
+        filed_reconciliation: "CPB 2019 10-K reclassifies sold businesses as discontinued operations for all periods presented"
+        evidence_url: "https://www.sec.gov/Archives/edgar/data/16732/000001673219000070/cpb-7282019x10xk.htm"
+    gross_profit:
+      CPB: {companyfacts_usd_fact_count: 88, ten_k_fact_count: 80, qualifying_full_year_count: 0, decision: no_qualifying_annual_fact}
+      ZTS: {companyfacts_usd_fact_count: 0, qualifying_full_year_count: 0, decision: no_qualifying_annual_fact}
+      qualification: "10-K/10-K/A, issuer FYE match, duration >=300 days"
+      code_path: "beneish.compute_beneish returns insufficient_data before the caveat when an index is missing; otherwise _gross_profit_validated controls computed_with_caveat"
+    ebit_reconstruction_candidates:
+      ZTS:
+        pretax_tag: IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest
+        interest_tag: InterestExpense
+        row_fields: [fiscal_year, pretax_value, interest_value, pretax_accession, interest_accession, status]
+        rows:
+          - [2011, 394000000, 36000000, "0001555280-14-000164", "0001555280-14-000164", both_available]
+          - [2012, 710000000, 31000000, "0001555280-14-000164", "0001555280-14-000164", both_available]
+          - [2013, 690000000, 113000000, "0001555280-14-000164", "0001555280-14-000164", both_available]
+          - [2014, 820000000, 117000000, "0001555280-15-000057", "0001555280-15-000057", both_available]
+          - [2015, 545000000, 124000000, "0001555280-16-000344", "0001555280-16-000344", both_available]
+          - [2016, 1228000000, 166000000, "0001555280-17-000044", "0001555280-17-000044", both_available]
+          - [2017, 1525000000, 175000000, "0001555280-18-000053", "0001555280-18-000053", both_available]
+          - [2018, 1690000000, 206000000, "0001555280-19-000041", "0001555280-19-000041", both_available]
+          - [2019, 1801000000, 223000000, "0001555280-20-000054", "0001555280-20-000054", both_available]
+          - [2020, 1996000000, 231000000, "0001555280-21-000098", "0001555280-21-000098", both_available]
+          - [2021, 2488000000, 224000000, "0001555280-22-000078", "0001555280-22-000078", both_available]
+          - [2022, 2656000000, 221000000, "0001555280-23-000074", "0001555280-23-000074", both_available]
+          - [2023, 2936000000, 239000000, "0001555280-24-000143", "0001555280-24-000143", both_available]
+          - [2024, 3133000000, 225000000, "0001555280-25-000102", "0001555280-25-000102", both_available]
+          - [2025, 3360000000, 222000000, "0001555280-26-000011", "0001555280-26-000011", both_available]
+        decision: "defer mapping; pretax candidate is us-gaap continuing-operations scope and requires a versioned/global-versus-issuer-specific design"
+    cash_fallback:
+      ZTS:
+        overlap_row_fields: [fiscal_year, plain_value, inclusive_value, plain_accession, inclusive_accession, status]
+        overlap_rows:
+          - [2015, 1154000000, 1154000000, "0001555280-16-000344", "0001555280-19-000041", equal]
+          - [2016, 727000000, 727000000, "0001555280-17-000044", "0001555280-19-000041", equal]
+          - [2017, 1564000000, 1564000000, "0001555280-18-000053", "0001555280-19-000041", equal]
+        restricted_cash_current_tag_facts:
+          note: >-
+            ZTS's own RestrictedCashCurrent tag, independently checked 2026-09-01 —
+            proves restricted cash existed at FY2017-end too, filed in the ORIGINAL
+            FY2017 10-K, not just from FY2018 onward. This is what makes the FY2015-17
+            overlap match above insufficient as proof rather than merely unextended.
+          rows:
+            - {fiscal_year: 2017, value: 6000000, as_of: "2017-12-31", filing: "0001555280-18-000053 (FY2017 10-K, original)"}
+            - {fiscal_year: 2018, value: 5000000, as_of: "2018-12-31", filing: "0001555280-19-000041 (FY2018 10-K)"}
+            - {fiscal_year: 2019, value: 2000000, as_of: "2019-12-31", filing: "0001555280-20-000054 (FY2019 10-K)"}
+        evidence_url: "https://www.sec.gov/Archives/edgar/data/1555280/000155528020000054/zoetis-20191231x10kye.htm"
+        decision: "reject global restricted-inclusive fallback for ZTS until issuer-specific exclusion or equivalent proof exists"
+
+  findings:
+    - id: 1
+      title: "CPB's pre-2017 revenue tag REJECTED; ZTS's pre-2016 revenue tag ACCEPTED — same-shaped candidate, opposite outcome"
+      detail: >
+        Both filers have a legacy pre-ASC-606 revenue tag not in us-gaap_v8.yaml's
+        current fallback chain (Revenues, RevenueFromContractWithCustomerExcluding
+        AssessedTax): CPB tags SalesRevenueGoodsNet FY2008-2018, ZTS tags
+        SalesRevenueNet FY2011-2017. Checked overlap-year equality against
+        Revenues before treating either as admissible, per this project's standing
+        rule that a same-named-sounding tag needs proof, not assumption.
+
+        ZTS: SalesRevenueNet == Revenues to the dollar in both overlap years
+        (FY2016: $4,888M both; FY2017: $5,307M both). This is a clean tag switch,
+        not a measurement change. Adding it as a fallback extends ZTS revenue to
+        FY2011-2025 and SPECIFICALLY RESOLVES the FY2014 single-year gap flagged
+        in the 2026-09-01 ticker-selection check (FY2014 value: $4,785,000,000,
+        accession 0001555280-16-000344, confirmed present).
+
+        CPB: SalesRevenueGoodsNet differs from Revenues in both overlap years
+        (FY2017: $7,890M vs $5,837M, +35.17%; FY2018: $8,685M vs $6,615M,
+        +31.29%). SEC metadata describes SalesRevenueGoodsNet as net goods revenue
+        after returns, allowances and discounts; the finding must not call it gross
+        or pre-allowance. CPB's 2019 10-K reclassifies sold businesses as discontinued
+        operations for all periods presented, which plausibly explains the gap as
+        total net sales versus continuing-operations Revenues. REJECTED for the
+        current continuing-operations canonical basis, pending an explicit filed
+        reconciliation; CPB's pre-FY2017 revenue-dependent signals remain
+        insufficient_data rather than receiving an unproven value.
+      action: >
+        Story 12.3: add SalesRevenueNet as a revenue fallback source for ZTS only
+        (do not add SalesRevenueGoodsNet for CPB). Bump us-gaap mapping spec
+        version and record the overlap-year proof in its note field, matching the
+        QSR restricted-cash and SHOP/OTEX gross-profit precedents already in that
+        file.
+    - id: 2
+      title: "Neither filer has a qualifying annual gross_profit fact — expected, matches QSR's existing shape"
+      detail: >
+        ZTS never tags GrossProfit at all. CPB tags 88 GrossProfit USD facts in the
+        live payload, but only 80 are from 10-K filings (the other 8 are 8-K facts);
+        all 80 10-K instances are quarterly sub-periods from the 10-K's "selected
+        quarterly financial data" footnote, with no 350-380 day full-year fact.
+        This is the exact quarterly-footnote sharp edge already documented in
+        project-context.md's 2026-07-29 learnings, confirmed live rather than
+        assumed. Consequently gross_profit has no qualifying annual fact for either
+        filer.
+
+        This is NOT a defect. derivations_v4.yaml's revenue_minus_cost_of_sales
+        rule is deliberately scoped to ifrs-full only (requires_source restricts
+        it to the CostOfSales tag) — us-gaap filers were excluded on purpose after
+        the QSR investigation found the subtraction unsafe there. beneish.py's
+        _gross_profit_validated() already handles a filer with zero gross_profit
+        coverage correctly when all other Beneish indices compute: GMI is still
+        computed from revenue/cogs directly, and the run carries a
+        "computed_with_caveat" (unvalidated margin) annotation rather than
+        insufficient_data — the same mechanism already live for QSR. However,
+        compute_beneish returns insufficient_data first when any required index is
+        missing, so the caveat is conditional on a fully computed run, not a
+        permanent status for every filer-year.
+      action: "None for gross_profit. Story 12.4 golden entries must expect a conditional caveat only on otherwise-computed Beneish runs."
+    - id: 3
+      title: "CPB's long_term_debt crosses a tag switch at FY2014 — verified a clean rename, not a measurement change"
+      detail: >
+        CPB tags LongTermDebtNoncurrent FY2009-2014 then switches to
+        LongTermDebtAndCapitalLeaseObligations FY2014-2025 (the same variant CP
+        uses, per us-gaap_v8.yaml's existing note). The one overlap year
+        (FY2014) agrees exactly: $2,244,000,000 both tags. Unlike CP — which has
+        NO non-lease-inclusive tag at all, making the two measurement bases
+        genuinely different — CPB's single shared year shows no lease component
+        distorting the figure at the switch point. Weaker evidence than ZTS's
+        3-year cash-tag proof or QSR's cash proof (only one overlap year exists
+        here), stated plainly rather than overstated.
+      action: >
+        No mapping change needed — us-gaap_v8.yaml's existing fallback order
+        (LongTermDebtNoncurrent, then LongTermDebtAndCapitalLeaseObligations)
+        already covers CPB correctly. Record the live verification so a future
+        session doesn't re-flag this switch as a suspected bug (the exact BCE
+        debt-tag trap from the 2026-08-14 learnings).
+    - id: 4
+      title: "ZTS has NO ebit under the current us-gaap mapping — real gap; reconstruction remains a design decision"
+      detail: >
+        ZTS never tags OperatingIncomeLoss in any year (confirmed absent from its
+        full us-gaap concept list, not just missing from the coverage window).
+        Altman's X3 (EBIT / total assets) will read insufficient_data for ZTS in
+        every fiscal year unless this is fixed. derivations_v4.yaml already has an
+        ebit_pbt_plus_interest DECISION rule (pretax income + interest expense),
+        but its operands (profit_before_tax, interest_expense) are currently
+        mapped under ifrs-full ONLY — us-gaap_v8.yaml maps neither, so the rule is
+        de facto unreachable for any us-gaap filer today, ZTS included.
+
+        Checked feasibility: ZTS tags InterestExpense and
+        IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItems
+        NoncontrollingInterest for ALL 15 years, FY2011-2025, with zero gaps. The
+        proposed pretax tag is a us-gaap continuing-operations concept; it is not
+        the same source tag as ifrs-full:ProfitLossBeforeTax. A us-gaap extension
+        could give ZTS complete ebit coverage, but only after the continuing-
+        operations basis is reconciled and the scope of the mapping is decided.
+      action: >
+        Story 12.3 decision, not a Story 12.1 fix (D8 consequence 3 — a
+        reconstruction is a DECISION, needs its own rationale on the methodology
+        page, and changing derivations_v4.yaml's scope is exactly the kind of
+        change that belongs in its own reviewed step). Do not map the candidate
+        operands globally until the filed basis and impact on every us-gaap filer
+        are verified; if issuer scope is required, the mapping schema must express
+        that scope rather than silently applying a ZTS choice to the universe.
+    - id: 5
+      title: "ZTS's cash_and_equivalents crosses to the restricted-inclusive tag at FY2018 — overlap proof is insufficient"
+      detail: >
+        ZTS tags CashAndCashEquivalentsAtCarryingValue only through FY2017, then
+        relies on CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents
+        for FY2018-2025 — structurally the exact QSR pattern this project's
+        mapping spec documents and gates behind proof. The two tags agree to the
+        dollar in all 3 overlap years (FY2015: $1,154M; FY2016: $727M; FY2017:
+        $1,564M), but that does not prove the relationship persists after the
+        switch. ZTS's 2019 10-K discloses restricted cash of $5M at FY2018 and
+        $2M at FY2019, so the inclusive values are not unrestricted cash in those
+        years. The raw tag coverage is real; the fallback is not semantically safe.
+
+        CORRECTION verified independently 2026-09-01: restricted cash is not new
+        at the switch. ZTS's own RestrictedCashCurrent tag reports $6,000,000 as
+        of FY2017-end (0001555280-18-000053, ZTS's ORIGINAL FY2017 10-K, and
+        confirmed again as a comparative in the FY2018 10-K) — the exact same
+        fiscal year the two cash tags above match to the dollar. That is the
+        harder problem: the "restricted-inclusive" tag's FY2017 value equals the
+        plain tag's FY2017 value exactly, despite ZTS separately disclosing $6M
+        of restricted cash for that same date — the combined tag does not appear
+        to actually include it, contradicting its own name for at least that
+        year. The 3-year overlap match is real data, but it does not demonstrate
+        "no restricted cash"; it demonstrates the combined tag not moving when
+        restricted cash is nonzero, which is a different and less reassuring
+        fact. Do not read the overlap match as proof of anything beyond itself.
+      action: >
+        Keep the global fallback from applying to ZTS until the versioned mapping
+        design has issuer-specific exclusion or another filed-value solution. The
+        existing generic overlap test is not sufficient: it proves only FY2015-2017
+        equality and cannot certify post-switch restricted cash.
+  carry_forward: >
+    Story 12.2 (ingestion) needs no changes from this spike — raw facts can be
+    ingested as-is, provided canonicalization does not run the unsafe ZTS cash
+    fallback. Story 12.3 inherits three mapping decisions: add SalesRevenueNet as
+    a validated ZTS fallback (do NOT add SalesRevenueGoodsNet for CPB), decide on
+    the us-gaap ebit reconstruction for ZTS, and add issuer-specific handling for
+    restricted-inclusive cash. CPB's debt switch remains a documented one-year
+    overlap confirmation. Story 12.4's golden entries should expect a conditional
+    unvalidated-gross-margin caveat only when the Beneish run otherwise computes;
+    ZTS's Altman remains insufficient_data for X3 unless the ebit decision is
+    actioned.
+  codex_review:
+    reviewed: 2026-09-01
+    by: "Codex — independent review of PR #105 against Story 12.1 acceptance criteria"
+    outcome: resolved
+    resolution: >-
+      The review findings were addressed in the Story 12.1 artifact and planning
+      baseline: durable per-year evidence is committed; the inventory is reconciled
+      at 23 concepts; revenue percentages and CPB's continuing-operations basis are
+      corrected; the gross-profit caveat is qualified to the actual Beneish call
+      path; and the Epic 12 summary no longer claims canonical coverage that the
+      current mapping does not provide. Story 12.3 mapping work remains deliberately
+      pending because the spike's acceptance criteria require findings before
+      canonicalization, and the remaining decisions are explicitly carried forward.
+    historical_findings:
+      - id: 1
+        severity: high
+        location: "engineering-findings.yaml:story_12_1_coverage_spike.coverage_evidence; epics.md:Story 12.1 AC"
+        title: "The required per-concept/per-year evidence tables are not committed"
+        detail: >-
+          Story 12.1 explicitly requires per-concept per-year tables for both filers.
+          The artifact commits only range strings such as FY2009-2025, clean, while
+          its note says the actual year rows, accession numbers and forms remain in
+          an ephemeral scratchpad. This makes the end-date rebucketing, duration
+          filter, overlap comparisons and semantic decisions impossible to audit or
+          reproduce from the PR. A live fetch may have occurred, but the acceptance
+          criterion is not met by the durable record.
+        action: >-
+          Commit machine-readable rows for every checked concept and fiscal year,
+          including end, start where applicable, value, unit, form, accession and
+          selected/rejected status; retain the range summary only as a convenience.
+
+      - id: 2
+        severity: high
+        location: "engineering-findings.yaml:story_12_1_coverage_spike.coverage_evidence.inventory; backend/valuation/overview.py:34-48"
+        title: "The 22-concept inventory is not reconciled and omits two DCF derivation leaves"
+        detail: >-
+          Each filer has 21 durable coverage rows, although the verdict claims 22.
+          More importantly, the actual declared inputs are Piotroski 9, Altman 8,
+          Beneish 13 (including the gross_profit guard), Sloan 3, plus the
+          reverse-DCF DCF_CONCEPTS tuple's 11 concepts. Their deduplicated union is
+          23, including cash and cash_equivalents, which the durable CPB and ZTS
+          lists omit. The verdict's labels Altman's 5 and Beneish's 8 are signal
+          counts, not the full input lists that Story 12.1 says to check. As written,
+          the PR cannot show that every declared input was checked or identify the
+          claimed 22nd concept.
+        action: >-
+          Publish the reconciled inventory and per-filer rows, explicitly showing
+          whether cash and cash_equivalents are checked as derivation leaves or are
+          excluded by a documented interpretation of the acceptance criterion.
+
+      - id: 3
+        severity: high
+        location: "engineering-findings.yaml:story_12_1_coverage_spike.semantic_checks.revenue_fallback"
+        title: "The CPB revenue rejection uses an unsupported semantic explanation"
+        detail: >-
+          The live Company Facts values are correct: FY2017 SalesRevenueGoodsNet
+          is $7,890M versus Revenues $5,837M, and FY2018 is $8,685M versus $6,615M.
+          The FY2017 difference is about 35.17%, but FY2018 is about 31.29%, not
+          approximately 35% on the same Revenues-denominator basis. More materially,
+          the SEC concept metadata defines SalesRevenueGoodsNet as revenue after
+          deducting returns, allowances and discounts, so the finding's statements
+          that it is gross and pre-allowance are wrong. Campbell's 2019 10-K explains
+          that results of sold businesses were reclassified to discontinued operations
+          for all periods presented; its continuing-operation net sales are $5,837M
+          and $6,615M, while the older total net-sales facts are $7,890M and $8,685M.
+          Thus the mismatch plausibly reflects total-versus-continuing-operations
+          scope, not a gross or segment figure. Rejecting the tag may still be the
+          correct decision if the canonical revenue basis is continuing operations,
+          but that basis decision and filed-value reconciliation must be stated before
+          concluding that the tag is a different economic concept.
+        evidence: >-
+          Live sources: https://data.sec.gov/api/xbrl/companyfacts/CIK0000016732.json;
+          https://www.sec.gov/Archives/edgar/data/16732/000001673219000070/cpb-7282019x10xk.htm
+        action: >-
+          Amend finding 1 to correct the percentage, remove the gross/pre-allowance
+          claim, and document the continuing-operations versus total-net-sales basis
+          before carrying the CPB rejection into Story 12.3.
+
+      - id: 4
+        severity: high
+        location: "engineering-findings.yaml:story_12_1_coverage_spike.verdict/findings[1]; backend/canonicalization/mappings/specs/us-gaap_v8.yaml:89-97"
+        title: "ZTS FY2014 is described as already resolved although the fallback is not live"
+        detail: >-
+          The ZTS overlap arithmetic is valid: SalesRevenueNet equals Revenues at
+          $4,888M in FY2016 and $5,307M in FY2017, and the FY2014 $4,785M fact is
+          present in the live payload. But us-gaap_v8.yaml currently lists only
+          Revenues and RevenueFromContractWithCustomerExcludingAssessedTax; the
+          proposed SalesRevenueNet fallback is deferred to Story 12.3. The same PR
+          therefore says both that the gap is already resolved and that it resolves
+          only once the fallback is added. Current canonical coverage remains
+          FY2016-2025 until that later mapping/version is actually applied.
+        evidence: "https://data.sec.gov/api/xbrl/companyfacts/CIK0001555280.json"
+        action: >-
+          Change the verdict language to say the gap is explained as a validated tag
+          switch and is proposed for Story 12.3, not already resolved in production.
+
+      - id: 5
+        severity: medium
+        location: "engineering-findings.yaml:story_12_1_coverage_spike.findings[2]; backend/scoring/beneish.py:90-124,127-137"
+        title: "The gross-profit caveat conclusion is broader than the Beneish call path"
+        detail: >-
+          The source inspection supports the core non-finding: the derivation rule
+          requires CostOfSales, the us-gaap mappings provide CostOfRevenue or
+          CostOfGoodsAndServicesSold instead, and _gross_profit_validated is a
+          filer-level any-year check. Live CPB Company Facts contain 88 GrossProfit
+          USD facts in total, but only 80 are 10-K facts (the other 8 are 8-K facts);
+          the 80 10-K rows are quarterly and none is a full-year row, so the count
+          and filing-source description should be corrected. Also, compute_beneish
+          returns at line 90 when any index is missing, before applying the gross
+          margin guard at lines 113-117. Therefore the caveat is attached only to
+          fully computed Beneish years; insufficient years do not carry
+          computed_with_caveat. “Both filers will carry that caveat permanently” is
+          not a consequence of the code as written.
+        action: >-
+          State the caveat conditionally for computed years, correct the 88-versus-80
+          count, and do not make Story 12.4 expect a caveat on insufficient runs.
+
+      - id: 6
+        severity: medium
+        location: "engineering-findings.yaml:story_12_1_coverage_spike.semantic_checks.ebit_reconstruction_candidates; backend/canonicalization/mappings/specs/derivations_v4.yaml:109-147; backend/canonicalization/mappings/specs/ifrs-full_v4.yaml:232-249"
+        title: "The ZTS EBIT gap is real, but the proposed operand mapping is not semantically closed"
+        detail: >-
+          The core finding checks out: ebit_pbt_plus_interest exists, its operands
+          are mapped in ifrs-full_v4, neither profit_before_tax nor interest_expense
+          is mapped in us-gaap_v8, and ZTS has no OperatingIncomeLoss. The proposed
+          ZTS pretax source is nevertheless
+          IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest,
+          a us-gaap continuing-operations tag; it is not the same source tag as
+          ifrs-full:ProfitLossBeforeTax. The PR's claim that it is the same tag name
+          already used under IFRS is false, and presence for 15 years alone does not
+          reconcile continuing-operations scope with the canonical operand. The
+          derivation loader is taxonomy-blind and the mapping schema has no issuer
+          scope, so “map ZTS only” also needs an explicit implementation decision or
+          global validation before Story 12.3.
+        action: >-
+          Keep the gap as a Story 12.3 finding, but require a filed-statement basis
+          reconciliation and a clear global-versus-issuer-specific mapping design
+          before approving the reconstruction.
+
+      - id: 7
+        severity: medium
+        location: "engineering-findings.yaml:story_12_1_coverage_spike.semantic_checks.cash_fallback; backend/canonicalization/mappings/specs/us-gaap_v8.yaml:388-414"
+        title: "ZTS restricted-inclusive cash is approved beyond the recorded proof"
+        detail: >-
+          The three overlap values are correct, but equality with the unrestricted
+          tag in FY2015-FY2017 proves the relationship only for those overlap years.
+          The conclusion that the restricted-inclusive tag is unrestricted cash for
+          every FY2018-FY2025 year is not supported by a committed post-switch
+          restricted-cash check. The mapping note itself says the proof is
+          filer-specific and that restricted cash would understate enterprise value.
+        action: >-
+          Record the post-switch restricted-cash evidence or narrow the conclusion to
+          the three overlap years and leave the fallback conditional until Story 12.3.
+
+      - id: 8
+        severity: medium
+        location: "_bmad-output/planning-artifacts/epics.md:Epic 12 introduction"
+        title: "Epic 12's headline coverage statement is stale after this spike"
+        detail: >-
+          The epic introduction still says CPB has gap-free FY2010-FY2025 revenue
+          and ZTS has FY2013-FY2025 coverage with one FY2014 gap. This PR's own
+          durable record says CPB's current mapping begins FY2017 and ZTS's begins
+          FY2016, with both extensions deferred to Story 12.3. Leaving both claims
+          in the planning artifacts creates two contradictory coverage baselines for
+          Story 12.2 and subsequent work.
+        action: >-
+          Update the Epic 12 summary after the corrected spike result, preserving the
+          distinction between live tag availability and current canonical coverage.
+    verified_without_finding:
+      - "Finding 1's ZTS overlap amounts and CPB raw amounts were independently checked against live SEC Company Facts; the ZTS acceptance arithmetic is valid once described as a future mapping change."
+      - "Finding 2's no-full-year CPB GrossProfit conclusion is correct after applying the stated 10-K filter and full-year duration check; the derivation and Beneish guard exist as cited, subject to the caveat qualification above."
+      - "Finding 4's current us-gaap EBIT gap is real: us-gaap_v8.yaml has no profit_before_tax or interest_expense entries, while derivations_v4.yaml contains the cited rule."
+      - "PR scope is disciplined: origin/main...HEAD changes only engineering-findings.yaml and sprint-status.yaml; us-gaap_v8.yaml and derivations_v4.yaml were not edited."
+      - "Sprint status is correct for an open PR: epic-12 is in-progress, Story 12.1 is review, and Stories 12.2-12.5 remain backlog."
