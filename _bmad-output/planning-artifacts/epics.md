@@ -172,6 +172,10 @@ Lawrence opens a company and reads a sectioned stock report — an overview with
 Lawrence's stated concern (2026-08-28): Epic 10's report shell is functionally complete but still reads as a data dashboard, not something that teaches the four models while it reports them. A five-direction design-exploration pass (published as comparable Artifacts, real QSR data, both themes) selected **Instrument Panel** — terminal-precision JetBrains Mono, a muted amber accent, and click-to-expand inline definitions on every jargon term as the core teaching mechanism. This epic re-skins Epic 10's report end to end and adds two new presentation-layer capabilities the exploration surfaced: inline term definitions (reusable everywhere a signal key or model term appears) and model-level "why this works" explainers with worked examples on the existing `/methodology/[model]` pages, closing the gap between mechanical signal-level definitions and actually teaching the four models. Presentation-only in the same sense as Epic 10 — no score, figure, or computation changes; D9's capability gate does not govern it.
 **FRs covered:** none new — re-skins the shipped surfaces of Epic 10 and extends Epic 3's methodology pages; the inline-definition component and the methodology explainers are new UI/content, not a new capability under D9
 
+### Epic 12: US Universe Expansion — Campbell's & Zoetis
+Lawrence has a real, staked decision to buy CPB and ZTS (decision packets `2026-09-01-CPB.md`, `2026-09-01-ZTS.md`, satisfying D11 — each filer is added because it is being researched, not researched because it was added). Both are plain US-GAAP 10-K filers with long, gap-free EDGAR history (live-verified 2026-09-01: CPB 2010-2025 revenue coverage with no gaps; ZTS 2013-2025 with a single-year gap at FY2014 needing investigation), so this is the same shape of work as Epic 1's original onboarding and D8's IFRS track — ingest, canonicalize, extend the golden dataset, verify live — not a new taxonomy or a new capability. Universe growth under D11, not an Epic 7-9 capability, so D9's gate does not apply.
+**FRs covered:** none new — extends the existing ingestion/canonicalization/scoring pipeline (FR-1 through FR-14, FR-22, FR-16) to two additional filers already-supported under `us-gaap`
+
 ---
 
 ## Epic 1: Foundation & First Evidence (Walking Skeleton)
@@ -1155,3 +1159,130 @@ is only as good as the source it names
 this story picking one reading for the explainer text; if the five-signal model is in scope for this
 page at all, the ambiguity is stated as ambiguous, not smoothed over for readability
 **And** verified in a browser for all four models before this story closes
+
+---
+
+## Epic 12: US Universe Expansion — Campbell's & Zoetis
+
+Onboard CPB and ZTS, both plain `us-gaap` 10-K filers, driven by Lawrence's real, staked decision
+to buy each (decision packets `_bmad-output/decision-packets/2026-09-01-CPB.md` and
+`2026-09-01-ZTS.md`, section 1 written before ingestion, per D11). Live-verified 2026-09-01 against
+`data.sec.gov`: CPB's revenue coverage runs FY2010-2025 with no gaps; ZTS's runs FY2013-2025 with a
+single-year gap at FY2014 that needs investigation before it can be treated as a genuine tag switch
+versus a coverage artifact. This is universe growth under an already-supported taxonomy — the same
+shape as Epic 1's original onboarding and D8's IFRS track — not a new capability, so D9's gate does
+not apply; D11 is the governing decision, and the two decision packets are its evidence.
+
+### Story 12.1: Live EDGAR concept-coverage spike for Campbell's and Zoetis
+
+As Lawrence (developer),
+I want every concept the four models and the reverse-DCF solver actually read — not just
+revenue — checked for live, per-year coverage against real `data.sec.gov` company-facts for both
+filers,
+So that a coverage gap is caught as a spike finding before ingestion, not discovered later as a
+silent `insufficient_data` that looks like a bug.
+
+**Acceptance Criteria:**
+
+**Given** the full input list each formula spec declares (Piotroski's 9 inputs, Altman's 5, Beneish's
+8, Sloan's accrual inputs, the reverse-DCF's free-cash-flow and debt-schedule operands — the same
+list `scoring/runner.py` already enforces per-model)
+**When** this spike runs against CPB's and ZTS's live EDGAR company-facts JSON
+**Then** each concept's fiscal-year coverage is recorded per filer, bucketed on `end` (fact period),
+never on EDGAR's `fy` (filing year) — the same rebucketing this project has needed for every prior
+filer addition
+**And** ZTS's single-year revenue gap at FY2014 (found in the 2026-09-01 live check) is explained —
+either a genuine tag switch (a second tag covers FY2014, per the pattern already resolved for other
+filers) or a real, permanent coverage gap that must be declared `insufficient_data` for that year
+**And** any tag whose name suggests a concept but whose semantics differ (accrual vs. cash,
+inclusive vs. exclusive) is checked against the filer's own filed values before being mapped, per
+the recurring "a tag whose name contains the concept is often not the concept" lesson
+**And** findings are recorded in `engineering-findings.yaml` under `story_12_1_coverage_spike`,
+including per-concept per-year tables for both filers, before Story 12.2 begins
+
+### Story 12.2: EDGAR ingestion for Campbell's and Zoetis
+
+As Lawrence (developer),
+I want CPB's and ZTS's real EDGAR filings ingested into `raw_facts` using the existing `us-gaap`
+ingestion path,
+So that both filers' historical facts are available for canonicalization, exactly as CP, QSR,
+OTEX and SHOP already are.
+
+**Acceptance Criteria:**
+
+**Given** the existing EDGAR ingestion pipeline (`backend/ingestion/`) and Story 12.1's coverage
+findings
+**When** ingestion runs for CIK 0000016732 (CPB) and CIK 0001555280 (ZTS)
+**Then** both issuers and their filings (10-K, and 10-K/A where one exists) are created with
+correctly attributed `fiscal_year_end` (CPB's non-calendar FYE — early August — handled the same
+way OTEX's June 30 FYE already is)
+**And** the `dei` cover-page-date exclusion and full-year-duration filtering already fixed for
+every prior filer's fiscal-year-end determination apply unchanged — no new fiscal-year bucketing
+logic is written for these two filers
+**And** ingestion is idempotent — re-running it does not duplicate `raw_facts` rows, matching the
+pattern already established for the other seven filers
+
+### Story 12.3: Canonicalization and validation for Campbell's and Zoetis
+
+As Lawrence (developer),
+I want CPB's and ZTS's raw facts canonicalized and validated under the existing `us-gaap` mapping
+spec,
+So that both filers produce canonical facts and any accounting-identity data-quality issues on the
+same terms as the rest of the universe.
+
+**Acceptance Criteria:**
+
+**Given** Story 12.1's per-concept coverage findings and the existing `us-gaap` concept-mapping
+spec
+**When** `canonicalize_issuer` and `run_validation` run for both filers
+**Then** any tag-switch or filer-specific mapping need surfaced by Story 12.1 is added to the
+mapping spec as a versioned entry with a `note` explaining the choice — never resolved silently in
+code
+**And** any genuine accounting-identity violation opens a `data_quality_issues` row per AD-3/AD-16
+— never silently guessed or defaulted
+**And** a concept with no live coverage for a given year renders `insufficient_data` for that
+filer-year, never an assumed zero (AD-16)
+
+### Story 12.4: Golden-dataset coverage for Campbell's and Zoetis
+
+As Lawrence (developer),
+I want CPB's and ZTS's scores hand-verified against real EDGAR data and added to
+`phase1_golden.yaml` across all four models and the reverse-DCF implied growth rate,
+So that SM-1's golden-dataset guarantee — reopened by every universe addition — holds for the two
+new filers, not just the five test scenarios already in place.
+
+**Acceptance Criteria:**
+
+**Given** the golden-dataset harness pattern already used for the other seven filers
+**When** golden entries are added for CPB and ZTS
+**Then** each entry's expected value is hand-computed independently, without importing
+`backend/scoring`, `backend/formulas` or the solver — the same independence that caught the
+IFRS golden dataset's own averaging error
+**And** the golden fixture is confirmed to actually carry the tags each new entry exercises before
+the entry is written, per the standing "fixture is a trimmed subset" lesson — an entry a fixture
+cannot reproduce is deleted or reworked, not left in place asserting nothing
+**And** corrupting an expected value is confirmed to fail the suite, for at least one entry per
+filer, before this story closes
+
+### Story 12.5: Scheduled pipeline inclusion and full-universe browser verification
+
+As Lawrence (investor),
+I want CPB and ZTS to appear in the nightly scheduled pipeline and render correctly on every
+existing page (overview, report, methodology, comparison),
+So that both filers are genuinely part of the universe, not just present in the database.
+
+**Acceptance Criteria:**
+
+**Given** the scheduled pipeline (`pipeline/run.py`) and the full set of existing pages
+**When** CPB and ZTS run through a full nightly cycle
+**Then** both appear on the landing page, ticker search, and comparison view alongside the
+existing seven filers
+**And** both are rendered live in a browser across the report page's every section (Verdict glyph,
+Rewards & Risks, Valuation, Past Performance, Financial Health, Integrity & Evidence) and the
+methodology pages — chosen as spot-check subjects specifically because they exercise a plain
+`us-gaap` non-calendar (CPB) and calendar (ZTS) fiscal-year-end path, not because they are
+convenient
+**And** any defect found is fixed or explicitly recorded in `engineering-findings.yaml` before
+this epic closes
+**And** `data_quality_issues` for both filers, if any, are reviewed and dispositioned (resolved or
+explicitly accepted with a reason), never left open and unexamined
