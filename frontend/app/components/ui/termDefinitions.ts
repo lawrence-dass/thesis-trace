@@ -18,9 +18,18 @@
 // proven reference case, not an exclusion) on implementing this story shows
 // that was a misreading: page.tsx's renderLensCards renders all four
 // models' signal lists through one shared code path, so wiring Term there
-// covers Piotroski as a natural consequence regardless. Descriptions
-// sourced verbatim from piotroski_v1.yaml's own `signals[].description`,
-// the authoritative source, not reworded from the mockup's prose.
+// covers Piotroski as a natural consequence regardless. Descriptions are
+// ADAPTED for plain-language readability from piotroski_v1.yaml's own
+// `signals[].description` (the authoritative source for what each signal
+// tests) — Story 11.5's own AC requires jargon to "expand inline into a
+// PLAIN-LANGUAGE definition", and the spec's raw text uses code-style
+// snake_case operand names and unexplained acronyms (ROA) a reader hasn't
+// necessarily met yet. A Codex review round briefly "fixed" these to match
+// the spec text byte-for-byte, which satisfied this comment's earlier
+// (inaccurate) claim of verbatim sourcing but was the wrong direction — it
+// reintroduced the acronym and dropped explanatory clauses (e.g. why an
+// accruals gap matters) this story exists specifically to add. Reverted;
+// this comment was corrected instead of the copy.
 export const TERM_DEFINITIONS_VERSION = "v3";
 
 export const TERM_DEFINITIONS = {

@@ -57,7 +57,7 @@ export function Term({ id, children }: { id: TermId; children: React.ReactNode }
           expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
         }`}
       >
-        <span className="block overflow-hidden pt-1 text-caption normal-case leading-relaxed text-[var(--color-ink-faint)]">
+        <span className="block overflow-hidden pt-1 text-caption normal-case leading-relaxed text-[var(--color-ink)]">
           {TERM_DEFINITIONS[id]}
         </span>
       </span>

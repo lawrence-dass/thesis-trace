@@ -489,7 +489,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                   {data.data_quality.map((dq, i) => (
                     <li key={i}>
                       {dq.issue_type}{" "}
-                      <span className="text-caption text-[var(--color-ink-faint)]">
+                      <span className="text-caption text-[var(--color-ink-muted)]">
                         ({dq.status}, raised by {dq.raised_by})
                       </span>
                     </li>
