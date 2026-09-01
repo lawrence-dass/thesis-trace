@@ -2,8 +2,57 @@
 // Presentation only — renders exactly what the read API returns (AD-8).
 
 import { Card } from "../../components/ui/Card";
+import { Term } from "../../components/ui/Term";
+import { TERM_DEFINITIONS, type TermId } from "../../components/ui/termDefinitions";
+import {
+  ALTMAN_SIGNAL_ORDER,
+  BENEISH_COEFFICIENTS,
+  BENEISH_CONSTANT,
+  BENEISH_SIGNAL_ORDER,
+  WHY_IT_WORKS,
+  WORKED_EXAMPLE_TICKER,
+} from "./narratives";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+
+// Every sub-signal key across all four models is wired to Term (Story 11.7) —
+// a runtime check because `signal_key` is a string off the wire, not the
+// fixed TermId union.
+function isTermId(key: string): key is TermId {
+  return Object.prototype.hasOwnProperty.call(TERM_DEFINITIONS, key);
+}
+
+type OverviewSignal = { signal_key: string; status: string; value: number | null };
+type OverviewScore = {
+  model: string;
+  fiscal_year: number;
+  aggregate_value: number | null;
+  signals: OverviewSignal[];
+};
+type Overview = {
+  state: string;
+  ticker?: string;
+  name?: string;
+  verdict?: { model: string; fiscal_year: number }[];
+  scores?: OverviewScore[];
+};
+
+async function getWorkedExample(model: string): Promise<{ name: string; ticker: string; run: OverviewScore } | null> {
+  const ticker = WORKED_EXAMPLE_TICKER[model];
+  if (!ticker) return null;
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/companies/${ticker}/overview`, { cache: "no-store" });
+    const overview = (await res.json()) as Overview;
+    if (overview.state !== "ok" || !overview.verdict || !overview.scores) return null;
+    const fiscalYear = overview.verdict.find((v) => v.model === model)?.fiscal_year;
+    if (fiscalYear === undefined) return null;
+    const run = overview.scores.find((s) => s.model === model && s.fiscal_year === fiscalYear);
+    if (!run) return null;
+    return { name: overview.name ?? ticker, ticker, run };
+  } catch {
+    return null;
+  }
+}
 
 type Signal = { key: string; description: string };
 type Derivation = {
@@ -37,7 +86,7 @@ async function getMethodology(model: string): Promise<Methodology> {
 
 export default async function MethodologyPage({ params }: { params: Promise<{ model: string }> }) {
   const { model } = await params;
-  const m = await getMethodology(model);
+  const [m, workedExample] = await Promise.all([getMethodology(model), getWorkedExample(model)]);
 
   if (m.state !== "ok") {
     return (
@@ -63,6 +112,17 @@ export default async function MethodologyPage({ params }: { params: Promise<{ mo
       <Card className="space-y-2">
         <p className="text-sm leading-relaxed text-[var(--color-ink-muted)]">{m.description}</p>
       </Card>
+
+      {WHY_IT_WORKS[model] ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
+            Why this works
+          </h2>
+          <Card className="space-y-3 text-sm leading-relaxed text-[var(--color-ink-muted)]">
+            {WHY_IT_WORKS[model]}
+          </Card>
+        </section>
+      ) : null}
 
       {m.inputs && m.inputs.length > 0 ? (
         <section className="space-y-3">
@@ -148,6 +208,28 @@ export default async function MethodologyPage({ params }: { params: Promise<{ mo
         </section>
       ) : null}
 
+      {workedExample ? (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
+            Worked example — {workedExample.name} ({workedExample.ticker}), FY{workedExample.run.fiscal_year}
+          </h2>
+          <Card className="space-y-3">
+            <p className="text-sm leading-relaxed text-[var(--color-ink-muted)]">
+              Every figure below is {workedExample.ticker}&rsquo;s actual stored value for this fiscal
+              year — the same data feeding {workedExample.ticker}&rsquo;s own report, not an
+              illustrative example.
+            </p>
+            <ul className="space-y-1.5 text-sm text-[var(--color-ink-muted)]">
+              {renderWorkedExampleRows(model, m.signals, workedExample.run)}
+            </ul>
+            <p className="border-t border-[var(--color-border)] pt-3 text-sm font-semibold text-[var(--color-ink)]">
+              = {workedExample.run.aggregate_value} — the {m.model} score shown on{" "}
+              {workedExample.ticker}&rsquo;s report for this year.
+            </p>
+          </Card>
+        </section>
+      ) : null}
+
       {m.source ? (
         <p className="text-sm text-[var(--color-ink-muted)]">
           <span className="font-semibold text-[var(--color-ink)]">Source: </span>
@@ -156,4 +238,75 @@ export default async function MethodologyPage({ params }: { params: Promise<{ mo
       ) : null}
     </main>
   );
+}
+
+function signalLabel(key: string) {
+  return isTermId(key) ? <Term id={key}>{key}</Term> : <span className="font-mono">{key}</span>;
+}
+
+function renderWorkedExampleRows(model: string, methodologySignals: Signal[] | undefined, run: OverviewScore) {
+  const byKey = new Map(run.signals.map((s) => [s.signal_key, s]));
+  const describe = (key: string) => methodologySignals?.find((s) => s.key === key)?.description ?? key;
+
+  if (model === "piotroski") {
+    const passCount = run.signals.filter((s) => s.status === "pass").length;
+    return (
+      <>
+        {(methodologySignals ?? []).map((sig) => {
+          const found = byKey.get(sig.key);
+          const outcome =
+            found?.status === "pass" ? "PASS (+1)" : found?.status === "fail" ? "FAIL (+0)" : "insufficient data";
+          return (
+            <li key={sig.key}>
+              {signalLabel(sig.key)} — {sig.description} → <span className="font-mono">{outcome}</span>
+            </li>
+          );
+        })}
+        <li className="pt-1 text-[var(--color-ink)]">
+          {passCount} of 9 signals passed → F_SCORE = {run.aggregate_value}.
+        </li>
+      </>
+    );
+  }
+
+  if (model === "altman") {
+    return ALTMAN_SIGNAL_ORDER.map((key) => {
+      const value = byKey.get(key)?.value;
+      return (
+        <li key={key}>
+          {signalLabel(key)} <span className="font-mono">({describe(key)}) = {value ?? "—"}</span>
+        </li>
+      );
+    });
+  }
+
+  if (model === "beneish") {
+    return BENEISH_SIGNAL_ORDER.map((key) => {
+      const raw = byKey.get(key)?.value;
+      const coeff = BENEISH_COEFFICIENTS[key];
+      const contribution = raw !== null && raw !== undefined ? raw * coeff : null;
+      return (
+        <li key={key}>
+          {signalLabel(key)}{" "}
+          <span className="font-mono">
+            = {raw ?? "—"} &times; {coeff} = {contribution !== null ? contribution.toFixed(6) : "—"}
+          </span>
+        </li>
+      );
+    }).concat(
+      <li key="constant" className="text-[var(--color-ink)]">
+        Plus Beneish&rsquo;s constant, {BENEISH_CONSTANT}.
+      </li>,
+    );
+  }
+
+  // Sloan: a single ratio that IS the aggregate — no further arithmetic to show.
+  return (methodologySignals ?? []).map((sig) => {
+    const value = byKey.get(sig.key)?.value;
+    return (
+      <li key={sig.key}>
+        {signalLabel(sig.key)} — {sig.description} = <span className="font-mono">{value ?? "—"}</span>
+      </li>
+    );
+  });
 }

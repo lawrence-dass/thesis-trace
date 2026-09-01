@@ -2031,3 +2031,80 @@ story_11_8_full_universe_verification:
     boundary directly rather than by inspection. All 7 universe filers
     verified live in both themes with zero console errors and zero UI
     defects found.
+
+story_11_9_methodology_pages:
+  what: >
+    Epic 11's closing story: a "why this works" plain-language explainer plus
+    a real worked example on each of the four /methodology/[model] pages,
+    grounded in each model's own primary paper (AC requirement, not the
+    mechanical restyle+wiring pattern of Stories 11.3-11.8).
+  primary_sources_read:
+    - "Piotroski (2000), Journal of Accounting Research 38 — Ivey Business School's open PDF, pp. 1-15 read in full (intro, lit review, and section 2.3's per-signal + F_SCORE construction rationale)."
+    - "Altman (1968), Journal of Finance 23(4) — JSTOR scan via calctopia.com mirror, pp. 589-601 read in full (sections I-IV: MDA's own rationale, each ratio's economic meaning, and the X5-insignificant-alone-but-second-ranked finding)."
+    - "Beneish (1999), Financial Analysts Journal 55(5) — the freely available June 1999 preprint, all 6 pages. It ends at the sample-selection section, BEFORE the eight variables are individually defined and before the coefficient tables — same truncation point already recorded in research-beneish-five-variable-model.md. Consequence: the explainer only makes primary-sourced causal claims about the five variables his own introduction names explicitly (DSRI/receivables, GMI/margins, AQI/asset quality, SGI/sales growth, TATA/accruals); DEPI, SGAI and LVGI are described mechanically (what they compute, per beneish_v1.yaml) without attributing an unverified causal claim to Beneish specifically."
+    - "Sloan (1996), The Accounting Review 71(3) — CUHK's open PDF, read in full for the accrual-persistence mechanism and the market-fixation explanation."
+  beneish_five_variable_model: >
+    Explicitly NOT mentioned on the page. Confirmed via
+    research-beneish-five-variable-model.md (status: NOT ENCODED, blocked on
+    a primary source) and beneish_v1.yaml (ships only the 8-variable model)
+    that the 5-variable variant is not implemented anywhere in this product,
+    so it is out of scope for a methodology page describing what's actually
+    shipped — omission, not silent resolution of the DEPI-vs-TATA question.
+  sloan_threshold_honesty: >
+    sloan_v1.yaml's own bands.citation already flags "(threshold pending
+    verification)" for the 0.10 high-accruals cutoff. Sloan (1996) sorts
+    firms into return deciles, not a single bright-line cutoff — confirmed
+    by reading the paper directly. The page states this explicitly (0.10 is
+    ThesisTrace's own working convention, not Sloan's own number) rather
+    than presenting it as verified.
+  worked_example_arithmetic_verified_from_source: >
+    Read scoring/altman.py, scoring/beneish.py, scoring/sloan.py, and
+    scoring/piotroski.py directly (not inferred from one numeric coincidence)
+    to confirm what each model's stored per-signal `value` represents before
+    building the frontend arithmetic: Altman stores the COEFFICIENT-WEIGHTED
+    contribution (`value=float(weighted[key])`), so summing the 5 stored
+    values directly reproduces the aggregate with no coefficient needed in
+    the frontend. Beneish stores the RAW index (each index computed
+    independently, e.g. `gmi()`), so the frontend must apply Beneish's own
+    published coefficients (hardcoded in narratives.tsx, matching
+    beneish_v1.yaml exactly) to reproduce the aggregate. Sloan has one
+    signal whose value IS the aggregate. Piotroski's `piotroski_score` is
+    literally `sum(1 for o in outcomes if o.status == pass)` — confirmed the
+    worked example can be a real pass/fail walk-through with no numeric
+    ratio values needed, matching the paper's own binary-signal construction.
+  worked_example_filer_and_years: >
+    QSR for all four models (AC explicitly says to extend the SAME technique
+    already proven for Piotroski to the other three, implying one filer, not
+    a technique-per-filer approach). Fiscal years are NOT hardcoded — each
+    page reads its representative year from the live `/api/companies/QSR/
+    overview` response's own `verdict` array (the same "latest year that
+    resolved" logic already used elsewhere in the app, e.g. Beneish's
+    Verdict fallback to FY2023 noted in this file's earlier QSR entries),
+    so the worked example stays current as new filings arrive rather than
+    pinning a snapshot that would drift from the live database.
+  live_verification: >
+    Fetched https://thesis-trace.onrender.com/api/companies/QSR/overview
+    directly and hand-recomputed all four aggregates from the returned
+    per-signal values before writing any frontend code: Altman FY2025
+    (sum of 5 weighted values) = 1.440319, matches exactly. Beneish FY2023
+    (constant -4.84 + 8 coefficient x raw-index terms) = -2.219847, matches
+    exactly AND matches this file's own previously hand-verified QSR FY2023
+    golden Beneish value. Piotroski FY2025 (count of "pass" statuses) = 6,
+    matches the aggregate_value and the AC's own "QSR's Piotroski 6.0"
+    reference. Sloan FY2025 single-ratio = -0.025434, matches directly.
+    Then rendered all four /methodology/[model] pages in a browser (both
+    themes) against the live backend and confirmed the displayed numbers
+    match. One real UI defect found and fixed during this verification: the
+    worked-example rows used `flex flex-wrap items-baseline gap-x-2`, which
+    fought with Term's own documented block-splitting layout (Term.tsx's
+    comment warns against following a Term with more inline content in a
+    flex context) and produced inconsistent, uneven gaps between the signal
+    key and its description depending on wrap point. Fixed by removing the
+    flex wrapper and letting the row flow as plain inline content, matching
+    how Term already renders correctly in the "Why this works" prose above
+    it. Re-verified live after the fix on all four models, both themes.
+  regression_check: >
+    Frontend: vitest 78/78 unmodified (no existing test file touched).
+    npx tsc --noEmit clean. eslint clean. npm run build succeeds. No backend
+    files touched (narrative content + one existing-endpoint fetch added to
+    an already-server-rendered page), so no backend test run was needed.
