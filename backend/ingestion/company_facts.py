@@ -111,7 +111,23 @@ def parse_company_facts(payload: dict, *, source: str = "company_facts") -> Pars
 
     for accn, meta in filing_meta.items():
         candidates = meta["candidates"] or meta["fallback"]
-        fy, end = max(candidates, key=lambda pair: pair[1])  # latest end = the filing's own primary period
+        # Drop any candidate whose `end` is AFTER the accession's own `filed` date before
+        # taking the latest end. A genuine financial-statement period can never end after
+        # the report covering it was filed, so end > filed is proof of something else — a
+        # subsequent-event or financing-arrangement disclosure dated near the filing date,
+        # still genuinely us-gaap and fp='FY', so not excluded by the dei fix above.
+        # Confirmed live 2026-09-01: CPB's FY2011 10-K (accn 0000950123-11-087197, filed
+        # 2011-09-28) tags LineOfCreditFacilityMaximumBorrowingCapacity at end=2011-09-30 —
+        # two days AFTER the filing date, and two months after the real FYE of 2011-07-31
+        # that every other us-gaap concept on the accession carries. A plurality-of-count
+        # heuristic was tried and rejected: CPB's earliest 10-K (accn 0000950123-10-090083)
+        # legitimately carries MORE facts for its FY2009 comparative (95) than for its own
+        # FY2010 current period (89), so "most common end wins" picks the wrong year. The
+        # filed-date bound has no such failure mode — a comparative period's end is always
+        # well before the filing date, never after it.
+        filed = meta["filed"]
+        valid = [pair for pair in candidates if pair[1] <= filed] or candidates
+        fy, end = max(valid, key=lambda pair: pair[1])  # latest end = the filing's own primary period
         result.filings[accn] = ParsedFiling(
             accession_number=accn,
             form_type=meta["form_type"],

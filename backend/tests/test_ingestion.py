@@ -92,6 +92,74 @@ def test_fiscal_year_end_ignores_dei_cover_page_dates() -> None:
     assert filing.fiscal_year_end == "2025-12-31"  # not 2026-02-25
 
 
+def test_fiscal_year_end_ignores_a_subsequent_event_us_gaap_fact() -> None:
+    """Regression guard: confirmed live 2026-09-01 against CPB's real FY2011 10-K
+    (accn 0000950123-11-087197). A us-gaap, fp='FY' fact can still carry an `end`
+    date AFTER the real fiscal-year-end without being dei — CPB tags
+    LineOfCreditFacilityMaximumBorrowingCapacity at end=2011-09-30 (a financing
+    disclosure dated near the filing date), two months after its real FYE of
+    2011-07-31, which every other tagged concept on the same accession shares.
+    The dei exclusion alone does not catch this; the parser must prefer the `end`
+    date shared by the most us-gaap facts, not simply the latest one."""
+    payload = {
+        "cik": 1,
+        "entityName": "Test Co",
+        "facts": {
+            "us-gaap": {
+                "Assets": {
+                    "units": {
+                        "USD": [
+                            {
+                                "end": "2011-07-31",  # the real fiscal-year-end
+                                "val": 1000,
+                                "accn": "0000000000-11-000001",
+                                "fy": 2011,
+                                "fp": "FY",
+                                "form": "10-K",
+                                "filed": "2011-09-28",
+                            }
+                        ]
+                    }
+                },
+                "NetIncomeLoss": {
+                    "units": {
+                        "USD": [
+                            {
+                                "end": "2011-07-31",
+                                "val": 100,
+                                "accn": "0000000000-11-000001",
+                                "fy": 2011,
+                                "fp": "FY",
+                                "form": "10-K",
+                                "filed": "2011-09-28",
+                            }
+                        ]
+                    }
+                },
+                "LineOfCreditFacilityMaximumBorrowingCapacity": {
+                    "units": {
+                        "USD": [
+                            {
+                                "end": "2011-09-30",  # subsequent-event disclosure, LATER than the real FYE
+                                "val": 2000000000,
+                                "accn": "0000000000-11-000001",
+                                "fy": 2011,
+                                "fp": "FY",
+                                "form": "10-K",
+                                "filed": "2011-09-28",
+                            }
+                        ]
+                    }
+                },
+            },
+        },
+    }
+    parsed = parse_company_facts(payload)
+    filing = parsed.filings["0000000000-11-000001"]
+    assert filing.fiscal_year == 2011
+    assert filing.fiscal_year_end == "2011-07-31"  # not 2011-09-30
+
+
 @requires_db
 async def test_persist_is_idempotent(db_session) -> None:
     parsed = parse_company_facts(_payload())

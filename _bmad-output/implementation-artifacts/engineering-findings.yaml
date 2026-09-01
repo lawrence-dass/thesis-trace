@@ -3549,3 +3549,93 @@ story_12_1_coverage_spike:
       - "Finding 4's current us-gaap EBIT gap is real: us-gaap_v8.yaml has no profit_before_tax or interest_expense entries, while derivations_v4.yaml contains the cited rule."
       - "PR scope is disciplined: origin/main...HEAD changes only engineering-findings.yaml and sprint-status.yaml; us-gaap_v8.yaml and derivations_v4.yaml were not edited."
       - "Sprint status is correct for an open PR: epic-12 is in-progress, Story 12.1 is review, and Stories 12.2-12.5 remain backlog."
+
+story_12_2_ingestion:
+  status: done
+  resolved: 2026-09-01
+  question: >
+    Can CPB's and ZTS's real EDGAR filings be ingested into raw_facts using the
+    existing us-gaap ingestion path, with correctly attributed fiscal_year_end
+    and idempotent re-runs, exactly as CP/QSR/OTEX/SHOP already are?
+  verdict: >
+    Yes, after fixing a real, previously-latent defect in the SHARED
+    parse_company_facts parser that Story 12.1's spike did not surface (that
+    spike checked concept-level coverage, not per-accession fiscal_year_end
+    resolution). CPB and ZTS are now ingested: 16 filings / 11,151 raw_facts
+    for CPB (FY2010-2025 non-calendar Aug FYE), 12 filings / 8,262 raw_facts
+    for ZTS (FY2013-2025 calendar Dec FYE). Idempotency verified by running
+    ingestion twice (second run: 0 filings added, 0 raw_facts added for both).
+  defect_found:
+    title: >-
+      parse_company_facts's "latest end wins" fiscal_year_end heuristic picked
+      a subsequent-event disclosure over the real fiscal-year-end for CPB's
+      FY2011 10-K
+    detail: >
+      Accession 0000950123-11-087197 (CPB's FY2011 10-K, filed 2011-09-28) tags
+      us-gaap:LineOfCreditFacilityMaximumBorrowingCapacity at end=2011-09-30 —
+      a credit-facility subsequent-event disclosure, genuinely us-gaap and
+      fp='FY' (so NOT excluded by the existing dei-cover-page-date fix), and
+      genuinely 2 months AFTER the real fiscal-year-end of 2011-07-31, which
+      265 other us-gaap facts on the same accession share. The existing
+      "candidates = us-gaap only, then take max(end)" logic picked this
+      singleton over the true FYE, corrupting the Filing row (fiscal_year_end
+      recorded as 2011-09-30 instead of 2011-07-31). Confirmed live 2026-09-01
+      from the same company-facts JSON fetched for Story 12.1.
+
+      FIRST FIX ATTEMPT REJECTED BY THE PROJECT'S OWN OTHER DATA: tried
+      "plurality of end date wins" (pick whichever end the most us-gaap facts
+      share). This correctly fixed the FY2011 case (265 facts at the true FYE
+      vs. 1 at the subsequent-event date) but broke CPB's OWN earliest 10-K
+      (accession 0000950123-10-090083, its FY2010 filing): that accession's
+      FY2009 comparative period genuinely carries MORE tagged facts (95) than
+      its own FY2010 current period (89), so plurality picked the wrong year
+      even though the original max-end logic already had that one right. This
+      would have been a NEW regression from the fix itself if shipped without
+      re-checking every other accession, not just the one the defect was found
+      in — caught only by diffing the fix's output against the DB for every
+      accession, not just the one under investigation.
+
+      ACTUAL FIX: a genuine financial-statement period can never end AFTER the
+      report covering it was filed — end > filed is an accounting
+      impossibility, true for current periods AND comparatives alike, so it
+      cannot misfire the way plurality did. Filter candidates to end <= filed
+      before taking the latest end (falling back to the unfiltered set if
+      every candidate happens to fail, which never occurs in practice). This
+      correctly resolves BOTH cases: excludes the subsequent-event fact
+      (end=2011-09-30 > filed=2011-09-28) while leaving the comparative-vs-
+      current disambiguation to max(end) exactly as before (2010-08-01 >
+      2009-08-02, unaffected by fact counts either way).
+    scope_check: >
+      Queried every raw_fact already ingested for all 9 filers (the other 7
+      plus CPB/ZTS): exactly ONE accession in the whole universe has any
+      raw_fact.period_end > its Filing.filing_date — this same CPB FY2011
+      accession. The defect is confirmed CPB-specific (an idiosyncratic
+      subsequent-event tagging choice), not a systemic gap the other 7 filers
+      were quietly also exposed to. Full backend suite (389 tests, including
+      the golden dataset spanning all 4 models across all 7 existing filers)
+      passes unchanged with the fix applied — zero regressions.
+    fix_location: "backend/ingestion/company_facts.py (parse_company_facts)"
+    regression_test: "backend/tests/test_ingestion.py::test_fiscal_year_end_ignores_a_subsequent_event_us_gaap_fact"
+    db_correction: >-
+      The one corrupted Filing row (CPB accession 0000950123-11-087197) was
+      corrected directly in the dev DB after the code fix landed (idempotent
+      persist_company_facts only adds missing rows, never corrects an existing
+      wrong one) — fiscal_year_end updated from 2011-09-30 to 2011-07-31, then
+      re-verified against the fixed parser's output for every one of CPB's and
+      ZTS's 28 filings combined: zero mismatches.
+  scope_note: >
+    Deliberately did NOT add CPB/ZTS to pipeline/universe.py's PHASE1_UNIVERSE
+    — that tuple drives pipeline/run.py's live cron, which also canonicalizes
+    and scores, and Story 12.5's own title ("Scheduled pipeline inclusion...")
+    reserves that wiring for itself, after Story 12.3's mapping decisions land.
+    raw_facts is independent of PHASE1_UNIVERSE — canonicalize_issuer and
+    run_validation can run against any issuer_cik with ingested raw_facts
+    regardless of cron-list membership, which is what makes ingesting now and
+    wiring the cron later in Story 12.5 a coherent sequence rather than a
+    workaround.
+  carry_forward: >
+    Story 12.3 can now run canonicalize_issuer/run_validation against real
+    ingested raw_facts for both filers. No new mapping-spec changes are needed
+    from this story — the fiscal_year_end fix lives entirely in the ingestion
+    layer, upstream of canonicalization, and required no filer-specific
+    mapping-spec edit.
