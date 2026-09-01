@@ -1958,3 +1958,76 @@ story_10_7_full_universe_verification:
     "corrupting an expected value fails the suite" requirement, exercised
     directly rather than by inspection. All 7 universe filers verified live
     in both themes with zero console errors post-fix.
+
+story_11_8_full_universe_verification:
+  status: done
+  verified: 2026-08-31
+  how: >
+    Closing verification for Epic 11 (Instrument Panel restyle), mirroring
+    Story 10.7's own closing discipline for Epic 10. All 7 universe filers
+    rendered in a real dev-mode frontend server against the live backend;
+    subjects for detailed examination chosen by code path per the Story 6.6
+    lesson, not by convenience:
+      - QSR: missing-component fundamentals gap (no cost-of-revenue tag),
+        AND all four models resolve here — the one filer that lets a single
+        pass exercise the Term component on Piotroski, Altman, Beneish, and
+        Sloan together.
+      - BCE: the established heaviest-derived-concept IFRS filer (4 live
+        derivation rules, per Story 10.7's own finding) plus 2 open
+        data-quality issues — quick re-confirming pass since it was already
+        exercised extensively across Stories 11.3-11.7 this epic.
+      - SHOP: 18 open data-quality issues, by far the most of any filer, and
+        never opened once across Stories 11.1-11.7 — genuinely fresh
+        coverage, not a repeat. Also exercises WhatChanged.tsx under real
+        dense populated content (most filers checked this epic showed only
+        its "no_prior_state"/"no_change" empty states).
+      - SU: reverse DCF does not resolve (insufficient_data, "no free cash
+        flow for this fiscal year" — the documented Suncor capex-tag gap).
+      - CP, OTEX, CCJ: lighter render + console-check pass (both themes
+        each) to cover the remaining universe — CP re-confirms the
+        missing-component path from a second, structurally different filer
+        (railroad vs. franchisor); OTEX and CCJ are the two full-coverage,
+        zero-open-issue filers (OTEX US-GAAP long history, CCJ IFRS
+        by-function).
+  what_was_verified:
+    - "All 7 filers render with zero console errors in both light and dark theme (BCE, CCJ, CP, OTEX, QSR, SHOP, SU) — checked via read_console_messages with tracking active from before each filer's first navigation, cleared and re-checked after interaction, not inferred from a clean screenshot alone."
+    - "The Story 11.5/11.7 Term component survives real content on all four models, not just the mockup's fixed example: clicked dsri (Beneish, QSR FY2023, resolves live), current_ratio_increasing (Piotroski, BCE FY2024, fail-toned), accruals_ratio (Sloan, BCE), and x1_working_capital (Altman, BCE) — each expands/collapses correctly, and the SHOP data-quality block (18 entries) confirms the earlier contrast fix (ink-faint -> ink-muted) holds at real scale, not just in the single-issue cases checked during Story 11.7's own review."
+    - "New band-label variants not previously exercised this epic render correctly: Altman 'SAFE' (SHOP, green) and Piotroski 'CAVEAT' (SHOP, gold) and 'WEAK' (SHOP, red) — confirms bandTone()'s full vocabulary, not just the Distress/Middle/Caveat states already seen on CP/QSR/BCE."
+    - "SHOP's WhatChanged section — the one filer with real populated change history this epic, rather than an empty no_prior_state/no_change state — renders its dense 'NEW FISCAL YEAR SCORED' badge list and 'Data-quality changes' block correctly under the restyled typography tokens."
+    - "SU's reverse-DCF insufficient_data branch (Story 11.6) still shows the achieved-CAGR fallback figure and all three Assumptions terms (Discount rate, Terminal growth, Horizon) correctly even with no implied-growth figure to show."
+  defect_found_and_fixed: []
+  pre_existing_gap_reconfirmed:
+    - what: >
+        Running the full backend suite for this closing check (previously
+        run from `backend/`, where Settings' `env_file=".env"` resolved
+        against a directory with no `.env` and silently found nothing —
+        corrected to run from the repo root, and to export
+        DATABASE_URL/TEST_DATABASE_URL into the process env directly since
+        conftest.py's `TEST_DB_URL` reads `os.environ` directly rather than
+        going through Settings' dotenv loading) surfaced 2 pre-existing
+        failures in test_health.py: `test_health_db_503_when_unconfigured`
+        and `test_health_db_ok_with_live_db`. Both are the exact test-
+        isolation gap already recorded in project-context.md's Anti-Patterns
+        ("Never let a test infer its precondition from ambient environment"
+        — that entry names test_health.py by name) — the first doesn't
+        neutralise the `.env` fallback alongside `monkeypatch.delenv`, and
+        the second fails only as a downstream knock-on when run after the
+        first in the same session (shared engine/event-loop state). Verified
+        this is genuinely pre-existing, not an Epic 11 regression: confirmed
+        on unmodified `main` before any Story 11.8 code change (there was
+        none — this story is presentation-verification only), and Epic 11
+        touched zero backend files across all 9 stories. Not fixed here —
+        out of scope for a presentation-only epic's closing verification,
+        and already tracked separately. Left for a session with reason to
+        touch test_health.py.
+  regression_check: >
+    Frontend: vitest 78/78 unmodified (no test file touched by Story 11.8).
+    Backend: pytest 387 passed, 2 failed (both pre-existing, see above,
+    confirmed unrelated to this epic), 0 skipped once TEST_DATABASE_URL was
+    correctly exported (112 tests upgrade from skipped to actually running
+    once the local dev Postgres — started for this check, `thesistrace-pg`
+    was previously stopped — was live). No backend or frontend test needed
+    to change for this epic to close, satisfying the AC's presentation-only
+    boundary directly rather than by inspection. All 7 universe filers
+    verified live in both themes with zero console errors and zero UI
+    defects found.
