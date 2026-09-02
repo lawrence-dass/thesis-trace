@@ -88,10 +88,26 @@
 #                 ifrs-full and derivations both keep their existing specs, per
 #                 the per-taxonomy rule above.
 
-mapping_version: concepts_v11
+#   concepts_v12  us-gaap_v11 + ifrs-full_v4 + derivations_v5. A real mapping
+#                 change (zts_stale_reverse_dcf_cash_gap, found while
+#                 live-verifying feature-catalog row Q3.3): removes ZTS's
+#                 `excludes_issuers` on cash_and_equivalents's restricted-cash-
+#                 inclusive fallback (added concepts_v10). That exclusion was
+#                 reasoned from the source tag's NAME plus ZTS's own nonzero
+#                 RestrictedCashCurrent, never checked against ZTS's actual
+#                 overlap-year values. Checked live: the fallback tag equals
+#                 ZTS's primary cash tag exactly in both years they overlap
+#                 (FY2017, FY2018) despite nonzero restricted cash both years —
+#                 the same "PROVEN equal, not assumed" shape the QSR proof
+#                 already uses for this same source. ZTS's primary tag stops
+#                 after FY2018, so the exclusion had been silently freezing
+#                 ZTS's entire reverse-DCF card at FY2017 data. us-gaap ONLY;
+#                 ifrs-full and derivations keep their existing specs.
+
+mapping_version: concepts_v12
 
 taxonomies:
-  us-gaap: us-gaap_v10
+  us-gaap: us-gaap_v11
   ifrs-full: ifrs-full_v4
 
 derivations: derivations_v5

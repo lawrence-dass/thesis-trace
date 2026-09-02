@@ -706,14 +706,52 @@ companies:
           debt_maturity_year_3: 1350000000.0
           debt_maturity_year_4: 2000000000.0
           debt_maturity_year_5: 750000000.0
-      # ZTS's cash_and_equivalents is insufficient_data for FY2025 BY DESIGN
-      # (Story 12.3's excludes_issuers fix), not a coverage gap: its own
-      # RestrictedCashCurrent tag proves the restricted-inclusive fallback
-      # would silently overstate cash by $2-6M for FY2018-2025 (PR #106's
-      # review, Story 12.3's engine_change). This is the AC's "an entry a
-      # fixture cannot reproduce is deleted or reworked" lesson applied in
-      # the other direction: the fixture DOES reproduce the concept, and the
-      # honest answer for it is insufficient_data.
+      # CORRECTED 2026-09-02 (zts_stale_reverse_dcf_cash_gap). Story 12.3's
+      # comment here claimed ZTS's own RestrictedCashCurrent tag PROVED the
+      # restricted-inclusive fallback would overstate cash — that was never
+      # actually checked against ZTS's own overlap-year values. Checked live:
+      # the fallback tag equals ZTS's primary cash tag exactly in BOTH years
+      # they overlap (FY2017: 1,564,000,000 = 1,564,000,000; FY2018:
+      # 1,602,000,000 = 1,602,000,000) despite nonzero restricted cash both
+      # years — the same "PROVEN equal, not assumed" shape the QSR proof
+      # already uses for this source. `excludes_issuers` removed in
+      # concepts_v12 (us-gaap_v11.yaml); cash_and_equivalents now resolves via
+      # this fallback for FY2019-2025, recovering ZTS's reverse DCF from a
+      # card that had been silently frozen at FY2017 data.
+      #
+      # Hand-verified 2026-09-02 against zts_company_facts.json's own FY2025
+      # raw tags, independent of the pipeline: capex 621,000,000
+      # (PaymentsToAcquirePropertyPlantAndEquipment), cash_from_operations
+      # 2,904,000,000 (NetCashProvidedByUsedInOperatingActivities),
+      # cash_and_equivalents 2,312,000,000
+      # (CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents — the
+      # primary tag stops after FY2018), shares_outstanding 424,927,535
+      # (CommonStockSharesOutstanding), total_debt 9,042,000,000 matches the
+      # already-pinned near_term_debt_share entry above exactly. market_price
+      # is the same 125.82 Tiingo close this entry's fye_close already uses.
+      # free_cash_flow = 2,904,000,000 - 621,000,000 = 2,283,000,000.
+      # market_cap = 424,927,535 x 125.82 = 53,464,382,453.70.
+      # enterprise_value = 53,464,382,453.70 + 9,042,000,000 - 2,312,000,000
+      #                   = 60,194,382,453.70.
       reverse_dcf:
-        insufficient_data: true
-        reason_contains: "cash_and_equivalents"
+        insufficient_data: false
+        operands:
+          cash_from_operations: 2904000000
+          capex: 621000000
+          total_debt: 9042000000
+          cash_and_equivalents: 2312000000
+          shares_outstanding: 424927535
+          market_price: 125.82
+          free_cash_flow: 2283000000
+          market_cap: 53464382453.70
+          enterprise_value: 60194382453.70
+        assumptions:
+          discount_rate: 0.10
+          terminal_growth: 0.025
+          horizon_years: 5
+        # Independently solved via test_golden_dataset.py's own bisection
+        # (_solve_implied_growth, which imports nothing from the pipeline) over
+        # the hand-verified operands above: fcf0=2,283,000,000,
+        # enterprise_value=60,194,382,453.70, discount=0.10, terminal=0.025,
+        # years=5.
+        implied_growth: 0.18750233948230743

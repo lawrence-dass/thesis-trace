@@ -139,14 +139,15 @@ def test_mapping_version_bumped_for_a_real_mapping_change() -> None:
 
     The version is pinned by name on purpose — a bump should be a deliberate edit
     here, not something that rides along with a spec change. Last moved 2026-09-02
-    for concepts_v11 (otex_capex_sign_error_fy2007_fy2009: capex gains
-    `non_negative: true`, us-gaap only). The superseded-spec check is deliberately
-    NOT pinned: it derives the list from the registry's own history, so adding a
+    for concepts_v12 (zts_stale_reverse_dcf_cash_gap: removes ZTS's
+    `excludes_issuers` on the restricted-cash-inclusive cash_and_equivalents
+    fallback, us-gaap only). The superseded-spec check is deliberately NOT
+    pinned: it derives the list from the registry's own history, so adding a
     version cannot quietly leave an older spec unprotected.
     """
     registry = yaml.safe_load((SPECS / "registry.yaml").read_text())
-    assert registry["mapping_version"] == "concepts_v11"
-    assert registry["taxonomies"]["us-gaap"] == "us-gaap_v10"
+    assert registry["mapping_version"] == "concepts_v12"
+    assert registry["taxonomies"]["us-gaap"] == "us-gaap_v11"
     assert registry["taxonomies"]["ifrs-full"] == "ifrs-full_v4"
     assert registry["derivations"] == "derivations_v5"
 
@@ -163,6 +164,7 @@ def test_mapping_version_bumped_for_a_real_mapping_change() -> None:
         "us-gaap_v7.yaml",
         "us-gaap_v8.yaml",
         "us-gaap_v9.yaml",
+        "us-gaap_v10.yaml",
         "ifrs-full_v1.yaml",
         "ifrs-full_v2.yaml",
         "ifrs-full_v3.yaml",
@@ -183,5 +185,39 @@ def test_capex_is_flagged_non_negative_under_us_gaap() -> None:
     never negative), and OTEX's own FY2009 10-K disagreed with that definition for
     two of its earliest years. Pinned so a future spec edit cannot silently drop
     the flag and reintroduce the sign bug."""
-    spec = yaml.safe_load((SPECS / "us-gaap_v10.yaml").read_text())
+    spec = yaml.safe_load((SPECS / "us-gaap_v11.yaml").read_text())
     assert spec["concepts"]["capex"]["non_negative"] is True
+
+
+def test_zts_no_longer_excluded_from_the_restricted_cash_fallback() -> None:
+    """zts_stale_reverse_dcf_cash_gap: Story 12.3 excluded ZTS from this fallback
+    reasoning from the tag's NAME plus ZTS's nonzero RestrictedCashCurrent, never
+    checked against ZTS's own overlap-year values. Checked live 2026-09-02: the
+    fallback tag equals ZTS's primary cash tag exactly in both years they overlap
+    (FY2017, FY2018) despite nonzero restricted cash both years — the same
+    "PROVEN equal, not assumed" shape the QSR proof already uses for this same
+    source. ZTS's primary tag stops after FY2018, so the stale exclusion had been
+    silently freezing ZTS's entire reverse-DCF card at FY2017 data. Pinned so a
+    future edit cannot silently reintroduce the exclusion without the evidence
+    that disproved it resurfacing here."""
+    us_gaap = [
+        r for r in MAPPING_RULES
+        if r.canonical_concept == "cash_and_equivalents"
+        and r.source_taxonomy == "us-gaap"
+        and r.source_concept == "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"
+    ]
+    assert len(us_gaap) == 1
+    assert us_gaap[0].excludes_issuers == ()
+
+    spec = yaml.safe_load((SPECS / "us-gaap_v11.yaml").read_text())
+    sources = spec["concepts"]["cash_and_equivalents"]["sources"]
+    fallback = next(
+        s for s in sources
+        if s["concept"] == "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"
+    )
+    assert "excludes_issuers" not in fallback
+    note = fallback.get("note", "")
+    assert "1,564,000,000 = 1,564,000,000" in note, (
+        "the note must carry the overlap-year evidence the exclusion's removal rests on"
+    )
+    assert "1,602,000,000 = 1,602,000,000" in note
