@@ -4215,12 +4215,13 @@ q1_6_capex_vs_da_live_verification:
             stops after FY2019 — confirms the existing mapping-spec note;
             OTEX splinters into per-component amortization tags with no
             single combined replacement, so FY2020-2026 correctly stays
-            insufficient_data, AD-3). Capex nominally spans FY2007-2026, BUT
-            the canonical capex VALUE itself is corrupted for FY2007 and
-            FY2009 (wrong sign) and absent for FY2008 (flagged ambiguous,
-            never resolved) — see otex_capex_sign_error_fy2007_fy2009 below.
-            Net effect: Q1.6 is only SAFELY computable for OTEX FY2010-2019
-            (10y), not the FY2008-2019 that D&A coverage alone implies.
+            insufficient_data, AD-3). Capex nominally spans FY2007-2026, and
+            at the time this was first written its canonical VALUE was
+            corrupted for FY2007/FY2009 (wrong sign) and absent for FY2008 —
+            FIXED same day, see otex_capex_sign_error_fy2007_fy2009 below
+            (concepts_v11). Net effect, post-fix: Q1.6 is computable for
+            OTEX FY2008-2019 (12y), matching D&A's own range exactly — the
+            capex-side defect no longer narrows it further.
       SU:   depreciation resolves FY2016-2025 (via the impairment-inclusive
             IFRS tag, already flagged like_for_like: false in
             ifrs-full_v4.yaml — a real caveat on the D&A side alone). Capex:
@@ -4241,17 +4242,22 @@ q1_6_capex_vs_da_live_verification:
   action: >
     Updated phase2-feature-catalog.md's Q1.6 row: Coverage 9/9 -> "8/9 (SU:
     no capex tag, permanently insufficient_data)"; Bites "CP, SU" ->
-    "CP (clean, FY2008-2025); OTEX FY2010-2019 only — SU cannot compute this
-    signal at all"; Verified no -> yes (2026-09-02, this finding).
+    "CP (clean, FY2008-2025); OTEX FY2008-2019 — SU cannot compute this
+    signal at all"; Verified no -> yes (2026-09-02, this finding). Revised
+    same day after otex_capex_sign_error_fy2007_fy2009 (below) fixed OTEX's
+    capex-side defect: OTEX's window widened from FY2010-2019 to FY2008-2019.
   not_in_scope_this_pass: >
-    Did not implement Q1.6 itself (it remains an unbuilt catalog item, D9
-    still governs selection) and did not fix the OTEX capex sign defect this
-    verification surfaced — that is a pre-existing Epic 6 (reverse DCF) bug,
-    not a Q1.6 coverage question, and is recorded separately below pending a
-    decision on whether/how to fix it.
+    Did not implement Q1.6 itself — it remains an unbuilt catalog item, D9
+    still governs selection. The OTEX capex sign defect this verification
+    surfaced WAS fixed the same day, on request — see
+    otex_capex_sign_error_fy2007_fy2009 below (concepts_v11); that finding
+    was left open when this one was first written, then closed in the same
+    session.
 
 otex_capex_sign_error_fy2007_fy2009:
-  status: open
+  status: done
+  resolved: 2026-09-02
+  mapping_version: concepts_v11
   found: 2026-09-02
   found_by: >
     Incidentally, while live-verifying Q1.6's capex-vs-D&A coverage above —
@@ -4315,28 +4321,71 @@ otex_capex_sign_error_fy2007_fy2009:
     conflict-detection machinery that correctly caught FY2008.
   impact: >
     Free cash flow = cash_from_operations - capex. With capex stored
-    negative, FY2007 and FY2009 free cash flow computes as
+    negative, FY2007 and FY2009 free cash flow computed as
     cash_from_operations PLUS |capex| instead of minus it — a ~$10.5M swing
     for FY2007 and ~$24.3M swing for FY2009 (2x the wrongly-signed amount).
-    Both years fall inside OTEX's reverse-DCF window (Epic 6, FY2007-2026
-    nominal capex coverage) and would currently render an artificially
-    inflated free-cash-flow figure on the live Overview/reverse-DCF page for
-    those two years specifically — not yet confirmed by rendering the page
-    (out of scope for this pass; recommended before any fix ships, per this
-    project's live-data DoD rule 5). This is the same class of failure Q1.6
-    itself exists to catch (an FCF figure flattered by a capex-side defect),
-    via a completely different mechanism (a sign bug, not genuine
-    maintenance starvation) — ironic timing, not a Q1.6 defect.
-  fix_identified_not_applied: >
-    Not fixed this pass — scope was live-verifying Q1.6, and a real fix here
-    is a decision, not a mechanical patch: e.g. (a) extend AD-3 so a later
-    filing's un-amended restatement of a comparative period can override a
-    lone earlier candidate when the values are sign-flipped and magnitude-
-    identical (a new tiebreak class, needs careful scoping so it cannot also
-    silently "fix" a genuine future restatement dispute), or (b) flag any
-    lone-candidate capex-type fact whose sign disagrees with the filer's own
-    surrounding years as needs_review rather than trusting it outright. Both
-    need a test fixture built from OTEX's own real FY2007-2010 raw facts
-    (not the synthetic SHOP fixture) to avoid pinning an outcome the fixture
-    can't reproduce (this project's own recurring golden-fixture trap).
-    Left as an open finding for Lawrence to prioritize, not silently patched.
+    Checked whether this was VISIBLE on the live product before fixing it
+    (per this project's live-data DoD rule 5): it was not. `reverse_dcf_runs`
+    upserts exactly one row per issuer — the current single latest resolvable
+    year only (valuation/store.py's materialize_reverse_dcf) — and OTEX's
+    latest year is FY2026, whose capex was never affected. FY2007/FY2009's
+    corrupted canonical_facts rows existed but were not read by anything on
+    the write path or the read API; the risk was to any FUTURE feature
+    reading historical capex (Q1.6 itself, or a multi-year FCF trend), and to
+    the data layer's own correctness independent of what currently renders
+    it. This is the same class of failure Q1.6 itself exists to catch (an
+    FCF figure flattered by a capex-side defect), via a completely different
+    mechanism (a sign bug, not genuine maintenance starvation) — ironic
+    timing, not a Q1.6 defect, and not a live-user-facing regression at the
+    time it was found.
+  fix:
+    approach: >
+      capex gains `non_negative: true` in the mapping spec (concepts_v11,
+      us-gaap_v10.yaml — see that file's v10 header note for the full
+      reasoning). canonicalize.py's new `_effective_value()` takes abs(value)
+      for any concept carrying the flag, applied BEFORE both the ambiguity
+      check and the final CanonicalFact write — one rule fixes both shapes,
+      since a lone wrong-signed candidate and two magnitude-identical
+      sign-flipped candidates are really the same "a magnitude concept is
+      not what its raw sign says" problem. Rejected alternative (a): a new
+      AD-3 tiebreak tier letting an un-amended later restatement override a
+      lone earlier candidate — broader surface area (would also apply to
+      concepts where a filer's restated comparative is a genuine, disputable
+      revision, not a sign artifact) for no benefit over normalizing the one
+      concept that is actually definitionally non-negative.
+    scope: >
+      us-gaap only (capex's ifrs-full sources showed no sign disagreement in
+      the same live check) — ifrs-full_v4.yaml and derivations_v5.yaml are
+      untouched and keep their existing versions, per this registry's
+      established per-taxonomy convention.
+    tests: >
+      backend/tests/test_otex_capex_sign_normalization.py (new, 3 tests)
+      ingests the REAL otex_company_facts.json fixture (not the synthetic
+      SHOP one — it is the fixture live-verification found this bug in, so
+      the one guaranteed to exercise it) via the full pipeline.run.run_issuer
+      path and asserts: FY2007/FY2009 normalize to +5,260,000/+12,150,000;
+      FY2008 recovers to +6,895,000 instead of staying flagged
+      ambiguous_selection; FY2010 onward (already correct) is unperturbed.
+      backend/tests/test_free_cash_flow_concepts.py gained a spec-level pin
+      that capex declares non_negative under us-gaap_v10.yaml, and its
+      mapping-version-pin test was moved to concepts_v11/us-gaap_v10. Full
+      backend suite: 414 passed (was 410 before the 4 new/changed tests).
+      `ruff check` clean on every changed file.
+    dev_db_applied: >
+      Re-canonicalized and re-scored all 9 universe filers under concepts_v11
+      (no live EDGAR fetch — reads stored raw_facts, same pattern as the
+      concepts_v10 rollout). Zero ambiguities flagged for any filer,
+      confirming the fix doesn't newly conflict anywhere else in the
+      universe. OTEX's canonical capex, verified directly: FY2007
+      5,260,000; FY2008 6,895,000 (recovered — previously no row at all);
+      FY2009 12,150,000; FY2010 onward byte-identical to before (19,314,000,
+      36,662,000, ...). The one now-stale needs_review `ambiguous_selection`
+      row for OTEX FY2008 capex (issue id a24b1788-e7f2-485c-8b59-4a40a4e7b84d)
+      was manually dismissed with a resolution note in its `detail` — a
+      one-time data cleanup, not new pipeline machinery, since a fresh
+      canonicalization under v11 would never have flagged it in the first
+      place (canonicalize.py itself deliberately never auto-transitions an
+      issue's status; every other `ambiguous_selection`/needs_review row in
+      the system is still exactly as before). OTEX's live reverse_dcf_runs
+      row (FY2026, the only year materialized) is unchanged, confirming no
+      currently-rendered figure moved — expected, see impact above.
