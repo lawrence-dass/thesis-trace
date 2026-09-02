@@ -4389,3 +4389,184 @@ otex_capex_sign_error_fy2007_fy2009:
       the system is still exactly as before). OTEX's live reverse_dcf_runs
       row (FY2026, the only year materialized) is unchanged, confirming no
       currently-rendered figure moved — expected, see impact above.
+
+zts_stale_reverse_dcf_cash_gap:
+  status: done
+  resolved: 2026-09-02
+  mapping_version: concepts_v12
+  found: 2026-09-02
+  found_by: >
+    Incidentally, while live-verifying Phase 2 catalog row Q3.3
+    (achieved-vs-implied growth, which needs a resolved reverse DCF) — ZTS's
+    dev-DB reverse_dcf_runs row showed fiscal_year 2017, nearly a decade
+    stale, even though ZTS has complete canonical data through FY2025. Every
+    other filer's row was current-year.
+  question: >
+    Why is ZTS's reverse DCF materialized at FY2017 instead of a recent
+    year, and is the FY2017 figure itself even correct?
+  finding: >
+    ZTS's primary cash tag (us-gaap:CashAndCashEquivalentsAtCarryingValue)
+    was never tagged in any ZTS filing past FY2018 — confirmed against both
+    the dev DB's raw_facts and a fresh live data.sec.gov fetch. The reverse
+    DCF requires cash_and_equivalents among 5 operands
+    (cash_from_operations, capex, total_debt, cash_and_equivalents,
+    shares_outstanding); materialize_reverse_dcf stores exactly one row per
+    issuer — the latest year ALL FIVE resolve — so once cash_and_equivalents
+    stopped resolving after FY2018, ZTS's card silently froze at that last
+    good year and stayed there through every subsequent daily pipeline run,
+    including Story 12.3's own onboarding (2026-09-01) and this session's
+    two prior mapping-version bumps (v11, v12-before-this-fix).
+
+    Root cause: Story 12.3 (2026-09-01) had already found the obvious
+    fallback (CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents,
+    already proven safe for QSR) and EXCLUDED ZTS from it via
+    `excludes_issuers`, reasoning that ZTS's own nonzero RestrictedCashCurrent
+    tag ($6M/$5M/$2M at FY2017/2018/2019-end) meant the restricted-inclusive
+    fallback would overstate ZTS's cash. That reasoning was never actually
+    checked against ZTS's own overlap-year values — it inferred a scope
+    difference from the tag's NAME and the presence of a nonzero restricted
+    balance, the same "tag existence over verification" trap this project's
+    DoD exists to catch, just applied to an EXCLUSION instead of an ADDITION.
+  live_verification: >
+    Checked live 2026-09-02: the fallback tag equals ZTS's own primary
+    unrestricted-cash tag EXACTLY in both years they overlap — FY2017:
+    1,564,000,000 = 1,564,000,000; FY2018: 1,602,000,000 = 1,602,000,000 —
+    DESPITE nonzero restricted cash both years ($6M and $5M respectively).
+    For ZTS specifically, this tag's reported value does not include
+    RestrictedCashCurrent — a scope quirk of how ZTS's own XBRL extension
+    uses the concept, not the standard's typical composition. That is the
+    exact same "PROVEN equal, not assumed" shape the QSR proof already uses
+    for this same source (QSR: 1,476M/1,097M/913M, exact match, 3 overlap
+    years). Story 12.3's exclusion was a reasonable caution that, once
+    actually checked, did not hold.
+  fix:
+    approach: >
+      Removed `excludes_issuers: ["0001555280"]` from
+      CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents under
+      cash_and_equivalents (concepts_v12, us-gaap_v11.yaml). No new source
+      tag, no derivation — the existing fallback simply resumes applying to
+      ZTS now that its exclusion is disproven. us-gaap only; ifrs-full and
+      derivations keep their existing specs.
+    tests: >
+      backend/tests/test_free_cash_flow_concepts.py gained
+      test_zts_no_longer_excluded_from_the_restricted_cash_fallback (spec-level:
+      asserts MAPPING_RULES carries no excludes_issuers for this source/ZTS,
+      and the note documents the overlap-year evidence) and the
+      mapping-version-pin test moved to concepts_v12/us-gaap_v11.
+      backend/tests/test_zts_cash_fallback_fix.py (new) ingests the real
+      (trimmed, FY2023-2025-only) zts_company_facts.json fixture via
+      run_issuer, then injects ONE additional real, live-verified raw fact —
+      ZTS's actual FY2019 10-K's combined-cash-tag value
+      (1,934,000,000, accession 0001555280-20-000054) — since the trimmed
+      fixture cannot reach FY2019 on its own (the same trimmed-fixture trap
+      this project has hit repeatedly), and asserts cash_and_equivalents now
+      resolves for FY2019 via the fallback. Full backend suite: 416 passed
+      (was 414 before this fix's 2 new tests). `ruff check` clean.
+    golden_dataset: >
+      phase1_golden.yaml's ZTS FY2025 entry previously pinned
+      `reverse_dcf.insufficient_data: true, reason_contains:
+      "cash_and_equivalents"` with a comment asserting this was "BY DESIGN...
+      not a coverage gap" — i.e. the golden dataset encoded the SAME
+      unverified assumption the mapping spec did, written in the same
+      session. test_active_companies_match_golden correctly failed once the
+      fix made cash_and_equivalents actually resolve
+      ("golden says insufficient_data but every operand is present — the
+      entry is now wrong, or coverage improved"). Replaced with a resolved
+      entry, hand-verified independently against zts_company_facts.json's own
+      raw FY2025 tags (not the pipeline's output): capex 621,000,000,
+      cash_from_operations 2,904,000,000, cash_and_equivalents 2,312,000,000,
+      shares_outstanding 424,927,535, total_debt 9,042,000,000 (already
+      pinned elsewhere in the same entry, cross-validating the extraction
+      method). free_cash_flow 2,283,000,000; market_cap 53,464,382,453.70;
+      enterprise_value 60,194,382,453.70. implied_growth 0.18750233948230743,
+      independently solved via the golden test's own bisection
+      (discount_rate 0.10, terminal_growth 0.025, horizon_years 5 — the same
+      constants every other resolved filer's entry uses).
+    dev_db_applied: >
+      Re-canonicalized and re-scored all 9 universe filers under concepts_v12
+      (no live fetch beyond the diagnostic fetch already used to find and
+      verify this finding). Zero ambiguities flagged anywhere. ZTS's
+      reverse_dcf_runs row now materializes at fiscal_year 2025 (was 2017):
+      free_cash_flow 2,283,000,000, cash_and_equivalents 2,312,000,000,
+      total_debt 9,042,000,000, implied_growth 0.1875023395 — matches the
+      hand-verified golden computation above to the stored precision exactly.
+  impact: >
+    Live, user-facing: ZTS's reverse-DCF card had been showing December 2017
+    market cap, enterprise value and implied growth on every page load since
+    Story 12.3 shipped ZTS (2026-09-01) — visible today to anyone viewing
+    ZTS's Overview page, not a latent data-layer risk like the OTEX capex
+    finding above. The API does expose which fiscal_year the card is from
+    (backend/api/schemas.py), so it was not silently misrepresented as
+    current, but a reader would have no way to know WHY it was frozen at
+    2017 without this investigation. Discovered while live-verifying an
+    unrelated Phase 2 catalog row (Q3.3), not by anyone noticing the stale
+    card directly.
+
+q3_3_achieved_vs_implied_growth_live_verification:
+  status: done
+  verified: 2026-09-02
+  question: >
+    Phase 2 feature catalog row Q3.3 ("Achieved-vs-implied growth" — the
+    historical growth ThesisTrace already computes vs. the growth the price
+    implies) claimed 9/9 coverage, inputs "Revenue / FCF CAGR over the
+    stored window vs. reverse-DCF implied rate", cost <=1 session with the
+    note "Uses only shipped data", and was recorded Verified: no.
+  method: >
+    Checked what is actually stored: reverse_dcf_runs carries
+    `historical_revenue_cagr` (computed by
+    valuation/overview.py::historical_revenue_cagr, requiring >=3 years of
+    same-unit, positive, filed revenue) and `implied_growth` (the reverse
+    DCF's own solved rate). Grepped the codebase for any FCF-equivalent CAGR
+    field or computation — none exists anywhere; only the single latest
+    year's free_cash_flow is stored, never a series. Queried
+    reverse_dcf_runs across all 9 filers (post the zts_stale_reverse_dcf_cash_gap
+    fix above, applied in the same session) for both fields' resolution
+    status.
+  finding: >
+    The 9/9 claim is wrong for the same reason Q1.6's was: SU has no capex
+    tag at all under any IFRS variant (already-documented, pre-existing
+    finding, not new here), so its reverse DCF is structurally
+    insufficient_data ("no free cash flow for this fiscal year") and
+    `implied_growth` never resolves — SU's `historical_revenue_cagr` alone
+    DOES resolve (0.0765456021, FY2016-2025), but Q3.3 needs BOTH halves of
+    the comparison, so SU is out. The other 8 filers (BCE, CCJ, CP, CPB,
+    OTEX, QSR, SHOP, ZTS) have both fields resolved as of this session — ZTS
+    only because zts_stale_reverse_dcf_cash_gap (above) was fixed in the
+    same pass; before that fix ZTS's implied_growth was frozen at FY2017
+    data, which would have made any Q3.3 comparison for ZTS compare a
+    current revenue CAGR against an 8-year-stale implied rate — silently
+    wrong in a way this catalog row's own "Bites: ZTS" entry would have
+    made highly visible had the feature been built before the cash gap was
+    found.
+
+    Separately, "Uses only shipped data" is only half true. `historical_revenue_cagr`
+    is genuinely shipped and correct. An FCF-equivalent CAGR is NOT shipped
+    at all — no historical FCF series is computed or stored anywhere;
+    building it needs new code (though a small amount: it would mirror
+    `historical_revenue_cagr`'s existing pattern almost exactly, substituting
+    FCF for revenue, over years where capex and cash_from_operations both
+    resolve).
+
+    A third issue, not a coverage question but a design one worth recording
+    before this row is built: comparing REVENUE CAGR (achieved) against the
+    reverse DCF's IMPLIED rate is apples-to-oranges. The reverse DCF solves
+    for the growth rate of FREE CASH FLOW that reconciles today's enterprise
+    value — not revenue. A filer whose FCF margin is expanding or
+    contracting (SHOP, explicitly named as one of this row's own "Bites",
+    is SBC-heavy and margin-volatile) can show "achieved revenue CAGR" and
+    "implied FCF growth" diverging for reasons that have nothing to do with
+    whether the market's growth assumption is realistic — a definitional
+    mismatch masquerading as a valuation signal. An FCF CAGR is the
+    apples-to-apples comparison and is the more valuable half of the two
+    unshipped pieces, not merely a nice-to-have alongside revenue CAGR.
+  action: >
+    Updated phase2-feature-catalog.md's Q3.3 row: Coverage 9/9 -> 8/9 (SU);
+    Inputs column now distinguishes shipped (revenue CAGR, implied_growth)
+    from unshipped (FCF CAGR); Bites gained a note that ZTS was until this
+    session frozen at FY2017 data; Overlap column gained the
+    apples-to-oranges design note; Cost <=1 -> 1 (dropping the "<=" since
+    half the claimed free data isn't); Verified no -> yes (2026-09-02, this
+    finding).
+  not_in_scope_this_pass: >
+    Did not implement Q3.3 or an FCF CAGR field — Q3.3 remains an unbuilt
+    catalog item, D9 still governs selection.
