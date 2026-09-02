@@ -6,7 +6,7 @@
 # this file — they were split out on 2026-08-20, when this file had reached
 # 1,279 lines of which only ~115 were status.
 #
-# STATUS AT A GLANCE (60 of 61 stories done, 8 of 12 epics complete)
+# STATUS AT A GLANCE (61 of 61 stories done, 9 of 12 epics complete)
 #
 #   Epic 1  done         10/10        Foundation & First Evidence (Walking Skeleton)
 #   Epic 2  done         6/6          Complete the Four Lenses
@@ -19,7 +19,7 @@
 #   Epic 9  blocked      no stories   Filing Q&A
 #   Epic 10 done         7/7          Report-Style Company Page
 #   Epic 11 done         9/9          UI Redesign — Instrument Panel
-#   Epic 12 in-progress  1/5          US Universe Expansion — Campbell's & Zoetis
+#   Epic 12 done         5/5          US Universe Expansion — Campbell's & Zoetis
 #
 # Epics 10, 11 and 12 are the buildable epics. 10 and 11 are presentation-only,
 # re-skinning or re-presenting already-computed figures, so D9's capability gate
@@ -176,15 +176,14 @@ development_status:
   epic-11-retrospective: optional
 
   # Epic 12 added 2026-09-01: US universe expansion (CPB, ZTS), driven by real
-  # decision packets per D11. Story keys derived from epics.md.
-  epic-12: in-progress
-  # PR #105 merged 2026-09-01 (squash 50e3494); findings recorded under
-  # story_12_1_coverage_spike, Codex-reviewed and independently re-verified.
+  # decision packets per D11. Closed 2026-09-01 with Story 12.5 (PR #109
+  # merged). Story keys derived from epics.md.
+  epic-12: done
   12-1-live-edgar-concept-coverage-spike-for-campbell-s-and-zoetis: done
   12-2-edgar-ingestion-for-campbell-s-and-zoetis: done
   12-3-canonicalization-and-validation-for-campbell-s-and-zoetis: done
   12-4-golden-dataset-coverage-for-campbell-s-and-zoetis: done
-  12-5-scheduled-pipeline-inclusion-and-full-universe-browser-verification: review
+  12-5-scheduled-pipeline-inclusion-and-full-universe-browser-verification: done
   epic-12-retrospective: optional
 
 # EPIC CATALOG — epic titles, and for an epic with no stories, the decision that
