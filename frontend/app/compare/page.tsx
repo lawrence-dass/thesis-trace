@@ -13,6 +13,7 @@ type VerdictItem = {
   band_label: string | null;
   applicability: string;
   missing_signals: string[];
+  caveat_reason: string | null;
 };
 type Overview = { state: string; ticker?: string; name?: string; verdict?: VerdictItem[] };
 
@@ -113,9 +114,11 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
                       {!v ? (
                         <span className="text-[var(--color-ink-faint)]">—</span>
                       ) : v.applicability !== "computed" ? (
-                        <Badge variant={applicabilityVariant(v.applicability)}>
-                          {applicabilityLabel(v.applicability)}
-                        </Badge>
+                        <span title={v.applicability === "computed_with_caveat" ? v.caveat_reason ?? undefined : undefined}>
+                          <Badge variant={applicabilityVariant(v.applicability)}>
+                            {applicabilityLabel(v.applicability)}
+                          </Badge>
+                        </span>
                       ) : v.band_label ? (
                         <Badge variant={bandTone(v.band_label)} icon={false}>
                           {v.band_label}

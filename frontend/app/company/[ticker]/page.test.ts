@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sectionFreshness } from "./page";
+import { sectionFreshness, showsCaveatReason } from "./page";
 
 /** Story 10.5. `sectionFreshness` computes each report section's own "latest
  *  score run and filing date it reflects" (the AC's freshness requirement)
@@ -60,5 +60,33 @@ describe("sectionFreshness", () => {
     const result = sectionFreshness([lens(2025, [null, null])]);
     expect(result.fiscalYear).toBe(2025);
     expect(result.periodEnd).toBeNull();
+  });
+});
+
+describe("showsCaveatReason", () => {
+  it("shows the box when computed_with_caveat carries a reason", () => {
+    expect(showsCaveatReason({ applicability: "computed_with_caveat", caveat_reason: "reason" })).toBe(true);
+  });
+
+  it("hides the box when caveat_reason is null, even under computed_with_caveat", () => {
+    expect(showsCaveatReason({ applicability: "computed_with_caveat", caveat_reason: null })).toBe(false);
+  });
+
+  it("hides the box when caveat_reason is an empty string", () => {
+    expect(showsCaveatReason({ applicability: "computed_with_caveat", caveat_reason: "" })).toBe(false);
+  });
+
+  it("hides the box for a plain computed run even if caveat_reason were somehow set", () => {
+    expect(showsCaveatReason({ applicability: "computed", caveat_reason: "reason" })).toBe(false);
+  });
+
+  it("hides the box for excluded_out_of_scope", () => {
+    expect(showsCaveatReason({ applicability: "excluded_out_of_scope", caveat_reason: null })).toBe(false);
+  });
+
+  it("is independent of aggregate_value/missing_signals — a model can show both at once (SU FY2025 Beneish/Altman)", () => {
+    expect(
+      showsCaveatReason({ applicability: "computed_with_caveat", caveat_reason: "structural caveat" }),
+    ).toBe(true);
   });
 });

@@ -164,6 +164,16 @@ export function sectionFreshness(lenses: LensScore[]): { fiscalYear: number | nu
   return { fiscalYear, periodEnd };
 }
 
+// Whether a Verdict card should show its caveat_reason box. A model can be
+// BOTH computed_with_caveat AND missing this year's aggregate at once (the
+// cross-filer comparability layer in scoring/runner.py's _applicability can
+// promote an insufficient_data run to computed_with_caveat) — this is
+// intentionally independent of aggregate_value/missing_signals, not an
+// alternative to them.
+export function showsCaveatReason(v: Pick<VerdictItem, "applicability" | "caveat_reason">): boolean {
+  return v.applicability === "computed_with_caveat" && Boolean(v.caveat_reason);
+}
+
 function FreshnessNote({ fiscalYear, periodEnd }: { fiscalYear: number | null; periodEnd: string | null }) {
   if (fiscalYear === null) return null;
   return (
@@ -412,8 +422,9 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                       Missing: {v.missing_signals.map((k) => SIGNAL_LABEL[k] ?? k).join(", ")}
                     </p>
                   ) : null}
-                  {v.applicability === "computed_with_caveat" && v.caveat_reason ? (
+                  {showsCaveatReason(v) ? (
                     <p className="rounded-[var(--radius-control)] border border-[var(--color-signal-caveat-border)] bg-[var(--color-signal-caveat-bg)] px-3 py-2 text-xs leading-snug text-[var(--color-signal-caveat)]">
+                      <span className="font-semibold uppercase tracking-[var(--tracking-label)]">Caveat: </span>
                       {v.caveat_reason}
                     </p>
                   ) : null}
