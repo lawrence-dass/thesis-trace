@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 
+import pytest
 from sqlalchemy import func, select
 
 from app.models import Filing, Issuer, RawFact
@@ -100,7 +102,7 @@ def test_fiscal_year_end_ignores_a_subsequent_event_us_gaap_fact() -> None:
     disclosure dated near the filing date), two months after its real FYE of
     2011-07-31, which every other tagged concept on the same accession shares.
     The dei exclusion alone does not catch this; the parser must prefer the `end`
-    date shared by the most us-gaap facts, not simply the latest one."""
+    date before the filing date, not simply the latest one."""
     payload = {
         "cik": 1,
         "entityName": "Test Co",
@@ -160,6 +162,220 @@ def test_fiscal_year_end_ignores_a_subsequent_event_us_gaap_fact() -> None:
     assert filing.fiscal_year_end == "2011-07-31"  # not 2011-09-30
 
 
+def test_fiscal_year_end_ignores_a_pre_filing_subsequent_event() -> None:
+    """A later event before filing must not beat a full-year statement period."""
+    accession = "0000000000-11-000002"
+    facts = {
+        "Revenues": {
+            "units": {
+                "USD": [{
+                    "start": "2010-08-01",
+                    "end": "2011-07-31",
+                    "val": 1000,
+                    "accn": accession,
+                    "fy": 2011,
+                    "fp": "FY",
+                    "form": "10-K",
+                    "filed": "2011-09-28",
+                }]
+            }
+        },
+        "LineOfCreditFacilityMaximumBorrowingCapacity": {
+            "units": {
+                "USD": [{
+                    "end": "2011-08-31",  # subsequent event, but before filing
+                    "val": 2000000000,
+                    "accn": accession,
+                    "fy": 2011,
+                    "fp": "FY",
+                    "form": "10-K",
+                    "filed": "2011-09-28",
+                }]
+            }
+        },
+    }
+
+    parsed = parse_company_facts({
+        "cik": 1,
+        "entityName": "Test Co",
+        "facts": {"us-gaap": facts},
+    })
+
+    assert parsed.filings[accession].fiscal_year_end == "2011-07-31"
+
+
+def test_fiscal_year_end_keeps_latest_valid_period_when_comparative_has_more_facts() -> None:
+    """A comparative can have more tagged facts than the filing's own period.
+
+    This is the CPB FY2010 plurality counterexample: the 2009 comparative has
+    more facts, but the latest period that was available when the report was
+    filed is still the 2010 fiscal year-end. The date bound must preserve the
+    original latest-end behavior rather than replacing it with a fact-count
+    heuristic.
+    """
+    accession = "0000000000-10-000001"
+    filed = "2010-09-29"
+
+    def fact(concept: str, end: str, value: int) -> tuple[str, dict]:
+        return concept, {
+            "units": {
+                "USD": [{
+                    "end": end,
+                    "val": value,
+                    "accn": accession,
+                    "fy": 2010,
+                    "fp": "FY",
+                    "form": "10-K",
+                    "filed": filed,
+                }]
+            }
+        }
+
+    current = fact("CurrentPeriodFact", "2010-08-01", 100)
+    comparative_a = fact("ComparativeFactA", "2009-08-02", 90)
+    comparative_b = fact("ComparativeFactB", "2009-08-02", 91)
+    parsed = parse_company_facts({
+        "cik": 1,
+        "entityName": "Test Co",
+        "facts": {"us-gaap": dict([current, comparative_a, comparative_b])},
+    })
+
+    filing = parsed.filings[accession]
+    assert filing.fiscal_year == 2010
+    assert filing.fiscal_year_end == "2010-08-01"
+
+
+def test_fiscal_year_end_rejects_accession_with_only_future_dated_candidates() -> None:
+    """The filed-date filter must fail closed when no candidate is valid."""
+    parsed_payload = {
+        "cik": 1,
+        "entityName": "Test Co",
+        "facts": {
+            "us-gaap": {
+                "FutureDatedFact": {
+                    "units": {
+                        "USD": [{
+                            "start": "2009-10-01",
+                            "end": "2010-10-01",
+                            "val": 100,
+                            "accn": "0000000000-10-000002",
+                            "fy": 2010,
+                            "fp": "FY",
+                            "form": "10-K",
+                            "filed": "2010-09-29",
+                        }]
+                    }
+                }
+            }
+        },
+    }
+
+    with pytest.raises(ValueError, match="No financial period"):
+        parse_company_facts(parsed_payload)
+
+
+def test_fiscal_year_end_rejects_same_day_non_statement_candidate() -> None:
+    """A same-day instant disclosure is not a financial statement period."""
+    payload = {
+        "cik": 1,
+        "entityName": "Test Co",
+        "facts": {
+            "us-gaap": {
+                "SameDayDisclosure": {
+                    "units": {
+                        "USD": [{
+                            "end": "2010-09-29",
+                            "val": 100,
+                            "accn": "0000000000-10-000004",
+                            "fy": 2010,
+                            "fp": "FY",
+                            "form": "10-K",
+                            "filed": "2010-09-29",
+                        }]
+                    }
+                }
+            }
+        },
+    }
+
+    with pytest.raises(ValueError, match="No financial period"):
+        parse_company_facts(payload)
+
+
+def test_fiscal_year_end_uses_a_later_entry_when_the_first_omits_filed() -> None:
+    """A missing `filed` on one fact must not turn its `end` into a bound."""
+    accession = "0000000000-10-000003"
+    parsed = parse_company_facts({
+        "cik": 1,
+        "entityName": "Test Co",
+        "facts": {
+            "us-gaap": {
+                "ComparativeFact": {
+                    "units": {
+                        "USD": [{
+                            "end": "2009-08-02",
+                            "val": 90,
+                            "accn": accession,
+                            "fy": 2010,
+                            "fp": "FY",
+                            "form": "10-K",
+                            # Deliberately omitted: a later fact has it.
+                        }]
+                    }
+                },
+                "CurrentFact": {
+                    "units": {
+                        "USD": [{
+                            "end": "2010-08-01",
+                            "val": 100,
+                            "accn": accession,
+                            "fy": 2010,
+                            "fp": "FY",
+                            "form": "10-K",
+                            "filed": "2010-09-29",
+                        }]
+                    }
+                },
+            }
+        },
+    })
+
+    filing = parsed.filings[accession]
+    assert filing.fiscal_year == 2010
+    assert filing.fiscal_year_end == "2010-08-01"
+    assert filing.filing_date == "2010-09-29"
+
+
+def test_parse_accepts_q4_annual_facts_on_a_10k() -> None:
+    """Some annual 10-Ks, including ZTS FY2014, use fp=Q4 for annual facts."""
+    accession = "0000000000-15-000004"
+    parsed = parse_company_facts({
+        "cik": 1,
+        "entityName": "Test Co",
+        "facts": {
+            "us-gaap": {
+                "Assets": {
+                    "units": {
+                        "USD": [{
+                            "end": "2014-12-31",
+                            "val": 100,
+                            "accn": accession,
+                            "fy": 2014,
+                            "fp": "Q4",
+                            "form": "10-K",
+                            "filed": "2015-02-27",
+                        }]
+                    }
+                }
+            }
+        },
+    })
+
+    filing = parsed.filings[accession]
+    assert filing.fiscal_year == 2014
+    assert filing.fiscal_year_end == "2014-12-31"
+
+
 @requires_db
 async def test_persist_is_idempotent(db_session) -> None:
     parsed = parse_company_facts(_payload())
@@ -170,6 +386,12 @@ async def test_persist_is_idempotent(db_session) -> None:
 
     total_after_first = (await db_session.execute(select(func.count()).select_from(RawFact))).scalar_one()
 
+    # A corrected parser must repair the materialized filing metadata when the
+    # same accession was previously persisted with a wrong fiscal-year end.
+    filing = (await db_session.execute(select(Filing).where(Filing.fiscal_year == 2024))).scalar_one()
+    filing.fiscal_year_end = date(2023, 12, 31)
+    await db_session.flush()
+
     # Re-ingest the same payload — no new rows (AD-2/AD-9 replayable idempotency).
     second = await persist_company_facts(db_session, parsed, ticker="SHOP")
     assert second["raw_facts_added"] == 0
@@ -177,6 +399,8 @@ async def test_persist_is_idempotent(db_session) -> None:
 
     total_after_second = (await db_session.execute(select(func.count()).select_from(RawFact))).scalar_one()
     assert total_after_first == total_after_second
+    repaired = await db_session.get(Filing, filing.accession_number)
+    assert repaired is not None and repaired.fiscal_year_end == date(2024, 12, 31)
 
     issuer = await db_session.get(Issuer, "0001594805")
     assert issuer is not None and issuer.ticker == "SHOP"

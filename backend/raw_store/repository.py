@@ -47,7 +47,8 @@ async def persist_company_facts(
         await session.flush()
 
     for accn, filing in parsed.filings.items():
-        if await session.get(Filing, accn) is None:
+        existing_filing = await session.get(Filing, accn)
+        if existing_filing is None:
             session.add(
                 Filing(
                     accession_number=accn,
@@ -59,6 +60,16 @@ async def persist_company_facts(
                 )
             )
             counts["filings_added"] += 1
+        else:
+            # Filing metadata is a projection of the parser's current
+            # interpretation, not append-only raw evidence. Updating it makes a
+            # corrected parser durable on re-ingestion, including fiscal-year
+            # end fixes discovered after a prior run.
+            existing_filing.issuer_cik = parsed.cik
+            existing_filing.form_type = filing.form_type
+            existing_filing.filing_date = _to_date(filing.filing_date)
+            existing_filing.fiscal_year = filing.fiscal_year
+            existing_filing.fiscal_year_end = _to_date(filing.fiscal_year_end)
     await session.flush()
 
     # Existing (accession_number, content_hash) pairs to skip (AD-2 append-only, idempotent).

@@ -23,7 +23,7 @@
 # CURATED_SECTIONS in backend/tests/test_sprint_status.py, and give it a
 # `status:` of open|done. Do NOT put it in sprint-status.yaml.
 #
-# INDEX (status as of 2026-08-27)
+# INDEX (status as of 2026-09-01)
 #   reference                  epic_decomposition_rationale   (from epic_catalog)
 #   reference                  action_item_evidence           (closed action items)
 #   5 entries, all closed      post_epic_work
@@ -45,6 +45,8 @@
 #   done                       story_10_2_browser_verification
 #   done                       story_10_2_codex_review
 #   done                       story_10_3_browser_verification
+#   done                       story_12_1_coverage_spike
+#   done                       story_12_2_ingestion (PR #106 review resolved in working tree)
 
 
 # Work completed after Epic 4 that no epic owns, tracked here so it is not lost.
@@ -3548,7 +3550,7 @@ story_12_1_coverage_spike:
       - "Finding 2's no-full-year CPB GrossProfit conclusion is correct after applying the stated 10-K filter and full-year duration check; the derivation and Beneish guard exist as cited, subject to the caveat qualification above."
       - "Finding 4's current us-gaap EBIT gap is real: us-gaap_v8.yaml has no profit_before_tax or interest_expense entries, while derivations_v4.yaml contains the cited rule."
       - "PR scope is disciplined: origin/main...HEAD changes only engineering-findings.yaml and sprint-status.yaml; us-gaap_v8.yaml and derivations_v4.yaml were not edited."
-      - "Sprint status is correct for an open PR: epic-12 is in-progress, Story 12.1 is review, and Stories 12.2-12.5 remain backlog."
+      - "Sprint status is correct after PR #105 merged: epic-12 is in-progress, Story 12.1 is done, Story 12.2 is review, and Stories 12.3-12.5 remain backlog."
 
 story_12_2_ingestion:
   status: done
@@ -3562,9 +3564,12 @@ story_12_2_ingestion:
     parse_company_facts parser that Story 12.1's spike did not surface (that
     spike checked concept-level coverage, not per-accession fiscal_year_end
     resolution). CPB and ZTS are now ingested: 16 filings / 11,151 raw_facts
-    for CPB (FY2010-2025 non-calendar Aug FYE), 12 filings / 8,262 raw_facts
-    for ZTS (FY2013-2025 calendar Dec FYE). Idempotency verified by running
-    ingestion twice (second run: 0 filings added, 0 raw_facts added for both).
+    for CPB (FY2010-2025 non-calendar Aug FYE), 13 filings / 8,931 raw_facts
+    for ZTS (FY2013-2025 calendar Dec FYE), including its FY2014 10-K. The
+    original PR run omitted that filing because its annual facts use EDGAR's
+    valid ``fp=Q4`` label; the shared parser now accepts that label on annual
+    forms. Idempotency was re-verified after the correction (second run: 0
+    filings added, 0 raw_facts added for both).
   defect_found:
     title: >-
       parse_company_facts's "latest end wins" fiscal_year_end heuristic picked
@@ -3597,32 +3602,44 @@ story_12_2_ingestion:
 
       ACTUAL FIX: a genuine financial-statement period can never end AFTER the
       report covering it was filed — end > filed is an accounting
-      impossibility, true for current periods AND comparatives alike, so it
-      cannot misfire the way plurality did. Filter candidates to end <= filed
-      before taking the latest end (falling back to the unfiltered set if
-      every candidate happens to fail, which never occurs in practice). This
-      correctly resolves BOTH cases: excludes the subsequent-event fact
-      (end=2011-09-30 > filed=2011-09-28) while leaving the comparative-vs-
-      current disambiguation to max(end) exactly as before (2010-08-01 >
-      2009-08-02, unaffected by fact counts either way).
+      impossibility, true for current periods AND comparatives alike. The parser
+      filters non-statement candidates to end < filed (while allowing a
+      full-year statement period on the filing date), fails closed when that
+      leaves no candidate, and prefers the latest full-year duration period when
+      one is present. That last guard also excludes a subsequent-event fact dated
+      after the real FYE but before filing, while the date-based max preserves
+      the CPB FY2010 comparative-vs-current case (2010-08-01 > 2009-08-02)
+      regardless of fact counts.
     scope_check: >
       Queried every raw_fact already ingested for all 9 filers (the other 7
       plus CPB/ZTS): exactly ONE accession in the whole universe has any
       raw_fact.period_end > its Filing.filing_date — this same CPB FY2011
       accession. The defect is confirmed CPB-specific (an idiosyncratic
       subsequent-event tagging choice), not a systemic gap the other 7 filers
-      were quietly also exposed to. Full backend suite (389 tests, including
-      the golden dataset spanning all 4 models across all 7 existing filers)
-      passes unchanged with the fix applied — zero regressions.
-    fix_location: "backend/ingestion/company_facts.py (parse_company_facts)"
-    regression_test: "backend/tests/test_ingestion.py::test_fiscal_year_end_ignores_a_subsequent_event_us_gaap_fact"
+      were quietly also exposed to. The full backend suite passes with 395
+      tests passed and 1 skipped after the parser, persistence, regression-test
+      and status-guard fixes — zero regressions.
+    fix_location: >-
+      backend/ingestion/company_facts.py (parse_company_facts) and
+      backend/raw_store/repository.py (persist_company_facts)
+    regression_test: >-
+      backend/tests/test_ingestion.py::test_fiscal_year_end_ignores_a_subsequent_event_us_gaap_fact;
+      test_fiscal_year_end_ignores_a_pre_filing_subsequent_event;
+      test_fiscal_year_end_keeps_latest_valid_period_when_comparative_has_more_facts;
+      test_fiscal_year_end_rejects_accession_with_only_future_dated_candidates;
+      test_fiscal_year_end_rejects_same_day_non_statement_candidate;
+      test_fiscal_year_end_uses_a_later_entry_when_the_first_omits_filed;
+      test_parse_accepts_q4_annual_facts_on_a_10k
     db_correction: >-
       The one corrupted Filing row (CPB accession 0000950123-11-087197) was
       corrected directly in the dev DB after the code fix landed (idempotent
       persist_company_facts only adds missing rows, never corrects an existing
       wrong one) — fiscal_year_end updated from 2011-09-30 to 2011-07-31, then
       re-verified against the fixed parser's output for every one of CPB's and
-      ZTS's 28 filings combined: zero mismatches.
+      ZTS's 29 filings combined: zero mismatches. Re-running the corrected
+      parser through persist_company_facts also added ZTS's missing FY2014
+      filing and 669 raw facts; the repository now repairs existing filing
+      metadata instead of leaving a previously persisted fiscal-year-end stale.
   scope_note: >
     Deliberately did NOT add CPB/ZTS to pipeline/universe.py's PHASE1_UNIVERSE
     — that tuple drives pipeline/run.py's live cron, which also canonicalizes
@@ -3639,3 +3656,52 @@ story_12_2_ingestion:
     from this story — the fiscal_year_end fix lives entirely in the ingestion
     layer, upstream of canonicalization, and required no filer-specific
     mapping-spec edit.
+  codex_review:
+    reviewed: 2026-09-01
+    by: "Codex — independent review of PR #106 against Story 12.2 acceptance criteria"
+    outcome: resolved
+    resolution: >-
+      The review found that the original PR omitted ZTS's real FY2014 10-K because
+      its annual facts use fp=Q4, left an unfiltered fallback that could restore a
+      rejected future candidate, captured filing metadata only from the first fact,
+      and left corrected Filing metadata non-durable. The parser now accepts FY/Q4
+      annual facts, prefers full-year duration periods, fails closed when no valid
+      period remains, and finds filed metadata across the accession. Persistence
+      repairs existing filing projections on replay. The rejected plurality history
+      now has a direct regression test, the live dev DB contains 16 CPB and 13 ZTS
+      filings, and the full suite passes 395 tests with 1 skipped.
+    fixed:
+      - "ZTS FY2014 accession 0001555280-15-000057 was admitted by the shared parser and persisted with 669 raw facts."
+      - "The `valid or candidates` fail-open path was removed; an accession with no valid statement period now raises a visible ValueError."
+      - "A later fact's filing date is used when an earlier fact in the accession omits `filed`."
+      - "Full-year duration periods outrank later instant disclosures dated before the filing, with regression coverage."
+      - "Re-ingestion updates existing Filing metadata, so fiscal-year-end corrections survive outside the current dev database."
+      - "story_12_1_coverage_spike and story_12_2_ingestion were added to the curated-section guard and the findings index was refreshed."
+    confirmed_and_not_actionable_here:
+      - "The CPB and ZTS overlap values, CPB rejection, CPB GrossProfit non-finding, ZTS EBIT gap, and mapping-spec scope claims check out as recorded; their mapping decisions remain Story 12.3 work."
+      - "No change to PHASE1_UNIVERSE, canonicalization, scoring, us-gaap_v8.yaml, or derivations_v4.yaml is needed for this ingestion story; Story 12.5 owns scheduled-universe wiring."
+      - "A full raw Company Facts fixture for each filer is not added: live EDGAR and the dev DB were independently verified, while Story 12.4 owns durable golden-data coverage."
+    additional_fix_found_during_review:
+      title: >-
+        The new fail-closed ValueError has no error isolation in the cron loop that
+        will eventually call it for every filer, including the 7 already in production
+      detail: >
+        pipeline/run.py's main() (the live Render Cron Job entry point) iterates
+        PHASE1_UNIVERSE with no try/except around each entry's ingest+canonicalize+
+        score call. Before this story, parse_company_facts never raised for a data
+        shape problem — it always resolved SOME (fy, end) candidate, possibly a
+        wrong one, but never an exception. The new fail-closed behavior is the
+        correct choice for the parser itself (AD-16: never silently guess), but it
+        turns a data-quality problem for ONE filer into an unhandled exception that
+        would silently stop every filer AFTER it in tuple order for the whole night,
+        with no isolation. CPB/ZTS are not yet in PHASE1_UNIVERSE (Story 12.5's job),
+        so tonight's cron is unaffected today, but Story 12.5 adds them to this exact
+        loop next.
+      fix: >-
+        Wrapped each PHASE1_UNIVERSE entry's processing in try/except in
+        pipeline/run.py's main(), printing "FAIL {ticker}: {exc}" and continuing to
+        the next entry rather than aborting the run. main() is `# pragma: no cover —
+        live path, gated`, so this has no existing test to break; verified by
+        reading the full diff and re-running the full suite (395 passed, 1 skipped,
+        unchanged).
+      verified: 2026-09-01
