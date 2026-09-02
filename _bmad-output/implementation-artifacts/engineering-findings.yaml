@@ -314,6 +314,35 @@ story_5_1_debt_maturity_spike:
 canonical_facts_amendment_gap:
   status: review
   fixed: 2026-09-02
+  merge_note: >
+    PR #116 (the base fix below) merged to main 2026-09-02 17:42 UTC. A Codex
+    review of #116 found real gaps in that base fix and Lawrence applied the
+    fixes as two commits (0258d65, f0922de) — but PR #116 had ALREADY merged
+    eleven minutes earlier, so those two commits landed on a now-stranded
+    branch, not on main. Cherry-picked onto a fresh branch off updated main as
+    PR #117; `main` does not have the hardening below until #117 merges.
+    Status stays `review` for that reason, not because #116 didn't merge.
+  hardening_2026_09_02: >
+    Codex-found, Lawrence-fixed, independently re-verified (full suite +
+    rollback dry run over the dev DB, unchanged: still 0 figures move for
+    CP/OTEX's 115 amendment-selected facts): (a) scoring/runner.py's
+    `_canonical_fact_for_year` didn't filter by mapping_version, so during a
+    mapping-version rebuild — both versions legitimately non-superseded — it
+    could pick either one via an arbitrary ORDER BY, not necessarily the
+    version the scorer actually loaded; same gap fixed in validation/checks.py.
+    (b) the "identical value, no rewrite" skip now also compares unit,
+    period_end and source (taxonomy, concept) — an amendment restating the
+    same number in a different currency, period, or source tag no longer
+    hides behind the old row. (c) a filing-metadata correction (e.g. a
+    restated fiscal_year_end) can make an already-canonicalized fact's raw-fact
+    group disappear entirely; such rows are now retired rather than left
+    current with no justifying candidate. (d) a derived fact whose operand
+    disappeared or stopped satisfying `requires_source` is now retired instead
+    of surviving on stale operands. (e) the migration downgrade now refuses
+    whenever ANY row is superseded, not only when the pre-migration unique
+    constraint would literally fail — catching the case where a superseded
+    row has no replacement at all (a retired derived fact) and would
+    otherwise silently look current to a downgraded reader.
   fix: >
     Option (1), not the recommended (3). Option 3 ("narrow the skip, no migration")
     is structurally impossible: when re-resolution picks a different winner the full

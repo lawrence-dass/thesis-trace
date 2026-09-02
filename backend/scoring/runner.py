@@ -64,6 +64,7 @@ async def _canonical_fact_for_year(session: AsyncSession, issuer_cik: str, fisca
             .where(
                 CanonicalFact.issuer_cik == issuer_cik,
                 CanonicalFact.fiscal_year == fiscal_year,
+                CanonicalFact.mapping_version == MAPPING_VERSION,
                 CanonicalFact.superseded.is_(False),
             )
             .order_by(CanonicalFact.canonical_concept)

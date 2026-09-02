@@ -59,9 +59,20 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Refuses to run if any row has been superseded: collapsing back to a full
-    # unique constraint would either fail on the duplicate key or require
-    # deleting history, and AD-2 forbids the latter.
+    # Refuse before dropping the partial index. A superseded row may have no
+    # replacement (for example, a derived fact invalidated because an amended
+    # operand no longer satisfies its source constraint), so relying on the
+    # full unique constraint to fail would not catch every history-bearing
+    # database. Dropping these columns would make the old row look current to
+    # the pre-migration readers, violating AD-2/AD-19.
+    connection = op.get_bind()
+    if connection.execute(
+        sa.text("SELECT 1 FROM canonical_facts WHERE superseded LIMIT 1")
+    ).scalar() is not None:
+        raise RuntimeError(
+            "Cannot downgrade canonical_facts supersession while superseded rows exist; "
+            "preserve the append-only history and migrate deliberately"
+        )
     op.drop_index('uq_canonical_facts_key', table_name='canonical_facts')
     op.create_unique_constraint(
         'uq_canonical_facts_key',

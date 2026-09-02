@@ -4,6 +4,8 @@ For each (issuer, canonical_concept, fiscal_year), choose one raw_fact by the
 ordered rules:
   1. as-originally-filed  (fact from the filing whose fiscal_year == the period's
      year) over a restated comparative carried in a later filing;
+  1a. within that tier, a same-year amendment (10-K/A or 40-F/A) over the original
+     it amends; competing amendments remain ambiguous;
   2. concept priority (when several source XBRL concepts map to one canonical
      concept — e.g. shares_outstanding's CommonStockSharesOutstanding-first,
      WeightedAverageNumberOfSharesOutstandingBasic-fallback chain — the lower
@@ -131,6 +133,7 @@ async def canonicalize_issuer(
     raw_facts = (
         await session.execute(select(RawFact).where(RawFact.accession_number.in_(accns)))
     ).scalars().all()
+    raw_by_id = {fact.id: fact for fact in raw_facts}
 
     # (concept, fiscal_year) ambiguities THIS module has already recorded for the
     # issuer. Without this the insert below has no idempotency key, which is the
@@ -253,12 +256,21 @@ async def canonicalize_issuer(
         if current is not None:
             if current.selected_from_raw_fact_id == best.id:
                 continue  # same winner as the last pass — nothing to do
-            # A different raw fact won, but the FIGURE is unchanged (a re-filed
-            # identical value, a higher-precision duplicate): leave the original
-            # in place rather than rewrite provenance for no numeric change. A
-            # derived row is the exception — a filed figure is the stronger
-            # evidential class and replaces it whatever the value (AD-3).
-            if current.derivation is None and Decimal(str(current.value)) == Decimal(str(best.value)):
+            # A different raw fact won, but the figure, source concept, and
+            # measurement metadata are unchanged (a re-filed identical value,
+            # a higher-precision duplicate): leave the original in place rather
+            # than rewrite provenance for no semantic change. A derived row is
+            # the exception — a filed figure is the stronger evidential class
+            # and replaces it whatever the value (AD-3).
+            current_raw = raw_by_id.get(current.selected_from_raw_fact_id)
+            if (
+                current.derivation is None
+                and Decimal(str(current.value)) == Decimal(str(best.value))
+                and current.unit == best.unit
+                and current.period_end == best.period_end
+                and current_raw is not None
+                and (current_raw.taxonomy, current_raw.concept) == (best.taxonomy, best.concept)
+            ):
                 continue
 
         replacement = CanonicalFact(
@@ -280,6 +292,18 @@ async def canonicalize_issuer(
         counts["canonical_facts_added"] += 1
 
     await session.flush()
+    # A filing metadata correction can make a previously selected raw-fact
+    # group disappear (most notably when its fiscal-year-end is corrected).
+    # Retire direct facts that no longer have any eligible source candidate;
+    # otherwise current-fact readers would keep scoring a row the selector can
+    # no longer justify. Derived rows are reconciled below, after operands have
+    # been refreshed.
+    grouped_keys = set(grouped)
+    for (_existing_issuer, canonical, fiscal_year), current in existing.items():
+        if current.derivation is None and (canonical, fiscal_year) not in grouped_keys:
+            await _retire_current_fact(session, current)
+            counts["canonical_facts_superseded"] += 1
+
     counts["derived_facts_added"] = await _apply_derivations(
         session, issuer_cik, mapping_version=mapping_version, counts=counts
     )
@@ -343,8 +367,25 @@ async def _apply_derivations(
                 continue  # directly tagged — never override a filed value
             operands = [concepts.get(name) for name in rule.operands]
             if any(operand is None for operand in operands):
+                if target is not None:
+                    # A previously derived target is no longer valid when an
+                    # operand disappears after supersession. Do not leave the
+                    # old value in the current-facts view; there is no
+                    # replacement row because the rule cannot be evaluated.
+                    await _retire_current_fact(session, target)
+                    if counts is not None:
+                        counts["canonical_facts_superseded"] += 1
                 continue
             if not _sources_satisfy(rule, concepts, source_of):
+                if target is not None:
+                    # An amendment can deliberately move an operand from an
+                    # allowed source tag to a disallowed one. The derivation
+                    # must then disappear from current facts rather than
+                    # continue exposing the value computed from the old
+                    # measurement basis.
+                    await _retire_current_fact(session, target)
+                    if counts is not None:
+                        counts["canonical_facts_superseded"] += 1
                 continue
 
             left, right = operands
@@ -399,6 +440,18 @@ async def _supersede(session: AsyncSession, old: CanonicalFact, new: CanonicalFa
     session.add(new)
     await session.flush()
     old.superseded_by = new.id
+
+
+async def _retire_current_fact(session: AsyncSession, fact: CanonicalFact) -> None:
+    """Remove an invalid current fact from the current view without inventing a
+    replacement.
+
+    ``superseded_by`` remains NULL intentionally: the fact lost its eligible
+    source or its derivation stopped being valid, so there is no new canonical
+    row to point at. The prior row remains queryable for historical provenance.
+    """
+    fact.superseded = True
+    await session.flush()
 
 
 async def _source_concepts(
