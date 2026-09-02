@@ -138,16 +138,15 @@ def test_mapping_version_bumped_for_a_real_mapping_change() -> None:
     stored facts under earlier versions must stay addressable by their own specs.
 
     The version is pinned by name on purpose — a bump should be a deliberate edit
-    here, not something that rides along with a spec change. Last moved 2026-09-01
-    for concepts_v10 (Story 12.3: ZTS's SalesRevenueNet revenue fallback, and
-    extending ebit_pbt_plus_interest to us-gaap via new profit_before_tax/
-    interest_expense sources). The superseded-spec check is deliberately NOT
-    pinned: it derives the list from the registry's own history, so adding a
+    here, not something that rides along with a spec change. Last moved 2026-09-02
+    for concepts_v11 (otex_capex_sign_error_fy2007_fy2009: capex gains
+    `non_negative: true`, us-gaap only). The superseded-spec check is deliberately
+    NOT pinned: it derives the list from the registry's own history, so adding a
     version cannot quietly leave an older spec unprotected.
     """
     registry = yaml.safe_load((SPECS / "registry.yaml").read_text())
-    assert registry["mapping_version"] == "concepts_v10"
-    assert registry["taxonomies"]["us-gaap"] == "us-gaap_v9"
+    assert registry["mapping_version"] == "concepts_v11"
+    assert registry["taxonomies"]["us-gaap"] == "us-gaap_v10"
     assert registry["taxonomies"]["ifrs-full"] == "ifrs-full_v4"
     assert registry["derivations"] == "derivations_v5"
 
@@ -163,6 +162,7 @@ def test_mapping_version_bumped_for_a_real_mapping_change() -> None:
         "us-gaap_v6.yaml",
         "us-gaap_v7.yaml",
         "us-gaap_v8.yaml",
+        "us-gaap_v9.yaml",
         "ifrs-full_v1.yaml",
         "ifrs-full_v2.yaml",
         "ifrs-full_v3.yaml",
@@ -175,3 +175,13 @@ def test_mapping_version_bumped_for_a_real_mapping_change() -> None:
             f"{superseded} was deleted — stored facts under earlier mapping versions "
             "still point at it (AD-2)"
         )
+
+
+def test_capex_is_flagged_non_negative_under_us_gaap() -> None:
+    """otex_capex_sign_error_fy2007_fy2009: capex is definitionally a cash-outflow
+    magnitude (`cash_from_operations - capex` in reverse_dcf_v1.yaml assumes it is
+    never negative), and OTEX's own FY2009 10-K disagreed with that definition for
+    two of its earliest years. Pinned so a future spec edit cannot silently drop
+    the flag and reintroduce the sign bug."""
+    spec = yaml.safe_load((SPECS / "us-gaap_v10.yaml").read_text())
+    assert spec["concepts"]["capex"]["non_negative"] is True

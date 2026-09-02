@@ -38,6 +38,7 @@ from app.models import CanonicalFact, DataQualityIssue, Filing, IssueStatus, Raw
 from canonicalization.mappings import (
     DERIVATION_RULES,
     MAPPING_VERSION,
+    NON_NEGATIVE_CONCEPTS,
     SOURCE_EXCLUDED_ISSUERS,
     SOURCE_PRIORITY,
     SOURCE_TO_CANONICAL,
@@ -102,6 +103,21 @@ def _matches_fiscal_year_end(rf: RawFact, fye_day: int | None) -> bool:
         return True
     actual = _day_of_year(rf.period_end.month, rf.period_end.day)
     return abs(actual - fye_day) <= _FYE_DAY_TOLERANCE
+
+
+def _effective_value(canonical_concept: str, value) -> Decimal:
+    """The value a concept selects/compares with — abs() for a concept declared
+    `non_negative` in the mapping spec (otex_capex_sign_error_fy2007_fy2009).
+
+    Applied BEFORE the ambiguity check, not just at the final write: a filer's own
+    sign-convention error can produce a lone candidate with no competitor (wrong
+    value sails through untouched) or two candidates that agree on magnitude but
+    disagree on sign (previously flagged unresolvable, when they are in fact the
+    same filed number). Normalizing first fixes both shapes with one rule, since
+    both are really the same "a magnitude concept is not what its raw sign says"
+    problem, not two different bugs."""
+    decimal_value = Decimal(str(value))
+    return abs(decimal_value) if canonical_concept in NON_NEGATIVE_CONCEPTS else decimal_value
 
 
 async def canonicalize_issuer(
@@ -221,14 +237,18 @@ async def canonicalize_issuer(
 
         candidates.sort(key=rank)
         best = candidates[0]
+        best_value = _effective_value(canonical, best.value)
         # Tie tier = (originally_filed, amends_this_year, concept_priority) — a
         # lower-priority concept never contends for "ambiguous" against a
         # higher-priority one (they measure different things); decimals/fetched_at
         # remain pure tiebreaks within a genuinely tied tier, so two same-priority
         # facts with different values (incl. a company_facts-vs-inline_xbrl conflict
-        # on the same concept, AD-4) are still correctly flagged.
+        # on the same concept, AD-4) are still correctly flagged. Compared through
+        # `_effective_value` so a non_negative concept's sign convention never turns
+        # two identical filed magnitudes into a spurious conflict (or, for a lone
+        # candidate below, a silently wrong-signed selection).
         top_tier = [c for c in candidates if rank(c)[:3] == rank(best)[:3]]
-        distinct_values = {c.value for c in top_tier}
+        distinct_values = {_effective_value(canonical, c.value) for c in top_tier}
 
         if len(distinct_values) > 1:
             # Rules cannot separate conflicting values — flag, do not guess (AD-3).
@@ -265,7 +285,7 @@ async def canonicalize_issuer(
             current_raw = raw_by_id.get(current.selected_from_raw_fact_id)
             if (
                 current.derivation is None
-                and Decimal(str(current.value)) == Decimal(str(best.value))
+                and Decimal(str(current.value)) == best_value
                 and current.unit == best.unit
                 and current.period_end == best.period_end
                 and current_raw is not None
@@ -279,7 +299,7 @@ async def canonicalize_issuer(
             canonical_concept=canonical,
             fiscal_year=fiscal_year,
             period_end=best.period_end,
-            value=best.value,
+            value=best_value,
             unit=best.unit,
             mapping_version=mapping_version,
             selected_from_raw_fact_id=best.id,
