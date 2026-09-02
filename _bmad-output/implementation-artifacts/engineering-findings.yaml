@@ -3797,3 +3797,77 @@ story_12_3_canonicalization:
     filed OperatingIncomeLoss exists; and ZTS's cash_and_equivalents /
     reverse-DCF enterprise value is insufficient_data for FY2018-2025 by
     design, not a gap to "fix" in golden verification.
+
+story_12_4_golden_dataset:
+  status: done
+  resolved: 2026-09-01
+  question: >
+    Do CPB's and ZTS's scores hand-verify against real EDGAR data across all
+    four models and the reverse-DCF implied growth rate, with expected values
+    computed independently of backend/scoring and backend/formulas, so SM-1's
+    golden-dataset guarantee holds for both new filers?
+  verdict: >
+    Yes. Both filers added to phase1_golden.yaml as `status: active` for
+    FY2025, with trimmed real-EDGAR fixtures (cpb_company_facts.json,
+    zts_company_facts.json). Independent hand-computation (a standalone
+    script importing nothing from backend/scoring or backend/formulas)
+    matched the real pipeline's output exactly on every value for both
+    filers — no discrepancy to resolve this time, unlike the Sloan
+    averaging error the same discipline caught for the IFRS filers. Fixture
+    fidelity confirmed BEFORE writing any expected value: ran
+    parse+persist+canonicalize against each trimmed fixture in the test DB
+    and diffed every concept's FY2024/FY2025 value against the dev DB's
+    already-verified canonicalization (Story 12.3) — zero mismatches. The
+    corruption-detection guard confirmed to bite for both filers (CPB via
+    the existing generic reverse_dcf corruption test; ZTS separately, since
+    its reverse_dcf is correctly insufficient_data and therefore excluded
+    from that loop — corrupted its Altman z_score by 0.01, confirmed the
+    test failed, reverted).
+  fixture_construction:
+    method: >-
+      Extracted the 49 us-gaap tags us-gaap_v9.yaml's mapping spec actually
+      references (programmatically, from the spec file itself, not by
+      memory) plus the 6 debt-maturity-ladder tags (needed because both
+      filers turned out to tag a maturity schedule — checked live rather
+      than assumed absent, per the "5 of 7 filers have none" precedent not
+      being a reason to skip the check). Trimmed each filer's already-cached
+      live company-facts JSON (same source as Story 12.1's spike) to
+      FY2023-2025 only — 3 years is enough for every model's own YoY need
+      (2 years) plus one year of margin, and shrinks the fixture from
+      ~4MB/3.5MB raw to 194KB/210KB, in line with the existing fixtures'
+      12KB-215KB range.
+    fidelity_check: >-
+      Before writing any expected value: ran parse_company_facts +
+      persist_company_facts + canonicalize_issuer against each trimmed
+      fixture in the TEST database and compared every one of the ~20
+      canonical concepts' FY2024/FY2025 values against the dev DB's Story
+      12.3 canonicalization (the full, untrimmed ingestion). Exact match on
+      every value for both filers, zero ambiguities. This is the AC's
+      "confirm the fixture can exercise the new concept" requirement,
+      verified mechanically rather than assumed from the trim list alone.
+  fiscal_year_chosen: >-
+    FY2025 for both (each filer's most recent complete fiscal year, matching
+    the existing entries' convention of using recent data). CPB's FYE
+    2025-08-03 (a Sunday); ZTS's 2025-12-31 (a Wednesday, itself a trading
+    day).
+  market_prices:
+    source: "Live Tiingo EOD fetch, 2026-09-01 (approved separately from this session's EDGAR fetches)"
+    CPB: "$32.33, 2025-08-01 close — the last trading day on/before CPB's 2025-08-03 FYE"
+    ZTS: "$125.82, 2025-12-31 close — FYE itself was a trading day"
+  notable_hand_verification_findings:
+    - "CPB's Piotroski leverage_decreasing FAILS: long_term_debt/total_assets rose FY2024->FY2025 (0.378142 -> 0.409170), a real financing fact, not a mapping artifact — total_debt (the near-term-debt-share denominator) rose by a consistent amount via the same derivation."
+    - "ZTS's Altman Z resolves (5.615320, Safe) ONLY because of Story 12.3's ebit_pbt_plus_interest extension to us-gaap. Without that mapping change this entry would need z_score: null, matching Suncor's shape. Confirmed live the canonical ebit fact actually carries derivation=\"ebit_pbt_plus_interest\" before writing the golden value, rather than assuming the mapping change worked."
+    - "ZTS gets a real, TRUNCATED (not no_profile) debt_maturity_profile for FY2025 — a shape neither CP's nor SHOP's existing entry exercises. ZTS tags maturity buckets year_1 through year_5 but never 'thereafter' for FY2025 (that tag stopped after FY2017). Checked debt/profile.py's _is_a_renderable_schedule directly: contiguous-from-year-1 and reaching year_5 satisfies both admission conditions, so this is a real, renderable, truncated schedule per the CP precedent, not a gap to reject as no_profile."
+    - "CPB's debt maturity ladder tags stop entirely after FY2021 (confirmed live, not a fixture-trimming artifact) — genuinely no_profile for FY2023-2025, the only years this fixture covers."
+    - "Both filers' Beneish runs carry the unvalidated-gross-margin caveat, confirmed against the pipeline's own caveat_reason text verbatim (not just the applicability enum) — matches Story 12.1 finding 2 exactly."
+  regression_check: >
+    Full backend suite: 395 passed, 1 skipped (same count as after Story
+    12.3 — no new pytest functions added, more assertions inside the
+    existing golden-dataset test). test_universe_fully_partitioned confirms
+    neither filer is left pending_fixture.
+  carry_forward: >
+    Story 12.5 (scheduled pipeline inclusion) can now add CPB and ZTS to
+    PHASE1_UNIVERSE with a golden-verified FY2025 as the reference point for
+    any future regression. Nothing here blocks that story; the live browser
+    verification it performs is against the real nightly-materialized data,
+    not this fixture.
