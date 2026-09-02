@@ -3942,3 +3942,69 @@ story_12_5_pipeline_inclusion_and_browser_verification:
     mapping-engine capability), 12.4 golden dataset, 12.5 this story. epic-12
     marked done in sprint-status.yaml; epic-12-retrospective remains
     optional per the existing convention (Epic 5/6's retrospectives).
+
+verdict_grid_caveat_reason_missing:
+  status: open
+  found: 2026-09-02
+  found_by: >-
+    Lawrence, looking at CPB's live Overview page after Story 12.5's browser
+    verification: Beneish M-Score shows -2.687902 (well clear of the -1.78
+    threshold) with a CAVEAT badge and no explanation why — screenshot of the
+    Overview grid's compact Beneish card.
+  question: >
+    The Overview page's compact Verdict grid shows a CAVEAT badge (e.g. CPB's
+    and ZTS's Beneish, both computed_with_caveat because gross_profit never
+    resolves as a filed concept — Story 12.1 finding 2) but only a generic
+    model caption ("Earnings-manipulation risk. Lower means safer."), never
+    the actual reason. Is the reason available to wire in, or does the API
+    genuinely not carry it here?
+  root_cause: >
+    The API already computes and stores the reason
+    (ScoreRun.caveat_reason, e.g. "This company does not report a gross
+    profit line, and its cost of sales covers only part of the revenue shown
+    alongside it..."), and it IS already exposed for the Financial
+    Health/Integrity & Evidence tab's per-year detail rows via
+    LensScoreOut.caveat_reason (backend/api/schemas.py:60) — confirmed live,
+    that expanded view already shows the correct text verbatim. But the
+    Overview page's compact grid uses a DIFFERENT, narrower schema —
+    VerdictItem (backend/api/schemas.py:127) — which deliberately explains
+    WHY A SCORE IS MISSING (`missing_signals`, populated when
+    aggregate_value is None) but has no field at all for WHY A CAVEAT
+    APPLIES when the score DID compute. backend/api/repository.py's verdict
+    construction (~line 673-691) builds each VerdictItem from a LensScoreOut
+    (`s`) that already carries `s.caveat_reason` — it is simply never
+    copied over. On the frontend, grepped for every use of caveat_reason:
+    only frontend/app/methodology/[model]/page.tsx reads it (the worked-
+    example card). frontend/app/components/VerdictGlyph.tsx's VerdictItem
+    type (used by the Overview grid in
+    frontend/app/company/[ticker]/page.tsx) does not declare the field at
+    all, so even if the API sent it today the Overview card could not
+    render it.
+  fix_identified_not_applied: >
+    Four small, additive edits, no schema-breaking change, drafted and then
+    reverted this session (Lawrence asked to stop and hand off to a fresh
+    session rather than land it now):
+      1. backend/api/schemas.py: add `caveat_reason: str | None = None` to
+         VerdictItem, mirroring LensScoreOut's existing field and comment
+         style.
+      2. backend/api/repository.py: in the verdict list comprehension
+         (~line 673), add `caveat_reason=s.caveat_reason,` alongside the
+         existing `missing_signals=...` line.
+      3. frontend/app/components/VerdictGlyph.tsx: add `caveat_reason:
+         string | null;` to the exported VerdictItem type.
+      4. frontend/app/company/[ticker]/page.tsx: render it inline on the
+         Overview card when `v.applicability === "computed_with_caveat"
+         && v.caveat_reason` — the existing data_quality warning block
+         (~line 482, AlertIcon + caveat-bg styling) is the established
+         visual pattern to match, not a new one to invent.
+    No existing test asserts on VerdictItem's exact field set or the
+    Overview grid's caveat rendering (grepped test_read_api.py and
+    test_overview_query_count.py) — this is a clean, additive gap, not a
+    behavior change requiring a migration.
+  scope_note: >
+    Likely affects every model's caveat, not just Beneish's gross-margin
+    one (e.g. Altman's capital-intensive caveat for CP/CCJ/BCE/SU) — the fix
+    above is generic (keyed off `applicability`, not a Beneish-specific
+    branch), so it should close the gap for all of them at once. Worth a
+    quick live check across a capital-intensive filer's Overview page as
+    part of verifying the fix, not just CPB/ZTS's Beneish case.
