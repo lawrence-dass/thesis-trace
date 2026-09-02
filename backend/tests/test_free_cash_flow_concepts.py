@@ -138,17 +138,18 @@ def test_mapping_version_bumped_for_a_real_mapping_change() -> None:
     stored facts under earlier versions must stay addressable by their own specs.
 
     The version is pinned by name on purpose — a bump should be a deliberate edit
-    here, not something that rides along with a spec change. Last moved 2026-08-21
-    for concepts_v9 (ConvertibleDebtNoncurrent joins long_term_debt, resolving SHOP's
-    Piotroski leverage signal and Beneish LVGI). The superseded-spec check is
-    deliberately NOT pinned: it derives the list from the registry's own history, so
-    adding a version cannot quietly leave an older spec unprotected.
+    here, not something that rides along with a spec change. Last moved 2026-09-01
+    for concepts_v10 (Story 12.3: ZTS's SalesRevenueNet revenue fallback, and
+    extending ebit_pbt_plus_interest to us-gaap via new profit_before_tax/
+    interest_expense sources). The superseded-spec check is deliberately NOT
+    pinned: it derives the list from the registry's own history, so adding a
+    version cannot quietly leave an older spec unprotected.
     """
     registry = yaml.safe_load((SPECS / "registry.yaml").read_text())
-    assert registry["mapping_version"] == "concepts_v9"
-    assert registry["taxonomies"]["us-gaap"] == "us-gaap_v8"
+    assert registry["mapping_version"] == "concepts_v10"
+    assert registry["taxonomies"]["us-gaap"] == "us-gaap_v9"
     assert registry["taxonomies"]["ifrs-full"] == "ifrs-full_v4"
-    assert registry["derivations"] == "derivations_v4"
+    assert registry["derivations"] == "derivations_v5"
 
     # Superseded specs must stay on disk: stored canonical_facts rows carry the
     # version they were written under, and resolving them means reading that
@@ -161,12 +162,14 @@ def test_mapping_version_bumped_for_a_real_mapping_change() -> None:
         "us-gaap_v5.yaml",
         "us-gaap_v6.yaml",
         "us-gaap_v7.yaml",
+        "us-gaap_v8.yaml",
         "ifrs-full_v1.yaml",
         "ifrs-full_v2.yaml",
         "ifrs-full_v3.yaml",
         "derivations_v1.yaml",
         "derivations_v2.yaml",
         "derivations_v3.yaml",
+        "derivations_v4.yaml",
     ):
         assert (SPECS / superseded).exists(), (
             f"{superseded} was deleted — stored facts under earlier mapping versions "

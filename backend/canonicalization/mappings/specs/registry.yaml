@@ -58,10 +58,23 @@
 #                which Beneish absorbs (it sums both terms) and Piotroski does not (it
 #                reads long_term_debt alone). Annotated, never corrected.
 
-mapping_version: concepts_v9
+#   concepts_v10  us-gaap_v9 + ifrs-full_v4 + derivations_v5. Story 12.3: adds ZTS's
+#                 legacy SalesRevenueNet revenue fallback (proven equal to Revenues
+#                 in the two overlap years) and extends the ebit_pbt_plus_interest
+#                 derivation to us-gaap by mapping profit_before_tax/interest_expense
+#                 there for the first time (ZTS is the only us-gaap filer that lacks
+#                 OperatingIncomeLoss; zero effect on the other four, which read ebit
+#                 as filed). Also adds `excludes_issuers` — a new mapping-engine
+#                 capability — to stop ZTS from silently inheriting the
+#                 restricted-cash-inclusive cash_and_equivalents fallback proven safe
+#                 for QSR but disproven for ZTS by its own RestrictedCashCurrent tag.
+#                 us-gaap and derivations both move because the ebit extension spans
+#                 the two files; ifrs-full is untouched and keeps v4.
+
+mapping_version: concepts_v10
 
 taxonomies:
-  us-gaap: us-gaap_v8
+  us-gaap: us-gaap_v9
   ifrs-full: ifrs-full_v4
 
-derivations: derivations_v4
+derivations: derivations_v5
