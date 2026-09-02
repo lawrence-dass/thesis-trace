@@ -4157,3 +4157,186 @@ verdict_grid_caveat_reason_missing:
       - "frontend/app/company/[ticker]/page.tsx: extracted CompactVerdictCard as its own exported component so the Overview card could get real React Testing Library render tests (page.test.tsx, new) — the kind of test bmad_code_review's Blind Hunter finding above judged out of proportion without this extraction; Codex judged it in proportion and did the extraction."
       - "backend/tests/test_read_api.py: extended test_verdict_carries_caveat_reason_alongside_missing_signals with a second ScoreRun (computed_with_caveat WITH a real aggregate_value, not just the null case already covered) and a full HTTP round-trip through the actual /api/companies/{ticker}/overview endpoint via AsyncClient, not just the repository function directly."
       - "engineering-findings.yaml: reverted this entry's status from done back to open (and dropped resolved/pr) — correct per this project's own convention that done means merged to main, not PR-open. I had marked it done prematurely in the first commit; this is Codex catching MY error, not its own usual done-too-early pattern (project-context.md's Learnings — 2026-08-30) — noted here since it's the opposite direction from what that entry warns to watch for."
+
+q1_6_capex_vs_da_live_verification:
+  status: done
+  verified: 2026-09-02
+  question: >
+    Phase 2 feature catalog row Q1.6 ("Capex vs. D&A" — several years of capex
+    less than D&A inflates FCF now and defers the cost, a reverse-DCF
+    starvation flag) claimed 9/9 coverage, "Bites: CP, SU (asset-heavy)", and
+    was recorded Verified: no. Per the live-data DoD, live-verify per-year
+    coverage of both operands for all 9 universe filers before trusting that
+    claim — capex was already mapped and characterized in Epic 6, but D&A's
+    exact per-year coverage was only ever quantified (with explicit year
+    ranges) for CPB/ZTS (Story 12.3, 2026-09-01); the other five filers had
+    only narrative notes in the mapping specs, no year ranges.
+  method: >
+    Fetched live data.sec.gov company-facts JSON for CP, QSR, SHOP, CCJ, BCE,
+    OTEX, SU (2026-09-02) — CPB/ZTS reused Story 12.3's already-live-verified
+    coverage rather than refetching. For each filer, pulled every full-year
+    (>=300 day) duration fact under the concept's mapped source tags
+    (depreciation: DepreciationDepletionAndAmortization /
+    DepreciationAndAmortization / Depreciation for us-gaap,
+    DepreciationAndAmortisationExpense /
+    DepreciationAmortisationAndImpairmentLossReversalOfImpairmentLossRecognisedInProfitOrLoss
+    for ifrs-full; capex: PaymentsToAcquirePropertyPlantAndEquipment /
+    PaymentsToAcquireProductiveAssets for us-gaap,
+    PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities for
+    ifrs-full), bucketed fiscal_year = period_end.year (never EDGAR's own
+    fy/fp), and cross-referenced against the dev DB's actual canonical_facts
+    rows where a coverage claim looked inconsistent with what a raw tag fetch
+    implied (OTEX — see the sibling finding below).
+  finding: >
+    The 9/9 claim is WRONG. True coverage is 8/9, and one of those 8 (OTEX)
+    is materially narrower than raw D&A-tag coverage alone would suggest:
+
+      CP:   depreciation FY2008-2025, capex FY2008-2025 -> Q1.6 computable
+            FY2008-2025 (18y). Clean; both concepts carry the same two years
+            of small restatement-noise candidates (FY2009/2010, <0.15%
+            deltas), already resolved by AD-3's existing tiebreak.
+      QSR:  depreciation FY2012-2025 (via the plain Depreciation /
+            DepreciationAndAmortization fallback tags, not the combined DDA
+            concept — matches the existing mapping-spec note), capex
+            FY2012-2025 -> Q1.6 computable FY2012-2025 (14y). Clean; one
+            larger restatement delta (FY2014, ~6%) already resolved by AD-3.
+      SHOP: depreciation FY2015-2025, capex FY2015-2025 -> Q1.6 computable
+            FY2015-2025 (11y). Clean.
+      CCJ:  depreciation FY2016-2025, capex FY2016-2025 -> Q1.6 computable
+            FY2016-2025 (10y). Cleanest filer in the universe for this pair —
+            zero candidate disagreements at all.
+      BCE:  depreciation FY2016-2025, capex FY2016-2025 -> Q1.6 computable
+            FY2016-2025 (10y). Clean, minor restatement noise only.
+      CPB:  depreciation FY2008-2025, capex FY2008-2025 (Story 12.3) -> Q1.6
+            computable FY2008-2025 (18y). Clean.
+      ZTS:  depreciation FY2011-2025, capex FY2011-2025 (Story 12.3) -> Q1.6
+            computable FY2011-2025 (15y). Clean.
+      OTEX: depreciation FY2008-2019 ONLY (DepreciationDepletionAndAmortization
+            stops after FY2019 — confirms the existing mapping-spec note;
+            OTEX splinters into per-component amortization tags with no
+            single combined replacement, so FY2020-2026 correctly stays
+            insufficient_data, AD-3). Capex nominally spans FY2007-2026, BUT
+            the canonical capex VALUE itself is corrupted for FY2007 and
+            FY2009 (wrong sign) and absent for FY2008 (flagged ambiguous,
+            never resolved) — see otex_capex_sign_error_fy2007_fy2009 below.
+            Net effect: Q1.6 is only SAFELY computable for OTEX FY2010-2019
+            (10y), not the FY2008-2019 that D&A coverage alone implies.
+      SU:   depreciation resolves FY2016-2025 (via the impairment-inclusive
+            IFRS tag, already flagged like_for_like: false in
+            ifrs-full_v4.yaml — a real caveat on the D&A side alone). Capex:
+            ZERO full-year facts under any mapped or candidate tag, in any
+            year — reconfirms the existing ifrs-full_v4.yaml finding live.
+            SU IS PERMANENTLY INSUFFICIENT_DATA FOR Q1.6, in every year. This
+            is a filer gap (no capex flow is ever filed under IFRS by this
+            issuer), not fixable by a mapping change.
+
+    The catalog's own "Bites" column named CP and SU as the two filers this
+    signal would matter most for (asset-heavy, capex-vs-D&A starvation being
+    a plausible real pattern for railroads and integrated oil). CP is fully
+    clean. SU — half of the named rationale — cannot run this signal AT ALL.
+    If Q1.6 is built, its own card must render insufficient_data for SU
+    rather than silently omitting it, and the catalog's "Bites" and Coverage
+    cells need correcting before this row is used to justify prioritizing
+    the feature.
+  action: >
+    Updated phase2-feature-catalog.md's Q1.6 row: Coverage 9/9 -> "8/9 (SU:
+    no capex tag, permanently insufficient_data)"; Bites "CP, SU" ->
+    "CP (clean, FY2008-2025); OTEX FY2010-2019 only — SU cannot compute this
+    signal at all"; Verified no -> yes (2026-09-02, this finding).
+  not_in_scope_this_pass: >
+    Did not implement Q1.6 itself (it remains an unbuilt catalog item, D9
+    still governs selection) and did not fix the OTEX capex sign defect this
+    verification surfaced — that is a pre-existing Epic 6 (reverse DCF) bug,
+    not a Q1.6 coverage question, and is recorded separately below pending a
+    decision on whether/how to fix it.
+
+otex_capex_sign_error_fy2007_fy2009:
+  status: open
+  found: 2026-09-02
+  found_by: >
+    Incidentally, while live-verifying Q1.6's capex-vs-D&A coverage above —
+    OTEX's raw capex-tag history looked wider (FY2007-2026) than its
+    canonical_facts rows for the same years, which prompted a direct dev-DB
+    check.
+  question: >
+    Does OTEX's canonical `capex` value carry the correct sign for its two
+    earliest XBRL years, and is FY2008 really missing?
+  finding: >
+    No, and yes. Confirmed against both the live data.sec.gov company-facts
+    JSON and the dev DB's canonical_facts table (issuer_cik 0001002638,
+    mapping_version concepts_v8/v9/v10 — reproduces identically across all
+    three, so this predates and survives the recent MAPPING_VERSION bumps):
+
+      FY2007: canonical capex = -5,260,000 (NEGATIVE). Only one raw-fact
+              candidate exists for this period in EDGAR's entire history —
+              OTEX's own FY2009 10-K (accession 0001193125-09-179839, filed
+              2009-08-21) tagging FY2007 as its second prior-year comparative,
+              value -5260000. No later filing ever re-tags FY2007 (10-Ks only
+              carry two years of comparatives), so this lone, wrong-signed
+              candidate has no competitor to trigger AD-3's ambiguity flag —
+              it sails straight through as "selected".
+      FY2008: canonical capex = MISSING (no row at all, any mapping_version).
+              Two candidates exist, both from LATER filings restating FY2008
+              as a comparative — the FY2009 10-K's -6,895,000 and the FY2010
+              10-K's +6,895,000 (same accession 0001193125-09-179839 /
+              0001193125-10-193608 seen in FY2007/FY2009 respectively).
+              Same magnitude, opposite sign: AD-3 correctly flags this as
+              `ambiguous_selection` (confirmed in data_quality_issues,
+              status needs_review) and canonicalizes nothing rather than
+              guess — this part of the system is working exactly as
+              designed.
+      FY2009: canonical capex = -12,150,000 (NEGATIVE). OTEX's own FY2009
+              10-K (0001193125-09-179839) tags its OWN just-ended fiscal year
+              as -12150000 — genuinely as-originally-filed, so AD-3's top
+              tiebreak tier picks it outright with no competing candidate at
+              that tier. The FY2010 and FY2011 10-Ks both later re-tag this
+              same period as +12,150,000 (comparative, positive) — those sit
+              in the lower "not originally filed" tier and never contend.
+      FY2010 onward: all positive, all clean (19,314,000 / 36,662,000 /
+              25,828,000 / 23,107,000 / ...) — the sign error is confined to
+              exactly these two years.
+  root_cause: >
+    OTEX's own original FY2009 10-K used a nonstandard sign convention for
+    PaymentsToAcquireProductiveAssets (reporting an outflow as negative, the
+    inverse of the "positive = cash paid" convention every other year in its
+    own history and every other filer in the universe uses). OTEX silently
+    self-corrected the sign in subsequent 10-Ks' comparative columns without
+    a 10-K/A or any other formal restatement — so there is no amendment
+    relationship for AD-3/AD-6's existing machinery to prefer (this is a
+    DIFFERENT shape from canonical_facts_amendment_gap: no amendment exists
+    here at all, just a quiet later correction inside an ordinary annual
+    comparative). AD-3's as-originally-filed preference is doing exactly
+    what it is designed to do and is precisely why it picks the wrong value
+    for FY2009: "as-originally-filed" and "actually correct" are assumed to
+    coincide, and here they do not. The gap in the architecture is narrower
+    than a new tiebreak tier: a LONE candidate with no same-tier competitor
+    never reaches the ambiguity check at all, so a sign error with no
+    disagreeing candidate (FY2007, FY2009) is structurally invisible to the
+    conflict-detection machinery that correctly caught FY2008.
+  impact: >
+    Free cash flow = cash_from_operations - capex. With capex stored
+    negative, FY2007 and FY2009 free cash flow computes as
+    cash_from_operations PLUS |capex| instead of minus it — a ~$10.5M swing
+    for FY2007 and ~$24.3M swing for FY2009 (2x the wrongly-signed amount).
+    Both years fall inside OTEX's reverse-DCF window (Epic 6, FY2007-2026
+    nominal capex coverage) and would currently render an artificially
+    inflated free-cash-flow figure on the live Overview/reverse-DCF page for
+    those two years specifically — not yet confirmed by rendering the page
+    (out of scope for this pass; recommended before any fix ships, per this
+    project's live-data DoD rule 5). This is the same class of failure Q1.6
+    itself exists to catch (an FCF figure flattered by a capex-side defect),
+    via a completely different mechanism (a sign bug, not genuine
+    maintenance starvation) — ironic timing, not a Q1.6 defect.
+  fix_identified_not_applied: >
+    Not fixed this pass — scope was live-verifying Q1.6, and a real fix here
+    is a decision, not a mechanical patch: e.g. (a) extend AD-3 so a later
+    filing's un-amended restatement of a comparative period can override a
+    lone earlier candidate when the values are sign-flipped and magnitude-
+    identical (a new tiebreak class, needs careful scoping so it cannot also
+    silently "fix" a genuine future restatement dispute), or (b) flag any
+    lone-candidate capex-type fact whose sign disagrees with the filer's own
+    surrounding years as needs_review rather than trusting it outright. Both
+    need a test fixture built from OTEX's own real FY2007-2010 raw facts
+    (not the synthetic SHOP fixture) to avoid pinning an outcome the fixture
+    can't reproduce (this project's own recurring golden-fixture trap).
+    Left as an open finding for Lawrence to prioritize, not silently patched.
