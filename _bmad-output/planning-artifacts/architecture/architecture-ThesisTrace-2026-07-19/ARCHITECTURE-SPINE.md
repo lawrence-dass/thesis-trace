@@ -102,7 +102,7 @@ flowchart LR
 
 - **Binds:** FR-3, FR-4, FR-6, FR-7, FR-8
 - **Prevents:** silent, arbitrary default selection among ambiguous or conflicting XBRL facts.
-- **Rule:** selection order is (1) as-originally-filed over restated comparative, (2) least-dimensioned/most-specific member, (3) higher decimals precision. Any unresolved ambiguity writes a `data_quality_issues` row with status `needs_review` — never a defaulted guess.
+- **Rule:** selection order is (1) as-originally-filed over restated comparative, (1a) within the originally-filed tier, an amendment of that same fiscal year (10-K/A, 40-F/A) over the original it amends — the filer's own supersession, which AD-6 depends on, not a guess; two competing amendments of one year remain ambiguous — (2) least-dimensioned/most-specific member, (3) higher decimals precision. Any unresolved ambiguity writes a `data_quality_issues` row with status `needs_review` — never a defaulted guess. *(1a added 2026-09-02 closing `canonical_facts_amendment_gap`: without it AD-6's "referencing the new canonical_facts" was unsatisfiable, since an amendment's restated value could only ever tie with — and be flagged against — the original.)*
 
 ### AD-4 — Dual-source ingestion
 

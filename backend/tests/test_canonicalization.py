@@ -8,7 +8,7 @@ from pathlib import Path
 
 from sqlalchemy import select
 
-from app.models import CanonicalFact, DataQualityIssue, IssueStatus, RawFact
+from app.models import CanonicalFact, DataQualityIssue, Filing, IssueStatus, Issuer, RawFact
 from canonicalization.canonicalize import canonicalize_issuer
 from canonicalization.mappings import seed_concept_mappings
 from ingestion.company_facts import parse_company_facts
@@ -296,3 +296,216 @@ async def test_validation_flags_identity_violation(db_session) -> None:
         )
     ).scalars().first()
     assert issue is not None and "identity_violation" in issue.issue_type
+
+
+# --- Amendment supersession (canonical_facts_amendment_gap, AD-6) ------------
+#
+# The gap was an ARRIVAL-ORDER bug: within one pass the ranking saw every raw
+# fact, but the idempotency skip across passes froze whichever value was
+# written first. So every test here simulates the production order — original
+# canonicalized, THEN the amendment ingested, THEN a second pass — rather than
+# merely loading both at once (which the finding showed cannot reproduce it).
+
+SHOP_FY2024_10K = "0001594805-25-000010"
+SHOP_FY2024_10KA = "0001594805-25-000099"
+
+
+async def _file_amendment(db_session, cik: str, *, assets_value: int, decimals: int | None = -6) -> None:
+    """Ingest a 10-K/A for SHOP FY2024 restating total assets."""
+    db_session.add(
+        Filing(
+            accession_number=SHOP_FY2024_10KA,
+            issuer_cik=cik,
+            form_type="10-K/A",
+            filing_date=date(2025, 6, 30),
+            fiscal_year=2024,
+            fiscal_year_end=date(2024, 12, 31),
+        )
+    )
+    await db_session.flush()  # raw_facts FK to filings; no relationship orders the flush
+    db_session.add(
+        RawFact(
+            accession_number=SHOP_FY2024_10KA,
+            taxonomy="us-gaap",
+            concept="Assets",
+            unit="USD",
+            period_end=date(2024, 12, 31),
+            value=assets_value,
+            decimals=decimals,
+            source="company_facts",
+            content_hash=f"amend-assets-{assets_value}",
+            fetched_at=datetime(2025, 7, 1, tzinfo=timezone.utc),
+        )
+    )
+    await db_session.flush()
+
+
+async def _total_assets_rows(db_session) -> list[CanonicalFact]:
+    return list(
+        (
+            await db_session.execute(
+                select(CanonicalFact)
+                .where(CanonicalFact.canonical_concept == "total_assets", CanonicalFact.fiscal_year == 2024)
+                .order_by(CanonicalFact.created_at, CanonicalFact.superseded.desc())
+            )
+        ).scalars()
+    )
+
+
+@requires_db
+async def test_amendment_arriving_after_canonicalization_supersedes_the_original(db_session) -> None:
+    """The production shape: FY2024 canonicalized from the 10-K; months later a
+    10-K/A restates total assets; the next pass must make the restated value
+    current WITHOUT deleting or mutating the row prior score runs point at."""
+    cik = await _ingest(db_session)
+    await canonicalize_issuer(db_session, cik)
+    (original,) = await _total_assets_rows(db_session)
+    assert original.value == 13100000000
+
+    await _file_amendment(db_session, cik, assets_value=13250000000)
+    counts = await canonicalize_issuer(db_session, cik)
+    assert counts["canonical_facts_superseded"] == 1
+    assert counts["canonical_facts_added"] == 1
+
+    rows = await _total_assets_rows(db_session)
+    assert len(rows) == 2, "supersession appends; it never deletes"
+    old = next(r for r in rows if r.id == original.id)
+    new = next(r for r in rows if r.id != original.id)
+    assert old.value == 13100000000 and old.superseded is True and old.superseded_by == new.id
+    assert new.value == 13250000000 and new.superseded is False
+    assert new.accession_number == SHOP_FY2024_10KA
+
+    # A third pass is a no-op — the amendment does not re-supersede itself.
+    third = await canonicalize_issuer(db_session, cik)
+    assert third["canonical_facts_added"] == 0
+    assert third["canonical_facts_superseded"] == 0
+    assert len(await _total_assets_rows(db_session)) == 2
+
+
+@requires_db
+async def test_amendment_restating_an_identical_figure_does_not_rewrite_history(db_session) -> None:
+    """A 10-K/A that re-files the same number (here at higher precision, so it
+    would win the ranking) changes no figure, so the original row stays current:
+    provenance is rewritten only when a value actually moves."""
+    cik = await _ingest(db_session)
+    await canonicalize_issuer(db_session, cik)
+    (original,) = await _total_assets_rows(db_session)
+
+    await _file_amendment(db_session, cik, assets_value=13100000000, decimals=-3)
+    counts = await canonicalize_issuer(db_session, cik)
+    assert counts["canonical_facts_superseded"] == 0
+    assert counts["canonical_facts_added"] == 0
+    (still,) = await _total_assets_rows(db_session)
+    assert still.id == original.id and still.superseded is False
+    assert still.accession_number == SHOP_FY2024_10K
+
+
+@requires_db
+async def test_same_year_amendment_outranks_its_original_without_an_ambiguity_flag(db_session) -> None:
+    """Single pass, both filings present: the amendment is the filer's own
+    supersession of the original, not a conflict the rules cannot separate, so
+    it wins outright and no needs_review row is raised (AD-3 flags genuine
+    ambiguity; AD-6 requires the restated value to be the one scored)."""
+    cik = await _ingest(db_session)
+    await _file_amendment(db_session, cik, assets_value=13250000000)
+    counts = await canonicalize_issuer(db_session, cik)
+    assert counts["ambiguities_flagged"] == 0
+
+    (current,) = await _total_assets_rows(db_session)
+    assert current.value == 13250000000
+    assert current.accession_number == SHOP_FY2024_10KA
+    issues = (await db_session.execute(select(DataQualityIssue))).scalars().all()
+    assert not [i for i in issues if i.issue_type == "ambiguous_selection"]
+
+
+@requires_db
+async def test_superseding_an_operand_re_derives_the_dependent_fact(db_session) -> None:
+    """A derived fact is only as current as its operands. Synthetic filer that
+    never tags Liabilities (SHOP's real shape): total_liabilities is derived as
+    assets - equity. When a 10-K/A restates assets, the derived row must be
+    superseded and recomputed — never edited in place."""
+    cik = "0000000042"
+    db_session.add(Issuer(cik=cik, ticker="SYN", name="Synthetic Filer"))
+    db_session.add(
+        Filing(
+            accession_number="0000000042-25-000001",
+            issuer_cik=cik,
+            form_type="10-K",
+            filing_date=date(2025, 2, 15),
+            fiscal_year=2024,
+            fiscal_year_end=date(2024, 12, 31),
+        )
+    )
+    await db_session.flush()
+    for concept, value in (("Assets", 1000), ("StockholdersEquity", 400)):
+        db_session.add(
+            RawFact(
+                accession_number="0000000042-25-000001",
+                taxonomy="us-gaap",
+                concept=concept,
+                unit="USD",
+                period_end=date(2024, 12, 31),
+                value=value,
+                decimals=0,
+                source="company_facts",
+                content_hash=f"syn-{concept}",
+                fetched_at=datetime(2025, 3, 1, tzinfo=timezone.utc),
+            )
+        )
+    await seed_concept_mappings(db_session)
+    await db_session.flush()
+    await canonicalize_issuer(db_session, cik)
+
+    async def liabilities() -> list[CanonicalFact]:
+        return list(
+            (
+                await db_session.execute(
+                    select(CanonicalFact).where(
+                        CanonicalFact.issuer_cik == cik,
+                        CanonicalFact.canonical_concept == "total_liabilities",
+                    )
+                )
+            ).scalars()
+        )
+
+    (derived,) = await liabilities()
+    assert derived.value == 600 and derived.derivation == "assets_minus_equity"
+
+    db_session.add(
+        Filing(
+            accession_number="0000000042-25-000002",
+            issuer_cik=cik,
+            form_type="10-K/A",
+            filing_date=date(2025, 6, 30),
+            fiscal_year=2024,
+            fiscal_year_end=date(2024, 12, 31),
+        )
+    )
+    await db_session.flush()
+    db_session.add(
+        RawFact(
+            accession_number="0000000042-25-000002",
+            taxonomy="us-gaap",
+            concept="Assets",
+            unit="USD",
+            period_end=date(2024, 12, 31),
+            value=1100,
+            decimals=0,
+            source="company_facts",
+            content_hash="syn-Assets-amended",
+            fetched_at=datetime(2025, 7, 1, tzinfo=timezone.utc),
+        )
+    )
+    await db_session.flush()
+    counts = await canonicalize_issuer(db_session, cik)
+    # One filed supersession (total_assets) and one derived (total_liabilities).
+    assert counts["canonical_facts_superseded"] == 2
+
+    rows = await liabilities()
+    assert len(rows) == 2
+    old = next(r for r in rows if r.id == derived.id)
+    new = next(r for r in rows if r.id != derived.id)
+    assert old.value == 600 and old.superseded is True and old.superseded_by == new.id
+    assert new.value == 700 and new.superseded is False
+    assert new.derivation == "assets_minus_equity"
+    assert new.accession_number == "0000000042-25-000002", "provenance anchor follows the amendment"

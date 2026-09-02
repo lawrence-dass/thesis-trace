@@ -40,7 +40,7 @@ from canonicalization.mappings import (
     SOURCE_PRIORITY,
     SOURCE_TO_CANONICAL,
 )
-from canonicalization.taxonomies import ORIGINAL_ANNUAL_FORM_TYPES
+from canonicalization.taxonomies import ORIGINAL_ANNUAL_FORM_TYPES, is_amendment
 
 # A 10-K's own accession routinely tags BOTH the true annual duration figure
 # AND quarterly sub-periods under the exact same (fy, fp="FY") label — e.g. a
@@ -105,8 +105,18 @@ def _matches_fiscal_year_end(rf: RawFact, fye_day: int | None) -> bool:
 async def canonicalize_issuer(
     session: AsyncSession, issuer_cik: str, *, mapping_version: str = MAPPING_VERSION
 ) -> dict[str, int]:
-    """Build canonical_facts for one issuer. Returns counts (facts, ambiguities)."""
-    counts = {"canonical_facts_added": 0, "ambiguities_flagged": 0}
+    """Build canonical_facts for one issuer. Returns counts (facts, ambiguities).
+
+    Idempotent across passes, and amendment-aware across passes: a key already
+    written is skipped only while the same raw fact still wins its selection.
+    When a later pass finds a different winner with a different figure — the
+    production shape being a 10-K/A restating a year the daily pipeline
+    canonicalized months earlier — the old row is SUPERSEDED (never mutated or
+    deleted) and the restated value becomes current, so the next scoring pass
+    references the new fact and the prior run's inputs still resolve to the
+    old one (AD-2, AD-6, AD-19). Tracked as `canonical_facts_amendment_gap`.
+    """
+    counts = {"canonical_facts_added": 0, "canonical_facts_superseded": 0, "ambiguities_flagged": 0}
 
     filings = {
         f.accession_number: f
@@ -165,27 +175,42 @@ async def canonicalize_issuer(
             continue
         grouped[(canonical, rf.period_end.year)].append(rf)
 
-    # Existing canonical rows for this version to keep the pass idempotent.
-    existing = set(
-        (
+    # CURRENT canonical rows for this version. Keyed to the row, not just the
+    # key, because idempotency is "the same raw fact still wins", not "the key
+    # exists": the latter froze whichever value was written first and dropped
+    # every later restatement (`canonical_facts_amendment_gap`).
+    existing: dict[tuple[str, str, int], CanonicalFact] = {
+        (f.issuer_cik, f.canonical_concept, f.fiscal_year): f
+        for f in (
             await session.execute(
-                select(CanonicalFact.issuer_cik, CanonicalFact.canonical_concept, CanonicalFact.fiscal_year).where(
+                select(CanonicalFact).where(
                     CanonicalFact.issuer_cik == issuer_cik,
                     CanonicalFact.mapping_version == mapping_version,
+                    CanonicalFact.superseded.is_(False),
                 )
             )
-        ).all()
-    )
+        ).scalars()
+    }
 
     for (canonical, fiscal_year), candidates in grouped.items():
-        if (issuer_cik, canonical, fiscal_year) in existing:
-            continue
+        current = existing.get((issuer_cik, canonical, fiscal_year))
 
         def rank(rf: RawFact) -> tuple:
-            originally_filed = filings[rf.accession_number].fiscal_year == fiscal_year
+            filing = filings[rf.accession_number]
+            originally_filed = filing.fiscal_year == fiscal_year
+            # Within the originally-filed tier an amendment of THAT year (10-K/A,
+            # 40-F/A) outranks the original it amends: the filer has explicitly
+            # restated the figure, and AD-6 requires the restated value to be the
+            # one a new score_run references. This is the filer's own
+            # supersession, not a guess — two competing amendments of the same
+            # year still fall through to the ambiguity flag below. A restated
+            # COMPARATIVE inside a later year's filing stays in the lower tier
+            # (AD-3 rule 1) regardless of that filing's form type.
+            amends_this_year = originally_filed and is_amendment(filing.form_type)
             concept_priority = SOURCE_PRIORITY.get((rf.taxonomy, rf.concept), 0)
             return (
                 0 if originally_filed else 1,  # originally filed first
+                0 if amends_this_year else 1,  # ...and its amendment over the original
                 concept_priority,  # lower-priority source concept wins outright
                 -(rf.decimals if rf.decimals is not None else -9),  # higher decimals first
                 rf.fetched_at,  # stable
@@ -193,16 +218,19 @@ async def canonicalize_issuer(
 
         candidates.sort(key=rank)
         best = candidates[0]
-        # Tie tier = (originally_filed, concept_priority) — a lower-priority concept never
-        # contends for "ambiguous" against a higher-priority one (they measure different
-        # things); decimals/fetched_at remain pure tiebreaks within a genuinely tied tier,
-        # so two same-priority facts with different values (incl. a company_facts-vs-
-        # inline_xbrl conflict on the same concept, AD-4) are still correctly flagged.
-        top_tier = [c for c in candidates if rank(c)[:2] == rank(best)[:2]]
+        # Tie tier = (originally_filed, amends_this_year, concept_priority) — a
+        # lower-priority concept never contends for "ambiguous" against a
+        # higher-priority one (they measure different things); decimals/fetched_at
+        # remain pure tiebreaks within a genuinely tied tier, so two same-priority
+        # facts with different values (incl. a company_facts-vs-inline_xbrl conflict
+        # on the same concept, AD-4) are still correctly flagged.
+        top_tier = [c for c in candidates if rank(c)[:3] == rank(best)[:3]]
         distinct_values = {c.value for c in top_tier}
 
         if len(distinct_values) > 1:
             # Rules cannot separate conflicting values — flag, do not guess (AD-3).
+            # A previously resolved row stays current: superseding it with a
+            # guess would be worse than leaving the flagged conflict for review.
             if (canonical, fiscal_year) in existing_ambiguities:
                 continue
             existing_ambiguities.add((canonical, fiscal_year))
@@ -222,31 +250,45 @@ async def canonicalize_issuer(
             counts["ambiguities_flagged"] += 1
             continue
 
-        session.add(
-            CanonicalFact(
-                issuer_cik=issuer_cik,
-                accession_number=best.accession_number,
-                canonical_concept=canonical,
-                fiscal_year=fiscal_year,
-                period_end=best.period_end,
-                value=best.value,
-                unit=best.unit,
-                mapping_version=mapping_version,
-                selected_from_raw_fact_id=best.id,
-            )
+        if current is not None:
+            if current.selected_from_raw_fact_id == best.id:
+                continue  # same winner as the last pass — nothing to do
+            # A different raw fact won, but the FIGURE is unchanged (a re-filed
+            # identical value, a higher-precision duplicate): leave the original
+            # in place rather than rewrite provenance for no numeric change. A
+            # derived row is the exception — a filed figure is the stronger
+            # evidential class and replaces it whatever the value (AD-3).
+            if current.derivation is None and Decimal(str(current.value)) == Decimal(str(best.value)):
+                continue
+
+        replacement = CanonicalFact(
+            issuer_cik=issuer_cik,
+            accession_number=best.accession_number,
+            canonical_concept=canonical,
+            fiscal_year=fiscal_year,
+            period_end=best.period_end,
+            value=best.value,
+            unit=best.unit,
+            mapping_version=mapping_version,
+            selected_from_raw_fact_id=best.id,
         )
+        if current is not None:
+            await _supersede(session, current, replacement)
+            counts["canonical_facts_superseded"] += 1
+        else:
+            session.add(replacement)
         counts["canonical_facts_added"] += 1
 
     await session.flush()
     counts["derived_facts_added"] = await _apply_derivations(
-        session, issuer_cik, mapping_version=mapping_version
+        session, issuer_cik, mapping_version=mapping_version, counts=counts
     )
     await session.flush()
     return counts
 
 
 async def _apply_derivations(
-    session: AsyncSession, issuer_cik: str, *, mapping_version: str
+    session: AsyncSession, issuer_cik: str, *, mapping_version: str, counts: dict[str, int] | None = None
 ) -> int:
     """Compute canonical concepts a filer never tagged directly, per the rules
     declared in `canonicalization/mappings/specs/derivations_v1.yaml`. Returns the
@@ -259,6 +301,12 @@ async def _apply_derivations(
     filed line item. Its accession_number/period_end are anchored to the rule's
     `provenance_from` operand: the same balance-sheet date, a faithful provenance
     root for a value with no single source line.
+
+    A derived row is only as current as its operands. When an amendment
+    supersedes an operand (see `canonicalize_issuer`), the rule is re-evaluated
+    and a derived row whose value or provenance anchor moved is superseded by a
+    fresh one — never edited in place — so it carries the same append-only
+    guarantee as a filed fact. Supersessions are tallied into `counts`.
 
     Rules are applied against the facts as SELECTED, not against each other's
     output — a derivation never consumes another derivation's result. Chaining
@@ -273,6 +321,7 @@ async def _apply_derivations(
             select(CanonicalFact).where(
                 CanonicalFact.issuer_cik == issuer_cik,
                 CanonicalFact.mapping_version == mapping_version,
+                CanonicalFact.superseded.is_(False),
                 CanonicalFact.canonical_concept.in_(needed),
             )
         )
@@ -289,7 +338,8 @@ async def _apply_derivations(
     added = 0
     for rule in DERIVATION_RULES:
         for fiscal_year, concepts in by_year.items():
-            if rule.canonical_concept in concepts:
+            target = concepts.get(rule.canonical_concept)
+            if target is not None and target.derivation is None:
                 continue  # directly tagged — never override a filed value
             operands = [concepts.get(name) for name in rule.operands]
             if any(operand is None for operand in operands):
@@ -306,22 +356,49 @@ async def _apply_derivations(
                 raise ValueError(f"unsupported derivation operation: {rule.operation!r}")
 
             anchor = concepts[rule.provenance_from]
-            session.add(
-                CanonicalFact(
-                    issuer_cik=issuer_cik,
-                    accession_number=anchor.accession_number,
-                    canonical_concept=rule.canonical_concept,
-                    fiscal_year=fiscal_year,
-                    period_end=anchor.period_end,
-                    value=value,
-                    unit=anchor.unit,
-                    mapping_version=mapping_version,
-                    derivation=rule.rule,
-                    selected_from_raw_fact_id=None,
-                )
+            if (
+                target is not None
+                and Decimal(str(target.value)) == value
+                and target.accession_number == anchor.accession_number
+            ):
+                continue  # operands unchanged since this row was derived
+
+            derived = CanonicalFact(
+                issuer_cik=issuer_cik,
+                accession_number=anchor.accession_number,
+                canonical_concept=rule.canonical_concept,
+                fiscal_year=fiscal_year,
+                period_end=anchor.period_end,
+                value=value,
+                unit=anchor.unit,
+                mapping_version=mapping_version,
+                derivation=rule.rule,
+                selected_from_raw_fact_id=None,
             )
+            if target is not None:
+                await _supersede(session, target, derived)
+                if counts is not None:
+                    counts["canonical_facts_superseded"] += 1
+            else:
+                session.add(derived)
             added += 1
     return added
+
+
+async def _supersede(session: AsyncSession, old: CanonicalFact, new: CanonicalFact) -> None:
+    """Retire `old` in favour of `new` without ever holding two CURRENT rows.
+
+    The uniqueness guard is a partial index over `NOT superseded`, checked per
+    statement, and SQLAlchemy's unit of work emits INSERTs before UPDATEs within
+    one flush — so the retirement must reach the database BEFORE the insert,
+    and the back-reference (an FK to the new row's id) only after it. Three
+    small flushes on a rare path, in exchange for the invariant never being
+    false even transiently."""
+    old.superseded = True
+    await session.flush()
+    session.add(new)
+    await session.flush()
+    old.superseded_by = new.id
 
 
 async def _source_concepts(

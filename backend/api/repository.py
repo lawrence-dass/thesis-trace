@@ -331,6 +331,7 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
             select(CanonicalFact).where(
                 CanonicalFact.issuer_cik == issuer.cik,
                 CanonicalFact.mapping_version == MAPPING_VERSION,
+                CanonicalFact.superseded.is_(False),
                 CanonicalFact.canonical_concept.in_(
                     (
                         NUMERATOR_CONCEPT,

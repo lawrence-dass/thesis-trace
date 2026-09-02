@@ -30,7 +30,7 @@
 #   7 entries, 1 open          d8_ifrs_track
 #   —                          qsr_gross_profit_reverification
 #   done                       story_5_1_debt_maturity_spike
-#   open                       canonical_facts_amendment_gap
+#   review                     canonical_facts_amendment_gap
 #   done                       story_6_2_live_verification
 #   done                       market_price_dates_labelled_as_fiscal_year_end
 #   done                       story_6_7_golden_coverage
@@ -312,7 +312,43 @@ story_5_1_debt_maturity_spike:
 # the engine handles it correctly; this is an upstream canonicalization gap that the
 # diff work exposed. Needs its own decision, so it is recorded rather than fixed here.
 canonical_facts_amendment_gap:
-  status: open
+  status: review
+  fixed: 2026-09-02
+  fix: >
+    Option (1), not the recommended (3). Option 3 ("narrow the skip, no migration")
+    is structurally impossible: when re-resolution picks a different winner the full
+    unique key leaves only UPDATE-in-place, which mutates a row prior score_inputs
+    point at — AD-2/AD-19 forbid exactly that. Shipped instead: canonical_facts gains
+    `superseded`/`superseded_by` (AD-6's score_runs pattern one layer down) and the
+    unique constraint becomes a PARTIAL unique index over `NOT superseded`; the
+    canonicalizer's guard is now "the same raw fact still wins" rather than "the key
+    exists", superseding the old row when a different winner carries a DIFFERENT
+    figure (an identical re-filed value rewrites nothing); derived facts are
+    re-derived and superseded when an operand moved; the six current-fact readers
+    filter `superseded IS FALSE`, the two id-join readers (diff engine, data-quality
+    join) deliberately do not. Migration c7e1f4a92b06.
+  spec_consequence: >
+    AD-3 gained rule (1a): within the originally-filed tier an amendment of that same
+    year outranks the original it amends. Without it the fix was hollow — a 10-K/A's
+    restated value could only ever TIE with the original in AD-3's top tier and be
+    flagged ambiguous, so AD-6's "referencing the new canonical_facts" was
+    unsatisfiable by construction. The two ADs contradicted each other and nobody had
+    noticed because no amendment in the universe carries a value the original lacks.
+    Recorded in ARCHITECTURE-SPINE.md AD-3 in the same change.
+  fix_verification: >
+    (1) Arrival-order tests in test_canonicalization.py simulate the production
+    sequence (original canonicalized, THEN amendment ingested, THEN a second pass):
+    supersession, identical-value no-op, single-pass amendment-wins-without-flag, and
+    the derived-fact cascade on a synthetic Liabilities-less filer. (2) The diff-engine
+    test that pinned the gap now asserts the positive: a restatement under one
+    mapping_version IS a fact_change with both endpoints auditable. (3) Full suite 402
+    passed, golden untouched. (4) ROLLBACK DRY RUN over the dev DB, all 9 filers,
+    2026-09-02: under rule 1a CP selects 43 and OTEX 72 current facts from amendments,
+    and in EVERY case the original filing carried the same value — 0 figures change in
+    the current universe, consistent with the 2026-08-04 mechanism check. The dry run
+    also showed only CPB/ZTS are canonicalized under concepts_v10 on the dev DB; the
+    other seven are at v9 until the next pipeline pass (the half-degraded-page shape
+    from the 2026-08-05 learning).
   found: 2026-08-04
   found_by: "Story 5.2 (diff engine) — a test asserting a restated fact produced a UniqueViolationError instead"
   issue: >
