@@ -133,6 +133,7 @@ async def canonicalize_issuer(
     raw_facts = (
         await session.execute(select(RawFact).where(RawFact.accession_number.in_(accns)))
     ).scalars().all()
+    raw_by_id = {fact.id: fact for fact in raw_facts}
 
     # (concept, fiscal_year) ambiguities THIS module has already recorded for the
     # issuer. Without this the insert below has no idempotency key, which is the
@@ -255,17 +256,20 @@ async def canonicalize_issuer(
         if current is not None:
             if current.selected_from_raw_fact_id == best.id:
                 continue  # same winner as the last pass — nothing to do
-            # A different raw fact won, but the figure and its measurement
-            # metadata are unchanged (a re-filed identical value, a
-            # higher-precision duplicate): leave the original in place rather
+            # A different raw fact won, but the figure, source concept, and
+            # measurement metadata are unchanged (a re-filed identical value,
+            # a higher-precision duplicate): leave the original in place rather
             # than rewrite provenance for no semantic change. A derived row is
             # the exception — a filed figure is the stronger evidential class
             # and replaces it whatever the value (AD-3).
+            current_raw = raw_by_id.get(current.selected_from_raw_fact_id)
             if (
                 current.derivation is None
                 and Decimal(str(current.value)) == Decimal(str(best.value))
                 and current.unit == best.unit
                 and current.period_end == best.period_end
+                and current_raw is not None
+                and (current_raw.taxonomy, current_raw.concept) == (best.taxonomy, best.concept)
             ):
                 continue
 

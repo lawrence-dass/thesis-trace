@@ -750,7 +750,7 @@ async def test_superseding_an_operand_that_breaks_a_source_constraint_retires_th
             unit="USD",
             period_end=date(2024, 12, 31),
             period_start=date(2024, 1, 1),
-            value=350,
+            value=400,
             decimals=0,
             source="company_facts",
             content_hash="syn2-cogs-amended",
