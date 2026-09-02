@@ -84,6 +84,8 @@ CURATED_SECTIONS = (
     "story_10_2_browser_verification",
     "story_10_2_codex_review",
     "story_10_3_browser_verification",
+    "story_12_1_coverage_spike",
+    "story_12_2_ingestion",
 )
 
 pytestmark = pytest.mark.skipif(

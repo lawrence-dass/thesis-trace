@@ -281,21 +281,33 @@ async def main() -> None:  # pragma: no cover — live path, gated
         if entry.cik is None:
             print(f"SKIP {entry.ticker}: CIK not yet confirmed against EDGAR")
             continue
-        payload = await fetch_company_facts(entry.cik)
-        fye_prices = await _fye_prices_for(payload, entry.ticker)
-        reporting_currency = _payload_reporting_currency(payload)
-        fx_rates = await _fx_rates_for(payload, reporting_currency)
-        async with sessionmaker() as session:
-            summary = await run_issuer(
-                session,
-                payload,
-                ticker=entry.ticker,
-                is_financial_sector=entry.is_financial_sector,
-                is_capital_intensive=entry.capital_intensive,
-                fye_prices=fye_prices,
-                fx_rates=fx_rates,
-                reporting_currency=reporting_currency,
-            )
+        try:
+            payload = await fetch_company_facts(entry.cik)
+            fye_prices = await _fye_prices_for(payload, entry.ticker)
+            reporting_currency = _payload_reporting_currency(payload)
+            fx_rates = await _fx_rates_for(payload, reporting_currency)
+            async with sessionmaker() as session:
+                summary = await run_issuer(
+                    session,
+                    payload,
+                    ticker=entry.ticker,
+                    is_financial_sector=entry.is_financial_sector,
+                    is_capital_intensive=entry.capital_intensive,
+                    fye_prices=fye_prices,
+                    fx_rates=fx_rates,
+                    reporting_currency=reporting_currency,
+                )
+        except Exception as exc:  # noqa: BLE001 — one filer's failure must not stop the run
+            # parse_company_facts can now fail closed (ValueError) rather than guess a
+            # fiscal_year_end when no financial period ends on or before the filing date
+            # (Story 12.2). Before this, nothing in this loop could raise for a data
+            # shape problem — it always resolved SOME candidate, possibly a wrong one.
+            # Failing loud is correct for the parser; silently orphaning every filer
+            # AFTER the failing one in PHASE1_UNIVERSE for the whole night is not. Each
+            # entry is isolated so one filer's bad data is visible without starving the
+            # rest of the nightly run.
+            print(f"FAIL {entry.ticker}: {exc}")
+            continue
         v = summary["validation"]
         flagged = (
             f", validation: {v['issues_raised']} new / {v['issues_existing']} open"
