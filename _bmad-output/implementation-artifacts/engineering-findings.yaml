@@ -4570,3 +4570,120 @@ q3_3_achieved_vs_implied_growth_live_verification:
   not_in_scope_this_pass: >
     Did not implement Q3.3 or an FCF CAGR field — Q3.3 remains an unbuilt
     catalog item, D9 still governs selection.
+
+otex_shares_outstanding_scale_error_fy2007_fy2009:
+  status: done
+  resolved: 2026-09-02
+  mapping_version: concepts_v13
+  found: 2026-09-02
+  found_by: >
+    Live-verifying the two prior fixes this session in a browser (OTEX's
+    Overview page still showed "1 open data-quality issue: ambiguous_
+    selection" after the capex sign fix, expected, but worth confirming it
+    wasn't the same issue resurrected). It was not — a different, previously
+    undocumented `shares_outstanding` conflict for FY2008.
+  question: >
+    What is the ambiguous_selection flag on OTEX FY2008 shares_outstanding,
+    and does the same root cause reach any other year silently?
+  finding: >
+    OTEX's FY2009 10-K — its first-ever XBRL filing, accession
+    0001193125-09-179839, THE SAME FILING behind
+    otex_capex_sign_error_fy2007_fy2009 — also mis-scaled
+    us-gaap:WeightedAverageNumberOfSharesOutstandingBasic by exactly 1000x
+    for the years it originally reports: FY2007 tagged 49,393 (should be
+    49,393,000) and FY2009, its own just-ended year, tagged 52,030 (should
+    be 52,030,000). Every later filing (FY2010, FY2011 10-Ks) re-tags these
+    same periods correctly scaled (×1000), with no formal amendment — the
+    identical failure shape as the capex sign bug from the same filing, just
+    a scale defect instead of a sign defect. FY2008's two candidates (50,780
+    from the bad filing vs 50,780,000 from a later correction) are
+    same-magnitude-ratio (exactly 1000x) and were correctly caught as
+    `ambiguous_selection` — the flag this investigation started from. FY2007
+    and FY2009 had no competing candidate at their tier (FY2009 is
+    "originally filed" and wins outright over any later restatement
+    regardless of concept priority; FY2007 has no later comparative at all,
+    10-Ks carrying only two years) — same lone-candidate blind spot as the
+    capex bug, confirmed for a second concept from the same defective filing.
+  live_verification: >
+    Hand-computed Altman's Z-Score for OTEX FY2009 both ways from the
+    formula spec (altman_v1.yaml) against real stored operands
+    (total_assets 1,507,236,000; current_assets 434,910,000; current_
+    liabilities 318,728,000; retained_earnings 104,479,000; ebit 97,584,000;
+    total_liabilities 502,044,000; revenue 785,665,000; FYE close $36.42):
+    with the wrong stored shares (52,030), market value of equity =
+    $1,894,932.60 and Z = 0.926726 (Distress) — this is EXACTLY the
+    Z-Score the dev DB had stored and the live page was rendering. With the
+    correct share count (52,030,000), market value of equity =
+    $1,894,932,600 and Z = 3.189122 (Safe). Confirms the classification
+    shown on the live Overview page was actively wrong, not merely a
+    coverage gap — the first finding this session with that property
+    (both prior fixes were latent/stale, not currently-rendered-wrong).
+  fix:
+    approach: >
+      Added `excludes_accessions` — a new mapping-engine capability,
+      parallel to `excludes_issuers` but keyed by accession number (which
+      already implies its issuer) rather than issuer CIK — to
+      WeightedAverageNumberOfSharesOutstandingBasic under shares_outstanding
+      (concepts_v13, us-gaap_v12.yaml), excluding accession
+      0001193125-09-179839 specifically. Distinct mechanism from
+      `excludes_issuers`: that suppresses a TAG that measures the wrong
+      thing for an issuer across its whole history; this suppresses ONE
+      FILING's own bad data for one issuer, leaving every other filing's
+      contribution to the same source untouched. Considered and rejected: a
+      general cross-year continuity check (would also catch this class of
+      bug automatically in the future) — bigger architectural addition,
+      deliberately left for a future session if this class of defect
+      recurs, per Lawrence's explicit choice when asked.
+    scope: >
+      us-gaap only, one accession, one source concept. ifrs-full and
+      derivations untouched.
+    tests: >
+      backend/tests/test_otex_shares_outstanding_scale_fix.py (new, 3 tests)
+      ingests the real otex_company_facts.json fixture (already carries the
+      bug's exact values, confirmed against live data.sec.gov) via
+      pipeline.run.run_issuer and asserts: FY2007 correctly becomes
+      insufficient_data (no other source exists); FY2009 falls through to
+      us-gaap:CommonStockSharesOutstanding once one additional real,
+      live-verified fact is injected (the trimmed fixture doesn't carry
+      that tag for FY2009 on its own — the same trimmed-fixture trap hit
+      twice already this session); FY2010 onward (already correct) is
+      unperturbed. backend/tests/test_free_cash_flow_concepts.py gained a
+      spec-level pin (the exclusion, plus the live Altman-classification
+      evidence, asserted present in the mapping spec's own note) and the
+      mapping-version-pin test moved to concepts_v13/us-gaap_v12. Full
+      backend suite: 420 passed (was 416). `ruff check` clean. No golden
+      dataset change needed — OTEX's golden entry is pinned to FY2019, not
+      FY2007/2008/2009.
+    dev_db_applied: >
+      Re-canonicalized and re-scored all 9 filers under concepts_v13 (no
+      live fetch). Zero ambiguities flagged anywhere. OTEX's canonical
+      shares_outstanding, verified directly: FY2007 now correctly absent
+      (insufficient_data); FY2008 RECOVERED (was ambiguous/missing, now
+      50,780,000 via the same fallback tag, no longer contending against
+      the bad accession); FY2009 52,716,751 (via
+      CommonStockSharesOutstanding, its normal priority-0 source, once the
+      bad accession stopped contending — a real point-in-time count, not
+      the weighted average, so the live figure differs slightly from the
+      hand-verification's 52,030,000 by design, both correctly scaled).
+      OTEX's live Altman FY2009 score_runs row now reads 3.219015 (Safe),
+      matching the dev DB.
+    browser_verification: >
+      Confirmed live in the actual product, not just the DB: OTEX's
+      Financial Health tab now shows "Altman Z-Score FY2009: 3.219015
+      SAFE" (was 0.927 Distress). The product's OWN "Past Performance / What
+      Changed" feature — unprompted, a first-class tracked feature, not
+      something this session added — independently narrated the exact fix:
+      "Altman Z-Score FY2009: CLASSIFICATION CHANGED, SCORE MOVED, SIGNAL
+      VALUE MOVED — Distress -> Safe, Score 0.926726 -> 3.219015,
+      x4_market_value_equity 0.002264 -> 2.294553." Piotroski's FY2008/
+      FY2009/FY2010 entries also correctly show shares_outstanding's
+      before/after values in the same view.
+  impact: >
+    Live, user-facing, and — unlike the two fixes before it this session —
+    ACTIVELY WRONG at the time it was found, not merely stale or latent:
+    OTEX's Altman Z-Score for FY2009 was rendering "Distress" when the
+    correct classification is "Safe", a complete reversal of the signal.
+    Third real defect surfaced from live-verifying two unrelated Phase 2
+    catalog rows (Q1.6, Q3.3) plus one browser spot-check in the same
+    session, all three from features that had shipped and been believed
+    correct.

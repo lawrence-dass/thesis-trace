@@ -139,15 +139,15 @@ def test_mapping_version_bumped_for_a_real_mapping_change() -> None:
 
     The version is pinned by name on purpose — a bump should be a deliberate edit
     here, not something that rides along with a spec change. Last moved 2026-09-02
-    for concepts_v12 (zts_stale_reverse_dcf_cash_gap: removes ZTS's
-    `excludes_issuers` on the restricted-cash-inclusive cash_and_equivalents
-    fallback, us-gaap only). The superseded-spec check is deliberately NOT
-    pinned: it derives the list from the registry's own history, so adding a
-    version cannot quietly leave an older spec unprotected.
+    for concepts_v13 (otex_shares_outstanding_scale_error_fy2007_fy2009: adds
+    `excludes_accessions` for OTEX's FY2009 10-K on the shares_outstanding
+    weighted-average fallback, us-gaap only). The superseded-spec check is
+    deliberately NOT pinned: it derives the list from the registry's own
+    history, so adding a version cannot quietly leave an older spec unprotected.
     """
     registry = yaml.safe_load((SPECS / "registry.yaml").read_text())
-    assert registry["mapping_version"] == "concepts_v12"
-    assert registry["taxonomies"]["us-gaap"] == "us-gaap_v11"
+    assert registry["mapping_version"] == "concepts_v13"
+    assert registry["taxonomies"]["us-gaap"] == "us-gaap_v12"
     assert registry["taxonomies"]["ifrs-full"] == "ifrs-full_v4"
     assert registry["derivations"] == "derivations_v5"
 
@@ -165,6 +165,7 @@ def test_mapping_version_bumped_for_a_real_mapping_change() -> None:
         "us-gaap_v8.yaml",
         "us-gaap_v9.yaml",
         "us-gaap_v10.yaml",
+        "us-gaap_v11.yaml",
         "ifrs-full_v1.yaml",
         "ifrs-full_v2.yaml",
         "ifrs-full_v3.yaml",
@@ -185,7 +186,7 @@ def test_capex_is_flagged_non_negative_under_us_gaap() -> None:
     never negative), and OTEX's own FY2009 10-K disagreed with that definition for
     two of its earliest years. Pinned so a future spec edit cannot silently drop
     the flag and reintroduce the sign bug."""
-    spec = yaml.safe_load((SPECS / "us-gaap_v11.yaml").read_text())
+    spec = yaml.safe_load((SPECS / "us-gaap_v12.yaml").read_text())
     assert spec["concepts"]["capex"]["non_negative"] is True
 
 
@@ -209,7 +210,7 @@ def test_zts_no_longer_excluded_from_the_restricted_cash_fallback() -> None:
     assert len(us_gaap) == 1
     assert us_gaap[0].excludes_issuers == ()
 
-    spec = yaml.safe_load((SPECS / "us-gaap_v11.yaml").read_text())
+    spec = yaml.safe_load((SPECS / "us-gaap_v12.yaml").read_text())
     sources = spec["concepts"]["cash_and_equivalents"]["sources"]
     fallback = next(
         s for s in sources
@@ -221,3 +222,34 @@ def test_zts_no_longer_excluded_from_the_restricted_cash_fallback() -> None:
         "the note must carry the overlap-year evidence the exclusion's removal rests on"
     )
     assert "1,602,000,000 = 1,602,000,000" in note
+
+
+def test_otex_fy2009_10k_excluded_from_shares_outstanding_fallback() -> None:
+    """otex_shares_outstanding_scale_error_fy2007_fy2009: OTEX's FY2009 10-K
+    (accession 0001193125-09-179839, its first-ever XBRL filing — the same
+    filing behind otex_capex_sign_error_fy2007_fy2009) mis-scaled
+    WeightedAverageNumberOfSharesOutstandingBasic by 1000x for FY2007 and
+    FY2009. Live-verified impact: understated market value of equity by
+    1000x, flipping the stored Altman Z-Score from 3.189 (Safe) to 0.927
+    (Distress). Pinned so a future spec edit cannot silently drop the
+    exclusion and reintroduce the misclassification."""
+    us_gaap = [
+        r for r in MAPPING_RULES
+        if r.canonical_concept == "shares_outstanding"
+        and r.source_taxonomy == "us-gaap"
+        and r.source_concept == "WeightedAverageNumberOfSharesOutstandingBasic"
+    ]
+    assert len(us_gaap) == 1
+    assert us_gaap[0].excludes_accessions == ("0001193125-09-179839",)
+
+    spec = yaml.safe_load((SPECS / "us-gaap_v12.yaml").read_text())
+    sources = spec["concepts"]["shares_outstanding"]["sources"]
+    fallback = next(
+        s for s in sources
+        if s["concept"] == "WeightedAverageNumberOfSharesOutstandingBasic"
+    )
+    assert fallback["excludes_accessions"] == ["0001193125-09-179839"]
+    note = fallback.get("note", "")
+    assert "3.189" in note and "0.927" in note, (
+        "the note must carry the live Altman-classification evidence the exclusion rests on"
+    )
