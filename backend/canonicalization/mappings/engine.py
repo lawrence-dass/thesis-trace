@@ -63,6 +63,15 @@ class MappingRule:
     # but ZTS discloses real restricted cash ($2-6M) in the same years the fallback
     # would otherwise fire, which the QSR proof does not cover and cannot extend to.
     excludes_issuers: tuple[str, ...] = ()
+    # A property of the CANONICAL CONCEPT, not of any one source tag — declared on
+    # the concept body (`capex: {non_negative: true, ...}`) and copied onto every
+    # source rule generated for it, same pattern as `note` falling back to the
+    # body's own note. True for a concept that is definitionally a magnitude (a
+    # cash outflow can never be negative) where a filer's own sign convention has
+    # been found to disagree with that definition. canonicalize.py takes abs(value)
+    # for these concepts at selection time. First needed for capex (v10):
+    # otex_capex_sign_error_fy2007_fy2009.
+    non_negative: bool = False
 
 
 @dataclass(frozen=True)
@@ -104,6 +113,11 @@ class MappingSpec:
     source_mismatch: dict[tuple[str, str], str]
     # (taxonomy, source concept) -> CIKs for which this source must never resolve.
     source_excluded_issuers: dict[tuple[str, str], frozenset[str]]
+    # Canonical concepts that are definitionally non-negative magnitudes — a filer's
+    # own sign convention has been found to disagree with the definition for at
+    # least one of them. Consulted by canonicalize.py to abs() the value at
+    # selection time, before the ambiguity check.
+    non_negative_concepts: frozenset[str]
 
 
 def _load_taxonomy_rules(spec_version: str) -> tuple[MappingRule, ...]:
@@ -130,6 +144,7 @@ def _load_taxonomy_rules(spec_version: str) -> tuple[MappingRule, ...]:
                     like_for_like=source.get("like_for_like", True),
                     mismatch_reason=source.get("mismatch_reason"),
                     excludes_issuers=tuple(source.get("excludes_issuers") or ()),
+                    non_negative=body.get("non_negative", False),
                 )
             )
     return tuple(rules)
@@ -235,6 +250,11 @@ def load_mapping_spec() -> MappingSpec:
             for r in rules
             if r.excludes_issuers
         },
+        # A concept-level fact, not a per-taxonomy one — the union across whichever
+        # taxonomy spec(s) declared it, so a concept flagged in only one taxonomy
+        # (capex, us-gaap only as of v10) still normalizes consistently everywhere
+        # it appears.
+        non_negative_concepts=frozenset(r.canonical_concept for r in rules if r.non_negative),
     )
 
 
@@ -262,6 +282,13 @@ SOURCE_MISMATCH: dict[tuple[str, str], str] = _SPEC.source_mismatch
 # added for can still be wrong for a specific other issuer (AD-16: never silently
 # resolve a value known to be wrong for that issuer).
 SOURCE_EXCLUDED_ISSUERS: dict[tuple[str, str], frozenset[str]] = _SPEC.source_excluded_issuers
+
+# Canonical concepts (e.g. "capex") that are definitionally non-negative magnitudes.
+# canonicalize.py takes abs(value) for these at selection time, before the
+# ambiguity check, so a filer's own sign-convention error doesn't get selected
+# outright (a lone wrong-signed candidate) or flagged as an unresolvable conflict
+# (two candidates agreeing on magnitude but disagreeing on sign).
+NON_NEGATIVE_CONCEPTS: frozenset[str] = _SPEC.non_negative_concepts
 
 
 async def seed_concept_mappings(session: AsyncSession, *, version: str = MAPPING_VERSION) -> int:
