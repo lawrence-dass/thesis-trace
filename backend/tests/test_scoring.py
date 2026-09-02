@@ -3,16 +3,17 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 
 from sqlalchemy import func, select
 
-from app.models import Model, ScoreResult, ScoreRun, SignalStatus
+from app.models import CanonicalFact, Filing, Issuer, Model, ScoreResult, ScoreRun, SignalStatus
 from canonicalization.canonicalize import canonicalize_issuer
-from canonicalization.mappings import seed_concept_mappings
+from canonicalization.mappings import MAPPING_VERSION, seed_concept_mappings
 from ingestion.company_facts import parse_company_facts
 from raw_store.repository import persist_company_facts
-from scoring.runner import score_piotroski, score_sloan
+from scoring.runner import _canonical_fact_for_year, score_piotroski, score_sloan
 from tests.conftest import requires_db
 
 FIXTURE = Path(__file__).parent / "fixtures" / "shop_company_facts.json"
@@ -84,3 +85,65 @@ async def test_sloan_ratio_and_band(db_session) -> None:
     # Below the 0.10 threshold -> low accruals (pass), band label set.
     assert result.status == SignalStatus.pass_
     assert result.band_label == "Low accruals (higher quality)"
+
+
+@requires_db
+async def test_score_run_representative_fact_uses_the_current_mapping_version(db_session) -> None:
+    """A mapping-version rebuild keeps old and new canonical rows current by
+    design; the score-run provenance root must select the version the scorer
+    actually loaded."""
+    cik = "0000000044"
+    old_accession = "0000000044-24-000001"
+    new_accession = "0000000044-25-000001"
+    db_session.add(Issuer(cik=cik, ticker="SYN3", name="Synthetic Mapping Filer"))
+    db_session.add_all(
+        [
+            Filing(
+                accession_number=old_accession,
+                issuer_cik=cik,
+                form_type="10-K",
+                filing_date=date(2024, 2, 15),
+                fiscal_year=2023,
+                fiscal_year_end=date(2023, 12, 31),
+            ),
+            Filing(
+                accession_number=new_accession,
+                issuer_cik=cik,
+                form_type="10-K",
+                filing_date=date(2025, 2, 15),
+                fiscal_year=2023,
+                fiscal_year_end=date(2023, 12, 31),
+            ),
+        ]
+    )
+    await db_session.flush()
+    db_session.add_all(
+        [
+            CanonicalFact(
+                issuer_cik=cik,
+                accession_number=old_accession,
+                canonical_concept="total_assets",
+                fiscal_year=2023,
+                period_end=date(2023, 12, 31),
+                value=100,
+                unit="USD",
+                mapping_version="concepts_v9",
+            ),
+            CanonicalFact(
+                issuer_cik=cik,
+                accession_number=new_accession,
+                canonical_concept="total_assets",
+                fiscal_year=2023,
+                period_end=date(2023, 12, 31),
+                value=200,
+                unit="USD",
+                mapping_version=MAPPING_VERSION,
+            ),
+        ]
+    )
+    await db_session.flush()
+
+    fact = await _canonical_fact_for_year(db_session, cik, 2023)
+    assert fact is not None
+    assert fact.mapping_version == MAPPING_VERSION
+    assert fact.value == 200

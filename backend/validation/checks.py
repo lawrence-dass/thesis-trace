@@ -20,6 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import CanonicalFact, DataQualityIssue, Filing, IssueStatus
+from canonicalization.mappings import MAPPING_VERSION
 
 
 async def _existing_issue_keys(session: AsyncSession, issuer_cik: str) -> set[tuple[str, int | None]]:
@@ -50,6 +51,7 @@ async def run_validation(session: AsyncSession, issuer_cik: str) -> dict[str, in
         await session.execute(
             select(CanonicalFact).where(
                 CanonicalFact.issuer_cik == issuer_cik,
+                CanonicalFact.mapping_version == MAPPING_VERSION,
                 CanonicalFact.superseded.is_(False),
             )
         )

@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from app.models import CanonicalFact, DataQualityIssue, Filing, IssueStatus, Issuer, RawFact
 from canonicalization.canonicalize import canonicalize_issuer
-from canonicalization.mappings import seed_concept_mappings
+from canonicalization.mappings import MAPPING_VERSION, seed_concept_mappings
 from ingestion.company_facts import parse_company_facts
 from raw_store.repository import persist_company_facts
 from validation.checks import run_validation
@@ -310,30 +310,43 @@ SHOP_FY2024_10K = "0001594805-25-000010"
 SHOP_FY2024_10KA = "0001594805-25-000099"
 
 
-async def _file_amendment(db_session, cik: str, *, assets_value: int, decimals: int | None = -6) -> None:
+async def _file_amendment(
+    db_session,
+    cik: str,
+    *,
+    assets_value: int,
+    decimals: int | None = -6,
+    unit: str = "USD",
+    period_end: date = date(2024, 12, 31),
+    accession: str = SHOP_FY2024_10KA,
+    form_type: str = "10-K/A",
+    fiscal_year: int = 2024,
+    fiscal_year_end: date = date(2024, 12, 31),
+    filing_date: date = date(2025, 6, 30),
+) -> None:
     """Ingest a 10-K/A for SHOP FY2024 restating total assets."""
     db_session.add(
         Filing(
-            accession_number=SHOP_FY2024_10KA,
+            accession_number=accession,
             issuer_cik=cik,
-            form_type="10-K/A",
-            filing_date=date(2025, 6, 30),
-            fiscal_year=2024,
-            fiscal_year_end=date(2024, 12, 31),
+            form_type=form_type,
+            filing_date=filing_date,
+            fiscal_year=fiscal_year,
+            fiscal_year_end=fiscal_year_end,
         )
     )
     await db_session.flush()  # raw_facts FK to filings; no relationship orders the flush
     db_session.add(
         RawFact(
-            accession_number=SHOP_FY2024_10KA,
+            accession_number=accession,
             taxonomy="us-gaap",
             concept="Assets",
-            unit="USD",
-            period_end=date(2024, 12, 31),
+            unit=unit,
+            period_end=period_end,
             value=assets_value,
             decimals=decimals,
             source="company_facts",
-            content_hash=f"amend-assets-{assets_value}",
+            content_hash=f"amend-assets-{assets_value}-{accession}",
             fetched_at=datetime(2025, 7, 1, tzinfo=timezone.utc),
         )
     )
@@ -398,6 +411,156 @@ async def test_amendment_restating_an_identical_figure_does_not_rewrite_history(
     (still,) = await _total_assets_rows(db_session)
     assert still.id == original.id and still.superseded is False
     assert still.accession_number == SHOP_FY2024_10K
+
+
+@requires_db
+async def test_equal_amendment_figure_with_changed_metadata_rewrites_the_fact(db_session) -> None:
+    """An equal numeric value is a no-op only when its unit and period are also
+    identical. A changed unit must not leave the old provenance/measurement
+    basis current."""
+    cik = await _ingest(db_session)
+    await canonicalize_issuer(db_session, cik)
+    (original,) = await _total_assets_rows(db_session)
+
+    await _file_amendment(db_session, cik, assets_value=13100000000, unit="CAD")
+    counts = await canonicalize_issuer(db_session, cik)
+    assert counts["canonical_facts_superseded"] == 1
+
+    rows = await _total_assets_rows(db_session)
+    assert len(rows) == 2
+    current = next(row for row in rows if row.superseded is False)
+    assert current.id != original.id
+    assert current.unit == "CAD"
+    assert current.accession_number == SHOP_FY2024_10KA
+
+
+@requires_db
+async def test_competing_same_year_amendments_remain_ambiguous(db_session) -> None:
+    """Rule 1a promotes amendments over the original, but it does not choose
+    between two conflicting amendments of the same year."""
+    cik = await _ingest(db_session)
+    await canonicalize_issuer(db_session, cik)
+    await _file_amendment(db_session, cik, assets_value=13250000000)
+    await canonicalize_issuer(db_session, cik)
+
+    second_amendment = "0001594805-25-000100"
+    await _file_amendment(
+        db_session,
+        cik,
+        assets_value=13300000000,
+        accession=second_amendment,
+        filing_date=date(2025, 7, 30),
+    )
+    counts = await canonicalize_issuer(db_session, cik)
+    assert counts["ambiguities_flagged"] == 1
+
+    rows = await _total_assets_rows(db_session)
+    current = [row for row in rows if row.superseded is False]
+    assert len(current) == 1
+    assert current[0].value == 13250000000
+    assert current[0].accession_number == SHOP_FY2024_10KA
+
+
+@requires_db
+async def test_later_amendment_comparative_does_not_replace_the_original_year(db_session) -> None:
+    """A 10-K/A carrying FY2024 as a FY2025 comparative remains in the
+    restated-comparative tier; only an amendment of FY2024 can outrank its
+    original under rule 1a."""
+    cik = await _ingest(db_session)
+    await canonicalize_issuer(db_session, cik)
+    (original,) = await _total_assets_rows(db_session)
+
+    await _file_amendment(
+        db_session,
+        cik,
+        assets_value=99999999999,
+        accession="0001594805-26-000100",
+        fiscal_year=2025,
+        fiscal_year_end=date(2025, 12, 31),
+        filing_date=date(2026, 6, 30),
+    )
+    counts = await canonicalize_issuer(db_session, cik)
+    assert counts["ambiguities_flagged"] == 0
+    rows = await _total_assets_rows(db_session)
+    assert len(rows) == 1
+    assert rows[0].id == original.id and rows[0].superseded is False
+
+
+@requires_db
+async def test_fact_with_no_longer_eligible_candidates_is_retired(db_session) -> None:
+    """A corrected filing FYE can make an already-canonicalized raw-fact group
+    ineligible. The old direct fact must not remain in the current view."""
+    cik = await _ingest(db_session)
+    await canonicalize_issuer(db_session, cik)
+    (original,) = await _total_assets_rows(db_session)
+
+    filings = (
+        await db_session.execute(select(Filing).where(Filing.issuer_cik == cik))
+    ).scalars().all()
+    for filing in filings:
+        filing.fiscal_year_end = date(2024, 6, 30)
+    await db_session.flush()
+
+    counts = await canonicalize_issuer(db_session, cik)
+    assert counts["canonical_facts_superseded"] >= 1
+    rows = await _total_assets_rows(db_session)
+    old = next(row for row in rows if row.id == original.id)
+    assert old.superseded is True
+    assert not [row for row in rows if row.superseded is False]
+
+
+@requires_db
+async def test_validation_uses_only_the_current_mapping_version(db_session) -> None:
+    """A mapping rebuild leaves both versions current for historical audit, but
+    validation must not combine their concepts into one identity check."""
+    cik = await _ingest(db_session)
+    await canonicalize_issuer(db_session, cik)
+    current_assets = (
+        await db_session.execute(
+            select(CanonicalFact).where(
+                CanonicalFact.issuer_cik == cik,
+                CanonicalFact.canonical_concept == "total_assets",
+                CanonicalFact.fiscal_year == 2024,
+                CanonicalFact.mapping_version == MAPPING_VERSION,
+            )
+        )
+    ).scalar_one()
+    current_assets.value = 13_100_000_000
+    current_current_assets = (
+        await db_session.execute(
+            select(CanonicalFact).where(
+                CanonicalFact.issuer_cik == cik,
+                CanonicalFact.canonical_concept == "current_assets",
+                CanonicalFact.fiscal_year == 2024,
+                CanonicalFact.mapping_version == MAPPING_VERSION,
+            )
+        )
+    ).scalar_one()
+    current_current_assets.value = 14_000_000_000
+    db_session.add(
+        CanonicalFact(
+            issuer_cik=cik,
+            accession_number=SHOP_FY2024_10K,
+            canonical_concept="total_assets",
+            fiscal_year=2024,
+            period_end=date(2024, 12, 31),
+            value=20_000_000_000,
+            unit="USD",
+            mapping_version="concepts_v9",
+        )
+    )
+    await db_session.flush()
+
+    counts = await run_validation(db_session, cik)
+    assert counts["issues_raised"] >= 1
+    issue = (
+        await db_session.execute(
+            select(DataQualityIssue).where(
+                DataQualityIssue.issue_type == "identity_violation:current_assets_gt_total_assets"
+            )
+        )
+    ).scalar_one()
+    assert issue.detail["total_assets"] == "13100000000"
 
 
 @requires_db
@@ -509,3 +672,104 @@ async def test_superseding_an_operand_re_derives_the_dependent_fact(db_session) 
     assert new.value == 700 and new.superseded is False
     assert new.derivation == "assets_minus_equity"
     assert new.accession_number == "0000000042-25-000002", "provenance anchor follows the amendment"
+
+
+@requires_db
+async def test_superseding_an_operand_that_breaks_a_source_constraint_retires_the_derived_fact(db_session) -> None:
+    """A derived value must not survive when an amendment changes an operand's
+    measurement basis so the rule no longer satisfies ``requires_source``.
+
+    The original 40-F uses by-function CostOfSales, which permits the IFRS
+    gross-profit derivation. The 40-F/A restates cogs with the by-nature
+    inventories-only tag. Same-year amendment ranking correctly selects the
+    amendment, but the resulting gross profit must be retired rather than
+    leaving the old margin current.
+    """
+    cik = "0000000043"
+    original_accession = "0000000043-25-000001"
+    amendment_accession = "0000000043-25-000002"
+    db_session.add(Issuer(cik=cik, ticker="SYN2", name="Synthetic IFRS Filer"))
+    db_session.add(
+        Filing(
+            accession_number=original_accession,
+            issuer_cik=cik,
+            form_type="40-F",
+            filing_date=date(2025, 2, 15),
+            fiscal_year=2024,
+            fiscal_year_end=date(2024, 12, 31),
+        )
+    )
+    await db_session.flush()
+    for concept, value in (("Revenue", 1000), ("CostOfSales", 400)):
+        db_session.add(
+            RawFact(
+                accession_number=original_accession,
+                taxonomy="ifrs-full",
+                concept=concept,
+                unit="USD",
+                period_end=date(2024, 12, 31),
+                period_start=date(2024, 1, 1),
+                value=value,
+                decimals=0,
+                source="company_facts",
+                content_hash=f"syn2-{concept}",
+                fetched_at=datetime(2025, 3, 1, tzinfo=timezone.utc),
+            )
+        )
+    await seed_concept_mappings(db_session)
+    await db_session.flush()
+    await canonicalize_issuer(db_session, cik)
+
+    initial = (
+        await db_session.execute(
+            select(CanonicalFact).where(
+                CanonicalFact.issuer_cik == cik,
+                CanonicalFact.canonical_concept == "gross_profit",
+                CanonicalFact.superseded.is_(False),
+            )
+        )
+    ).scalar_one()
+    assert initial.value == 600
+
+    db_session.add(
+        Filing(
+            accession_number=amendment_accession,
+            issuer_cik=cik,
+            form_type="40-F/A",
+            filing_date=date(2025, 6, 30),
+            fiscal_year=2024,
+            fiscal_year_end=date(2024, 12, 31),
+        )
+    )
+    await db_session.flush()
+    db_session.add(
+        RawFact(
+            accession_number=amendment_accession,
+            taxonomy="ifrs-full",
+            concept="CostOfInventoriesRecognisedAsExpenseDuringPeriod",
+            unit="USD",
+            period_end=date(2024, 12, 31),
+            period_start=date(2024, 1, 1),
+            value=350,
+            decimals=0,
+            source="company_facts",
+            content_hash="syn2-cogs-amended",
+            fetched_at=datetime(2025, 7, 1, tzinfo=timezone.utc),
+        )
+    )
+    await db_session.flush()
+
+    counts = await canonicalize_issuer(db_session, cik)
+    assert counts["canonical_facts_superseded"] == 2  # cogs and its derived gross profit
+
+    all_rows = (
+        await db_session.execute(
+            select(CanonicalFact).where(
+                CanonicalFact.issuer_cik == cik,
+                CanonicalFact.canonical_concept == "gross_profit",
+            )
+        )
+    ).scalars().all()
+    assert len(all_rows) == 1
+    assert all_rows[0].id == initial.id and all_rows[0].superseded is True
+    assert all_rows[0].superseded_by is None
