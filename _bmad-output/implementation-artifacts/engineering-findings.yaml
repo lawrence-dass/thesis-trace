@@ -3871,3 +3871,74 @@ story_12_4_golden_dataset:
     any future regression. Nothing here blocks that story; the live browser
     verification it performs is against the real nightly-materialized data,
     not this fixture.
+
+story_12_5_pipeline_inclusion_and_browser_verification:
+  status: done
+  resolved: 2026-09-01
+  question: >
+    Do CPB and ZTS appear in the scheduled pipeline's live universe, run
+    through a full nightly cycle cleanly, and render correctly on every
+    existing page in a real browser?
+  verdict: >
+    Yes. Both added to pipeline/universe.py's PHASE1_UNIVERSE. Ran the real
+    per-entry cron logic (live EDGAR + live Tiingo, run_issuer, the same
+    code pipeline/run.py's main() calls) against the dev DB for just these
+    two — CPB scored 18 fiscal years (2008-2025), ZTS 15 (2011-2025), zero
+    validation issues raised for either. Verified live in a real browser
+    across every existing page: landing page, ticker search, comparison
+    view, and the full report page (Overview, Valuation, Past Performance,
+    Financial Health, Integrity & Evidence) for both filers. Every rendered
+    number cross-checked against Story 12.4's independently hand-computed
+    golden values — exact match, no defect found. Zero data_quality_issues
+    rows for either filer, confirmed by direct query, nothing to disposition.
+  universe_addition: >
+    Added CPB (capital_intensive=False) and ZTS (capital_intensive=False) to
+    PHASE1_UNIVERSE. Neither flag was assumed — checked against both filers'
+    own computed Altman Z-scores (CPB 1.850072 Grey, reflecting the FY2024
+    Sovos Brands acquisition's debt load rather than a structurally
+    PP&E-heavy business; ZTS 5.615320 Safe) and compared against CP/CCJ/BCE/
+    SU's own Z-scores, which run structurally low every year rather than
+    just after a debt-financed deal — the actual distinguishing shape D6's
+    capital_intensive flag exists to capture.
+  live_pipeline_run:
+    method: >-
+      Called the exact same per-entry body pipeline/run.py's main() executes
+      (fetch_company_facts, _fye_prices_for, _fx_rates_for, run_issuer) for
+      just CPB and ZTS, rather than running main() over the whole 9-filer
+      PHASE1_UNIVERSE — avoids an unnecessary live re-fetch for the 7
+      already-verified filers while exercising the identical code path these
+      two will run under nightly.
+    result: >-
+      CPB: scored_years 2008-2025 (18 years) for Piotroski/Sloan/Beneish,
+      Altman 2010-2025 (16 years, bounded by when total_liabilities/current
+      figures first resolve), reverse_dcf materialized at FY2025. ZTS:
+      scored_years 2011-2025 (15 years), Altman 2013-2025 (13 years),
+      reverse_dcf materialized at FY2017 — correctly the LATEST year where
+      cash_and_equivalents still resolves (Story 12.3's excludes_issuers fix
+      caps it there), not FY2025; confirmed this is the existing
+      "materialize at the latest resolved year" design working as intended,
+      not a new defect. validation: {issues_raised: 0, issues_existing: 0}
+      for both.
+  browser_verification:
+    pages_checked: "landing page, ticker search, comparison view (ZTS+CPB side by side), full report page (all 5 sections) for both filers, one methodology page (piotroski, filer-agnostic content)"
+    cross_checks:
+      - "Landing page COMPANY UNIVERSE grid: both filers present alongside the existing 7, correct entity names (CAMPBELL'S Co, Zoetis Inc.), Updated 2026-09-01."
+      - "Ticker search 'CPB' -> Enter navigates directly to /company/CPB (Story 4.2's honest-coverage search), confirmed working, not just the grid link."
+      - "CPB Overview fundamentals (revenue $10.25B, earnings $602.0M, market value $9.63B) match Story 12.4's hand-computed FY2025 values to the dollar."
+      - "CPB Verdict glyph (Piotroski MIDDLE, Sloan Low accruals, Altman GREY, Beneish CAVEAT) matches the golden entry exactly."
+      - "CPB Valuation: implied growth 14.9% at FY2025, matching the golden entry's implied_growth=0.148864 rounded."
+      - "CPB Integrity & Evidence: expanded the FY2025 Beneish row and verified all 8 indices (aqi/depi/dsri/gmi/lvgi/sgai/sgi/tata) match the golden entry to 6 decimal places, and the rendered caveat text matches Story 12.1 finding 2's prediction verbatim."
+      - "ZTS Overview/Verdict/Beneish indices: same exact-match result as CPB, including Altman now resolving to SAFE (5.615320) via Story 12.3's ebit_pbt_plus_interest extension — confirmed this would have been a null/insufficient result before that mapping change."
+      - "ZTS Valuation correctly shows 'Reflects FY2017 data' rather than a blank or broken FY2025 valuation — the read path's existing 'materialize at the latest resolved year' behavior handling ZTS's FY2018+ cash_and_equivalents gap gracefully, confirmed by design rather than assumed."
+      - "ZTS Financial Health: Near-term debt share card shows 0.0% / WELL SPREAD / '0 of 9.04B', exact match. Repayment schedule card shows the TRUNCATED 5-bucket schedule (0 / 750.0M / 1.35B / 2.00B / 750.0M) with the correct truncation message ('did not publish a figure for repayments after year five'), exactly matching Story 12.4's hand-verified golden entry — the first live rendering of this truncated-not-no_profile shape in the universe."
+      - "Comparison view (/compare?tickers=ZTS,CPB): renders side by side, correctly highlights the one diverging row (Altman: ZTS Safe vs CPB Grey)."
+      - "Browser console (CPB page, full reload): zero errors — only React DevTools/HMR dev-mode noise."
+      - "data_quality_issues: 0 rows for either filer, confirmed by direct DB query against the live pipeline run's own output — nothing to disposition."
+    defects_found: "None."
+  epic_close: >
+    This closes Epic 12 (US Universe Expansion — Campbell's & Zoetis). All
+    five stories done: 12.1 spike, 12.2 ingestion (+ a real cross-universe
+    parser defect fix), 12.3 canonicalization (+ a new excludes_issuers
+    mapping-engine capability), 12.4 golden dataset, 12.5 this story. epic-12
+    marked done in sprint-status.yaml; epic-12-retrospective remains
+    optional per the existing convention (Epic 5/6's retrospectives).
