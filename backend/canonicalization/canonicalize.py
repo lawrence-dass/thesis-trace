@@ -39,6 +39,7 @@ from canonicalization.mappings import (
     DERIVATION_RULES,
     MAPPING_VERSION,
     NON_NEGATIVE_CONCEPTS,
+    SOURCE_EXCLUDED_ACCESSIONS,
     SOURCE_EXCLUDED_ISSUERS,
     SOURCE_PRIORITY,
     SOURCE_TO_CANONICAL,
@@ -191,6 +192,8 @@ async def canonicalize_issuer(
         if not _matches_fiscal_year_end(rf, fye_day):
             continue
         if issuer_cik in SOURCE_EXCLUDED_ISSUERS.get((rf.taxonomy, rf.concept), frozenset()):
+            continue
+        if rf.accession_number in SOURCE_EXCLUDED_ACCESSIONS.get((rf.taxonomy, rf.concept), frozenset()):
             continue
         grouped[(canonical, rf.period_end.year)].append(rf)
 

@@ -104,10 +104,27 @@
 #                 ZTS's entire reverse-DCF card at FY2017 data. us-gaap ONLY;
 #                 ifrs-full and derivations keep their existing specs.
 
-mapping_version: concepts_v12
+#   concepts_v13  us-gaap_v12 + ifrs-full_v4 + derivations_v5. A real mapping
+#                 change (otex_shares_outstanding_scale_error_fy2007_fy2009,
+#                 found live-verifying a data-quality flag surfaced while
+#                 browser-checking the v10/v11 fixes): adds
+#                 `excludes_accessions` — a new mapping-engine capability — to
+#                 shares_outstanding's WeightedAverageNumberOfSharesOutstanding
+#                 Basic fallback, excluding OTEX's FY2009 10-K (accession
+#                 0001193125-09-179839, the same first-ever-XBRL filing behind
+#                 v10's capex sign bug). That filing mis-scaled this concept by
+#                 1000x for FY2007 and FY2009, self-corrected in every later
+#                 filing with no formal amendment. Live impact, hand-verified:
+#                 the wrong FY2009 share count understated market value of
+#                 equity by 1000x, flipping the stored Altman Z-Score from
+#                 3.189 (Safe) to 0.927 (Distress) — a live misclassification,
+#                 not a latent one. us-gaap ONLY; ifrs-full and derivations
+#                 keep their existing specs.
+
+mapping_version: concepts_v13
 
 taxonomies:
-  us-gaap: us-gaap_v11
+  us-gaap: us-gaap_v12
   ifrs-full: ifrs-full_v4
 
 derivations: derivations_v5

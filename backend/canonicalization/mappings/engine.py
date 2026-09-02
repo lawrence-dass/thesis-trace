@@ -63,6 +63,20 @@ class MappingRule:
     # but ZTS discloses real restricted cash ($2-6M) in the same years the fallback
     # would otherwise fire, which the QSR proof does not cover and cannot extend to.
     excludes_issuers: tuple[str, ...] = ()
+    # Accession numbers whose facts must NEVER resolve for this source, even though
+    # the tag is a safe, proven source for every OTHER filing of this concept —
+    # including every OTHER filing by the SAME issuer. Distinct from
+    # excludes_issuers (which suppresses a tag for an issuer across its whole
+    # history because the TAG itself measures the wrong thing for that issuer) —
+    # this suppresses one SPECIFIC FILING whose own tagged data for this concept is
+    # wrong, confirmed by comparing it against the issuer's own later, corrected
+    # comparatives. First needed for OTEX's shares_outstanding (v12):
+    # otex_shares_outstanding_scale_error_fy2007_fy2009 — its FY2009 10-K (its
+    # first-ever XBRL filing, accession 0001193125-09-179839) mis-scaled
+    # WeightedAverageNumberOfSharesOutstandingBasic by 1000x for the years it
+    # originally reports, self-corrected in every later filing's comparative
+    # column with no formal amendment.
+    excludes_accessions: tuple[str, ...] = ()
     # A property of the CANONICAL CONCEPT, not of any one source tag — declared on
     # the concept body (`capex: {non_negative: true, ...}`) and copied onto every
     # source rule generated for it, same pattern as `note` falling back to the
@@ -113,6 +127,9 @@ class MappingSpec:
     source_mismatch: dict[tuple[str, str], str]
     # (taxonomy, source concept) -> CIKs for which this source must never resolve.
     source_excluded_issuers: dict[tuple[str, str], frozenset[str]]
+    # (taxonomy, source concept) -> accession numbers whose facts must never resolve
+    # for this source, regardless of issuer (an accession already implies one).
+    source_excluded_accessions: dict[tuple[str, str], frozenset[str]]
     # Canonical concepts that are definitionally non-negative magnitudes — a filer's
     # own sign convention has been found to disagree with the definition for at
     # least one of them. Consulted by canonicalize.py to abs() the value at
@@ -144,6 +161,7 @@ def _load_taxonomy_rules(spec_version: str) -> tuple[MappingRule, ...]:
                     like_for_like=source.get("like_for_like", True),
                     mismatch_reason=source.get("mismatch_reason"),
                     excludes_issuers=tuple(source.get("excludes_issuers") or ()),
+                    excludes_accessions=tuple(source.get("excludes_accessions") or ()),
                     non_negative=body.get("non_negative", False),
                 )
             )
@@ -250,6 +268,11 @@ def load_mapping_spec() -> MappingSpec:
             for r in rules
             if r.excludes_issuers
         },
+        source_excluded_accessions={
+            (r.source_taxonomy, r.source_concept): frozenset(r.excludes_accessions)
+            for r in rules
+            if r.excludes_accessions
+        },
         # A concept-level fact, not a per-taxonomy one — the union across whichever
         # taxonomy spec(s) declared it, so a concept flagged in only one taxonomy
         # (capex, us-gaap only as of v10) still normalizes consistently everywhere
@@ -282,6 +305,13 @@ SOURCE_MISMATCH: dict[tuple[str, str], str] = _SPEC.source_mismatch
 # added for can still be wrong for a specific other issuer (AD-16: never silently
 # resolve a value known to be wrong for that issuer).
 SOURCE_EXCLUDED_ISSUERS: dict[tuple[str, str], frozenset[str]] = _SPEC.source_excluded_issuers
+
+# Source (taxonomy, concept) -> accession numbers whose facts must never be admitted
+# as candidates for this source — one SPECIFIC FILING's own tagged data for this
+# concept is wrong (confirmed by comparing it against the same issuer's later,
+# corrected comparatives), not the tag itself. An accession number already implies
+# its issuer, so no per-issuer keying is needed the way SOURCE_EXCLUDED_ISSUERS has.
+SOURCE_EXCLUDED_ACCESSIONS: dict[tuple[str, str], frozenset[str]] = _SPEC.source_excluded_accessions
 
 # Canonical concepts (e.g. "capex") that are definitionally non-negative magnitudes.
 # canonicalize.py takes abs(value) for these at selection time, before the
