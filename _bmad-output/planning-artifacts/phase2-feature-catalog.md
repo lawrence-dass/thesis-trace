@@ -32,6 +32,46 @@ main tables. Field meanings:
 
 ---
 
+## Design framing — still open, not decided
+
+**This section is the thesis the catalog below serves, not part of the catalog itself.** The
+tables are a flat hypothesis list; this is the shape Lawrence wants to re-think before any of it
+becomes a decision packet's answer. Written from the first brainstorm session (before the second
+session's item-by-item critical pass that produced the tables below) — captured here now because
+it existed only in conversation transcripts, in neither this file nor `CURRENT.md`, and a fresh
+session had no way to recover it except asking Lawrence to re-paste his own messages.
+
+**The thesis, as landed on (not locked):** Value and Growth — D5's two Phase-2 lenses — are not
+two independent models. They **share one deterministic foundation** and differ only in which
+question is asked of it: Value asks "is the price already too rich for what this foundation
+implies", Growth asks "is the implied trajectory durable". They should render as **separate
+cards, never blended into one score** — the same principle D12 already applies across all four
+Phase-1 models (no filled polygon, no aggregate number). Whether that shared foundation is the
+reverse-DCF machinery already shipped in Epic 6, the incremental-ROIC identity below, or both, is
+exactly the open question.
+
+**Two prerequisites were identified as missing before either lens can be built on that
+foundation — framed as GATES, not as catalog items to schedule:**
+
+1. **A disclosed cost-of-capital / hurdle-rate figure.** The reverse DCF currently takes its
+   discount rate as an external assumption; Value needs a defensible way to say what rate the
+   business itself is being judged against. Operationalized as catalog item **Q3.2**, and its row
+   already records the real difficulty: this is likely a text-extraction problem (an
+   impairment-testing note), not an XBRL tag, so it may belong with Epic 9's citation framework
+   rather than shipping standalone.
+2. **Mauboussin's incremental-ROIC identity** — `growth = reinvestment rate × return on
+   incremental capital`. This is the candidate for the "shared foundation" itself: it turns
+   reported growth into growth that was *paid for*, which is what makes it useful to both lenses
+   at once rather than to Growth alone. Operationalized as catalog item **Q1.2**.
+
+**What would resolve this framing into a decision:** either a decision packet's "largest research
+failure" lands on Q1.2 or Q3.2 specifically (D9's selection criterion, operating as designed), or
+Lawrence revisits the thesis directly and it becomes a D5 amendment naming Value/Growth's actual
+relationship, at which point this section should be deleted and the decision recorded in
+`foundational-decisions.md` instead of here.
+
+---
+
 ## Correction carried from the brainstorm: proxy and insider data are 6/9, not universe-wide
 
 The brainstorm's two top picks — executive-compensation alignment (DEF 14A) and insider
