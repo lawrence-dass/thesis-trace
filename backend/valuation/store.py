@@ -51,6 +51,7 @@ async def _dcf_facts(session: AsyncSession, issuer_cik: str) -> list[CanonicalFa
                 select(CanonicalFact).where(
                     CanonicalFact.issuer_cik == issuer_cik,
                     CanonicalFact.mapping_version == MAPPING_VERSION,
+                    CanonicalFact.superseded.is_(False),
                     CanonicalFact.canonical_concept.in_(DCF_CONCEPTS),
                 )
             )

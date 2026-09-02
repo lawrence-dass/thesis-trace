@@ -315,9 +315,10 @@ async def test_mapping_version_change_raises_a_caveat(db_session) -> None:
 async def test_fact_change_carries_both_endpoints_with_provenance(db_session) -> None:
     """AD-19: a reported change must be auditable to both source filings.
 
-    The two facts differ by `mapping_version`, which is currently the ONLY way
-    a run's canonical inputs can differ at all — see
-    `test_restatement_under_one_mapping_version_yields_no_fact_change` for why.
+    The two facts differ by `mapping_version` — one of the two ways a run's
+    canonical inputs can differ; the other is an amendment superseding a fact
+    under ONE mapping version, covered by
+    `test_restatement_under_one_mapping_version_is_a_fact_change`.
     """
     cik = await _seed_issuer(db_session)
     prior = await _add_run(db_session, cik, computed_at=T0, superseded=True)
@@ -340,38 +341,55 @@ async def test_fact_change_carries_both_endpoints_with_provenance(db_session) ->
 
 
 @requires_db
-async def test_restatement_under_one_mapping_version_yields_no_fact_change(db_session) -> None:
-    """Pins a KNOWN GAP in canonicalization, discovered building this engine.
+async def test_restatement_under_one_mapping_version_is_a_fact_change(db_session) -> None:
+    """The former `canonical_facts_amendment_gap`, now closed.
 
-    `canonical_facts` is UNIQUE on (issuer_cik, canonical_concept, fiscal_year,
-    mapping_version), and `canonicalize_issuer` skips any key already present
-    under the current mapping_version (`canonicalize.py`, "keep the pass
-    idempotent"). That guard ignores the accession entirely, so once a fiscal
-    year's facts are written from the original 10-K, a later 10-K/A restating
-    those figures is skipped and the restated values never reach the canonical
-    layer.
+    Until 2026-09-02 this test pinned the OPPOSITE: `canonical_facts` was UNIQUE
+    on (issuer, concept, fiscal_year, mapping_version) and the canonicalizer
+    skipped any existing key, so a 10-K/A's restated value could never be
+    inserted and `fact_change` was unreachable within one mapping version.
 
-    AD-6 and PRD OQ2 say an amendment triggers a new append-only score_run
-    "referencing the new canonical_facts" — the run is new, but the facts it
-    references are the stale ones. The consequence for THIS engine is that
-    `fact_change` is unreachable within a single mapping_version.
-
-    This test asserts the current behaviour so the gap is visible in code rather
-    than only in a tracker. When canonicalization learns to supersede facts on
-    amendment, this test SHOULD fail — that is the signal to revisit it, not a
-    regression. Tracked in engineering-findings.yaml as `canonical_facts_amendment_gap`.
+    Canonicalization now supersedes the prior row (AD-6's score_runs pattern,
+    one layer down): the old fact stays, marked `superseded`, still referenced
+    by the prior run's inputs; the restated fact takes the key. This engine
+    must therefore report the restatement as a fact_change with BOTH endpoints
+    auditable to their own filings (AD-19).
     """
     cik = await _seed_issuer(db_session)
     prior = await _add_run(db_session, cik, computed_at=T0, superseded=True)
-    await _add_fact_input(db_session, cik, prior, signal_key="x1", concept="total_assets",
-                          value=Decimal("1000"), accession=ACC_OLD)
-    current = await _add_run(db_session, cik, computed_at=T1, accession=ACC_NEW)
+    old_fact = await _add_fact_input(db_session, cik, prior, signal_key="x1",
+                                     concept="total_assets", value=Decimal("1000"),
+                                     accession=ACC_OLD)
+    old_fact.superseded = True  # the amendment's pass supersedes before it inserts
+    await db_session.flush()
 
-    # The restated fact cannot be inserted under the same mapping_version.
+    current = await _add_run(db_session, cik, computed_at=T1, accession=ACC_NEW)
+    new_fact = await _add_fact_input(db_session, cik, current, signal_key="x1",
+                                     concept="total_assets", value=Decimal("1250"),
+                                     accession=ACC_NEW)  # same mapping_version
+    old_fact.superseded_by = new_fact.id
+    await db_session.commit()
+
+    diff = await diff_company_since(db_session, "TEST", SINCE)
+    fc = next(f for f in diff.run_diffs[0].fact_changes if f.canonical_concept == "total_assets")
+    assert fc.prior_value == Decimal("1000")
+    assert fc.current_value == Decimal("1250")
+    assert fc.prior_provenance.accession_number == ACC_OLD
+    assert fc.current_provenance.accession_number == ACC_NEW
+
+
+@requires_db
+async def test_a_second_current_fact_for_one_key_is_still_rejected(db_session) -> None:
+    """The partial unique index holds the invariant the full constraint used to:
+    exactly one NON-superseded fact per (issuer, concept, year, mapping_version).
+    Supersession is the only way a second row gets in."""
+    cik = await _seed_issuer(db_session)
+    run = await _add_run(db_session, cik, computed_at=T1)
+    await _add_fact_input(db_session, cik, run, signal_key="x1", concept="total_assets",
+                          value=Decimal("1000"), accession=ACC_OLD)
     with pytest.raises(Exception) as excinfo:
-        await _add_fact_input(db_session, cik, current, signal_key="x1",
-                              concept="total_assets", value=Decimal("1250"),
-                              accession=ACC_NEW)
+        await _add_fact_input(db_session, cik, run, signal_key="x1", concept="total_assets",
+                              value=Decimal("1250"), accession=ACC_NEW)
     assert "uq_canonical_facts_key" in str(excinfo.value)
 
 

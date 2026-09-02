@@ -25,10 +25,12 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Numeric,
     String,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -154,9 +156,15 @@ class ConceptMapping(Base):
 class CanonicalFact(Base):
     __tablename__ = "canonical_facts"
     __table_args__ = (
-        UniqueConstraint(
+        # PARTIAL unique index: one CURRENT fact per key. A superseded row keeps
+        # its key so prior score_inputs still resolve to the exact value they
+        # were computed from (AD-2 append-only, AD-19 provenance), while the
+        # restated value takes the key over. Mirrors score_runs (AD-6).
+        Index(
+            "uq_canonical_facts_key",
             "issuer_cik", "canonical_concept", "fiscal_year", "mapping_version",
-            name="uq_canonical_facts_key",
+            unique=True,
+            postgresql_where=text("NOT superseded"),
         ),
     )
 
@@ -180,6 +188,14 @@ class CanonicalFact(Base):
     selected_from_raw_fact_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("raw_facts.id")
     )
+    # An amendment (10-K/A, 40-F/A) that restates a value supersedes the row
+    # rather than mutating it — the score_runs pattern (AD-6) applied one layer
+    # down, so "an amendment triggers a new score_run referencing the NEW
+    # canonical_facts" is satisfiable. Readers of current facts filter
+    # `superseded IS FALSE`; readers joining by id (score_inputs, the diff
+    # engine) deliberately do not, because a prior run's inputs ARE the old row.
+    superseded: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
+    superseded_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("canonical_facts.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

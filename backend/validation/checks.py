@@ -48,7 +48,10 @@ async def run_validation(session: AsyncSession, issuer_cik: str) -> dict[str, in
 
     facts = (
         await session.execute(
-            select(CanonicalFact).where(CanonicalFact.issuer_cik == issuer_cik)
+            select(CanonicalFact).where(
+                CanonicalFact.issuer_cik == issuer_cik,
+                CanonicalFact.superseded.is_(False),
+            )
         )
     ).scalars().all()
 

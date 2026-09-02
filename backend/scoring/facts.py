@@ -65,6 +65,7 @@ async def load_facts(session: AsyncSession, issuer_cik: str, *, mapping_version:
             select(CanonicalFact).where(
                 CanonicalFact.issuer_cik == issuer_cik,
                 CanonicalFact.mapping_version == mapping_version,
+                CanonicalFact.superseded.is_(False),  # current facts only (AD-6)
             )
         )
     ).scalars().all()
