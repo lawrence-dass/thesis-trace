@@ -54,6 +54,15 @@ class MappingRule:
     # caveat rather than suppressed, since ThesisTrace shows models side by side.
     like_for_like: bool = True
     mismatch_reason: str | None = None
+    # CIKs for which this source must NEVER resolve, even though the tag is a safe,
+    # proven fallback for every OTHER issuer that files it. Distinct from
+    # like_for_like/mismatch_reason, which ANNOTATES a value that is still correct to
+    # use — this SUPPRESSES a value that would be wrong for the excluded issuer
+    # specifically. First needed for ZTS (Story 12.3): the restricted-cash-inclusive
+    # tag is proven equal to unrestricted cash for QSR (3 overlap years, exact match)
+    # but ZTS discloses real restricted cash ($2-6M) in the same years the fallback
+    # would otherwise fire, which the QSR proof does not cover and cannot extend to.
+    excludes_issuers: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -93,6 +102,8 @@ class MappingSpec:
     source_priority: dict[tuple[str, str], int]
     # (taxonomy, source concept) -> why a fact from it is not strictly comparable.
     source_mismatch: dict[tuple[str, str], str]
+    # (taxonomy, source concept) -> CIKs for which this source must never resolve.
+    source_excluded_issuers: dict[tuple[str, str], frozenset[str]]
 
 
 def _load_taxonomy_rules(spec_version: str) -> tuple[MappingRule, ...]:
@@ -118,6 +129,7 @@ def _load_taxonomy_rules(spec_version: str) -> tuple[MappingRule, ...]:
                     note=source.get("note") or body.get("note"),
                     like_for_like=source.get("like_for_like", True),
                     mismatch_reason=source.get("mismatch_reason"),
+                    excludes_issuers=tuple(source.get("excludes_issuers") or ()),
                 )
             )
     return tuple(rules)
@@ -218,6 +230,11 @@ def load_mapping_spec() -> MappingSpec:
             for r in rules
             if not r.like_for_like and r.mismatch_reason
         },
+        source_excluded_issuers={
+            (r.source_taxonomy, r.source_concept): frozenset(r.excludes_issuers)
+            for r in rules
+            if r.excludes_issuers
+        },
     )
 
 
@@ -239,6 +256,12 @@ SOURCE_PRIORITY: dict[tuple[str, str], int] = _SPEC.source_priority
 # Source (taxonomy, concept) -> why a value from it is not strictly comparable across
 # filers. Consulted by scoring to annotate a run, never to alter or suppress a number.
 SOURCE_MISMATCH: dict[tuple[str, str], str] = _SPEC.source_mismatch
+
+# Source (taxonomy, concept) -> CIKs for which canonicalize_issuer must never admit a
+# fact from this source as a candidate — a proven-safe fallback for the filers it was
+# added for can still be wrong for a specific other issuer (AD-16: never silently
+# resolve a value known to be wrong for that issuer).
+SOURCE_EXCLUDED_ISSUERS: dict[tuple[str, str], frozenset[str]] = _SPEC.source_excluded_issuers
 
 
 async def seed_concept_mappings(session: AsyncSession, *, version: str = MAPPING_VERSION) -> int:

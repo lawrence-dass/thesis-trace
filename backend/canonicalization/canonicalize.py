@@ -36,6 +36,7 @@ from app.models import CanonicalFact, DataQualityIssue, Filing, IssueStatus, Raw
 from canonicalization.mappings import (
     DERIVATION_RULES,
     MAPPING_VERSION,
+    SOURCE_EXCLUDED_ISSUERS,
     SOURCE_PRIORITY,
     SOURCE_TO_CANONICAL,
 )
@@ -159,6 +160,8 @@ async def canonicalize_issuer(
         if not _is_full_year_duration(rf):
             continue
         if not _matches_fiscal_year_end(rf, fye_day):
+            continue
+        if issuer_cik in SOURCE_EXCLUDED_ISSUERS.get((rf.taxonomy, rf.concept), frozenset()):
             continue
         grouped[(canonical, rf.period_end.year)].append(rf)
 

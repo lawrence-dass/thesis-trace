@@ -3705,3 +3705,95 @@ story_12_2_ingestion:
         reading the full diff and re-running the full suite (395 passed, 1 skipped,
         unchanged).
       verified: 2026-09-01
+
+story_12_3_canonicalization:
+  status: done
+  resolved: 2026-09-01
+  question: >
+    Do CPB's and ZTS's raw facts canonicalize and validate cleanly under the
+    existing us-gaap mapping spec, with Story 12.1's three actionable findings
+    (ZTS revenue fallback, ZTS ebit reconstruction, ZTS restricted-cash
+    rejection) added as versioned mapping-spec entries, never resolved
+    silently in code?
+  verdict: >
+    Yes. Bumped to concepts_v10 (us-gaap_v9 + derivations_v5, ifrs-full
+    untouched). All three findings landed as versioned spec entries with
+    notes; canonicalize_issuer + run_validation ran clean for both filers —
+    zero ambiguous_selection rows, zero accounting-identity violations. Every
+    concept resolution independently re-queried from canonical_facts and
+    matches Story 12.1's predictions exactly (see verification table below).
+    A genuine architecture gap surfaced along the way: the mapping engine had
+    no way to say "this fallback source is safe for filer A but not filer B"
+    — needed because ZTS's cash_and_equivalents restricted fallback is the
+    SAME global rule QSR's proof relies on. Added `excludes_issuers` as a new,
+    minimal capability rather than working around it.
+  mapping_spec_changes:
+    us-gaap_v9.yaml (from us-gaap_v8.yaml):
+      - "revenue: added SalesRevenueNet as a fallback source, ZTS-only in practice (confirmed live 2026-09-01 no other ingested filer tags it) — exact dollar match against Revenues in both overlap years (FY2016 $4,888M, FY2017 $5,307M). CPB's SalesRevenueGoodsNet checked and NOT added (+35.17%/+31.29% disagreement, likely a continuing-vs-total-operations basis difference — see the concept note)."
+      - "profit_before_tax / interest_expense: NEW concepts for us-gaap (previously ifrs-full only). ZTS's IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest and InterestExpense, both FY2011-2025 with zero gaps. Feeds the existing ebit_pbt_plus_interest derivation, which was us-gaap-unreachable before this version despite being taxonomy-blind by construction."
+      - "cash_and_equivalents: added `excludes_issuers: [\"0001555280\"]` to the CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents source — the QSR-proof fallback that would otherwise silently overstate ZTS's cash by the amount of its real, filed restricted cash ($5-6M) for FY2018-2025. First use of the new excludes_issuers mechanism."
+    derivations_v5.yaml (from derivations_v4.yaml):
+      - "ebit_pbt_plus_interest's rationale field (published verbatim on /methodology) reworded from IFRS-specific framing (\"IFRS does not require...\") to taxonomy-neutral language, now that us-gaap_v9 gives it a real us-gaap trigger (ZTS). The rule's logic is unchanged — taxonomy-blind by construction — only the published prose describing it moved."
+    registry.yaml:
+      - "mapping_version: concepts_v9 -> concepts_v10. taxonomies.us-gaap: us-gaap_v8 -> us-gaap_v9. derivations: derivations_v4 -> derivations_v5. ifrs-full untouched (stays ifrs-full_v4)."
+  engine_change:
+    title: "Added excludes_issuers to MappingRule — a genuine capability gap, not a workaround"
+    detail: >
+      The mapping engine (canonicalization/mappings/engine.py,
+      canonicalization/canonicalize.py) had no concept of per-issuer scoping:
+      every rule is keyed purely by (taxonomy, source_concept) and applies to
+      any issuer of that taxonomy. This was fine until now because every prior
+      "not comparable" case (SHOP's convertible debt, Suncor's by-nature cogs)
+      used like_for_like/mismatch_reason — ANNOTATE, not suppress; the value
+      was still correct to use, just not comparable to another filer's. ZTS's
+      restricted-cash situation is different in kind: the value would be
+      WRONG for ZTS specifically (overstated cash) while remaining PROVEN
+      RIGHT for QSR under the exact same source rule. Annotating a wrong value
+      is not the same fix as never resolving it (AD-16). Added
+      `excludes_issuers: tuple[str, ...]` to MappingRule, threaded through
+      load_mapping_spec() as a new (taxonomy, concept) -> frozenset(CIK) dict
+      (SOURCE_EXCLUDED_ISSUERS), and checked in canonicalize.py's candidate-
+      grouping loop before a raw_fact is admitted as a candidate for that
+      issuer. Declarative — a spec edit, not a per-filer code branch — matching
+      the existing "adding a fallback tag is a spec edit" philosophy this
+      engine is built on.
+    verification:
+      - "load_mapping_spec() loads concepts_v10 cleanly: 87 rules, zero duplicate-source errors, zero like_for_like validation errors."
+      - "SOURCE_EXCLUDED_ISSUERS resolves to exactly {(us-gaap, CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents): {ZTS's CIK}} — the one entry added."
+      - "Full backend suite: 395 passed, 1 skipped (one pinned-version test updated for the v10 bump; zero other regressions)."
+  verification_table:
+    note: >-
+      canonical_facts independently re-queried after running canonicalize_issuer
+      + run_validation against the real dev DB (raw_facts from Story 12.2).
+      Every row matches Story 12.1's finding-by-finding prediction exactly.
+    CPB:
+      - "revenue: FY2017-2025 (9 years, 0 derived) — unchanged from before this story, confirming SalesRevenueGoodsNet correctly stayed unmapped"
+      - "ebit: FY2008-2025 (18 years, 0 derived) — resolves as-filed via OperatingIncomeLoss, unaffected by the new derivation reach (confirms the 'zero effect on the other four us-gaap filers' claim, live)"
+      - "gross_profit: 0 years resolved — confirmed still never resolves, as predicted (no full-year filed tag, no applicable derivation for us-gaap)"
+      - "total_debt: FY2010-2025 (16 years, 7 derived) — filed tag covers 9 (FY2010-2018), derivation extends 7 more (FY2019-2025) via near_term_debt + long_term_debt, exactly matching the Story 12.1 prediction"
+    ZTS:
+      - "revenue: FY2011-2025 (15 years, 0 derived) — extended from FY2016-2025 via the new SalesRevenueNet fallback, including the FY2014 gap"
+      - "ebit: FY2011-2025 (15 years, ALL 15 derived via ebit_pbt_plus_interest) — fully resolved for the first time in this project's history for this filer"
+      - "cash_and_equivalents: FY2010-2017 ONLY (8 years, 0 derived) — STOPS at FY2017 exactly as intended; FY2018-2025 correctly insufficient_data rather than silently inheriting the restricted-cash-inclusive figure"
+      - "total_debt: FY2014-2025 (12 years, 12 derived) — matches Story 12.1's finding exactly"
+      - "gross_profit: 0 years resolved — confirmed still never resolves, as predicted"
+    plausibility_check: >-
+      ZTS's derived ebit exceeds its net_income in every spot-checked year
+      (FY2020: ebit $2,227M vs net_income $1,638M; FY2021: $2,712M vs $2,037M;
+      FY2022: $2,877M vs $2,114M) — correct direction and a plausible
+      magnitude for a mid-20s% effective tax rate plus modest interest
+      expense, not a formula-sign error.
+  data_quality: >
+    Zero data_quality_issues rows for either filer (0 ambiguous_selection, 0
+    accounting-identity violations) — both filers' raw facts resolve cleanly
+    under the existing selection rules (as-originally-filed, concept
+    priority, decimals, fetched_at) with no genuine conflicts to flag.
+  carry_forward: >
+    Story 12.4 (golden dataset) can now hand-verify CPB and ZTS against these
+    canonical facts. Two things to carry into that story's independent
+    verification: ZTS's Altman X3 now resolves for every year via a DECISION
+    derivation (not a filed value) — the golden entry should compute the
+    expected ebit the same way (pretax + interest) rather than assuming a
+    filed OperatingIncomeLoss exists; and ZTS's cash_and_equivalents /
+    reverse-DCF enterprise value is insufficient_data for FY2018-2025 by
+    design, not a gap to "fix" in golden verification.
