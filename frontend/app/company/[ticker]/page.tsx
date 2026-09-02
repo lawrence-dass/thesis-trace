@@ -23,6 +23,7 @@ import { ReverseDcfCard, type ReverseDcf } from "../../components/ReverseDcf";
 import { Term } from "../../components/ui/Term";
 import { TERM_DEFINITIONS, type TermId } from "../../components/ui/termDefinitions";
 import { VerdictGlyph, type VerdictItem } from "../../components/VerdictGlyph";
+import { caveatReasonText } from "../../components/CaveatReason";
 import { RewardsRisks, type RewardRiskItem } from "../../components/RewardsRisks";
 import { FundamentalsCard, type Fundamentals } from "../../components/Fundamentals";
 import { ProvenanceFooter, type ReportFooter } from "../../components/ProvenanceFooter";
@@ -64,6 +65,7 @@ type LensScore = {
   band_label: string | null;
   applicability: string;
   signals: Signal[];
+  caveat_reason: string | null;
   // ThesisTrace presentation rule (PRD OQ9) — shown next to the level, never
   // in place of it.
   trajectory?: Trajectory | null;
@@ -164,14 +166,15 @@ export function sectionFreshness(lenses: LensScore[]): { fiscalYear: number | nu
   return { fiscalYear, periodEnd };
 }
 
-// Whether a Verdict card should show its caveat_reason box. A model can be
-// BOTH computed_with_caveat AND missing this year's aggregate at once (the
+// Whether a Verdict card should show its caveat explanation box. A model can
+// be BOTH computed_with_caveat AND missing this year's aggregate at once (the
 // cross-filer comparability layer in scoring/runner.py's _applicability can
 // promote an insufficient_data run to computed_with_caveat) — this is
 // intentionally independent of aggregate_value/missing_signals, not an
-// alternative to them.
+// alternative to them. A nullable reason still gets an explicit fallback in
+// the box so legacy runs never regress to a bare caveat badge.
 export function showsCaveatReason(v: Pick<VerdictItem, "applicability" | "caveat_reason">): boolean {
-  return v.applicability === "computed_with_caveat" && Boolean(v.caveat_reason);
+  return v.applicability === "computed_with_caveat";
 }
 
 function FreshnessNote({ fiscalYear, periodEnd }: { fiscalYear: number | null; periodEnd: string | null }) {
@@ -180,6 +183,45 @@ function FreshnessNote({ fiscalYear, periodEnd }: { fiscalYear: number | null; p
     <p className="text-xs text-[var(--color-ink-faint)]">
       Reflects FY{fiscalYear} data{periodEnd ? `, as of ${periodEnd}` : ""}.
     </p>
+  );
+}
+
+export function CompactVerdictCard({ verdict, bands }: { verdict: VerdictItem; bands: BandClass[] }) {
+  return (
+    <Card className="space-y-2">
+      <div className="text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
+        {MODEL_LABEL[verdict.model] ?? verdict.model}
+      </div>
+      <div className="font-mono text-2xl font-semibold tabular-nums text-[var(--color-ink)]">
+        {verdict.aggregate_value ?? "—"}
+      </div>
+      {verdict.aggregate_value === null ? (
+        <Badge variant="pending">Insufficient data</Badge>
+      ) : verdict.applicability !== "computed" ? (
+        <Badge variant={applicabilityVariant(verdict.applicability)}>{applicabilityLabel(verdict.applicability)}</Badge>
+      ) : verdict.band_label ? (
+        <Badge variant={bandTone(verdict.band_label)} icon={false}>
+          {verdict.band_label}
+        </Badge>
+      ) : null}
+      {verdict.aggregate_value === null && verdict.missing_signals.length > 0 ? (
+        <p className="text-xs leading-snug text-[var(--color-ink-faint)]">
+          Missing: {verdict.missing_signals.map((k) => SIGNAL_LABEL[k] ?? k).join(", ")}
+        </p>
+      ) : null}
+      {showsCaveatReason(verdict) ? (
+        <p className="rounded-[var(--radius-control)] border border-[var(--color-signal-caveat-border)] bg-[var(--color-signal-caveat-bg)] px-3 py-2 text-xs leading-snug text-[var(--color-signal-caveat)]">
+          <span className="font-semibold uppercase tracking-[var(--tracking-label)]">Caveat: </span>
+          {caveatReasonText(verdict.caveat_reason)}
+        </p>
+      ) : null}
+      {verdict.aggregate_value !== null && verdict.applicability !== "excluded_out_of_scope" && bands.length > 0 ? (
+        <Gauge model={verdict.model} value={verdict.aggregate_value} bandLabel={verdict.band_label} bands={bands} />
+      ) : null}
+      {MODEL_CAPTION[verdict.model] ? (
+        <p className="text-xs leading-snug text-[var(--color-ink-faint)]">{MODEL_CAPTION[verdict.model]}</p>
+      ) : null}
+    </Card>
   );
 }
 
@@ -401,40 +443,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
             </p>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               {data.verdict.map((v) => (
-                <Card key={v.model} className="space-y-2">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
-                    {MODEL_LABEL[v.model] ?? v.model}
-                  </div>
-                  <div className="font-mono text-2xl font-semibold tabular-nums text-[var(--color-ink)]">
-                    {v.aggregate_value ?? "—"}
-                  </div>
-                  {v.aggregate_value === null ? (
-                    <Badge variant="pending">Insufficient data</Badge>
-                  ) : v.applicability !== "computed" ? (
-                    <Badge variant={applicabilityVariant(v.applicability)}>{applicabilityLabel(v.applicability)}</Badge>
-                  ) : v.band_label ? (
-                    <Badge variant={bandTone(v.band_label)} icon={false}>
-                      {v.band_label}
-                    </Badge>
-                  ) : null}
-                  {v.aggregate_value === null && v.missing_signals.length > 0 ? (
-                    <p className="text-xs leading-snug text-[var(--color-ink-faint)]">
-                      Missing: {v.missing_signals.map((k) => SIGNAL_LABEL[k] ?? k).join(", ")}
-                    </p>
-                  ) : null}
-                  {showsCaveatReason(v) ? (
-                    <p className="rounded-[var(--radius-control)] border border-[var(--color-signal-caveat-border)] bg-[var(--color-signal-caveat-bg)] px-3 py-2 text-xs leading-snug text-[var(--color-signal-caveat)]">
-                      <span className="font-semibold uppercase tracking-[var(--tracking-label)]">Caveat: </span>
-                      {v.caveat_reason}
-                    </p>
-                  ) : null}
-                  {v.aggregate_value !== null && v.applicability !== "excluded_out_of_scope" && bandsByModel[v.model]?.length ? (
-                    <Gauge model={v.model} value={v.aggregate_value} bandLabel={v.band_label} bands={bandsByModel[v.model]} />
-                  ) : null}
-                  {MODEL_CAPTION[v.model] ? (
-                    <p className="text-xs leading-snug text-[var(--color-ink-faint)]">{MODEL_CAPTION[v.model]}</p>
-                  ) : null}
-                </Card>
+                <CompactVerdictCard key={v.model} verdict={v} bands={bandsByModel[v.model] ?? []} />
               ))}
             </div>
             {data.lenses_pending && data.lenses_pending.length > 0 ? (

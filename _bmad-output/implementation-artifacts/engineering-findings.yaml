@@ -3944,9 +3944,7 @@ story_12_5_pipeline_inclusion_and_browser_verification:
     optional per the existing convention (Epic 5/6's retrospectives).
 
 verdict_grid_caveat_reason_missing:
-  status: done
-  resolved: 2026-09-02
-  pr: 113
+  status: open
   found: 2026-09-02
   found_by: >-
     Lawrence, looking at CPB's live Overview page after Story 12.5's browser

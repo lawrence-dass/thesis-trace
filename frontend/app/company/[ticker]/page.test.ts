@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { caveatReasonText } from "../../components/CaveatReason";
 import { sectionFreshness, showsCaveatReason } from "./page";
 
 /** Story 10.5. `sectionFreshness` computes each report section's own "latest
@@ -17,6 +18,7 @@ function lens(fiscalYear: number, periodEnds: (string | null)[] = []) {
     aggregate_value: 5,
     band_label: "Middle",
     applicability: "computed",
+    caveat_reason: null,
     signals: [
       {
         signal_key: "x",
@@ -68,12 +70,12 @@ describe("showsCaveatReason", () => {
     expect(showsCaveatReason({ applicability: "computed_with_caveat", caveat_reason: "reason" })).toBe(true);
   });
 
-  it("hides the box when caveat_reason is null, even under computed_with_caveat", () => {
-    expect(showsCaveatReason({ applicability: "computed_with_caveat", caveat_reason: null })).toBe(false);
+  it("keeps the caveat section visible when a legacy run has no stored reason", () => {
+    expect(showsCaveatReason({ applicability: "computed_with_caveat", caveat_reason: null })).toBe(true);
   });
 
-  it("hides the box when caveat_reason is an empty string", () => {
-    expect(showsCaveatReason({ applicability: "computed_with_caveat", caveat_reason: "" })).toBe(false);
+  it("keeps the caveat section visible when the stored reason is whitespace", () => {
+    expect(showsCaveatReason({ applicability: "computed_with_caveat", caveat_reason: "   " })).toBe(true);
   });
 
   it("hides the box for a plain computed run even if caveat_reason were somehow set", () => {
@@ -88,5 +90,16 @@ describe("showsCaveatReason", () => {
     expect(
       showsCaveatReason({ applicability: "computed_with_caveat", caveat_reason: "structural caveat" }),
     ).toBe(true);
+  });
+});
+
+describe("caveatReasonText", () => {
+  it("does not render an empty explanation for legacy or malformed values", () => {
+    expect(caveatReasonText(null)).toBe("Reason unavailable for this stored run.");
+    expect(caveatReasonText("   ")).toBe("Reason unavailable for this stored run.");
+  });
+
+  it("trims a real reason before displaying it", () => {
+    expect(caveatReasonText("  structural caveat  ")).toBe("structural caveat");
   });
 });

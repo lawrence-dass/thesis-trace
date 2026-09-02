@@ -263,6 +263,16 @@ async def test_verdict_carries_caveat_reason_alongside_missing_signals(db_sessio
         applicability=Applicability.computed_with_caveat,
         caveat_reason="this is a capital-intensive company, for which the model runs structurally low",
     )
+    caveated_with_value = ScoreRun(
+        issuer_cik=cik,
+        model=Model.beneish,
+        fiscal_year=2025,
+        formula_version="beneish_v1",
+        accession_number=accn,
+        aggregate_value=-2.5,
+        applicability=Applicability.computed_with_caveat,
+        caveat_reason="the gross margin is an approximation rather than a reported figure",
+    )
     plain_computed = ScoreRun(
         issuer_cik=cik,
         model=Model.piotroski,
@@ -272,7 +282,7 @@ async def test_verdict_carries_caveat_reason_alongside_missing_signals(db_sessio
         aggregate_value=6,
         applicability=Applicability.computed,
     )
-    db_session.add_all([caveated_no_value, plain_computed])
+    db_session.add_all([caveated_no_value, caveated_with_value, plain_computed])
     await db_session.flush()
 
     db_session.add(
@@ -284,6 +294,16 @@ async def test_verdict_carries_caveat_reason_alongside_missing_signals(db_sessio
             status=SignalStatus.insufficient_data,
         )
     )
+    db_session.add(
+        ScoreResult(
+            score_run_id=caveated_with_value.id,
+            model=Model.beneish,
+            signal_key="gmi",
+            value=1.0,
+            status=SignalStatus.pass_,
+            band_label="No manipulation flag",
+        )
+    )
     await db_session.commit()
 
     overview = await get_company_overview(db_session, "TEST3")
@@ -293,6 +313,25 @@ async def test_verdict_carries_caveat_reason_alongside_missing_signals(db_sessio
     assert altman_verdict.caveat_reason == (
         "this is a capital-intensive company, for which the model runs structurally low"
     )
+
+    beneish_verdict = next(v for v in overview.verdict if v.model == "beneish")
+    assert beneish_verdict.aggregate_value == -2.5
+    assert beneish_verdict.caveat_reason == "the gross margin is an approximation rather than a reported figure"
+    serialized_beneish = next(item for item in overview.model_dump()["verdict"] if item["model"] == "beneish")
+    assert serialized_beneish["caveat_reason"] == "the gross margin is an approximation rather than a reported figure"
+
+    async def _override_session():
+        yield db_session
+
+    app.dependency_overrides[get_session] = _override_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/companies/TEST3/overview")
+    finally:
+        app.dependency_overrides.pop(get_session, None)
+    assert response.status_code == 200
+    endpoint_beneish = next(item for item in response.json()["verdict"] if item["model"] == "beneish")
+    assert endpoint_beneish["caveat_reason"] == "the gross margin is an approximation rather than a reported figure"
 
     piotroski_verdict = next(v for v in overview.verdict if v.model == "piotroski")
     assert piotroski_verdict.caveat_reason is None  # plain computed never carries a caveat

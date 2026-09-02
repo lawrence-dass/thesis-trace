@@ -2,19 +2,14 @@
 // 2-4 companies, with diverging classifications highlighted. Shows only the
 // lenses live in the current phase, consistent with the overview's phase honesty.
 
+import type { ReactNode } from "react";
 import { Badge, applicabilityLabel, applicabilityVariant, bandTone } from "../components/ui/Badge";
 import { Card } from "../components/ui/Card";
+import { caveatReasonText } from "../components/CaveatReason";
+import type { VerdictItem } from "../components/VerdictGlyph";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
-type VerdictItem = {
-  model: string;
-  aggregate_value: number | null;
-  band_label: string | null;
-  applicability: string;
-  missing_signals: string[];
-  caveat_reason: string | null;
-};
 type Overview = { state: string; ticker?: string; name?: string; verdict?: VerdictItem[] };
 
 // Plain-language names for a model's own sub-signals — used only to explain
@@ -46,6 +41,13 @@ async function getOverview(ticker: string): Promise<Overview> {
   }
 }
 
+export function cellKey(v: VerdictItem | undefined): string {
+  if (!v) return "—";
+  const classification = v.band_label ?? (v.aggregate_value === null ? "—" : String(v.aggregate_value));
+  const missing = v.aggregate_value === null ? v.missing_signals.slice().sort().join(",") : "";
+  return [v.applicability, classification, missing].join("|");
+}
+
 const MODELS = ["piotroski", "altman", "beneish", "sloan"];
 const MODEL_LABEL: Record<string, string> = {
   piotroski: "Piotroski F-Score",
@@ -53,6 +55,42 @@ const MODEL_LABEL: Record<string, string> = {
   beneish: "Beneish M-Score",
   sloan: "Sloan Accruals",
 };
+
+function VerdictValue({ verdict }: { verdict: VerdictItem }): ReactNode {
+  if (verdict.applicability !== "computed" && verdict.applicability !== "computed_with_caveat") {
+    return <Badge variant={applicabilityVariant(verdict.applicability)}>{applicabilityLabel(verdict.applicability)}</Badge>;
+  }
+  if (verdict.aggregate_value === null) return <Badge variant="pending">Insufficient data</Badge>;
+  if (verdict.band_label) return <Badge variant={bandTone(verdict.band_label)} icon={false}>{verdict.band_label}</Badge>;
+  return <span className="font-mono tabular-nums text-[var(--color-ink-muted)]">{verdict.aggregate_value}</span>;
+}
+
+export function VerdictCell({ verdict }: { verdict: VerdictItem | undefined }): ReactNode {
+  if (!verdict) return <span className="text-[var(--color-ink-faint)]">—</span>;
+
+  const caveated = verdict.applicability === "computed_with_caveat";
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <VerdictValue verdict={verdict} />
+        {caveated ? <Badge variant="caveat">Caveat</Badge> : null}
+      </div>
+      {verdict.aggregate_value === null && verdict.missing_signals.length > 0 ? (
+        <p className="text-xs leading-snug text-[var(--color-ink-faint)]">
+          Missing: {verdict.missing_signals.map((k) => SIGNAL_LABEL[k] ?? k).join(", ")}
+        </p>
+      ) : null}
+      {caveated ? (
+        <details className="rounded-[var(--radius-control)] border border-[var(--color-signal-caveat-border)] bg-[var(--color-signal-caveat-bg)] px-2 py-1.5 text-xs text-[var(--color-signal-caveat)]">
+          <summary className="cursor-pointer list-none font-semibold uppercase tracking-[var(--tracking-label)]">
+            Caveat details
+          </summary>
+          <p className="mt-1 leading-snug">{caveatReasonText(verdict.caveat_reason)}</p>
+        </details>
+      ) : null}
+    </div>
+  );
+}
 
 export default async function ComparePage({ searchParams }: { searchParams: Promise<{ tickers?: string }> }) {
   const { tickers } = await searchParams;
@@ -71,8 +109,6 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
 
   const overviews = await Promise.all(list.map(getOverview));
   const verdictFor = (o: Overview, model: string) => o.verdict?.find((x) => x.model === model);
-  const cellKey = (v: VerdictItem | undefined) =>
-    !v ? "—" : v.band_label ?? (v.applicability !== "computed" ? v.applicability : String(v.aggregate_value ?? "—"));
 
   return (
     <main className="mx-auto w-full max-w-7xl space-y-6">
@@ -111,33 +147,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
                   </td>
                   {verdicts.map((v, i) => (
                     <td key={i} className="border-b border-[var(--color-border)] p-4">
-                      {!v ? (
-                        <span className="text-[var(--color-ink-faint)]">—</span>
-                      ) : v.applicability !== "computed" ? (
-                        <span title={v.applicability === "computed_with_caveat" ? v.caveat_reason ?? undefined : undefined}>
-                          <Badge variant={applicabilityVariant(v.applicability)}>
-                            {applicabilityLabel(v.applicability)}
-                          </Badge>
-                        </span>
-                      ) : v.band_label ? (
-                        <Badge variant={bandTone(v.band_label)} icon={false}>
-                          {v.band_label}
-                        </Badge>
-                      ) : v.aggregate_value === null ? (
-                        <span
-                          title={
-                            v.missing_signals.length > 0
-                              ? `Missing: ${v.missing_signals.map((k) => SIGNAL_LABEL[k] ?? k).join(", ")}`
-                              : undefined
-                          }
-                        >
-                          <Badge variant="pending">Insufficient data</Badge>
-                        </span>
-                      ) : (
-                        <span className="font-mono tabular-nums text-[var(--color-ink-muted)]">
-                          {v.aggregate_value}
-                        </span>
-                      )}
+                      <VerdictCell verdict={v} />
                     </td>
                   ))}
                 </tr>
