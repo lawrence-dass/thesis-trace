@@ -4008,3 +4008,81 @@ verdict_grid_caveat_reason_missing:
     branch), so it should close the gap for all of them at once. Worth a
     quick live check across a capital-intensive filer's Overview page as
     part of verifying the fix, not just CPB/ZTS's Beneish case.
+  resolution: >
+    Applied the 4 edits exactly as drafted above, plus one addition found
+    while implementing: VerdictGlyph.test.ts's `verdict()` fixture factory
+    types its return as the full VerdictItem, so the new required field had
+    to be added there too (`caveat_reason: null` in the defaults) or every
+    test using it would fail to typecheck — the other three call sites
+    (backend repository.py, backend schemas.py, frontend page.tsx) needed no
+    such secondary edit. Backend: full suite green (396 passed). Frontend:
+    `tsc --noEmit` clean, `eslint` clean on the 3 changed files, vitest green
+    (78 passed, including the corrected fixture).
+  live_verification: >
+    Confirmed 2026-09-02 in a real browser, both themes. CPB's Beneish card
+    (the originally reported case) now renders the caveat_reason text inline
+    exactly where the finding specified. The scope_note's prediction held:
+    Suncor (SU) shows the reason on ALL FOUR model cards simultaneously
+    (Beneish, Sloan, Altman, Piotroski all computed_with_caveat for FY2025),
+    including Altman's capital-intensive caveat. One nuance surfaced live,
+    not a defect: Beneish and Altman ALSO carry `missing_signals` for SU
+    (aggregate_value is None that year), so their cards show BOTH the
+    pre-existing "Missing: X" line AND the new caveat_reason box — the two
+    are independent, non-conflicting facts (a persistent structural caveat
+    about the concept for this filer, and a separate per-year resolution
+    gap), and the Verdict glyph's hero display correctly shows
+    "insufficient data" for those two while the card beneath adds the
+    caveat text the glyph doesn't have room for. Re-verified identically in
+    light theme — same amber caveat-bg/border tokens, no contrast or layout
+    regression. All four of SU's caveat boxes (Beneish, Sloan, Altman,
+    Piotroski) were confirmed non-empty by reading the rendered DOM directly,
+    not inferred from `applicability` alone; SU's Altman text was confirmed
+    to be exactly `CAPITAL_INTENSIVE_CAVEAT` verbatim with no cross-filer
+    text concatenated onto it (scoring/runner.py's `_applicability` layer
+    did not fire for that run), so the "capital-intensive caveat" label in
+    this note is precise, not assumed.
+  bmad_code_review:
+    reviewed: 2026-09-02
+    by: "bmad-code-review skill — Blind Hunter + Edge Case Hunter + Acceptance Auditor, run in parallel against PR #113's diff"
+    outcome: resolved
+    resolution: >-
+      Two real gaps survived triage and were fixed in a follow-up commit on
+      the same PR. The rest were verified against the actual code/data and
+      found to be either already-true invariants, already-covered by the
+      live verification above, or out of scope for this fix.
+    fixed:
+      - "Acceptance Auditor: frontend/app/compare/page.tsx declares its own separate, narrower VerdictItem type (no caveat_reason) — the side-by-side comparison view still showed a bare CAVEAT badge with zero explanation, the exact symptom Lawrence originally reported, just on a second page the root_cause grep missed. Added caveat_reason to that type and a title tooltip on the badge, mirroring the sibling insufficient_data pattern already in the same file. Verified live via the accessibility tree (title becomes the accessible name) rather than trying to screenshot a native hover tooltip."
+      - "Blind Hunter: no automated test exercised the new field at all — the only test touched was a typecheck-driven fixture default. Added backend/tests/test_read_api.py::test_verdict_carries_caveat_reason_alongside_missing_signals (pins caveat_reason flowing through get_company_overview, including the missing_signals+caveat_reason coexistence case live-verified on SU). Extracted frontend/app/company/[ticker]/page.tsx's render condition into an exported showsCaveatReason() predicate (mirroring the file's own existing sectionFreshness extraction) with 6 unit tests in page.test.ts — a JSX-render test of the async server component itself was judged out of proportion for this fix."
+      - "Blind Hunter: the caveat_reason box and the pre-existing missing_signals box render as two visually identical plain paragraphs with no label distinguishing 'per-year gap' from 'persistent structural caveat' — genuinely confusing when both show on the same card (SU's Beneish/Altman). Added a visible 'Caveat:' lead-in label to the box (matches the existing uppercase-label convention used by the data_quality warning block); this also fixes the accessibility gap since screen readers now announce the distinction from the visible text itself rather than needing separate aria markup."
+    dismissed:
+      - "Edge Case Hunter + Blind Hunter: computed_with_caveat with a null caveat_reason would silently show no explanation, reproducing the original bug. Traced every write site (scoring/runner.py's _applicability, altman.py, beneish.py) — all three set applicability=computed_with_caveat and a non-empty caveat_reason atomically in the same return/constructor call. Not reachable via any current code path; no guard added."
+      - "Blind Hunter: VerdictGlyph.tsx's hero tooltip never surfaces caveat_reason, only the type gained the field. Read the file's own header comment and axisState(): this is the existing, intentional design — the glyph has never surfaced per-model reason text for ANY cause, not even missing_signals (confirmed: its title attribute is only `${model}: ${label}`). The spec's own edit #3 asked only for the type, not glyph rendering. Consistent with prior art, not a gap."
+      - "Acceptance Auditor: the new caveat box uses --radius-control + full-accent-color body text rather than the data_quality block's --radius-card + AlertIcon + muted-body-text pattern named explicitly in the spec. Deliberate: it instead reuses the methodology page's worked-example box (methodology/[model]/page.tsx:235-239), a closer precedent for a single caveat sentence inside tight card real estate than the multi-item data_quality list block. Left as-is — already live-verified clean in both themes — rather than force a mismatched pattern onto a smaller container."
+      - "Acceptance Auditor: backend test count (396 passed) not reproducible in the auditor's sandbox (283 passed, 112 skipped, 1 unrelated pre-existing error). Environment artifact — TEST_DATABASE_URL was not exported in that sandbox, the documented gotcha in project-context.md's Anti-Patterns. Re-confirmed 397 passed (396 + the new test above) with both DB URLs exported."
+    deferred:
+      - "Blind Hunter: caveat_reason is truncated at 512 chars server-side (scoring/beneish.py, runner.py's _applicability) with no ellipsis/guard, and this fix gives that pre-existing truncation a second, more prominent surface (the Overview grid, not just the methodology worked example). Pre-existing behavior, not introduced by this diff, and fixing it well needs a product call on ideal caption length — out of scope here, worth its own follow-up."
+  codex_review:
+    reviewed: 2026-09-02
+    by: "Codex — independent external review of PR #113 (2 commits), run by Lawrence per the project's standing review-before-merge convention"
+    outcome: resolved
+    resolution: >-
+      Codex took a different, more defensive posture than the bmad_code_review
+      pass above on the one item that pass had explicitly dismissed as
+      unreachable (null caveat_reason under computed_with_caveat) — added a
+      guard anyway, reasoning about legacy/future data rather than current
+      reachability. That earlier dismissal note above is superseded by this:
+      the guard now exists, so "no guard added" no longer describes the code.
+      Also went further than requested on the Compare page — replaced the
+      hover-only title tooltip (commit 760a22b) with an accessible
+      <details>/<summary> disclosure, and fixed a real pre-existing
+      comparison-highlighting bug the tooltip fix hadn't touched. All claims
+      (397 backend tests, 93 frontend tests, tsc/eslint/build clean)
+      independently re-verified in-session, not taken on trust. Committed as
+      b93638d, reviewed diff-by-diff before pushing.
+    fixed:
+      - "frontend/app/components/CaveatReason.ts (new): caveatReasonText() normalizes null/whitespace-only reasons to an explicit 'Reason unavailable for this stored run.' fallback rather than rendering blank. showsCaveatReason() no longer requires a non-null caveat_reason to show the box — a computed_with_caveat run always gets a caveat box now, honest-fallback or real text. Defensive against a future/legacy data shape, not a currently-reachable bug (see bmad_code_review's dismissal above)."
+      - "frontend/app/compare/page.tsx: rewritten. VerdictCell now shows the model's REAL band/value badge (matching Overview and the hero glyph's own established convention of 'real value, separate caveat marker') plus a distinct 'Caveat' badge, instead of the caveat state replacing the value badge entirely — CPB's Beneish previously showed only 'Caveat' with the actual 'No manipulation flag' classification hidden. The reason is now behind a native <details>/<summary> disclosure (keyboard/touch accessible, not hover-only like the tooltip in 760a22b)."
+      - "frontend/app/compare/page.tsx's cellKey (divergence highlighting): previously `band_label ?? (applicability !== 'computed' ? applicability : value)` — when band_label was present, applicability was never checked, so a caveated 'Middle' and a non-caveated 'Middle' produced the SAME key and a real divergence went unhighlighted. Now keys on [applicability, classification, missing_signals] together — real, pre-existing bug, not something either PR commit had introduced or caught."
+      - "frontend/app/company/[ticker]/page.tsx: extracted CompactVerdictCard as its own exported component so the Overview card could get real React Testing Library render tests (page.test.tsx, new) — the kind of test bmad_code_review's Blind Hunter finding above judged out of proportion without this extraction; Codex judged it in proportion and did the extraction."
+      - "backend/tests/test_read_api.py: extended test_verdict_carries_caveat_reason_alongside_missing_signals with a second ScoreRun (computed_with_caveat WITH a real aggregate_value, not just the null case already covered) and a full HTTP round-trip through the actual /api/companies/{ticker}/overview endpoint via AsyncClient, not just the repository function directly."
+      - "engineering-findings.yaml: reverted this entry's status from done back to open (and dropped resolved/pr) — correct per this project's own convention that done means merged to main, not PR-open. I had marked it done prematurely in the first commit; this is Codex catching MY error, not its own usual done-too-early pattern (project-context.md's Learnings — 2026-08-30) — noted here since it's the opposite direction from what that entry warns to watch for."

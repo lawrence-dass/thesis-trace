@@ -29,6 +29,7 @@ export type VerdictItem = {
   band_label: string | null;
   applicability: string;
   missing_signals: string[];
+  caveat_reason: string | null;
 };
 
 export type AxisState = {

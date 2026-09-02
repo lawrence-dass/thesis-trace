@@ -230,6 +230,114 @@ async def test_verdict_falls_back_to_latest_when_never_valid(db_session) -> None
 
 
 @requires_db
+async def test_verdict_carries_caveat_reason_alongside_missing_signals(db_session) -> None:
+    """Regression guard for the Overview grid's caveat-reason gap (PR #113):
+    caveat_reason must flow from the ScoreRun through to the VerdictItem the
+    Overview page reads, and — the live-verified Suncor shape — a run can be
+    BOTH computed_with_caveat AND aggregate_value=None at once (the cross-filer
+    comparability layer in scoring/runner.py's _applicability can promote an
+    insufficient_data run to computed_with_caveat), so missing_signals and
+    caveat_reason must coexist rather than being mutually exclusive."""
+    cik = "9999999997"
+    accn = "0000000000-99-000003"
+    db_session.add(Issuer(cik=cik, ticker="TEST3", name="Test Co 3"))
+    db_session.add(
+        Filing(
+            accession_number=accn,
+            issuer_cik=cik,
+            form_type="10-K",
+            filing_date=date(2025, 2, 1),
+            fiscal_year=2025,
+            fiscal_year_end=date(2024, 12, 31),
+        )
+    )
+    await db_session.flush()
+
+    caveated_no_value = ScoreRun(
+        issuer_cik=cik,
+        model=Model.altman,
+        fiscal_year=2025,
+        formula_version="altman_v1",
+        accession_number=accn,
+        aggregate_value=None,
+        applicability=Applicability.computed_with_caveat,
+        caveat_reason="this is a capital-intensive company, for which the model runs structurally low",
+    )
+    caveated_with_value = ScoreRun(
+        issuer_cik=cik,
+        model=Model.beneish,
+        fiscal_year=2025,
+        formula_version="beneish_v1",
+        accession_number=accn,
+        aggregate_value=-2.5,
+        applicability=Applicability.computed_with_caveat,
+        caveat_reason="the gross margin is an approximation rather than a reported figure",
+    )
+    plain_computed = ScoreRun(
+        issuer_cik=cik,
+        model=Model.piotroski,
+        fiscal_year=2025,
+        formula_version="piotroski_v1",
+        accession_number=accn,
+        aggregate_value=6,
+        applicability=Applicability.computed,
+    )
+    db_session.add_all([caveated_no_value, caveated_with_value, plain_computed])
+    await db_session.flush()
+
+    db_session.add(
+        ScoreResult(
+            score_run_id=caveated_no_value.id,
+            model=Model.altman,
+            signal_key="working_capital_ratio",
+            value=None,
+            status=SignalStatus.insufficient_data,
+        )
+    )
+    db_session.add(
+        ScoreResult(
+            score_run_id=caveated_with_value.id,
+            model=Model.beneish,
+            signal_key="gmi",
+            value=1.0,
+            status=SignalStatus.pass_,
+            band_label="No manipulation flag",
+        )
+    )
+    await db_session.commit()
+
+    overview = await get_company_overview(db_session, "TEST3")
+    altman_verdict = next(v for v in overview.verdict if v.model == "altman")
+    assert altman_verdict.aggregate_value is None
+    assert altman_verdict.missing_signals == ["working_capital_ratio"]
+    assert altman_verdict.caveat_reason == (
+        "this is a capital-intensive company, for which the model runs structurally low"
+    )
+
+    beneish_verdict = next(v for v in overview.verdict if v.model == "beneish")
+    assert beneish_verdict.aggregate_value == -2.5
+    assert beneish_verdict.caveat_reason == "the gross margin is an approximation rather than a reported figure"
+    serialized_beneish = next(item for item in overview.model_dump()["verdict"] if item["model"] == "beneish")
+    assert serialized_beneish["caveat_reason"] == "the gross margin is an approximation rather than a reported figure"
+
+    async def _override_session():
+        yield db_session
+
+    app.dependency_overrides[get_session] = _override_session
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get("/api/companies/TEST3/overview")
+    finally:
+        app.dependency_overrides.pop(get_session, None)
+    assert response.status_code == 200
+    endpoint_beneish = next(item for item in response.json()["verdict"] if item["model"] == "beneish")
+    assert endpoint_beneish["caveat_reason"] == "the gross margin is an approximation rather than a reported figure"
+
+    piotroski_verdict = next(v for v in overview.verdict if v.model == "piotroski")
+    assert piotroski_verdict.caveat_reason is None  # plain computed never carries a caveat
+
+
+@requires_db
 async def test_companies_list(seeded_app) -> None:
     async with AsyncClient(transport=ASGITransport(app=seeded_app), base_url="http://test") as client:
         resp = await client.get("/api/companies")

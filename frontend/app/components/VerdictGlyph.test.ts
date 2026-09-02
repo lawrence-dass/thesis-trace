@@ -20,6 +20,7 @@ function verdict(overrides: Partial<VerdictItem>): VerdictItem {
     band_label: null,
     applicability: "computed",
     missing_signals: [],
+    caveat_reason: null,
     ...overrides,
   };
 }

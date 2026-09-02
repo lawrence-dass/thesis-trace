@@ -686,6 +686,7 @@ async def get_company_overview(session: AsyncSession, ticker: str) -> CompanyOve
                 if s.aggregate_value is None
                 else []
             ),
+            caveat_reason=s.caveat_reason,
         )
         for s in sorted(latest_by_model.values(), key=lambda x: (x.category, x.model))
     ]

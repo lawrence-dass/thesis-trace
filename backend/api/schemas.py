@@ -138,6 +138,8 @@ class VerdictItem(BaseModel):
     # explain WHY a score didn't compute (e.g. "missing gmi, sgai") rather than
     # showing a bare dash with no reason (AD-16 tri-state, surfaced not hidden).
     missing_signals: list[str] = []
+    # Why the caveat applies, when applicability is computed_with_caveat.
+    caveat_reason: str | None = None
 
 
 class ReverseDcfOperandOut(BaseModel):
