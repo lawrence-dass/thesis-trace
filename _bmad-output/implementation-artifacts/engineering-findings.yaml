@@ -4061,3 +4061,28 @@ verdict_grid_caveat_reason_missing:
       - "Acceptance Auditor: backend test count (396 passed) not reproducible in the auditor's sandbox (283 passed, 112 skipped, 1 unrelated pre-existing error). Environment artifact — TEST_DATABASE_URL was not exported in that sandbox, the documented gotcha in project-context.md's Anti-Patterns. Re-confirmed 397 passed (396 + the new test above) with both DB URLs exported."
     deferred:
       - "Blind Hunter: caveat_reason is truncated at 512 chars server-side (scoring/beneish.py, runner.py's _applicability) with no ellipsis/guard, and this fix gives that pre-existing truncation a second, more prominent surface (the Overview grid, not just the methodology worked example). Pre-existing behavior, not introduced by this diff, and fixing it well needs a product call on ideal caption length — out of scope here, worth its own follow-up."
+  codex_review:
+    reviewed: 2026-09-02
+    by: "Codex — independent external review of PR #113 (2 commits), run by Lawrence per the project's standing review-before-merge convention"
+    outcome: resolved
+    resolution: >-
+      Codex took a different, more defensive posture than the bmad_code_review
+      pass above on the one item that pass had explicitly dismissed as
+      unreachable (null caveat_reason under computed_with_caveat) — added a
+      guard anyway, reasoning about legacy/future data rather than current
+      reachability. That earlier dismissal note above is superseded by this:
+      the guard now exists, so "no guard added" no longer describes the code.
+      Also went further than requested on the Compare page — replaced the
+      hover-only title tooltip (commit 760a22b) with an accessible
+      <details>/<summary> disclosure, and fixed a real pre-existing
+      comparison-highlighting bug the tooltip fix hadn't touched. All claims
+      (397 backend tests, 93 frontend tests, tsc/eslint/build clean)
+      independently re-verified in-session, not taken on trust. Committed as
+      b93638d, reviewed diff-by-diff before pushing.
+    fixed:
+      - "frontend/app/components/CaveatReason.ts (new): caveatReasonText() normalizes null/whitespace-only reasons to an explicit 'Reason unavailable for this stored run.' fallback rather than rendering blank. showsCaveatReason() no longer requires a non-null caveat_reason to show the box — a computed_with_caveat run always gets a caveat box now, honest-fallback or real text. Defensive against a future/legacy data shape, not a currently-reachable bug (see bmad_code_review's dismissal above)."
+      - "frontend/app/compare/page.tsx: rewritten. VerdictCell now shows the model's REAL band/value badge (matching Overview and the hero glyph's own established convention of 'real value, separate caveat marker') plus a distinct 'Caveat' badge, instead of the caveat state replacing the value badge entirely — CPB's Beneish previously showed only 'Caveat' with the actual 'No manipulation flag' classification hidden. The reason is now behind a native <details>/<summary> disclosure (keyboard/touch accessible, not hover-only like the tooltip in 760a22b)."
+      - "frontend/app/compare/page.tsx's cellKey (divergence highlighting): previously `band_label ?? (applicability !== 'computed' ? applicability : value)` — when band_label was present, applicability was never checked, so a caveated 'Middle' and a non-caveated 'Middle' produced the SAME key and a real divergence went unhighlighted. Now keys on [applicability, classification, missing_signals] together — real, pre-existing bug, not something either PR commit had introduced or caught."
+      - "frontend/app/company/[ticker]/page.tsx: extracted CompactVerdictCard as its own exported component so the Overview card could get real React Testing Library render tests (page.test.tsx, new) — the kind of test bmad_code_review's Blind Hunter finding above judged out of proportion without this extraction; Codex judged it in proportion and did the extraction."
+      - "backend/tests/test_read_api.py: extended test_verdict_carries_caveat_reason_alongside_missing_signals with a second ScoreRun (computed_with_caveat WITH a real aggregate_value, not just the null case already covered) and a full HTTP round-trip through the actual /api/companies/{ticker}/overview endpoint via AsyncClient, not just the repository function directly."
+      - "engineering-findings.yaml: reverted this entry's status from done back to open (and dropped resolved/pr) — correct per this project's own convention that done means merged to main, not PR-open. I had marked it done prematurely in the first commit; this is Codex catching MY error, not its own usual done-too-early pattern (project-context.md's Learnings — 2026-08-30) — noted here since it's the opposite direction from what that entry warns to watch for."
