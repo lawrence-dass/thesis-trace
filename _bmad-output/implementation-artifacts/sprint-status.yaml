@@ -6,7 +6,7 @@
 # this file — they were split out on 2026-08-20, when this file had reached
 # 1,279 lines of which only ~115 were status.
 #
-# STATUS AT A GLANCE (58 of 61 stories done, 8 of 12 epics complete)
+# STATUS AT A GLANCE (59 of 61 stories done, 8 of 12 epics complete)
 #
 #   Epic 1  done         10/10        Foundation & First Evidence (Walking Skeleton)
 #   Epic 2  done         6/6          Complete the Four Lenses
@@ -182,8 +182,8 @@ development_status:
   # story_12_1_coverage_spike, Codex-reviewed and independently re-verified.
   12-1-live-edgar-concept-coverage-spike-for-campbell-s-and-zoetis: done
   12-2-edgar-ingestion-for-campbell-s-and-zoetis: done
-  12-3-canonicalization-and-validation-for-campbell-s-and-zoetis: review
-  12-4-golden-dataset-coverage-for-campbell-s-and-zoetis: backlog
+  12-3-canonicalization-and-validation-for-campbell-s-and-zoetis: done
+  12-4-golden-dataset-coverage-for-campbell-s-and-zoetis: review
   12-5-scheduled-pipeline-inclusion-and-full-universe-browser-verification: backlog
   epic-12-retrospective: optional
 

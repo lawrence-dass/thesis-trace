@@ -31,8 +31,23 @@
 # Beneish's TATA uses year-end. Computing Sloan with year-end assets was wrong
 # by ~1e-4 and would have been recorded as the golden value had the two figures
 # not been compared component by component.
+#
+# CPB and ZTS added 2026-09-01 (Story 12.4, Epic 12), FY2025, hand-verified the
+# same way: every canonical input taken from cpb_company_facts.json /
+# zts_company_facts.json (trimmed FY2023-2025 real EDGAR data, built from the
+# same live company-facts JSON fetched for Story 12.1's spike — every concept
+# and both fiscal years independently confirmed to reproduce the dev DB's
+# canonicalized output exactly before this entry was written, per the standing
+# "confirm the fixture can exercise the concept" rule), then all four models
+# plus the reverse DCF and near-term debt share recomputed by a script that
+# imports nothing from backend/scoring or backend/formulas, then compared
+# against the actual pipeline (score_piotroski/sloan/beneish/altman run
+# against the same fixtures) — every value matched exactly, no discrepancy to
+# resolve this time. CPB's FYE close $32.33 (2025-08-01, last trading day
+# on/before its 2025-08-03 FYE) and ZTS's $125.82 (2025-12-31) are real Tiingo
+# EOD closes, live-fetched 2026-09-01.
 
-universe: [SHOP, CP, QSR, OTEX, CCJ, BCE, SU]
+universe: [SHOP, CP, QSR, OTEX, CCJ, BCE, SU, CPB, ZTS]
 
 companies:
   - ticker: SHOP
@@ -545,3 +560,160 @@ companies:
       reverse_dcf:
         insufficient_data: true
         reason_contains: "free cash flow"
+
+  - ticker: CPB
+    status: active
+    fixture: cpb_company_facts.json
+    # Real Tiingo EOD close, live-fetched 2026-09-01: 2025-08-01 is the last
+    # trading day on/before CPB's real FY2025 FYE (2025-08-03, a Sunday).
+    fye_close: 32.33
+    fye_date: "2025-08-03"
+    fiscal_year: 2025
+    expected:
+      # Hand-verified 2026-09-01 against CPB's real FY2025 10-K figures
+      # (accession 0000016732-25-000112) and its FY2024 comparative
+      # (0000016732-24-000130). See cpb_company_facts.json.
+      piotroski:
+        # gross_margin_increasing is insufficient_data — CPB never resolves
+        # gross_profit as a filed concept (Story 12.1 finding 2: its only
+        # GrossProfit facts are quarterly "selected financial data" footnote
+        # sub-periods, never a full fiscal year), so the max possible F-score
+        # here is 8, not 9. 7 of the remaining 8 pass; only leverage_decreasing
+        # fails (long_term_debt/total_assets rose FY2024->FY2025: 0.378142 ->
+        # 0.409170, driven by CPB's FY2018 Snyder's-Lance-scale debt load
+        # still working through the balance sheet).
+        f_score: 7
+      sloan:
+        accruals_ratio: -0.035113
+        band: "Low accruals (higher quality)"
+      altman:
+        z_score: 1.850072
+        band: "Grey"
+      beneish:
+        # DSRI 0.866179  GMI 1.013540  AQI 0.978278  SGI 1.064031
+        # DEPI 0.975026  SGAI 0.859487  TATA -0.035513  LVGI 0.985953
+        # computed_with_caveat: CPB never resolves gross_profit as a filed
+        # concept (same reason as the Piotroski note above), so GMI's implied
+        # margin is unvalidated per Story 12.1 finding 2 — confirmed live
+        # against the pipeline's own caveat_reason text.
+        m_score: -2.687902
+        band: "No manipulation flag"
+      near_term_debt_share:
+        share: 0.061586
+        band: "Well spread"
+        near_term_debt: 400000000
+        total_debt: 6495000000
+        near_term_source: LongTermDebtCurrent
+        total_source: "derived: total_debt_current_plus_noncurrent"
+      # CPB's debt maturity ladder tags stop entirely after FY2021 (last data
+      # 2021-08-01) — confirmed live 2026-09-01, not a fixture artifact: this
+      # fixture only carries FY2023-2025 and the live payload shows the same
+      # gap. `no_profile: true` asserts NO profile in ANY year the fixture
+      # covers, which holds trivially here since none of the six bucket
+      # concepts are tagged at all past FY2021.
+      debt_maturity_profile:
+        no_profile: true
+        reason: "debt maturity ladder tags stop after FY2021 (confirmed live 2026-09-01); none in FY2023-2025"
+      # cash_and_equivalents resolves cleanly for CPB in every year (unlike
+      # ZTS — see that entry's note), so CPB reaches a real enterprise value.
+      # implied_growth solved INDEPENDENTLY of backend/valuation by bisection
+      # over reverse_dcf_v1's declared range, mirroring the harness's own
+      # solver exactly (same _present_value/_solve_implied_growth shape).
+      reverse_dcf:
+        insufficient_data: false
+        assumptions:
+          discount_rate: 0.10
+          terminal_growth: 0.025
+          horizon_years: 5
+        operands:
+          cash_from_operations: 1131000000
+          capex: 426000000
+          free_cash_flow: 705000000
+          total_debt: 6495000000
+          cash_and_equivalents: 132000000
+          shares_outstanding: 298000000
+          market_price: 32.33
+          market_cap: 9634340000.00
+          enterprise_value: 15997340000.00
+        implied_growth: 0.148864
+
+  - ticker: ZTS
+    status: active
+    fixture: zts_company_facts.json
+    # Real Tiingo EOD close, live-fetched 2026-09-01: 2025-12-31 is itself a
+    # trading day (Wednesday), so it is both the FYE and the observed date.
+    fye_close: 125.82
+    fye_date: "2025-12-31"
+    fiscal_year: 2025
+    expected:
+      # Hand-verified 2026-09-01 against ZTS's real FY2025 10-K figures
+      # (accession 0001555280-26-000011) and its FY2024 comparative
+      # (0001555280-25-000102). See zts_company_facts.json.
+      piotroski:
+        # gross_margin_increasing insufficient_data for the same reason as
+        # CPB's (ZTS never tags GrossProfit at all — Story 12.1 finding 2).
+        # Of the remaining 8: roa_increasing, leverage_decreasing and
+        # asset_turnover_increasing all fail. leverage_decreasing failing is
+        # the direct, expected consequence of Story 12.3's mapping change —
+        # ZTS's long_term_debt rose sharply FY2024->FY2025 ($5,220M ->
+        # $9,042M, a real financing event, not a mapping artifact: total_debt
+        # rose by the same ~$2.5B via the total_debt_current_plus_noncurrent
+        # derivation).
+        f_score: 5
+      sloan:
+        accruals_ratio: -0.015553
+        band: "Low accruals (higher quality)"
+      altman:
+        # X3 (EBIT/total assets) resolves here ONLY because of Story 12.3's
+        # ebit_pbt_plus_interest extension to us-gaap — ZTS never tags
+        # OperatingIncomeLoss in any year. Without that mapping change this
+        # entry would need z_score: null like Suncor's. Confirmed the
+        # pipeline's own ebit canonical fact carries
+        # derivation="ebit_pbt_plus_interest" before writing this value.
+        z_score: 5.615320
+        band: "Safe"
+      beneish:
+        # DSRI 1.181280  GMI 0.983094  AQI 0.950402  SGI 1.022796
+        # DEPI 1.094024  SGAI 1.003019  TATA -0.014935  LVGI 1.202526
+        # computed_with_caveat for the same reason as CPB's entry — ZTS never
+        # resolves gross_profit as a filed concept (Story 12.1 finding 2).
+        m_score: -2.447666
+        band: "No manipulation flag"
+      near_term_debt_share:
+        # A real 0.0%, not insufficient_data (AD-16 tri-state: only an ABSENT
+        # operand is insufficient_data, and near_term_debt resolves to a real
+        # filed zero for FY2025 — ZTS tags no LongTermDebtCurrent that year).
+        share: 0.0
+        band: "Well spread"
+        near_term_debt: 0
+        total_debt: 9042000000
+        near_term_source: LongTermDebtCurrent
+        total_source: "derived: total_debt_current_plus_noncurrent"
+      # TRUNCATED profile, not no_profile — the shape neither CP's nor SHOP's
+      # entry exercises. ZTS tags maturity buckets year_1 through year_5 for
+      # FY2025 but never the "thereafter" tail (that tag stopped after
+      # FY2017, confirmed live 2026-09-01) — contiguous from year_1 and
+      # reaching year_5 satisfies debt/profile.py's admission rule
+      # (_is_a_renderable_schedule), so this IS a real, renderable, truncated
+      # schedule per the CP precedent, not a hole to reject.
+      debt_maturity_profile:
+        no_profile: false
+        truncated: true
+        unit: "USD"
+        buckets:
+          debt_maturity_year_1: 0.0
+          debt_maturity_year_2: 750000000.0
+          debt_maturity_year_3: 1350000000.0
+          debt_maturity_year_4: 2000000000.0
+          debt_maturity_year_5: 750000000.0
+      # ZTS's cash_and_equivalents is insufficient_data for FY2025 BY DESIGN
+      # (Story 12.3's excludes_issuers fix), not a coverage gap: its own
+      # RestrictedCashCurrent tag proves the restricted-inclusive fallback
+      # would silently overstate cash by $2-6M for FY2018-2025 (PR #106's
+      # review, Story 12.3's engine_change). This is the AC's "an entry a
+      # fixture cannot reproduce is deleted or reworked" lesson applied in
+      # the other direction: the fixture DOES reproduce the concept, and the
+      # honest answer for it is insufficient_data.
+      reverse_dcf:
+        insufficient_data: true
+        reason_contains: "cash_and_equivalents"
