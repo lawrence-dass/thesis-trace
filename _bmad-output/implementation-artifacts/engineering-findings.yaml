@@ -3944,7 +3944,8 @@ story_12_5_pipeline_inclusion_and_browser_verification:
     optional per the existing convention (Epic 5/6's retrospectives).
 
 verdict_grid_caveat_reason_missing:
-  status: open
+  status: done
+  resolved: 2026-09-02
   found: 2026-09-02
   found_by: >-
     Lawrence, looking at CPB's live Overview page after Story 12.5's browser
@@ -4008,3 +4009,30 @@ verdict_grid_caveat_reason_missing:
     branch), so it should close the gap for all of them at once. Worth a
     quick live check across a capital-intensive filer's Overview page as
     part of verifying the fix, not just CPB/ZTS's Beneish case.
+  resolution: >
+    Applied the 4 edits exactly as drafted above, plus one addition found
+    while implementing: VerdictGlyph.test.ts's `verdict()` fixture factory
+    types its return as the full VerdictItem, so the new required field had
+    to be added there too (`caveat_reason: null` in the defaults) or every
+    test using it would fail to typecheck — the other three call sites
+    (backend repository.py, backend schemas.py, frontend page.tsx) needed no
+    such secondary edit. Backend: full suite green (396 passed). Frontend:
+    `tsc --noEmit` clean, `eslint` clean on the 3 changed files, vitest green
+    (78 passed, including the corrected fixture).
+  live_verification: >
+    Confirmed 2026-09-02 in a real browser, both themes. CPB's Beneish card
+    (the originally reported case) now renders the caveat_reason text inline
+    exactly where the finding specified. The scope_note's prediction held:
+    Suncor (SU) shows the reason on ALL FOUR model cards simultaneously
+    (Beneish, Sloan, Altman, Piotroski all computed_with_caveat for FY2025),
+    including Altman's capital-intensive caveat. One nuance surfaced live,
+    not a defect: Beneish and Altman ALSO carry `missing_signals` for SU
+    (aggregate_value is None that year), so their cards show BOTH the
+    pre-existing "Missing: X" line AND the new caveat_reason box — the two
+    are independent, non-conflicting facts (a persistent structural caveat
+    about the concept for this filer, and a separate per-year resolution
+    gap), and the Verdict glyph's hero display correctly shows
+    "insufficient data" for those two while the card beneath adds the
+    caveat text the glyph doesn't have room for. Re-verified identically in
+    light theme — same amber caveat-bg/border tokens, no contrast or layout
+    regression.

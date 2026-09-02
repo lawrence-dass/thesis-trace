@@ -412,6 +412,11 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                       Missing: {v.missing_signals.map((k) => SIGNAL_LABEL[k] ?? k).join(", ")}
                     </p>
                   ) : null}
+                  {v.applicability === "computed_with_caveat" && v.caveat_reason ? (
+                    <p className="rounded-[var(--radius-control)] border border-[var(--color-signal-caveat-border)] bg-[var(--color-signal-caveat-bg)] px-3 py-2 text-xs leading-snug text-[var(--color-signal-caveat)]">
+                      {v.caveat_reason}
+                    </p>
+                  ) : null}
                   {v.aggregate_value !== null && v.applicability !== "excluded_out_of_scope" && bandsByModel[v.model]?.length ? (
                     <Gauge model={v.model} value={v.aggregate_value} bandLabel={v.band_label} bands={bandsByModel[v.model]} />
                   ) : null}
