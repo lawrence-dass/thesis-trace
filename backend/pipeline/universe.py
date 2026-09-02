@@ -67,4 +67,24 @@ PHASE1_UNIVERSE: tuple[UniverseEntry, ...] = (
     # are not like-for-like with a by-function filer (see ifrs-full_v2.yaml's footer).
     # It earns its place by being the honest hard case, not the clean one.
     UniverseEntry("SU", "Suncor Energy Inc.", "0000311337", capital_intensive=True),
+    # --- Epic 12 (D11): US universe expansion, driven by real decision packets ---
+    # CPB: packaged foods, non-calendar FYE (early August). Story 12.1-12.4
+    # hand-verified live: 20 of 22 canonical concepts resolve for FY2025 with no
+    # new mapping work; its legacy pre-ASC-606 revenue tag was checked and
+    # REJECTED (measures something ~35% different, not the same concept renamed
+    # — see us-gaap_v9.yaml's revenue note). capital_intensive=False: its FY2025
+    # Altman Grey band (1.850072) reflects the FY2024 Sovos Brands acquisition's
+    # debt load, not a structurally PP&E-heavy business the way CP/CCJ/BCE/SU
+    # are — confirmed by comparing against those filers' own Z-scores, all of
+    # which run structurally low every year, not just after a debt-financed deal.
+    UniverseEntry("CPB", "The Campbell's Company", "0000016732"),
+    # ZTS: animal health pharma, calendar FYE. Never tags OperatingIncomeLoss —
+    # the first us-gaap filer to need the ebit_pbt_plus_interest derivation
+    # (Story 12.3, us-gaap_v9.yaml + derivations_v5.yaml), previously ifrs-full
+    # only. Its restricted-cash-inclusive cash_and_equivalents fallback is the
+    # first use of excludes_issuers: proven unsafe for ZTS specifically (its own
+    # RestrictedCashCurrent tag) while remaining proven-safe for QSR under the
+    # exact same source rule — see us-gaap_v9.yaml's cash_and_equivalents note.
+    # capital_intensive=False: FY2025 Altman Z=5.615320, Safe.
+    UniverseEntry("ZTS", "Zoetis Inc.", "0001555280"),
 )

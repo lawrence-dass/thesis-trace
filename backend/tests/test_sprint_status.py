@@ -88,6 +88,7 @@ CURATED_SECTIONS = (
     "story_12_2_ingestion",
     "story_12_3_canonicalization",
     "story_12_4_golden_dataset",
+    "story_12_5_pipeline_inclusion_and_browser_verification",
 )
 
 pytestmark = pytest.mark.skipif(
