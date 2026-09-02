@@ -30,7 +30,7 @@
 #   7 entries, 1 open          d8_ifrs_track
 #   —                          qsr_gross_profit_reverification
 #   done                       story_5_1_debt_maturity_spike
-#   review                     canonical_facts_amendment_gap
+#   done                       canonical_facts_amendment_gap
 #   done                       story_6_2_live_verification
 #   done                       market_price_dates_labelled_as_fiscal_year_end
 #   done                       story_6_7_golden_coverage
@@ -312,7 +312,10 @@ story_5_1_debt_maturity_spike:
 # the engine handles it correctly; this is an upstream canonicalization gap that the
 # diff work exposed. Needs its own decision, so it is recorded rather than fixed here.
 canonical_facts_amendment_gap:
-  status: review
+  status: done
+  resolved: 2026-09-02
+  pr: "116, 117"
+  merged_commit: "190d6a1 (#116), 2fd9206 (#117)"
   fixed: 2026-09-02
   merge_note: >
     PR #116 (the base fix below) merged to main 2026-09-02 17:42 UTC. A Codex
@@ -320,8 +323,8 @@ canonical_facts_amendment_gap:
     fixes as two commits (0258d65, f0922de) — but PR #116 had ALREADY merged
     eleven minutes earlier, so those two commits landed on a now-stranded
     branch, not on main. Cherry-picked onto a fresh branch off updated main as
-    PR #117; `main` does not have the hardening below until #117 merges.
-    Status stays `review` for that reason, not because #116 didn't merge.
+    PR #117, merged 2026-09-02. `main` now has both the base fix and the
+    hardening below.
   hardening_2026_09_02: >
     Codex-found, Lawrence-fixed, independently re-verified (full suite +
     rollback dry run over the dev DB, unchanged: still 0 figures move for
