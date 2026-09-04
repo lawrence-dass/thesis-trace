@@ -121,7 +121,7 @@ const SECTION_FOR_MODEL: Record<string, string> = {
 const SIZE = 260;
 const CENTER = SIZE / 2;
 const MAX_RADIUS = 82;
-const LABEL_LINE_HEIGHT = 14;
+const LABEL_LINE_HEIGHT = 13;
 const SIDE_LABEL_MAX_CHARS = 14;
 
 const LABEL_POSITION: Record<number, { x: number; y: number; anchor: "middle" | "start" | "end" }> = {
@@ -235,19 +235,20 @@ export function VerdictGlyph({ verdict }: { verdict: VerdictItem[] }) {
               />
               {/* Full-range guide — this axis's own track, never implying a
                   cross-model-comparable scale (each is independently
-                  normalized to its own domain). */}
-              <line x1={CENTER} y1={CENTER} x2={full.x} y2={full.y} stroke="var(--color-border)" strokeWidth={2} />
+                  normalized to its own domain). Kept quieter than the value
+                  line (1.5px vs 3px) so the track reads as scale, not signal. */}
+              <line x1={CENTER} y1={CENTER} x2={full.x} y2={full.y} stroke="var(--color-border)" strokeWidth={1.5} />
               <line
                 x1={CENTER}
                 y1={CENTER}
                 x2={tip.x}
                 y2={tip.y}
                 stroke={color}
-                strokeWidth={4}
+                strokeWidth={3}
                 strokeLinecap="round"
                 strokeDasharray={state.dashed ? "3 4" : undefined}
               />
-              <circle cx={tip.x} cy={tip.y} r={5} fill={color} stroke="var(--color-surface)" strokeWidth={2} />
+              <circle cx={tip.x} cy={tip.y} r={4.5} fill={color} stroke="var(--color-surface)" strokeWidth={1.5} />
               {/* text-[11px]/text-[10px] below are deliberately arbitrary, not
                   the named --text-* scale (smallest defined token is
                   --text-caption at 12px) — wrapLabel's SIDE_LABEL_MAX_CHARS
