@@ -5,14 +5,14 @@ Mid-task — two independent open threads (PR awaiting review; CPB packet partly
 
 ## Focus
 - **Task**: (1) PR #125 VerdictGlyph polish awaiting Codex review; (2) CPB decision packet walkthrough
-- **Branch**: `main` (docs) + `claude/verdict-glyph-radar-2026-09-04` (worktree at `../ThesisTrace-verdict-glyph-radar`)
+- **Branch**: `main` + `claude/verdict-glyph-radar-2026-09-04` (branch only — its worktree was removed; recreate to work on it)
 - **State**: mid-task on both
 - **Progress**: Packet sections 3/4/5 have real content; sections 2, 6 and "largest research failure" still blank
 
 ## Resume Point
 Two threads, independent — ask Lawrence which first.
 
-**Thread A (PR #125):** Lawrence instructed "merge it once it's reviewed, then remove the worktree." A Codex review prompt was handed to him in-session (not saved to a file — regenerate from the PR diff if needed). PR is OPEN and MERGEABLE with no review submitted. When he returns with Codex findings: apply real fixes to the branch, merge, then `git worktree remove ../ThesisTrace-verdict-glyph-radar` and delete the branch. Do NOT merge before he brings findings back.
+**Thread A (PR #125):** OPEN and MERGEABLE, no review submitted. A Codex review prompt was handed to Lawrence in-session (not saved to a file — regenerate from the PR diff if needed). Do NOT merge before he brings Codex findings back. The worktree was already removed, so to apply fixes first run `git worktree add ../ThesisTrace-verdict-glyph-radar claude/verdict-glyph-radar-2026-09-04` (then `npm install` in `frontend/` if you need to run tests), apply, merge, and delete the branch plus that worktree again.
 
 **Thread B (CPB packet):** Q3 is settled and logged. Still open: Q1 (capital allocation) never got a clean verdict — it trailed into a product-idea discussion; Q2 he answered verbally ("doesn't give me pause") but it is not written down. Section 2 (pages/figures consulted), Section 6 (verdict) and "The largest research failure" are all blank. The two Section 4 gaps are the leading candidates for that last item — ask, never assign it.
 
@@ -38,7 +38,7 @@ None — working tree clean (docs committed via PR this session; `frontend/next-
 - Dev servers on :3000/:8000 were running from a prior session; the worktree instance on :3001 was stopped
 
 ## Next Action
-Ask which thread. Thread A with Codex findings in hand: apply, merge #125, `git worktree remove ../ThesisTrace-verdict-glyph-radar`, delete the branch. Thread B: pick up Q1's missing verdict, then sections 2/6 and the largest-research-failure item.
+Ask which thread. Thread A with Codex findings in hand: recreate the worktree (command in Resume Point), apply, merge #125, delete branch and worktree. Thread B: pick up Q1's missing verdict, then sections 2/6 and the largest-research-failure item.
 
 ## References
 - `_bmad-output/decision-packets/2026-09-01-CPB.md`
