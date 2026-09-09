@@ -125,6 +125,39 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+class _StrictLoader(yaml.SafeLoader):
+    """SafeLoader that REJECTS duplicate mapping keys instead of silently
+    keeping the last one.
+
+    PyYAML's default behaviour is last-wins, with no warning. For
+    engineering-findings.yaml that is a content-replacement hole underneath
+    `test_every_finding_is_curated`: a second section reusing a curated name
+    silently replaces the first one's entire contents, while both directional
+    curation guards keep passing because the KEY is still present and still
+    listed. Raised by the 2026-09-09 Codex review of PR #133, which correctly
+    identified that curating names protects names, not findings.
+    """
+
+
+def _no_duplicate_keys(loader, node, deep=False):  # noqa: ANN001
+    mapping = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in mapping:
+            raise yaml.constructor.ConstructorError(
+                "while constructing a mapping", node.start_mark,
+                f"duplicate key {key!r} — a later section would silently replace the "
+                "earlier one's contents", key_node.start_mark,
+            )
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
+
+
+_StrictLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _no_duplicate_keys
+)
+
+
 def _kebab(title: str) -> str:
     """`epics.md` story title -> sprint-status key suffix.
 
@@ -459,6 +492,24 @@ def test_every_finding_is_curated(findings):
         "engineering-findings.yaml must be listed there, or its loss is silent. Add "
         "the name in the same change that adds the finding."
     )
+
+
+def test_no_finding_is_silently_replaced_by_a_duplicate_key():
+    """Curating a NAME protects the name, not the finding behind it.
+
+    PyYAML's default loader takes the last of two duplicate top-level keys with
+    no warning, so a second section reusing a curated name replaces the first
+    one's entire contents while BOTH directional curation guards keep passing.
+    Raised by the 2026-09-09 Codex review of PR #133, which found this hole
+    under the guard added earlier that same day.
+
+    Deliberately loads the file itself rather than using the `findings` fixture:
+    by the time PyYAML has resolved duplicates into a dict, the evidence is gone.
+    """
+    try:
+        yaml.load(FINDINGS_PATH.read_text(), Loader=_StrictLoader)
+    except yaml.constructor.ConstructorError as exc:
+        pytest.fail(f"{FINDINGS_PATH.name} has a duplicate top-level key:\n{exc}")
 
 
 def test_the_tracker_holds_only_tracking(status):

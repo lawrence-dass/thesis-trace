@@ -1339,8 +1339,15 @@ every filer-year;
 (2) `_content_hash(taxonomy, concept, unit, start, end, value)` omits dimensions, and `raw_facts` is
 unique on `(accession_number, content_hash)` — two members reporting the same concept, period and
 value collide and one is silently dropped;
-(3) `concept_mappings` is unique on `(mapping_version, canonical_concept, source_taxonomy,
-source_concept)` with no axis or member column, so a dimensioned mapping cannot be expressed at all
+(3) `concept_mappings` has no axis or member column — but this table does NOT drive selection:
+`canonicalize.py:187` reads `SOURCE_TO_CANONICAL`, built from the YAML specs via
+`mappings/engine.py:291`, and the table is an audit projection. A migration alone would therefore
+change nothing about what gets selected, so axis/member-aware mapping is **Story 13.3's** to own end
+to end;
+(4) `canonical_facts` carries a PARTIAL UNIQUE INDEX on `(issuer_cik, canonical_concept,
+fiscal_year, mapping_version) WHERE NOT superseded` (`models.py:163`), so it **structurally cannot
+hold more than one member** under a canonical concept — dimensioned facts have nowhere to live in it,
+and no story may assume otherwise
 **When** this story completes
 **Then** AD-3 gains an explicit rule that a fact carrying dimensions is not a candidate for an
 undimensioned canonical concept — retiring the never-implemented "least-dimensioned/most-specific
@@ -1351,11 +1358,18 @@ Facts wins" clause is recorded as inert for dimensioned facts, because there is 
 candidate to conflict with
 **And** `_content_hash` includes a canonical serialization of `dimensions`, with a test proving two
 facts differing only by member produce different hashes and both persist
-**And** `concept_mappings` can express a dimension-scoped mapping (axis + member), by migration
-**And** a test asserts the contamination guard directly: a dimensioned `us-gaap:Revenues` row present
-in `raw_facts` does not change the canonical `revenue` value or raise an `ambiguous_selection` for
-that filer-year — the test must be confirmed to FAIL against the pre-guard code before this story
-closes, per the standing "a claim of AD conformance is decoration unless a test enforces it" rule
+**And** the story states, as a decision rather than an assumption, **where dimensioned facts live** —
+NOT in `canonical_facts`, whose partial unique index admits one row per
+`(issuer, concept, year, mapping_version)`; Story 13.4 names and migrates the member-aware store, and
+this story's contract is what forbids the shortcut of widening `canonical_facts` in place
+**And** a test asserts the contamination guard directly, covering **both** reachable failure modes
+rather than only the loud one: a dimensioned `us-gaap:Revenues` row in `raw_facts` (a) must not raise
+an `ambiguous_selection` when it disagrees with the consolidated total, and (b) must not become the
+canonical value when it is the **sole** candidate for a filer-year, sits in a preferred filing tier,
+or ties on value and wins on tie-break metadata — mode (b) is the silent one and the reason "it would
+just get flagged" is not a sufficient answer
+**And** the test is confirmed to FAIL against the pre-guard code before this story closes, per the
+standing "a claim of AD conformance is decoration unless a test enforces it" rule
 **And** every AD amendment lands in `ARCHITECTURE-SPINE.md` in the same change as the code, per the
 standing "a superseding decision is not landed until every document it contradicts is updated" rule
 
@@ -1415,10 +1429,23 @@ with the universe, not a one-time write
 **And** an exclusion or a fallback is live-verified with the same rigor as an addition — checking a
 member's *values* in its overlap years, never inferring from its name plus a red flag, per the
 `zts_stale_reverse_dcf_cash_gap` lesson where a name-based exclusion was simply wrong
+**And** this story owns axis/member-aware mapping **end to end** — the YAML spec representation and
+`MappingRule`, the `SOURCE_TO_CANONICAL` lookup that canonicalization actually reads, the
+`concept_mappings` audit projection and its migration, selection behaviour, and their tests. Story
+13.1 establishes only the contract; splitting the mapping across two stories would leave the YAML
+spec and the DB projection able to disagree, which is the shape of the `piotroski_v1.yaml`
+declared-vs-read defect
 **And** `ImpairmentOfIntangibleAssetsIndefinitelivedExcludingGoodwill` is mapped as a distinct
 concept from carrying value, and CPB's
 `TradeNamesCarryingValueWithTenPercentOrLessExcessFairValueCoverageMember` is mapped as a first-class
 early-warning disclosure rather than treated as a curiosity
+**And** the story RESOLVES, from live filings rather than by assumption, whether impairment is
+**brand-dimensioned at all**: the gate finding records CPB's
+`ImpairmentOfIntangibleAssetsIndefinitelivedExcludingGoodwill` appearing under Corporate & Other, not
+under a trademark member. If impairment is only ever a filer- or segment-level event, then "was this
+brand written down?" cannot be answered per brand from XBRL, and Stories 13.4 and 13.7 must say so
+plainly instead of implying a per-brand link the data does not support — the epic's headline claim
+depends on this answer, so it is a blocking question for 13.4, not a detail
 **And** every mapping decision carries a `note` stating the argument (what the tag includes and what
 the alternative excludes), not merely the choice — so a future reader challenging it has the evidence,
 per the BCE debt note that survived exactly that challenge
@@ -1446,8 +1473,16 @@ defect where the two silently disagreed
 **And** ThesisTrace originates **no** threshold: the 10%-or-less band is the filer's own filed
 disclosure and is labelled as such; any presentation guard of our own is explicitly labelled ours,
 per the Cameco caveat rule ("a caveat may annotate a score; it must never alter one")
-**And** the writer has an idempotency key — `pipeline/run.py` is a daily cron over the same canonical
-facts, and a writer without one accumulates a row per night
+**And** this story DEFINES AND MIGRATES the member-aware store that Story 13.1's contract keeps out
+of `canonical_facts`, specifying all four of: the table name; its unique key (which must carry the
+member, e.g. `(issuer_cik, canonical_concept, member, fiscal_year, mapping_version)`); its
+supersession behaviour, following `canonical_facts`' partial-unique-index pattern rather than
+inventing a second one; and the provenance columns needed to satisfy AD-19 down to the member
+**And** the writer's idempotency key is that same unique key — `pipeline/run.py` is a daily cron over
+the same canonical facts, and a writer without one accumulates a row per night
+**And** where Story 13.3 establishes that impairment is NOT brand-dimensioned, this story computes
+and stores it at the level the filing actually supports, and records that level as data — never
+attributing a filer- or segment-level write-down to a specific brand
 **And** a brand with no impairment test disclosed for a year is `insufficient_data` for that year,
 never an assumed "no impairment" (AD-16)
 
@@ -1463,11 +1498,13 @@ cannot support.
 
 **Given** that segment members are stable for CPB across FY2022–FY2025 (verified 4/4 years) but that
 "segment" means product categories at CPB, geographies at ZTS and individual brands at QSR
-**When** segment figures are surfaced
-**Then** they are presented as within-filer, across-time only, and cross-filer segment comparison is
-structurally impossible in the UI — not merely discouraged in copy
-**And** the two verified CPB tag switches are handled as per-filer mappings with their exact
-boundaries recorded: segment profitability `us-gaap:OperatingIncomeLoss` (FY2022–FY2024) →
+**When** segment figures are computed
+**Then** this story owns **computation and storage only**. The mapping of segment tags — including
+the two verified CPB tag switches — belongs to Story 13.3 with the rest of the dimensional mapping,
+and every UI concern belongs to Story 13.7; this story is complete when the figures are correct and
+materialized, whether or not anything renders them
+**And** it consumes 13.3's mappings for the two CPB tag switches rather than defining them, their
+exact boundaries being: segment profitability `us-gaap:OperatingIncomeLoss` (FY2022–FY2024) →
 `cpb:SegmentOperatingEarnings` (FY2025), and segment capex
 `us-gaap:PaymentsToAcquirePropertyPlantAndEquipment` (FY2022–FY2023) →
 `cpb:SegmentExpenditureAdditionToPPE` (FY2024–FY2025)
@@ -1475,9 +1512,11 @@ boundaries recorded: segment profitability `us-gaap:OperatingIncomeLoss` (FY2022
 segment-reporting standard's significant-segment-expense disclosure and are therefore systematic
 across filers at roughly one date — is either confirmed against a second filer or left explicitly
 unconfirmed in the spec `note`, never relied on as though verified
+**And** the stored figures carry the filer's own segment-kind as data (product category / geography /
+brand), so that 13.7 can enforce within-filer-only comparison from a recorded fact rather than from a
+UI convention that a later change could quietly drop
 **And** a filer with no segment axis (SHOP, CP) or a single generic member (OTEX's
-`otex:ReportableSegmentMember`) renders `insufficient_data`, never an empty section that reads as a
-loading failure
+`otex:ReportableSegmentMember`) resolves `insufficient_data`, never a defaulted zero (AD-16)
 
 ### Story 13.6: Golden-dataset coverage for acquisition performance
 
@@ -1493,7 +1532,10 @@ this feature rather than lapsing silently.
 capability has hit that wall (Story 6.7: CP's fixture carried neither a capex nor a cash tag, so all
 seven filers resolved `insufficient_data` while the entries looked complete)
 **When** golden entries are written
-**Then** the fixtures are confirmed to actually carry the dimensioned contexts each new entry
+**Then** the story first SPECIFIES the dimensioned fixture format and who asserts against it — the
+existing harness consumes Company Facts fixtures and scalar canonical facts, and neither shape can
+express a member, so this is new fixture design and not a data top-up
+**And** the fixtures are confirmed to actually carry the dimensioned contexts each new entry
 exercises **before** any entry is written — an entry a fixture cannot reproduce is reworked or the
 fixture is rebuilt from the dev store's own `raw_facts`, never left in place asserting nothing
 **And** each expected value is hand-computed independently, without importing the code that produces
@@ -1515,9 +1557,15 @@ performing?" — is answerable from the page rather than from a manual filing re
 
 **Given** Epic 11's Instrument Panel design system and Epic 10's report shell
 **When** the section renders
-**Then** every figure is an already-computed deterministic value with resolvable provenance to
+**Then** the API's `Provenance` schema is EXTENDED with a `member` field — it currently carries
+`accession_number`, `canonical_concept`, `fiscal_year`, `period_end`, `source_filing_form` and
+`derivation` only (`api/schemas.py:11`), so member-level provenance is unrepresentable today and the
+extension is this story's work, not an assumed capability
+**And** every figure is an already-computed deterministic value with resolvable provenance to
 `(accession_number, xbrl_concept, member, period)` (AD-19, NFR-4) — a value with no resolvable
 provenance is not shown as fact
+**And** within-filer-only comparison is enforced from the segment-kind Story 13.5 stores as data, so
+the constraint survives a later UI change
 **And** the within-10%-of-impairment disclosure is presented as the filer's own filed statement, with
 its status encoded by more than colour alone (AD-16's accessibility floor)
 **And** jargon terms use the existing `Term` inline-definition component rather than new prose
@@ -1550,4 +1598,10 @@ not a defect to fix
 explicitly accepted with a reason), never left open and unexamined — with particular attention to any
 `ambiguous_selection` on a consolidated concept, which would mean Story 13.1's contamination guard
 did not hold
-**And** any defect found is fixed or recorded in `engineering-findings.yaml` before this epic closes
+**And** any defect found is DISPOSITIONED before this epic closes, on a bounded rule rather than an
+open-ended promise to fix whatever turns up: a defect in a surface **this epic built** is fixed here;
+a defect found in a pre-existing surface is RECORDED in `engineering-findings.yaml` with its
+reachability assessed, and fixed here only if it is user-facing and caused by this epic's changes.
+Anything else is logged for its own story — the 2026-09-02 sessions each found two or three unrelated
+live defects while verifying one thing, and absorbing those into a verification story is how a
+closing story becomes unclosable

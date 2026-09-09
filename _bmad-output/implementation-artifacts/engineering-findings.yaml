@@ -5071,3 +5071,26 @@ dimensioned_facts_would_contaminate_consolidated_canonical_facts:
     pre-guard code before that story closes — proving the seam is real rather
     than inferred, per the standing rule that a claim of AD conformance without
     an enforcing test is decoration.
+  corrected_by_review: >
+    2026-09-09 Codex review of PR #133 independently confirmed all three seams
+    against the code and corrected the write-up in two directions.
+    OVERSTATED: "either win the AD-3 rank or raise a spurious
+    ambiguous_selection" is right as a disjunction but wrong if read as "wins by
+    default". A dimensioned fact DISAGREEING with the consolidated total in the
+    same ranking tier raises ambiguous_selection; it wins only when it is the
+    SOLE candidate for a filer-year, sits in a preferred filing tier, or ties on
+    value and wins on tie-break metadata. Short-period and non-FYE dimensional
+    rows are filtered out before any of this. The sole-candidate case is the
+    silent one and is now covered explicitly by 13.1's AC — "it would just get
+    flagged" is not a sufficient answer.
+    UNDERSTATED: `canonical_facts` carries a PARTIAL UNIQUE INDEX on
+    (issuer_cik, canonical_concept, fiscal_year, mapping_version) WHERE NOT
+    superseded (models.py:163), so it structurally cannot retain more than one
+    member under a canonical concept. Dimensioned facts have nowhere to live in
+    it at all — a fourth seam, and the reason Story 13.4 now defines a
+    member-aware store rather than any story widening canonical_facts in place.
+    ALSO CORRECTED (planning, not this finding): seam 3 named
+    `concept_mappings`, but that table does not drive selection —
+    canonicalize.py:187 reads SOURCE_TO_CANONICAL, built from the YAML specs via
+    mappings/engine.py:291, and the table is an audit projection. A migration
+    alone would have changed nothing.
