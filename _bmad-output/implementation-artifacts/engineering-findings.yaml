@@ -4914,3 +4914,60 @@ segment_and_brand_intangible_tagging_across_filers:
     intangible tagging; recheck before decomposition. CP, OTEX, and the three
     IFRS filers (BCE, SU, CCJ) were not checked at all — IFRS uses different
     segment and intangible axes entirely and needs its own pass.
+
+acquisition_epic_scoped_to_us_gaap_filers:
+  status: done
+  found: 2026-09-08
+  found_by: >
+    Lawrence scoped the acquisition-performance epic to US filers on
+    2026-09-08 ("let's focus more on US stocks as they have better data").
+    Completed the US-GAAP survey to see what the feature would actually cover.
+  decision: >
+    The epic targets US-GAAP 10-K filers only. BCE, SU and CCJ (40-F / IFRS)
+    are DELIBERATELY out of scope — they will render insufficient_data for
+    this feature under AD-16, and that is correct behaviour, NOT a defect.
+    Consistent with D11 (universe follows the researcher, US-primary in
+    practice); D8's IFRS technical support stands untouched for every other
+    feature. DO NOT "fix" the IFRS gap for this epic without a new decision —
+    same class as the BCE FY2023 debt note that reads like a tag-switch bug
+    and is a recorded comparability choice.
+  finding: >
+    Full US-GAAP survey, latest 10-K instance per filer:
+    CPB   601 contexts | 3 segments (product categories) | RICH brand
+          intangibles (TrademarksRaos/KettleBrand/CapeCod/Lance/LateJuly/
+          Noosa, CustomerRelationshipsNoosa, and a trade-names-within-10%-of-
+          impairment member)
+    QSR   562 contexts | 7 segments — INDIVIDUAL BRANDS (Burger King, Tim
+          Hortons, Popeyes, Firehouse Subs) | FranchiseRights, TradeNames,
+          qsr:FranchiseAgreement
+    ZTS   473 contexts | 4 segments (geographies) | zts:Brands,
+          zts:ProductRights, DevelopedTechnologyRights, IPR&D
+    OTEX  556 contexts | 1 generic otex:ReportableSegmentMember | customer /
+          technology / software intangibles only — no brands
+    SHOP  333 contexts | NO segment axis (single-segment company) |
+          technology / customer intangibles only — no brands
+    CP    640 contexts | NO segment axis | NO intangible-class members
+    Coverage: the headline feature resolves for 3 of 6 (CPB, QSR, ZTS) and is
+    correctly insufficient_data for 3 (OTEX, SHOP, CP).
+  why_partial_coverage_is_correct_here: >
+    The three filers where it does not resolve are a railroad and two
+    single-product software companies. They do not buy brands, so there is
+    nothing to report — the absence is the honest answer, not a coverage gap.
+    The feature applies to acquisitive multi-brand companies, which is exactly
+    the population where "did the acquisition work" is a live question.
+    QSR is the strongest case in the universe: it reports each acquired brand
+    AS a segment, so post-acquisition performance is directly readable.
+  trap_found_along_the_way: >
+    SELECTING A FILING WITH max(accession_number) RETURNS THE 10-K/A, NOT THE
+    10-K. Bit twice in one session. SHOP's 0001594805-26-000011 and CP's
+    0001193125-26-173665 are both AMENDMENTS — ~12-13 KB instances with 7
+    contexts, which looks exactly like a failed download. The real filings are
+    0001594805-26-000007 (2.27 MB) and 0000016875-26-000008 (3.54 MB).
+    Amendments carry only the amended portion. Any query picking "the latest
+    filing" must filter form_type = '10-K' exactly, or order by filing date
+    among originals — never max(accession_number) across '10-K%'.
+  also_found: >
+    SHOP only began filing 10-K with FY2024 (filed 2025-02-11). Every prior
+    annual report FY2016-FY2023 is a 40-F, and FY2015 a 20-F. Its annual
+    history is split across form types at that boundary — relevant to any
+    feature reading SHOP's filing history, not just this epic.
