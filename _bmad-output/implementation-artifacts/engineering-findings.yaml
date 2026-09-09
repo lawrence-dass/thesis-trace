@@ -4971,3 +4971,68 @@ acquisition_epic_scoped_to_us_gaap_filers:
     annual report FY2016-FY2023 is a 40-F, and FY2015 a 20-F. Its annual
     history is split across form types at that boundary — relevant to any
     feature reading SHOP's filing history, not just this epic.
+
+dimensioned_facts_would_contaminate_consolidated_canonical_facts:
+  status: open
+  found: 2026-09-08
+  found_by: >
+    Decomposing the acquisition-performance epic (Epic 13) into stories. Not a
+    spike — found by reading canonicalize.py, models.py and us-gaap_v12.yaml to
+    write Story 13.1's acceptance criteria honestly, per the standing test
+    "can its acceptance criteria be written truthfully today?".
+  question: >
+    What happens to the EXISTING consolidated canonical facts when the epic's
+    new ingestion path starts writing dimensioned rows into raw_facts?
+  finding: >
+    THREE SEAMS, none of which any live data has ever exercised, because the
+    only ingestion source in production (SEC Company Facts) carries no
+    dimensions at all (see company_facts_api_carries_no_segment_dimensions).
+    (1) CONTAMINATION. canonicalize.py's candidate grouping (the loop building
+    `grouped[(canonical, rf.period_end.year)]`) filters on taxonomy, concept,
+    full-year duration, fiscal-year-end match and the two exclusion lists, and
+    NEVER reads rf.dimensions. Meanwhile us-gaap:Revenues,
+    CostOfGoodsAndServicesSold, OperatingIncomeLoss and
+    PaymentsToAcquirePropertyPlantAndEquipment are all mapped canonical sources
+    in us-gaap_v12.yaml, and all four are exactly the tags CPB reports PER
+    SEGMENT on StatementBusinessSegmentsAxis (per
+    cpb_segment_members_stable_but_tags_switch). So a segment-level revenue row
+    would land in the SAME candidate group as consolidated revenue, disagree
+    with it, and either win the AD-3 rank or raise a spurious
+    ambiguous_selection for every affected filer-year.
+    (2) HASH COLLISION. _content_hash(taxonomy, concept, unit, start, end,
+    value) in ingestion/company_facts.py omits dimensions entirely, and
+    raw_facts is unique on (accession_number, content_hash). Two members
+    reporting the same concept, period and value collide on that constraint and
+    one is silently dropped.
+    (3) UNEXPRESSIBLE MAPPING. concept_mappings is unique on (mapping_version,
+    canonical_concept, source_taxonomy, source_concept) and has no axis or
+    member column, so a dimension-scoped mapping cannot be written at all.
+  why_ad_3_did_not_catch_this: >
+    AD-3 rule (2) is "least-dimensioned/most-specific member" — the spine DID
+    anticipate dimensioned candidates. It was never implemented, and never
+    needed to be, because no source produced a dimension. The schema shows the
+    same half-anticipation: raw_facts.dimensions (JSONB) and source =
+    'inline_xbrl' both already exist and nothing populates or reads either.
+    A rule that is correct in the spine and absent in the code reads identically
+    to a rule that is enforced, until the first fact exercises it.
+  same_shape_as: >
+    canonical_facts_amendment_gap (2026-09-02): "two ADs can contradict each
+    other silently when no live data exercises the seam." Here AD-4 licenses an
+    ingestion path whose output AD-3's implementation would systematically
+    mis-handle. Different mechanism, identical lesson — and this time it was
+    caught BEFORE the data existed rather than after, which is the only reason
+    it is cheap.
+  impact: >
+    Blocking for Epic 13. Story 13.1 exists solely to close all three before
+    Story 13.2 writes a single dimensioned row; the ordering is recorded in
+    sprint-status.yaml's development_status comment. If 13.2 were built first,
+    the failure would present as consolidated revenue changing value or as
+    ambiguous_selection rows appearing across the universe — i.e. as a
+    canonicalization regression, far from its actual cause.
+  not_verified_yet: >
+    Read from the code, not executed. The contamination has NOT been reproduced
+    against a live dimensioned row, because no such row exists yet. Story 13.1's
+    AC therefore requires the guard test to be confirmed FAILING against the
+    pre-guard code before that story closes — proving the seam is real rather
+    than inferred, per the standing rule that a claim of AD conformance without
+    an enforcing test is decoration.
