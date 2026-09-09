@@ -4809,3 +4809,108 @@ segment_data_reachable_but_raos_is_not_a_segment:
     re-segment, and CPB reorganised around Sovos), nor whether other universe
     filers tag TrademarksXMember-style intangibles at all. Both must be
     answered before decomposition. Do not assume this generalises.
+
+cpb_segment_members_stable_but_tags_switch:
+  status: done
+  found: 2026-09-08
+  found_by: >
+    Second gate question for the redirected acquisition-performance epic
+    (the first being segment_data_reachable_but_raos_is_not_a_segment).
+    Compared CPB's 10-K XBRL instances for FY2022, FY2023, FY2024 and FY2025
+    directly — accessions 0000016732-22-000093, -23-000109, -24-000130,
+    -25-000112.
+  question: >
+    Are CPB's reportable segments stable across years? A filer that
+    re-segments breaks year-over-year comparison even with perfect ingestion,
+    and CPB reorganised around the Sovos acquisition.
+  finding: >
+    MEMBERS ARE STABLE, TAGS ARE NOT — two separate answers.
+    (1) Members: us-gaap:StatementBusinessSegmentsAxis carries exactly
+    cpb:MealsBeveragesMember, cpb:SnacksMember and
+    us-gaap:CorporateAndOtherMember in ALL FOUR years, unchanged straight
+    through the acquisition. The re-segmentation risk does not apply to CPB.
+    (2) Concepts tagged on that axis grow 15 -> 16 -> 21 -> 24 across the
+    years, and two are clean TAG SWITCHES with exact boundaries:
+    segment profitability us-gaap:OperatingIncomeLoss (FY2022-FY2024) ->
+    cpb:SegmentOperatingEarnings (FY2025 only); segment capex
+    us-gaap:PaymentsToAcquirePropertyPlantAndEquipment (FY2022-FY2023) ->
+    cpb:SegmentExpenditureAdditionToPPE (FY2024-FY2025).
+    us-gaap:Revenues and us-gaap:Goodwill are stable 4/4 years.
+    ImpairmentOfIntangibleAssetsIndefinitelivedExcludingGoodwill appears from
+    FY2024; per-segment CostOfGoodsAndServicesSold from FY2025 only.
+  why_this_costs_more_than_an_ordinary_tag_switch: >
+    Both switches run standard us-gaap -> CUSTOM cpb: tag. A custom tag is
+    filer-specific by construction, so cpb:SegmentOperatingEarnings is
+    meaningless for ZTS or any other filer, which will have coined its own.
+    The mapping spec therefore needs not two tags for the concept but
+    PER-FILER tags — work that scales with the universe instead of being
+    written once. Same class as CP's FY2021 PP&E switch already recorded in
+    project-context.md, arriving exactly where that lesson predicted.
+  unverified_hypothesis: >
+    The FY2025 additions (SegmentOperatingEarnings, per-segment
+    CostOfGoodsAndServicesSold, SegmentReportingOtherItemAmount) have the
+    shape of the new segment-reporting standard's significant-segment-expense
+    disclosure. If so the switch is SYSTEMATIC across filers at roughly one
+    date rather than a CPB quirk, which would make it predictable and cheaper
+    to handle. NOT confirmed — inferred from timing and shape only. Worth
+    checking against a second filer before relying on it.
+  gate_verdict: >
+    PASSES with a cost adjustment. Segments are stable and segment revenue is
+    reliably tagged, so the feature is buildable; per-filer custom-tag mapping
+    becomes a known line item rather than a mid-epic surprise.
+
+segment_and_brand_intangible_tagging_across_filers:
+  status: done
+  found: 2026-09-08
+  found_by: >
+    Third and final gate question for the redirected acquisition-performance
+    epic — whether anything found on CPB generalises. Fetched the latest 10-K
+    XBRL instances for ZTS, QSR and SHOP and compared against CPB FY2025.
+  question: >
+    Do other universe filers tag business segments and brand-level intangibles
+    at all, and do they use the same tags CPB does?
+  finding: >
+    The BRAND-INTANGIBLE route generalises; the SEGMENT route does not mean the
+    same thing twice.
+    (1) Segment members differ in KIND per filer, not just in name.
+    CPB: product categories (Meals & Beverages, Snacks, Corporate & Other).
+    ZTS: geographies (United States, International, Manufacturing/Research/
+    Corporate, All Other). QSR: individual BRANDS (Burger King, Tim Hortons,
+    Popeyes, Firehouse Subs, plus International and Restaurant Holdings).
+    So "segment" is a filer-defined concept: cross-filer segment comparison is
+    meaningless, though within one filer over time it is sound.
+    (2) Brand/product intangible members exist for every filer checked:
+    cpb:TrademarksRaosMember, TrademarksKettleBrandMember, TrademarksCapeCod-
+    Member, TrademarksLanceMember, TrademarksLateJulyMember, Trademarks-
+    NoosaMember, CustomerRelationshipsNoosaMember (CPB); zts:BrandsMember,
+    zts:ProductRightsMember, us-gaap:DevelopedTechnologyRightsMember,
+    InProcessResearchAndDevelopmentMember (ZTS); us-gaap:FranchiseRightsMember,
+    TradeNamesMember, qsr:FranchiseAgreementMember (QSR).
+    (3) Custom-tag burden on the segment axis is real but bounded:
+    CPB 5 of 24 concepts custom, QSR 4 of 17, ZTS 1 of 9.
+    (4) QSR is the strongest case for the epic's premise — it reports each
+    acquired brand AS a segment, so "how is Firehouse Subs performing since we
+    bought it" is directly answerable there, unlike CPB where Rao's is buried
+    inside Meals & Beverages.
+  notable: >
+    CPB tags cpb:TradeNamesCarryingValueWithTenPercentOrLessExcessFairValue-
+    CoverageMember — a disclosure flagging trade names whose fair value exceeds
+    carrying value by 10% or less, i.e. brands close to impairment. That is a
+    direct, filed, early-warning signal that an acquired brand is deteriorating
+    BEFORE a write-down lands. Worth treating as a first-class target of the
+    epic rather than a curiosity.
+  consequence_for_the_epic: >
+    Build on the INTANGIBLES axis first, not the segment axis. Brand-level
+    carrying value plus impairment generalises across all three filers checked
+    and answers the packet's question directly; segment data is a per-filer
+    bonus whose meaning varies (product vs geography vs brand) and which cannot
+    be compared across the universe. This further strengthens the 2026-09-08
+    redirect rather than qualifying it.
+  not_verified_yet: >
+    SHOP UNRESOLVED. Its fetched instance (shop-20251231_htm.xml) is 12,658
+    bytes with 7 contexts, in a filing folder of only 20 files against CPB's
+    158 — inconsistent with a full 10-K and probably an amendment or a
+    different document structure. NO conclusion drawn about SHOP's segment or
+    intangible tagging; recheck before decomposition. CP, OTEX, and the three
+    IFRS filers (BCE, SU, CCJ) were not checked at all — IFRS uses different
+    segment and intangible axes entirely and needs its own pass.
