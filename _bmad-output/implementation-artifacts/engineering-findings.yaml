@@ -4743,3 +4743,69 @@ company_facts_api_carries_no_segment_dimensions:
     select what the CPB packet's largest-research-failure item points at —
     D9 selection remains Lawrence's, and the packet's "What this selects"
     field is still open. This spike only establishes the price.
+
+segment_data_reachable_but_raos_is_not_a_segment:
+  status: done
+  found: 2026-09-08
+  found_by: >
+    Gate spike for the epic the CPB decision packet selected, run BEFORE any
+    decomposition (the packet sequenced it that way explicitly, mirroring
+    Story 6.1 before Epic 6). Follows
+    company_facts_api_carries_no_segment_dimensions, which established that
+    the data is not in the summary API — this one asks whether it is reachable
+    in the filing documents, and whether it actually answers the question.
+  question: >
+    Can segment- and acquisition-level figures be extracted from a filing's
+    XBRL instance, and would they answer the packet's blocking question —
+    "are the Sovos Brands / Rao's acquisitions actually performing?"
+  finding: >
+    Reachable: YES. Answers the question as originally framed: NO.
+    Fetched CPB's FY2025 10-K instance (cpb-20250803_htm.xml, 3.76 MB, 601
+    contexts, accession 0000016732-25-000112). Dimensional contexts are richly
+    present — FairValueByFairValueHierarchy, DerivativeInstrumentRisk,
+    StatementEquityComponents, DebtInstrument, RestructuringPlan and ~20 more.
+    (1) SEGMENTS: us-gaap:StatementBusinessSegmentsAxis carries exactly THREE
+    members — cpb:MealsBeveragesMember, cpb:SnacksMember and
+    us-gaap:CorporateAndOtherMember. Per segment the filing tags MORE than
+    expected: us-gaap:Revenues, cpb:SegmentOperatingEarnings,
+    us-gaap:CostOfGoodsAndServicesSold, DepreciationDepletionAndAmortization,
+    cpb:SegmentExpenditureAdditionToPPE (capex), us-gaap:Goodwill, and
+    restructuring charges. An earlier estimate in this session of "roughly
+    sales and operating profit" UNDERSTATED it.
+    (2) THE BLOCKER: Rao's is NOT a segment. It sits inside Meals & Beverages
+    alongside soup and Prego, so segment ingestion alone reproduces exactly the
+    masking the packet complained of — a thriving Rao's and a failing Rao's
+    look identical once blended with soup.
+    (3) THE REDIRECT: Rao's IS tagged, on two other axes.
+    us-gaap:IndefiniteLivedIntangibleAssetsByMajorClassAxis carries
+    cpb:TrademarksRaosMember with us-gaap:IndefiniteLivedIntangibleAssets-
+    ExcludingGoodwill (carrying value) and IndefinitelivedIntangibleAssets-
+    Acquired. us-gaap:BusinessAcquisitionAxis carries
+    cpb:SovosBrandsAcquisitionMember (purchase accounting — consideration
+    transferred, assets acquired: one-time deal mechanics, not performance).
+    cpb:SovosInitiativesMember sits on RestructuringPlanAxis (integration
+    charges). ImpairmentOfIntangibleAssetsIndefinitelivedExcludingGoodwill is
+    live in the filing under Corporate & Other.
+  why_the_intangible_route_is_better: >
+    An indefinite-lived intangible must be impairment-tested annually. A Rao's
+    trademark still carried at full value is management AND the auditors
+    asserting each year that the thing is still worth what was paid; a
+    write-down is a dated, signed admission that it is not. That is a sharper
+    answer to "is the acquisition performing" than segment revenue could give,
+    because it is the acquirer's own verdict on the purchase rather than a
+    figure the reader must interpret — and it is scoped to one concept on one
+    axis rather than a general segment capability.
+  impact: >
+    The epic the packet selected is NOT void but is REDIRECTED: headline
+    becomes acquisition-performance tracking (trademark carrying value,
+    impairment, segment goodwill), with segment revenue/earnings as a
+    secondary payload. The expensive half — a second ingestion path parsing
+    dimensional contexts from instance documents — is unchanged and is
+    justified by either framing; which concepts get mapped is the cheap half.
+    Confirmed with Lawrence 2026-09-08.
+  not_verified_yet: >
+    ONE filing, ONE filer. Did not check whether CPB's segment members are
+    stable across years (the packet's second spike question — companies
+    re-segment, and CPB reorganised around Sovos), nor whether other universe
+    filers tag TrademarksXMember-style intangibles at all. Both must be
+    answered before decomposition. Do not assume this generalises.
