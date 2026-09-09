@@ -4687,3 +4687,59 @@ otex_shares_outstanding_scale_error_fy2007_fy2009:
     catalog rows (Q1.6, Q3.3) plus one browser spot-check in the same
     session, all three from features that had shipped and been believed
     correct.
+
+company_facts_api_carries_no_segment_dimensions:
+  status: done
+  found: 2026-09-08
+  found_by: >
+    The CPB decision packet (2026-09-01-CPB.md) named "are the Sovos Brands /
+    Rao's acquisitions actually performing" as its largest research failure.
+    Before letting that select an epic under D9, spiked whether segment-level
+    data is reachable at all from the current ingestion source.
+  question: >
+    Can ThesisTrace surface segment- or brand-level revenue/margin for a filer
+    — i.e. is a "segment ingestion" epic an extension of the existing pipeline,
+    or a new one? Does the SEC company-facts API carry dimensional data?
+  finding: >
+    No. The company-facts API serves ONLY consolidated, undimensioned values,
+    for every filer, year and concept. Verified three ways, cheapest first.
+    (1) Dev store: 0 of CPB's 11,151 raw_facts carry dimensions, and 0 of
+    65,291 across ALL issuers; every row's `source` is `company_facts` — one
+    ingestion source, no others. (2) Code: `raw_facts.dimensions` (jsonb) is
+    declared at app/models.py:129 and written by NOTHING — the column is
+    vestigial, and ingestion/company_facts.py:105-113 walks
+    facts[taxonomy][concept]["units"][unit] -> flat scalar entries, a shape
+    with nowhere for a segment axis to live. (3) Live SEC fetch of
+    CIK0000016732 company-facts (4.6 MB, 664 concepts, 3 taxonomies, 30,948
+    fact entries): the COMPLETE set of keys present on any entry is
+    end/val/accn/fy/fp/form/filed/start/frame. No dim, member, axis, segment
+    or context field exists in the payload at all.
+    The only segment-named concepts SEC serves for CPB are counts:
+    NumberOfOperatingSegments (FY2013-2015), NumberOfReportableSegments
+    (FY2026), EntityWideRevenueMajorCustomerPercentage (FY2013). The product
+    can say how many segments Campbell's has and not one figure about any.
+  root_cause: >
+    Structural, not an oversight. company-facts flattens XBRL by design: it
+    returns each concept as one time series of scalars, which is only coherent
+    BECAUSE dimensional contexts are discarded — two facts tagged Revenue for
+    the same period (Meals & Beverages vs Snacks) would collide in that shape,
+    so only the consolidated one is served. This is a property of the data
+    foundation the whole product is built on, not a CPB or mapping gap.
+  impact: >
+    Re-prices any segment-level epic. It is NOT an extension of the existing
+    pipeline (new mapping-spec rows, new concepts) but a SECOND ingestion path
+    against raw XBRL instance documents attached to each filing — different
+    document type, different parser, its own AD-3-style tiebreak rules for
+    dimensional contexts, and per-filer live verification all over again.
+    Foundation-level cost. Any future "add segment data" proposal that assumes
+    the existing pipeline can be extended is wrong on its premise.
+  reusable_conclusion: >
+    Do NOT re-fetch to answer this. It generalizes to every filer and every
+    concept, and applies equally to any future request for geographic splits,
+    product-line splits, or major-customer detail — all of them live in
+    dimensional contexts the company-facts API does not serve.
+  not_in_scope_this_pass: >
+    Did not build segment ingestion, did not decompose an epic, and did not
+    select what the CPB packet's largest-research-failure item points at —
+    D9 selection remains Lawrence's, and the packet's "What this selects"
+    field is still open. This spike only establishes the price.
