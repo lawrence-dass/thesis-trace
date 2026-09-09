@@ -1,0 +1,84 @@
+# /optimize-context run — ThesisTrace
+date: 2026-09-09
+mode: selective
+premise_corrected: >
+  The run was triggered on a token-pressure premise that measurement did not
+  support. Always-loaded context was ~7,400 tokens against CLAUDE.md's own
+  <25,000 session-start target (30% of budget), and archival was already
+  disciplined. Nothing needed trimming for size. The value delivered was two
+  real defects found while auditing, not tokens saved. Record this: the next
+  run should measure before assuming pressure.
+
+before:
+  claude_md: 104
+  project_context_md: 197
+  current_md: 70
+  always_loaded_total: 371
+  always_loaded_tokens_est: 7420
+after:
+  claude_md: 104
+  project_context_md: 197
+  current_md: 70
+  always_loaded_total: 371
+  always_loaded_tokens_est: 7420
+lines_saved: 0
+
+archived: []          # archival already healthy: 26 handoffs + the 2026-07-29 narrative, none loaded
+modified:
+  - file: backend/tests/test_sprint_status.py
+    change: >
+      Added the 20 unprotected finding names to CURATED_SECTIONS and added
+      test_every_finding_is_curated enforcing exists -> listed. Confirmed to
+      FAIL before commit.
+  - file: _bmad-output/implementation-artifacts/engineering-findings.yaml
+    change: >
+      Added the `superseded_by:` convention to the header and applied
+      not_verified_yet_superseded_by to segment_and_brand_intangible_tagging_
+      across_filers. Original caveat retained.
+  - file: .claude/context/project-context.md
+    change: >
+      Consolidated the conformance rule into one canonical statement carrying
+      all six instances; three restatements shortened to cross-references.
+      Net zero lines — bought findability, not headroom.
+skipped:
+  - item: compress the epic_catalog / development_status entry (~9 lines)
+    reason: not selected by Lawrence; still available
+  - item: fold the two CLAUDE.md duplications (~6 lines)
+    reason: not selected; would also remove a live drift surface (the standing
+      preferences have already diverged 4 vs 3 items between the two files)
+  - item: correct the stale "nine test files" fixture count (now 10)
+    reason: not selected; the tech-debt note understates the debt
+
+defects_found:
+  - name: curated_sections_guard_was_one_directional
+    severity: high
+    detail: >
+      test_curated_sections_survive checked listed -> exists only. 20 of 47
+      findings were unprotected — everything since ~Story 10.4, including all
+      five 2026-09-08 gate findings and all three defects found live on
+      2026-09-02. The guard passed every run while covering less and less.
+      Same class as the conformance rule it is now cross-referenced to.
+    status: fixed
+  - name: findings_file_had_no_supersession_mechanism
+    severity: medium
+    detail: >
+      Entries are read in file order with no link between an earlier caveat and
+      the later entry that answers it. Cost real time on 2026-09-09 when a
+      resuming session read gate-3's not_verified_yet as live work.
+    status: fixed
+
+health_score: 88
+rating: GOOD
+score_notes: >
+  -6 CLAUDE.md is 104 lines against a 60-line target, but the excess is the Git
+  workflow and live-data DoD sections, both earned by real incidents; compressing
+  them is risk, not savings. -4 project-context.md sits at 197/200 with no
+  headroom, and the two trims that would create it were declined. -2 CURRENT.md
+  at 70 vs 50, inflated by a deliberately detailed Resume Point.
+  Reference integrity full marks: the one unresolved path (`HANDOFF.md`) is
+  self-explaining — the same sentence names its archive location.
+
+next_trigger: >
+  After Epic 13 closes, or when project-context.md must grow and cannot. The
+  file to watch is project-context.md, not CLAUDE.md — it is at its ceiling and
+  every epic adds learnings.
