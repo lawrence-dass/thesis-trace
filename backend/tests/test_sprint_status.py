@@ -89,11 +89,72 @@ CURATED_SECTIONS = (
     "story_12_3_canonicalization",
     "story_12_4_golden_dataset",
     "story_12_5_pipeline_inclusion_and_browser_verification",
+    # Added 2026-09-09 by an /optimize-context audit, which found TWENTY of the
+    # 47 findings unprotected — everything appended since ~Story 10.4. The guard
+    # below only checked listed -> exists, never exists -> listed, so it kept
+    # passing while silently covering less and less. That is the conformance rule
+    # again (project-context.md, 2026-08-13): the file header promised "a section
+    # may only disappear if CURATED_SECTIONS drops it in the same change", which
+    # was true only of the sections somebody remembered to add.
+    # `test_every_finding_is_curated` now enforces the other direction.
+    "story_10_4_browser_verification",
+    "story_10_5_browser_verification",
+    "story_10_6_browser_verification",
+    "story_10_7_full_universe_verification",
+    "story_11_8_full_universe_verification",
+    "story_11_9_methodology_pages",
+    "story_11_9_code_review_and_fixes",
+    "story_11_9_code_review_round_2",
+    "verdict_grid_caveat_reason_missing",
+    "q1_6_capex_vs_da_live_verification",
+    "otex_capex_sign_error_fy2007_fy2009",
+    "zts_stale_reverse_dcf_cash_gap",
+    "q3_3_achieved_vs_implied_growth_live_verification",
+    "otex_shares_outstanding_scale_error_fy2007_fy2009",
+    "company_facts_api_carries_no_segment_dimensions",
+    "segment_data_reachable_but_raos_is_not_a_segment",
+    "cpb_segment_members_stable_but_tags_switch",
+    "segment_and_brand_intangible_tagging_across_filers",
+    "acquisition_epic_scoped_to_us_gaap_filers",
+    "dimensioned_facts_would_contaminate_consolidated_canonical_facts",
 )
 
 pytestmark = pytest.mark.skipif(
     not STATUS_PATH.exists() or not EPICS_PATH.exists(),
     reason="BMad planning artifacts not present in this checkout",
+)
+
+
+class _StrictLoader(yaml.SafeLoader):
+    """SafeLoader that REJECTS duplicate mapping keys instead of silently
+    keeping the last one.
+
+    PyYAML's default behaviour is last-wins, with no warning. For
+    engineering-findings.yaml that is a content-replacement hole underneath
+    `test_every_finding_is_curated`: a second section reusing a curated name
+    silently replaces the first one's entire contents, while both directional
+    curation guards keep passing because the KEY is still present and still
+    listed. Raised by the 2026-09-09 Codex review of PR #133, which correctly
+    identified that curating names protects names, not findings.
+    """
+
+
+def _no_duplicate_keys(loader, node, deep=False):  # noqa: ANN001
+    mapping = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in mapping:
+            raise yaml.constructor.ConstructorError(
+                "while constructing a mapping", node.start_mark,
+                f"duplicate key {key!r} — a later section would silently replace the "
+                "earlier one's contents", key_node.start_mark,
+            )
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
+
+
+_StrictLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _no_duplicate_keys
 )
 
 
@@ -407,6 +468,48 @@ def test_curated_sections_survive(findings, status):
         f"finding(s) back in sprint-status.yaml: {strayed}. The tracker records what "
         "is DONE and what is LEFT; findings belong in engineering-findings.yaml."
     )
+
+
+def test_every_finding_is_curated(findings):
+    """The other direction of the guard above — and the reason it was needed.
+
+    That test checks listed -> exists. It never checked exists -> listed, so a
+    finding appended without being added to CURATED_SECTIONS was simply not
+    protected, and nothing said so. On 2026-09-09 an /optimize-context audit found
+    TWENTY of 47 findings in that state: everything appended since roughly Story
+    10.4, including all five of the 2026-09-08 acquisition-epic gate findings and
+    all three defects found live on 2026-09-02.
+
+    The guard had been degrading for weeks while passing every run, which is this
+    project's most-repeated bug class in its purest form: the file header promised
+    "a section may only disappear if CURATED_SECTIONS drops it in the same change"
+    and that was true only of the sections somebody remembered to list. Nothing
+    failed when the promise was false. Confirmed to bite before being committed.
+    """
+    uncurated = sorted(k for k in findings if k not in CURATED_SECTIONS)
+    assert not uncurated, (
+        f"finding(s) not in CURATED_SECTIONS: {uncurated}. Every top-level section of "
+        "engineering-findings.yaml must be listed there, or its loss is silent. Add "
+        "the name in the same change that adds the finding."
+    )
+
+
+def test_no_finding_is_silently_replaced_by_a_duplicate_key():
+    """Curating a NAME protects the name, not the finding behind it.
+
+    PyYAML's default loader takes the last of two duplicate top-level keys with
+    no warning, so a second section reusing a curated name replaces the first
+    one's entire contents while BOTH directional curation guards keep passing.
+    Raised by the 2026-09-09 Codex review of PR #133, which found this hole
+    under the guard added earlier that same day.
+
+    Deliberately loads the file itself rather than using the `findings` fixture:
+    by the time PyYAML has resolved duplicates into a dict, the evidence is gone.
+    """
+    try:
+        yaml.load(FINDINGS_PATH.read_text(), Loader=_StrictLoader)
+    except yaml.constructor.ConstructorError as exc:
+        pytest.fail(f"{FINDINGS_PATH.name} has a duplicate top-level key:\n{exc}")
 
 
 def test_the_tracker_holds_only_tracking(status):

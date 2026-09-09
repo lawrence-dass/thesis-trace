@@ -22,6 +22,27 @@
 # ADDING A FINDING: append a top-level section, add its name to
 # CURATED_SECTIONS in backend/tests/test_sprint_status.py, and give it a
 # `status:` of open|done. Do NOT put it in sprint-status.yaml.
+# (`test_every_finding_is_curated` enforces the CURATED_SECTIONS step as of
+# 2026-09-09 — twenty findings had been added without it.)
+#
+# SUPERSESSION — `superseded_by:` (convention added 2026-09-09)
+# This file has no supersession mechanism, and entries are read in FILE ORDER,
+# so an earlier entry's caveat sits on disk looking current forever even after a
+# later entry has answered it. This is not hypothetical: on 2026-09-09 a session
+# resuming from the handover read `segment_and_brand_intangible_tagging_across_
+# filers`' `not_verified_yet` block ("SHOP UNRESOLVED... CP, OTEX and the three
+# IFRS filers were not checked at all") as live work, when the very next entry —
+# `acquisition_epic_scoped_to_us_gaap_filers` — had already surveyed all six
+# US-GAAP filers including SHOP and put the IFRS filers formally out of scope.
+# Nothing linked them, and re-fetching on its account would have burned a
+# permission ask on a question already answered (DoD rule 2).
+#
+# So: when a later entry answers, narrows or overturns an earlier one, add to the
+# EARLIER entry a `superseded_by:` naming the later section and stating what it
+# settled. Put it directly on the field it supersedes where that field is a
+# caveat (`not_verified_yet_superseded_by:`), so a reader hitting the caveat sees
+# the answer without scrolling. Never delete the original caveat — it is the
+# record of what was true when written.
 #
 # INDEX (status as of 2026-09-01)
 #   reference                  epic_decomposition_rationale   (from epic_catalog)
@@ -4914,6 +4935,20 @@ segment_and_brand_intangible_tagging_across_filers:
     intangible tagging; recheck before decomposition. CP, OTEX, and the three
     IFRS filers (BCE, SU, CCJ) were not checked at all — IFRS uses different
     segment and intangible axes entirely and needs its own pass.
+  not_verified_yet_superseded_by: >
+    CLOSED 2026-09-08 by `acquisition_epic_scoped_to_us_gaap_filers`, the very
+    next entry in this file — do NOT re-fetch on this caveat's account.
+    SHOP resolved: the 12,658-byte instance was an AMENDMENT (0001594805-26-
+    000011), selected by the max(accession_number) trap; the real 10-K is
+    0001594805-26-000007 (2.27 MB, 333 contexts) and shows SHOP has NO segment
+    axis and no brand intangibles. CP and OTEX were both surveyed there too
+    (CP: no segment axis, no intangible-class members; OTEX: one generic
+    otex:ReportableSegmentMember, no brands). The three IFRS filers no longer
+    need a pass: the epic was scoped to US-GAAP filers by Lawrence on
+    2026-09-08, and BCE/SU/CCJ are deliberately out of scope under AD-16.
+    Recorded 2026-09-09 after this caveat was read as live work by a resuming
+    session — the incident that prompted the `superseded_by:` convention in this
+    file's header.
 
 acquisition_epic_scoped_to_us_gaap_filers:
   status: done
@@ -4971,3 +5006,91 @@ acquisition_epic_scoped_to_us_gaap_filers:
     annual report FY2016-FY2023 is a 40-F, and FY2015 a 20-F. Its annual
     history is split across form types at that boundary — relevant to any
     feature reading SHOP's filing history, not just this epic.
+
+dimensioned_facts_would_contaminate_consolidated_canonical_facts:
+  status: open
+  found: 2026-09-08
+  found_by: >
+    Decomposing the acquisition-performance epic (Epic 13) into stories. Not a
+    spike — found by reading canonicalize.py, models.py and us-gaap_v12.yaml to
+    write Story 13.1's acceptance criteria honestly, per the standing test
+    "can its acceptance criteria be written truthfully today?".
+  question: >
+    What happens to the EXISTING consolidated canonical facts when the epic's
+    new ingestion path starts writing dimensioned rows into raw_facts?
+  finding: >
+    THREE SEAMS, none of which any live data has ever exercised, because the
+    only ingestion source in production (SEC Company Facts) carries no
+    dimensions at all (see company_facts_api_carries_no_segment_dimensions).
+    (1) CONTAMINATION. canonicalize.py's candidate grouping (the loop building
+    `grouped[(canonical, rf.period_end.year)]`) filters on taxonomy, concept,
+    full-year duration, fiscal-year-end match and the two exclusion lists, and
+    NEVER reads rf.dimensions. Meanwhile us-gaap:Revenues,
+    CostOfGoodsAndServicesSold, OperatingIncomeLoss and
+    PaymentsToAcquirePropertyPlantAndEquipment are all mapped canonical sources
+    in us-gaap_v12.yaml, and all four are exactly the tags CPB reports PER
+    SEGMENT on StatementBusinessSegmentsAxis (per
+    cpb_segment_members_stable_but_tags_switch). So a segment-level revenue row
+    would land in the SAME candidate group as consolidated revenue, disagree
+    with it, and either win the AD-3 rank or raise a spurious
+    ambiguous_selection for every affected filer-year.
+    (2) HASH COLLISION. _content_hash(taxonomy, concept, unit, start, end,
+    value) in ingestion/company_facts.py omits dimensions entirely, and
+    raw_facts is unique on (accession_number, content_hash). Two members
+    reporting the same concept, period and value collide on that constraint and
+    one is silently dropped.
+    (3) UNEXPRESSIBLE MAPPING. concept_mappings is unique on (mapping_version,
+    canonical_concept, source_taxonomy, source_concept) and has no axis or
+    member column, so a dimension-scoped mapping cannot be written at all.
+  why_ad_3_did_not_catch_this: >
+    AD-3 rule (2) is "least-dimensioned/most-specific member" — the spine DID
+    anticipate dimensioned candidates. It was never implemented, and never
+    needed to be, because no source produced a dimension. The schema shows the
+    same half-anticipation: raw_facts.dimensions (JSONB) and source =
+    'inline_xbrl' both already exist and nothing populates or reads either.
+    A rule that is correct in the spine and absent in the code reads identically
+    to a rule that is enforced, until the first fact exercises it.
+  same_shape_as: >
+    canonical_facts_amendment_gap (2026-09-02): "two ADs can contradict each
+    other silently when no live data exercises the seam." Here AD-4 licenses an
+    ingestion path whose output AD-3's implementation would systematically
+    mis-handle. Different mechanism, identical lesson — and this time it was
+    caught BEFORE the data existed rather than after, which is the only reason
+    it is cheap.
+  impact: >
+    Blocking for Epic 13. Story 13.1 exists solely to close all three before
+    Story 13.2 writes a single dimensioned row; the ordering is recorded in
+    sprint-status.yaml's development_status comment. If 13.2 were built first,
+    the failure would present as consolidated revenue changing value or as
+    ambiguous_selection rows appearing across the universe — i.e. as a
+    canonicalization regression, far from its actual cause.
+  not_verified_yet: >
+    Read from the code, not executed. The contamination has NOT been reproduced
+    against a live dimensioned row, because no such row exists yet. Story 13.1's
+    AC therefore requires the guard test to be confirmed FAILING against the
+    pre-guard code before that story closes — proving the seam is real rather
+    than inferred, per the standing rule that a claim of AD conformance without
+    an enforcing test is decoration.
+  corrected_by_review: >
+    2026-09-09 Codex review of PR #133 independently confirmed all three seams
+    against the code and corrected the write-up in two directions.
+    OVERSTATED: "either win the AD-3 rank or raise a spurious
+    ambiguous_selection" is right as a disjunction but wrong if read as "wins by
+    default". A dimensioned fact DISAGREEING with the consolidated total in the
+    same ranking tier raises ambiguous_selection; it wins only when it is the
+    SOLE candidate for a filer-year, sits in a preferred filing tier, or ties on
+    value and wins on tie-break metadata. Short-period and non-FYE dimensional
+    rows are filtered out before any of this. The sole-candidate case is the
+    silent one and is now covered explicitly by 13.1's AC — "it would just get
+    flagged" is not a sufficient answer.
+    UNDERSTATED: `canonical_facts` carries a PARTIAL UNIQUE INDEX on
+    (issuer_cik, canonical_concept, fiscal_year, mapping_version) WHERE NOT
+    superseded (models.py:163), so it structurally cannot retain more than one
+    member under a canonical concept. Dimensioned facts have nowhere to live in
+    it at all — a fourth seam, and the reason Story 13.4 now defines a
+    member-aware store rather than any story widening canonical_facts in place.
+    ALSO CORRECTED (planning, not this finding): seam 3 named
+    `concept_mappings`, but that table does not drive selection —
+    canonicalize.py:187 reads SOURCE_TO_CANONICAL, built from the YAML specs via
+    mappings/engine.py:291, and the table is an audit projection. A migration
+    alone would have changed nothing.
