@@ -22,6 +22,27 @@
 # ADDING A FINDING: append a top-level section, add its name to
 # CURATED_SECTIONS in backend/tests/test_sprint_status.py, and give it a
 # `status:` of open|done. Do NOT put it in sprint-status.yaml.
+# (`test_every_finding_is_curated` enforces the CURATED_SECTIONS step as of
+# 2026-09-09 — twenty findings had been added without it.)
+#
+# SUPERSESSION — `superseded_by:` (convention added 2026-09-09)
+# This file has no supersession mechanism, and entries are read in FILE ORDER,
+# so an earlier entry's caveat sits on disk looking current forever even after a
+# later entry has answered it. This is not hypothetical: on 2026-09-09 a session
+# resuming from the handover read `segment_and_brand_intangible_tagging_across_
+# filers`' `not_verified_yet` block ("SHOP UNRESOLVED... CP, OTEX and the three
+# IFRS filers were not checked at all") as live work, when the very next entry —
+# `acquisition_epic_scoped_to_us_gaap_filers` — had already surveyed all six
+# US-GAAP filers including SHOP and put the IFRS filers formally out of scope.
+# Nothing linked them, and re-fetching on its account would have burned a
+# permission ask on a question already answered (DoD rule 2).
+#
+# So: when a later entry answers, narrows or overturns an earlier one, add to the
+# EARLIER entry a `superseded_by:` naming the later section and stating what it
+# settled. Put it directly on the field it supersedes where that field is a
+# caveat (`not_verified_yet_superseded_by:`), so a reader hitting the caveat sees
+# the answer without scrolling. Never delete the original caveat — it is the
+# record of what was true when written.
 #
 # INDEX (status as of 2026-09-01)
 #   reference                  epic_decomposition_rationale   (from epic_catalog)
@@ -4914,6 +4935,20 @@ segment_and_brand_intangible_tagging_across_filers:
     intangible tagging; recheck before decomposition. CP, OTEX, and the three
     IFRS filers (BCE, SU, CCJ) were not checked at all — IFRS uses different
     segment and intangible axes entirely and needs its own pass.
+  not_verified_yet_superseded_by: >
+    CLOSED 2026-09-08 by `acquisition_epic_scoped_to_us_gaap_filers`, the very
+    next entry in this file — do NOT re-fetch on this caveat's account.
+    SHOP resolved: the 12,658-byte instance was an AMENDMENT (0001594805-26-
+    000011), selected by the max(accession_number) trap; the real 10-K is
+    0001594805-26-000007 (2.27 MB, 333 contexts) and shows SHOP has NO segment
+    axis and no brand intangibles. CP and OTEX were both surveyed there too
+    (CP: no segment axis, no intangible-class members; OTEX: one generic
+    otex:ReportableSegmentMember, no brands). The three IFRS filers no longer
+    need a pass: the epic was scoped to US-GAAP filers by Lawrence on
+    2026-09-08, and BCE/SU/CCJ are deliberately out of scope under AD-16.
+    Recorded 2026-09-09 after this caveat was read as live work by a resuming
+    session — the incident that prompted the `superseded_by:` convention in this
+    file's header.
 
 acquisition_epic_scoped_to_us_gaap_filers:
   status: done
