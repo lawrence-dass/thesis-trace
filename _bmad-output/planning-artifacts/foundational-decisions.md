@@ -22,12 +22,29 @@ Phase 1 has "worked" when **both** hold:
 1. **Correctness:** every deterministic score (Piotroski, Altman, Beneish, Sloan) for the Phase 1 company universe matches a hand-verified or published golden dataset, enforced by regression tests.
 2. **Real use:** ThesisTrace informs at least one real investment decision by user zero.
 
-**Status (2026-08-05).** D3.1 **closed** 2026-07-29 and was reopened and re-closed 2026-08-04 when D8
-grew the universe to 7 — a claim about the universe reopens when the universe grows. D3.2 is **still
-open** and has never been met, so Phase 1 has not met its own success definition, and Epics 5-9 were
-planned and Epic 5 shipped on top of a half-met Phase 1. This is not a bookkeeping detail: D3.2 and
-D9's binding gate are the *same* condition, so one decision packet (**D10**) closes D3.2 and unblocks
-Phase 2 decomposition together. Nothing technical blocks it.
+**Status (2026-09-10). BOTH CLOSED — Phase 1 has met its success definition.**
+
+D3.1 **closed** 2026-07-29, reopened and re-closed 2026-08-04 when D8 grew the universe to 7 — a
+claim about the universe reopens when the universe grows.
+
+D3.2 **closed 2026-09-10** by the CPB decision packet (`decision-packets/2026-09-01-CPB.md`,
+section 6), open since Phase 1 until then. The verdict is **yes, and it reversed the decision**:
+section 1 recorded an intent to BUY with real capital, written before the product was opened, and the
+position was not initiated. Two figures drove it — the reverse DCF's implied **14.9%/yr** growth
+against **7.3%/yr** achieved (with both post-acquisition years coming in *below* the long-run
+average, checked year by year), and a leverage picture still deteriorating (`leverage_decreasing`
+failing FY2024 and FY2025, `x4_market_value_equity` 0.988 → 0.731 → 0.526, Z-Score 2.624 → 1.850).
+
+**Three things worth carrying forward, because the packet is evidence and not just a checkbox:**
+
+1. Epics 5-9 were planned, and Epic 5 shipped, on top of a Phase 1 that had not met its own
+   success definition. That was true for five weeks and is now resolved, not retroactively excused.
+2. The product changed the decision **despite failing to answer Question 1**, the question Lawrence
+   cared most about. The two figures that moved him came from questions he ranked lower — an
+   argument against pruning "secondary" surfaces on the assumption the headline question is what
+   earns the product its keep.
+3. The same packet's largest research failure selected **Epic 13** (acquisition performance), so
+   D3.2 and D9's gate closed together exactly as this section predicted they would.
 
 ## D4 — End-state posture: portfolio-complete, startup-optional architecture
 
@@ -190,9 +207,15 @@ forever because nothing clearly satisfies it, or it is waved through because not
 not. Epics 6-9 have been undecomposed since 2026-08-04 on a criterion nobody could evaluate.
 
 It is also the same condition as **D3.2** ("ThesisTrace informs at least one real investment decision
-by user zero"), which has been open since Phase 1. D3.1 closed on 2026-07-29 with the golden dataset;
-D3.2 never closed, so Phase 1 has never met its own success definition and Epic 5 shipped on top of a
-half-met Phase 1. One packet closes D3.2 and unblocks D9 — they are not two pieces of work.
+by user zero"), open since Phase 1. D3.1 closed on 2026-07-29 with the golden dataset; D3.2 stayed
+open, so Phase 1 did not meet its own success definition and Epic 5 shipped on top of a half-met
+Phase 1. One packet closes D3.2 and unblocks D9 — they were never two pieces of work.
+
+**RESOLVED 2026-09-10.** The CPB packet closed both, together, exactly as predicted: D3.2 by its
+section 6 (yes — the decision reversed), and D9 by its largest research failure, which selected the
+acquisition-performance epic now decomposed as **Epic 13** (merged in #133). The mechanism worked as
+designed on its first real use. Epics 7-9 remain `blocked` and are NOT unblocked by this — D9 selects
+ONE epic per packet, and this packet selected Epic 13; the next packet selects the next epic.
 
 **A packet is complete when it records all six of these, for ONE company and ONE question:**
 
@@ -246,8 +269,10 @@ himself, with ThesisTrace as the instrument rather than the oracle. D2 already n
 this user ("someone practicing value and/or growth investing"; user zero is Lawrence) and never
 made that user Canadian — the Canada framing entered through D8's positioning and the PRD
 persona, not through the primary-user definition. Meanwhile D9 requires Phase 2 to be validated
-against a company Lawrence is *genuinely researching*, and D3.2/D10 remain open awaiting exactly
-that. If the names he genuinely researches are US-listed, a Canada-bounded universe does not
+against a company Lawrence is *genuinely researching*, and D3.2/D10 remained open awaiting exactly
+that until 2026-09-10, when the CPB packet closed both — CPB being a US filer added under this very
+decision, which is D11 vindicating itself. If the names he genuinely researches are US-listed, a
+Canada-bounded universe does not
 merely misposition the product — it structurally prevents the one decision packet the whole
 roadmap waits on. Defining the universe by the researcher's real decisions makes D9's
 validation criterion and the universe definition the same thing.

@@ -43,10 +43,18 @@
 # Epics 7-9 remain `blocked`, not merely unstarted: D9 forbids choosing
 # the next CAPABILITY from list order, so none can begin until a decision packet
 # (D10, which is also D3.2) names the largest research failure and selects one.
-# `_bmad-output/decision-packets/` now also holds the two packets named above,
-# in addition to TEMPLATE.md — sections 2-6 of each are still open, to be filled
-# in as ThesisTrace is actually used on these two real decisions. That evidence
-# remains the critical path for Epics 7-9. Open action items: 0.
+# `_bmad-output/decision-packets/` holds the two packets named above plus
+# TEMPLATE.md. The CPB packet is COMPLETE as of 2026-09-10: section 6 records
+# "yes — it changed the decision" (an intent to buy, reversed), which CLOSES
+# D3.2, and its largest research failure selected the acquisition-performance
+# epic now decomposed as Epic 13. Phase 1 has met its own success definition
+# for the first time. The ZTS packet is still at section 1 only and gates
+# nothing — D9 selected off CPB alone.
+#
+# Epics 7-9 are NOT unblocked by this. D9 selects ONE epic per packet, and this
+# packet selected Epic 13; the NEXT packet selects the next epic. Their critical
+# path is therefore a second completed packet, written against a real decision —
+# not the CPB one, which is spent. Open action items: 0.
 #
 # LEGEND
 #   Epic:    backlog (not started) | blocked (a named decision defers it —
