@@ -1,0 +1,1130 @@
+<ns0:xbrl xmlns:dei="http://xbrl.sec.gov/dei/2025" xmlns:ecd="http://xbrl.sec.gov/ecd/2025" xmlns:link="http://www.xbrl.org/2003/linkbase" xmlns:ns0="http://www.xbrl.org/2003/instance" xmlns:shop="http://www.shopify.com/20251231" xmlns:srt="http://fasb.org/srt/2025" xmlns:us-gaap="http://fasb.org/us-gaap/2025" xmlns:xbrldi="http://xbrl.org/2006/xbrldi" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xml:lang="en-US">
+    <link:schemaRef xlink:href="shop-20251231.xsd" xlink:type="simple" />
+    <ns0:context id="c-1">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-01</ns0:startDate>
+            <ns0:endDate>2025-12-31</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-3">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2024-06-28</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-7">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-10-01</ns0:startDate>
+            <ns0:endDate>2025-12-31</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-11">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2025-12-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-12">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2024-12-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-24">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2024-01-01</ns0:startDate>
+            <ns0:endDate>2024-12-31</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-25">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2023-01-01</ns0:startDate>
+            <ns0:endDate>2023-12-31</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-30">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2022-12-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-39">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2023-12-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-63">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="srt:RangeAxis">srt:MinimumMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">us-gaap:TechnologyBasedIntangibleAssetsMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2025-12-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-64">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="srt:RangeAxis">srt:MaximumMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">us-gaap:TechnologyBasedIntangibleAssetsMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2025-12-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-65">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="srt:RangeAxis">srt:MinimumMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">us-gaap:CustomerRelationshipsMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2025-12-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-66">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="srt:RangeAxis">srt:MaximumMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">us-gaap:CustomerRelationshipsMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2025-12-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-67">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="srt:RangeAxis">srt:MinimumMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">us-gaap:SoftwareDevelopmentMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2025-12-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-68">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="srt:RangeAxis">srt:MaximumMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">us-gaap:SoftwareDevelopmentMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2025-12-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-69">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="srt:RangeAxis">srt:MinimumMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">us-gaap:OtherIntangibleAssetsMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2025-12-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-70">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="srt:RangeAxis">srt:MaximumMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">us-gaap:OtherIntangibleAssetsMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2025-12-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-71">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="us-gaap:BusinessAcquisitionAxis">shop:VantageMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2025-03-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-72">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="us-gaap:BusinessAcquisitionAxis">shop:VantageMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-03-01</ns0:startDate>
+            <ns0:endDate>2025-03-31</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-73">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="us-gaap:BusinessAcquisitionAxis">shop:VantageMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2025-12-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-74">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="us-gaap:BusinessAcquisitionAxis">shop:VantageMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">us-gaap:TechnologyBasedIntangibleAssetsMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2025-12-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-75">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="us-gaap:BusinessAcquisitionAxis">shop:VantageMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">us-gaap:TechnologyBasedIntangibleAssetsMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-03-01</ns0:startDate>
+            <ns0:endDate>2025-03-31</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-76">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="us-gaap:BusinessAcquisitionAxis">shop:VantageMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">us-gaap:TechnologyBasedIntangibleAssetsMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2025-06-30</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-210">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">us-gaap:TechnologyBasedIntangibleAssetsMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2025-12-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-211">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">us-gaap:OtherIntangibleAssetsMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2025-12-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-212">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">us-gaap:SoftwareDevelopmentMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2025-12-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-213">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">us-gaap:TechnologyBasedIntangibleAssetsMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2024-12-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-214">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">us-gaap:OtherIntangibleAssetsMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2024-12-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-215">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">us-gaap:SoftwareDevelopmentMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2024-12-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-216">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">us-gaap:CustomerRelationshipsMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2023-01-01</ns0:startDate>
+            <ns0:endDate>2023-12-31</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-217">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">us-gaap:OtherIntangibleAssetsMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2023-01-01</ns0:startDate>
+            <ns0:endDate>2023-12-31</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-218">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">us-gaap:TechnologyBasedIntangibleAssetsMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2023-01-01</ns0:startDate>
+            <ns0:endDate>2023-12-31</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-219">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">shop:TechnologyBasedIntangibleAssetsSoftwareDevelopmentAndComputerSoftwareIntangibleAssetMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2023-12-31</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-220">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis">shop:TechnologyBasedIntangibleAssetsSoftwareDevelopmentAndComputerSoftwareIntangibleAssetMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2023-01-01</ns0:startDate>
+            <ns0:endDate>2023-12-31</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-222">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:instant>2024-01-01</ns0:instant>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-256">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="us-gaap:BusinessAcquisitionAxis">shop:VantageMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:StatementClassOfStockAxis">us-gaap:CommonClassAMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-03-01</ns0:startDate>
+            <ns0:endDate>2025-03-31</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:context id="c-257">
+        <ns0:entity>
+            <ns0:identifier scheme="http://www.sec.gov/CIK">0001594805</ns0:identifier>
+            <ns0:segment>
+                <xbrldi:explicitMember dimension="us-gaap:BusinessAcquisitionAxis">shop:VantageMember</xbrldi:explicitMember>
+                <xbrldi:explicitMember dimension="us-gaap:StatementClassOfStockAxis">us-gaap:CommonClassAMember</xbrldi:explicitMember>
+            </ns0:segment>
+        </ns0:entity>
+        <ns0:period>
+            <ns0:startDate>2025-01-01</ns0:startDate>
+            <ns0:endDate>2025-12-31</ns0:endDate>
+        </ns0:period>
+    </ns0:context>
+    <ns0:unit id="usd">
+        <ns0:measure>iso4217:USD</ns0:measure>
+    </ns0:unit>
+    <ns0:unit id="shares">
+        <ns0:measure>shares</ns0:measure>
+    </ns0:unit>
+    <ns0:unit id="usdPerShare">
+        <ns0:divide>
+            <ns0:unitNumerator>
+                <ns0:measure>iso4217:USD</ns0:measure>
+            </ns0:unitNumerator>
+            <ns0:unitDenominator>
+                <ns0:measure>shares</ns0:measure>
+            </ns0:unitDenominator>
+        </ns0:divide>
+    </ns0:unit>
+    <ns0:unit id="segment">
+        <ns0:measure>shop:segment</ns0:measure>
+    </ns0:unit>
+    <ns0:unit id="number">
+        <ns0:measure>pure</ns0:measure>
+    </ns0:unit>
+    <ns0:unit id="patent">
+        <ns0:measure>shop:patent</ns0:measure>
+    </ns0:unit>
+    <ns0:unit id="vote">
+        <ns0:measure>shop:vote</ns0:measure>
+    </ns0:unit>
+    <dei:EntityPublicFloat contextRef="c-3" decimals="0" id="f-35" unitRef="usd">140315345495</dei:EntityPublicFloat>
+    <ecd:TrdArrSecuritiesAggAvailAmt contextRef="c-11" decimals="INF" id="f-75" unitRef="shares">1987032</ecd:TrdArrSecuritiesAggAvailAmt>
+    <us-gaap:CashAndCashEquivalentsAtCarryingValue contextRef="c-11" decimals="-6" id="f-82" unitRef="usd">1545000000</us-gaap:CashAndCashEquivalentsAtCarryingValue>
+    <us-gaap:CashAndCashEquivalentsAtCarryingValue contextRef="c-12" decimals="-6" id="f-83" unitRef="usd">1498000000</us-gaap:CashAndCashEquivalentsAtCarryingValue>
+    <us-gaap:MarketableSecuritiesCurrent contextRef="c-11" decimals="-6" id="f-84" unitRef="usd">4233000000</us-gaap:MarketableSecuritiesCurrent>
+    <us-gaap:MarketableSecuritiesCurrent contextRef="c-12" decimals="-6" id="f-85" unitRef="usd">3981000000</us-gaap:MarketableSecuritiesCurrent>
+    <us-gaap:AccountsAndOtherReceivablesNetCurrent contextRef="c-11" decimals="-6" id="f-86" unitRef="usd">500000000</us-gaap:AccountsAndOtherReceivablesNetCurrent>
+    <us-gaap:AccountsAndOtherReceivablesNetCurrent contextRef="c-12" decimals="-6" id="f-87" unitRef="usd">342000000</us-gaap:AccountsAndOtherReceivablesNetCurrent>
+    <us-gaap:NotesAndLoansReceivableNetCurrent contextRef="c-11" decimals="-6" id="f-88" unitRef="usd">1784000000</us-gaap:NotesAndLoansReceivableNetCurrent>
+    <us-gaap:NotesAndLoansReceivableNetCurrent contextRef="c-12" decimals="-6" id="f-89" unitRef="usd">1224000000</us-gaap:NotesAndLoansReceivableNetCurrent>
+    <us-gaap:PrepaidExpenseAndOtherAssetsCurrent contextRef="c-11" decimals="-6" id="f-90" unitRef="usd">234000000</us-gaap:PrepaidExpenseAndOtherAssetsCurrent>
+    <us-gaap:PrepaidExpenseAndOtherAssetsCurrent contextRef="c-12" decimals="-6" id="f-91" unitRef="usd">209000000</us-gaap:PrepaidExpenseAndOtherAssetsCurrent>
+    <us-gaap:AssetsCurrent contextRef="c-11" decimals="-6" id="f-92" unitRef="usd">8296000000</us-gaap:AssetsCurrent>
+    <us-gaap:AssetsCurrent contextRef="c-12" decimals="-6" id="f-93" unitRef="usd">7254000000</us-gaap:AssetsCurrent>
+    <us-gaap:PropertyPlantAndEquipmentNet contextRef="c-11" decimals="-6" id="f-94" unitRef="usd">53000000</us-gaap:PropertyPlantAndEquipmentNet>
+    <us-gaap:PropertyPlantAndEquipmentNet contextRef="c-12" decimals="-6" id="f-95" unitRef="usd">47000000</us-gaap:PropertyPlantAndEquipmentNet>
+    <us-gaap:OperatingLeaseRightOfUseAsset contextRef="c-11" decimals="-6" id="f-96" unitRef="usd">88000000</us-gaap:OperatingLeaseRightOfUseAsset>
+    <us-gaap:OperatingLeaseRightOfUseAsset contextRef="c-12" decimals="-6" id="f-97" unitRef="usd">93000000</us-gaap:OperatingLeaseRightOfUseAsset>
+    <us-gaap:IntangibleAssetsNetExcludingGoodwill contextRef="c-11" decimals="-6" id="f-98" unitRef="usd">30000000</us-gaap:IntangibleAssetsNetExcludingGoodwill>
+    <us-gaap:IntangibleAssetsNetExcludingGoodwill contextRef="c-12" decimals="-6" id="f-99" unitRef="usd">22000000</us-gaap:IntangibleAssetsNetExcludingGoodwill>
+    <us-gaap:DeferredIncomeTaxAssetsNet contextRef="c-11" decimals="-6" id="f-100" unitRef="usd">33000000</us-gaap:DeferredIncomeTaxAssetsNet>
+    <us-gaap:DeferredIncomeTaxAssetsNet contextRef="c-12" decimals="-6" id="f-101" unitRef="usd">37000000</us-gaap:DeferredIncomeTaxAssetsNet>
+    <us-gaap:OtherAssetsNoncurrent contextRef="c-11" decimals="-6" id="f-102" unitRef="usd">39000000</us-gaap:OtherAssetsNoncurrent>
+    <us-gaap:OtherAssetsNoncurrent contextRef="c-12" decimals="-6" id="f-103" unitRef="usd">21000000</us-gaap:OtherAssetsNoncurrent>
+    <us-gaap:MarketableSecuritiesNoncurrent contextRef="c-11" decimals="-6" id="f-104" unitRef="usd">975000000</us-gaap:MarketableSecuritiesNoncurrent>
+    <us-gaap:MarketableSecuritiesNoncurrent contextRef="c-12" decimals="-6" id="f-105" unitRef="usd">709000000</us-gaap:MarketableSecuritiesNoncurrent>
+    <shop:EquityAndOtherInvestmentsFairValueDisclosure contextRef="c-11" decimals="-6" id="f-106" unitRef="usd">3619000000</shop:EquityAndOtherInvestmentsFairValueDisclosure>
+    <shop:EquityAndOtherInvestmentsFairValueDisclosure contextRef="c-12" decimals="-6" id="f-107" unitRef="usd">3930000000</shop:EquityAndOtherInvestmentsFairValueDisclosure>
+    <shop:DebtSecuritiesEquityAndOtherInvestments contextRef="c-11" decimals="-6" id="f-108" unitRef="usd">4582000000</shop:DebtSecuritiesEquityAndOtherInvestments>
+    <shop:DebtSecuritiesEquityAndOtherInvestments contextRef="c-12" decimals="-6" id="f-109" unitRef="usd">4647000000</shop:DebtSecuritiesEquityAndOtherInvestments>
+    <us-gaap:EquityMethodInvestments contextRef="c-11" decimals="-6" id="f-110" unitRef="usd">602000000</us-gaap:EquityMethodInvestments>
+    <us-gaap:EquityMethodInvestments contextRef="c-12" decimals="-6" id="f-111" unitRef="usd">642000000</us-gaap:EquityMethodInvestments>
+    <us-gaap:Goodwill contextRef="c-11" decimals="-6" id="f-112" unitRef="usd">491000000</us-gaap:Goodwill>
+    <us-gaap:Goodwill contextRef="c-12" decimals="-6" id="f-113" unitRef="usd">452000000</us-gaap:Goodwill>
+    <us-gaap:AssetsNoncurrent contextRef="c-11" decimals="-6" id="f-114" unitRef="usd">6893000000</us-gaap:AssetsNoncurrent>
+    <us-gaap:AssetsNoncurrent contextRef="c-12" decimals="-6" id="f-115" unitRef="usd">6670000000</us-gaap:AssetsNoncurrent>
+    <us-gaap:Assets contextRef="c-11" decimals="-6" id="f-116" unitRef="usd">15189000000</us-gaap:Assets>
+    <us-gaap:Assets contextRef="c-12" decimals="-6" id="f-117" unitRef="usd">13924000000</us-gaap:Assets>
+    <us-gaap:AccountsPayableAndAccruedLiabilitiesCurrent contextRef="c-11" decimals="-6" id="f-118" unitRef="usd">1075000000</us-gaap:AccountsPayableAndAccruedLiabilitiesCurrent>
+    <us-gaap:AccountsPayableAndAccruedLiabilitiesCurrent contextRef="c-12" decimals="-6" id="f-119" unitRef="usd">737000000</us-gaap:AccountsPayableAndAccruedLiabilitiesCurrent>
+    <us-gaap:ContractWithCustomerLiabilityCurrent contextRef="c-11" decimals="-6" id="f-120" unitRef="usd">300000000</us-gaap:ContractWithCustomerLiabilityCurrent>
+    <us-gaap:ContractWithCustomerLiabilityCurrent contextRef="c-12" decimals="-6" id="f-121" unitRef="usd">283000000</us-gaap:ContractWithCustomerLiabilityCurrent>
+    <us-gaap:OperatingLeaseLiabilityCurrent contextRef="c-11" decimals="-6" id="f-122" unitRef="usd">17000000</us-gaap:OperatingLeaseLiabilityCurrent>
+    <us-gaap:OperatingLeaseLiabilityCurrent contextRef="c-12" decimals="-6" id="f-123" unitRef="usd">18000000</us-gaap:OperatingLeaseLiabilityCurrent>
+    <us-gaap:ConvertibleDebtCurrent contextRef="c-11" decimals="-6" id="f-124" unitRef="usd">0</us-gaap:ConvertibleDebtCurrent>
+    <us-gaap:ConvertibleDebtCurrent contextRef="c-12" decimals="-6" id="f-125" unitRef="usd">918000000</us-gaap:ConvertibleDebtCurrent>
+    <us-gaap:LiabilitiesCurrent contextRef="c-11" decimals="-6" id="f-126" unitRef="usd">1392000000</us-gaap:LiabilitiesCurrent>
+    <us-gaap:LiabilitiesCurrent contextRef="c-12" decimals="-6" id="f-127" unitRef="usd">1956000000</us-gaap:LiabilitiesCurrent>
+    <us-gaap:ContractWithCustomerLiabilityNoncurrent contextRef="c-11" decimals="-6" id="f-128" unitRef="usd">98000000</us-gaap:ContractWithCustomerLiabilityNoncurrent>
+    <us-gaap:ContractWithCustomerLiabilityNoncurrent contextRef="c-12" decimals="-6" id="f-129" unitRef="usd">147000000</us-gaap:ContractWithCustomerLiabilityNoncurrent>
+    <us-gaap:OperatingLeaseLiabilityNoncurrent contextRef="c-11" decimals="-6" id="f-130" unitRef="usd">171000000</us-gaap:OperatingLeaseLiabilityNoncurrent>
+    <us-gaap:OperatingLeaseLiabilityNoncurrent contextRef="c-12" decimals="-6" id="f-131" unitRef="usd">190000000</us-gaap:OperatingLeaseLiabilityNoncurrent>
+    <us-gaap:DeferredIncomeTaxLiabilitiesNet contextRef="c-11" decimals="-6" id="f-132" unitRef="usd">55000000</us-gaap:DeferredIncomeTaxLiabilitiesNet>
+    <us-gaap:DeferredIncomeTaxLiabilitiesNet contextRef="c-12" decimals="-6" id="f-133" unitRef="usd">73000000</us-gaap:DeferredIncomeTaxLiabilitiesNet>
+    <us-gaap:LiabilitiesNoncurrent contextRef="c-11" decimals="-6" id="f-134" unitRef="usd">324000000</us-gaap:LiabilitiesNoncurrent>
+    <us-gaap:LiabilitiesNoncurrent contextRef="c-12" decimals="-6" id="f-135" unitRef="usd">410000000</us-gaap:LiabilitiesNoncurrent>
+    <us-gaap:CommitmentsAndContingencies contextRef="c-11" id="f-136" unitRef="usd" xsi:nil="true" />
+    <us-gaap:CommitmentsAndContingencies contextRef="c-12" id="f-137" unitRef="usd" xsi:nil="true" />
+    <us-gaap:CommonStockValue contextRef="c-11" decimals="-6" id="f-152" unitRef="usd">10376000000</us-gaap:CommonStockValue>
+    <us-gaap:CommonStockValue contextRef="c-12" decimals="-6" id="f-153" unitRef="usd">9634000000</us-gaap:CommonStockValue>
+    <us-gaap:AdditionalPaidInCapital contextRef="c-11" decimals="-6" id="f-154" unitRef="usd">236000000</us-gaap:AdditionalPaidInCapital>
+    <us-gaap:AdditionalPaidInCapital contextRef="c-12" decimals="-6" id="f-155" unitRef="usd">305000000</us-gaap:AdditionalPaidInCapital>
+    <us-gaap:AccumulatedOtherComprehensiveIncomeLossNetOfTax contextRef="c-11" decimals="-6" id="f-156" unitRef="usd">1000000</us-gaap:AccumulatedOtherComprehensiveIncomeLossNetOfTax>
+    <us-gaap:AccumulatedOtherComprehensiveIncomeLossNetOfTax contextRef="c-12" decimals="-6" id="f-157" unitRef="usd">-10000000</us-gaap:AccumulatedOtherComprehensiveIncomeLossNetOfTax>
+    <us-gaap:RetainedEarningsAccumulatedDeficit contextRef="c-11" decimals="-6" id="f-158" unitRef="usd">2860000000</us-gaap:RetainedEarningsAccumulatedDeficit>
+    <us-gaap:RetainedEarningsAccumulatedDeficit contextRef="c-12" decimals="-6" id="f-159" unitRef="usd">1629000000</us-gaap:RetainedEarningsAccumulatedDeficit>
+    <us-gaap:StockholdersEquity contextRef="c-11" decimals="-6" id="f-160" unitRef="usd">13473000000</us-gaap:StockholdersEquity>
+    <us-gaap:StockholdersEquity contextRef="c-12" decimals="-6" id="f-161" unitRef="usd">11558000000</us-gaap:StockholdersEquity>
+    <us-gaap:LiabilitiesAndStockholdersEquity contextRef="c-11" decimals="-6" id="f-162" unitRef="usd">15189000000</us-gaap:LiabilitiesAndStockholdersEquity>
+    <us-gaap:LiabilitiesAndStockholdersEquity contextRef="c-12" decimals="-6" id="f-163" unitRef="usd">13924000000</us-gaap:LiabilitiesAndStockholdersEquity>
+    <us-gaap:Revenues contextRef="c-1" decimals="-6" id="f-170" unitRef="usd">11556000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-24" decimals="-6" id="f-171" unitRef="usd">8880000000</us-gaap:Revenues>
+    <us-gaap:Revenues contextRef="c-25" decimals="-6" id="f-172" unitRef="usd">7060000000</us-gaap:Revenues>
+    <us-gaap:CostOfGoodsAndServicesSold contextRef="c-1" decimals="-6" id="f-179" unitRef="usd">6001000000</us-gaap:CostOfGoodsAndServicesSold>
+    <us-gaap:CostOfGoodsAndServicesSold contextRef="c-24" decimals="-6" id="f-180" unitRef="usd">4408000000</us-gaap:CostOfGoodsAndServicesSold>
+    <us-gaap:CostOfGoodsAndServicesSold contextRef="c-25" decimals="-6" id="f-181" unitRef="usd">3545000000</us-gaap:CostOfGoodsAndServicesSold>
+    <us-gaap:GrossProfit contextRef="c-1" decimals="-6" id="f-182" unitRef="usd">5555000000</us-gaap:GrossProfit>
+    <us-gaap:GrossProfit contextRef="c-24" decimals="-6" id="f-183" unitRef="usd">4472000000</us-gaap:GrossProfit>
+    <us-gaap:GrossProfit contextRef="c-25" decimals="-6" id="f-184" unitRef="usd">3515000000</us-gaap:GrossProfit>
+    <us-gaap:SellingAndMarketingExpense contextRef="c-1" decimals="-6" id="f-185" unitRef="usd">1663000000</us-gaap:SellingAndMarketingExpense>
+    <us-gaap:SellingAndMarketingExpense contextRef="c-24" decimals="-6" id="f-186" unitRef="usd">1393000000</us-gaap:SellingAndMarketingExpense>
+    <us-gaap:SellingAndMarketingExpense contextRef="c-25" decimals="-6" id="f-187" unitRef="usd">1220000000</us-gaap:SellingAndMarketingExpense>
+    <us-gaap:ResearchAndDevelopmentExpense contextRef="c-1" decimals="-6" id="f-188" unitRef="usd">1536000000</us-gaap:ResearchAndDevelopmentExpense>
+    <us-gaap:ResearchAndDevelopmentExpense contextRef="c-24" decimals="-6" id="f-189" unitRef="usd">1367000000</us-gaap:ResearchAndDevelopmentExpense>
+    <us-gaap:ResearchAndDevelopmentExpense contextRef="c-25" decimals="-6" id="f-190" unitRef="usd">1730000000</us-gaap:ResearchAndDevelopmentExpense>
+    <us-gaap:GeneralAndAdministrativeExpense contextRef="c-1" decimals="-6" id="f-191" unitRef="usd">471000000</us-gaap:GeneralAndAdministrativeExpense>
+    <us-gaap:GeneralAndAdministrativeExpense contextRef="c-24" decimals="-6" id="f-192" unitRef="usd">410000000</us-gaap:GeneralAndAdministrativeExpense>
+    <us-gaap:GeneralAndAdministrativeExpense contextRef="c-25" decimals="-6" id="f-193" unitRef="usd">491000000</us-gaap:GeneralAndAdministrativeExpense>
+    <shop:TransactionAndLoanLosses contextRef="c-1" decimals="-6" id="f-194" unitRef="usd">417000000</shop:TransactionAndLoanLosses>
+    <shop:TransactionAndLoanLosses contextRef="c-24" decimals="-6" id="f-195" unitRef="usd">227000000</shop:TransactionAndLoanLosses>
+    <shop:TransactionAndLoanLosses contextRef="c-25" decimals="-6" id="f-196" unitRef="usd">152000000</shop:TransactionAndLoanLosses>
+    <shop:DisposalGroupIncludingDiscontinuedOperationImpairmentOnSales contextRef="c-1" decimals="-6" id="f-197" unitRef="usd">0</shop:DisposalGroupIncludingDiscontinuedOperationImpairmentOnSales>
+    <shop:DisposalGroupIncludingDiscontinuedOperationImpairmentOnSales contextRef="c-24" decimals="-6" id="f-198" unitRef="usd">0</shop:DisposalGroupIncludingDiscontinuedOperationImpairmentOnSales>
+    <shop:DisposalGroupIncludingDiscontinuedOperationImpairmentOnSales contextRef="c-25" decimals="-6" id="f-199" unitRef="usd">1340000000</shop:DisposalGroupIncludingDiscontinuedOperationImpairmentOnSales>
+    <us-gaap:OperatingExpenses contextRef="c-1" decimals="-6" id="f-200" unitRef="usd">4087000000</us-gaap:OperatingExpenses>
+    <us-gaap:OperatingExpenses contextRef="c-24" decimals="-6" id="f-201" unitRef="usd">3397000000</us-gaap:OperatingExpenses>
+    <us-gaap:OperatingExpenses contextRef="c-25" decimals="-6" id="f-202" unitRef="usd">4933000000</us-gaap:OperatingExpenses>
+    <us-gaap:OperatingIncomeLoss contextRef="c-1" decimals="-6" id="f-203" unitRef="usd">1468000000</us-gaap:OperatingIncomeLoss>
+    <us-gaap:OperatingIncomeLoss contextRef="c-24" decimals="-6" id="f-204" unitRef="usd">1075000000</us-gaap:OperatingIncomeLoss>
+    <us-gaap:OperatingIncomeLoss contextRef="c-25" decimals="-6" id="f-205" unitRef="usd">-1418000000</us-gaap:OperatingIncomeLoss>
+    <us-gaap:InterestIncomeExpenseNonoperatingNet contextRef="c-1" decimals="-6" id="f-206" unitRef="usd">331000000</us-gaap:InterestIncomeExpenseNonoperatingNet>
+    <us-gaap:InterestIncomeExpenseNonoperatingNet contextRef="c-24" decimals="-6" id="f-207" unitRef="usd">308000000</us-gaap:InterestIncomeExpenseNonoperatingNet>
+    <us-gaap:InterestIncomeExpenseNonoperatingNet contextRef="c-25" decimals="-6" id="f-208" unitRef="usd">241000000</us-gaap:InterestIncomeExpenseNonoperatingNet>
+    <shop:EquityMethodAndOtherInvestmentsRealizedGain contextRef="c-1" decimals="-6" id="f-209" unitRef="usd">33000000</shop:EquityMethodAndOtherInvestmentsRealizedGain>
+    <shop:EquityMethodAndOtherInvestmentsRealizedGain contextRef="c-24" decimals="-6" id="f-210" unitRef="usd">3000000</shop:EquityMethodAndOtherInvestmentsRealizedGain>
+    <shop:EquityMethodAndOtherInvestmentsRealizedGain contextRef="c-25" decimals="-6" id="f-211" unitRef="usd">-5000000</shop:EquityMethodAndOtherInvestmentsRealizedGain>
+    <shop:EquityMethodAndOtherInvestmentsUnrealizedGainLoss contextRef="c-1" decimals="-6" id="f-212" unitRef="usd">-186000000</shop:EquityMethodAndOtherInvestmentsUnrealizedGainLoss>
+    <shop:EquityMethodAndOtherInvestmentsUnrealizedGainLoss contextRef="c-24" decimals="-6" id="f-213" unitRef="usd">988000000</shop:EquityMethodAndOtherInvestmentsUnrealizedGainLoss>
+    <shop:EquityMethodAndOtherInvestmentsUnrealizedGainLoss contextRef="c-25" decimals="-6" id="f-214" unitRef="usd">1424000000</shop:EquityMethodAndOtherInvestmentsUnrealizedGainLoss>
+    <us-gaap:IncomeLossFromEquityMethodInvestments contextRef="c-1" decimals="-6" id="f-215" unitRef="usd">-40000000</us-gaap:IncomeLossFromEquityMethodInvestments>
+    <us-gaap:IncomeLossFromEquityMethodInvestments contextRef="c-24" decimals="-6" id="f-216" unitRef="usd">-138000000</us-gaap:IncomeLossFromEquityMethodInvestments>
+    <us-gaap:IncomeLossFromEquityMethodInvestments contextRef="c-25" decimals="-6" id="f-217" unitRef="usd">-58000000</us-gaap:IncomeLossFromEquityMethodInvestments>
+    <us-gaap:EmbeddedDerivativeLossOnEmbeddedDerivative contextRef="c-1" decimals="-6" id="f-218" unitRef="usd">123000000</us-gaap:EmbeddedDerivativeLossOnEmbeddedDerivative>
+    <us-gaap:EmbeddedDerivativeLossOnEmbeddedDerivative contextRef="c-24" decimals="-6" id="f-219" unitRef="usd">0</us-gaap:EmbeddedDerivativeLossOnEmbeddedDerivative>
+    <us-gaap:EmbeddedDerivativeLossOnEmbeddedDerivative contextRef="c-25" decimals="-6" id="f-220" unitRef="usd">0</us-gaap:EmbeddedDerivativeLossOnEmbeddedDerivative>
+    <us-gaap:ForeignCurrencyTransactionGainLossBeforeTax contextRef="c-1" decimals="-6" id="f-221" unitRef="usd">26000000</us-gaap:ForeignCurrencyTransactionGainLossBeforeTax>
+    <us-gaap:ForeignCurrencyTransactionGainLossBeforeTax contextRef="c-24" decimals="-6" id="f-222" unitRef="usd">-8000000</us-gaap:ForeignCurrencyTransactionGainLossBeforeTax>
+    <us-gaap:ForeignCurrencyTransactionGainLossBeforeTax contextRef="c-25" decimals="-6" id="f-223" unitRef="usd">1000000</us-gaap:ForeignCurrencyTransactionGainLossBeforeTax>
+    <us-gaap:NonoperatingIncomeExpense contextRef="c-1" decimals="-6" id="f-224" unitRef="usd">41000000</us-gaap:NonoperatingIncomeExpense>
+    <us-gaap:NonoperatingIncomeExpense contextRef="c-24" decimals="-6" id="f-225" unitRef="usd">1153000000</us-gaap:NonoperatingIncomeExpense>
+    <us-gaap:NonoperatingIncomeExpense contextRef="c-25" decimals="-6" id="f-226" unitRef="usd">1603000000</us-gaap:NonoperatingIncomeExpense>
+    <us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest contextRef="c-1" decimals="-6" id="f-227" unitRef="usd">1509000000</us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest>
+    <us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest contextRef="c-24" decimals="-6" id="f-228" unitRef="usd">2228000000</us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest>
+    <us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest contextRef="c-25" decimals="-6" id="f-229" unitRef="usd">185000000</us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest>
+    <us-gaap:IncomeTaxExpenseBenefit contextRef="c-1" decimals="-6" id="f-230" unitRef="usd">278000000</us-gaap:IncomeTaxExpenseBenefit>
+    <us-gaap:IncomeTaxExpenseBenefit contextRef="c-24" decimals="-6" id="f-231" unitRef="usd">209000000</us-gaap:IncomeTaxExpenseBenefit>
+    <us-gaap:IncomeTaxExpenseBenefit contextRef="c-25" decimals="-6" id="f-232" unitRef="usd">53000000</us-gaap:IncomeTaxExpenseBenefit>
+    <us-gaap:NetIncomeLoss contextRef="c-1" decimals="-6" id="f-233" unitRef="usd">1231000000</us-gaap:NetIncomeLoss>
+    <us-gaap:NetIncomeLoss contextRef="c-24" decimals="-6" id="f-234" unitRef="usd">2019000000</us-gaap:NetIncomeLoss>
+    <us-gaap:NetIncomeLoss contextRef="c-25" decimals="-6" id="f-235" unitRef="usd">132000000</us-gaap:NetIncomeLoss>
+    <us-gaap:EarningsPerShareBasic contextRef="c-1" decimals="2" id="f-236" unitRef="usdPerShare">0.95</us-gaap:EarningsPerShareBasic>
+    <us-gaap:EarningsPerShareBasic contextRef="c-24" decimals="2" id="f-237" unitRef="usdPerShare">1.57</us-gaap:EarningsPerShareBasic>
+    <us-gaap:EarningsPerShareBasic contextRef="c-25" decimals="2" id="f-238" unitRef="usdPerShare">0.10</us-gaap:EarningsPerShareBasic>
+    <us-gaap:EarningsPerShareDiluted contextRef="c-1" decimals="2" id="f-239" unitRef="usdPerShare">0.94</us-gaap:EarningsPerShareDiluted>
+    <us-gaap:EarningsPerShareDiluted contextRef="c-24" decimals="2" id="f-240" unitRef="usdPerShare">1.55</us-gaap:EarningsPerShareDiluted>
+    <us-gaap:EarningsPerShareDiluted contextRef="c-25" decimals="2" id="f-241" unitRef="usdPerShare">0.10</us-gaap:EarningsPerShareDiluted>
+    <us-gaap:WeightedAverageNumberOfSharesOutstandingBasic contextRef="c-1" decimals="0" id="f-242" unitRef="shares">1298955860</us-gaap:WeightedAverageNumberOfSharesOutstandingBasic>
+    <us-gaap:WeightedAverageNumberOfSharesOutstandingBasic contextRef="c-24" decimals="0" id="f-243" unitRef="shares">1289812124</us-gaap:WeightedAverageNumberOfSharesOutstandingBasic>
+    <us-gaap:WeightedAverageNumberOfSharesOutstandingBasic contextRef="c-25" decimals="0" id="f-244" unitRef="shares">1281554559</us-gaap:WeightedAverageNumberOfSharesOutstandingBasic>
+    <us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding contextRef="c-1" decimals="0" id="f-245" unitRef="shares">1304953255</us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding>
+    <us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding contextRef="c-24" decimals="0" id="f-246" unitRef="shares">1301509980</us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding>
+    <us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding contextRef="c-25" decimals="0" id="f-247" unitRef="shares">1295511385</us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding>
+    <us-gaap:OtherComprehensiveIncomeLossCashFlowHedgeGainLossAfterReclassificationBeforeTaxParent contextRef="c-1" decimals="-6" id="f-248" unitRef="usd">15000000</us-gaap:OtherComprehensiveIncomeLossCashFlowHedgeGainLossAfterReclassificationBeforeTaxParent>
+    <us-gaap:OtherComprehensiveIncomeLossCashFlowHedgeGainLossAfterReclassificationBeforeTaxParent contextRef="c-24" decimals="-6" id="f-249" unitRef="usd">-19000000</us-gaap:OtherComprehensiveIncomeLossCashFlowHedgeGainLossAfterReclassificationBeforeTaxParent>
+    <us-gaap:OtherComprehensiveIncomeLossCashFlowHedgeGainLossAfterReclassificationBeforeTaxParent contextRef="c-25" decimals="-6" id="f-250" unitRef="usd">20000000</us-gaap:OtherComprehensiveIncomeLossCashFlowHedgeGainLossAfterReclassificationBeforeTaxParent>
+    <us-gaap:OtherComprehensiveIncomeLossCashFlowHedgeGainLossAfterReclassificationTaxParent contextRef="c-1" decimals="-6" id="f-251" unitRef="usd">4000000</us-gaap:OtherComprehensiveIncomeLossCashFlowHedgeGainLossAfterReclassificationTaxParent>
+    <us-gaap:OtherComprehensiveIncomeLossCashFlowHedgeGainLossAfterReclassificationTaxParent contextRef="c-24" decimals="-6" id="f-252" unitRef="usd">-5000000</us-gaap:OtherComprehensiveIncomeLossCashFlowHedgeGainLossAfterReclassificationTaxParent>
+    <us-gaap:OtherComprehensiveIncomeLossCashFlowHedgeGainLossAfterReclassificationTaxParent contextRef="c-25" decimals="-6" id="f-253" unitRef="usd">0</us-gaap:OtherComprehensiveIncomeLossCashFlowHedgeGainLossAfterReclassificationTaxParent>
+    <us-gaap:OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToParent contextRef="c-1" decimals="-6" id="f-254" unitRef="usd">11000000</us-gaap:OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToParent>
+    <us-gaap:OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToParent contextRef="c-24" decimals="-6" id="f-255" unitRef="usd">-14000000</us-gaap:OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToParent>
+    <us-gaap:OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToParent contextRef="c-25" decimals="-6" id="f-256" unitRef="usd">20000000</us-gaap:OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToParent>
+    <us-gaap:ComprehensiveIncomeNetOfTax contextRef="c-1" decimals="-6" id="f-257" unitRef="usd">1242000000</us-gaap:ComprehensiveIncomeNetOfTax>
+    <us-gaap:ComprehensiveIncomeNetOfTax contextRef="c-24" decimals="-6" id="f-258" unitRef="usd">2005000000</us-gaap:ComprehensiveIncomeNetOfTax>
+    <us-gaap:ComprehensiveIncomeNetOfTax contextRef="c-25" decimals="-6" id="f-259" unitRef="usd">152000000</us-gaap:ComprehensiveIncomeNetOfTax>
+    <us-gaap:StockholdersEquity contextRef="c-30" decimals="-6" id="f-265" unitRef="usd">8239000000</us-gaap:StockholdersEquity>
+    <us-gaap:StockIssuedDuringPeriodValueStockOptionsExercised contextRef="c-25" decimals="-6" id="f-269" unitRef="usd">60000000</us-gaap:StockIssuedDuringPeriodValueStockOptionsExercised>
+    <us-gaap:AdjustmentsToAdditionalPaidInCapitalSharebasedCompensationRequisiteServicePeriodRecognitionValue contextRef="c-25" decimals="-6" id="f-271" unitRef="usd">615000000</us-gaap:AdjustmentsToAdditionalPaidInCapitalSharebasedCompensationRequisiteServicePeriodRecognitionValue>
+    <us-gaap:StockIssuedDuringPeriodValueRestrictedStockAwardNetOfForfeitures contextRef="c-25" decimals="-6" id="f-275" unitRef="usd">0</us-gaap:StockIssuedDuringPeriodValueRestrictedStockAwardNetOfForfeitures>
+    <us-gaap:StockIssuedDuringPeriodValueAcquisitions contextRef="c-25" decimals="-6" id="f-279" unitRef="usd">0</us-gaap:StockIssuedDuringPeriodValueAcquisitions>
+    <us-gaap:ComprehensiveIncomeNetOfTax contextRef="c-25" decimals="-6" id="f-282" unitRef="usd">152000000</us-gaap:ComprehensiveIncomeNetOfTax>
+    <us-gaap:StockholdersEquity contextRef="c-39" decimals="-6" id="f-288" unitRef="usd">9066000000</us-gaap:StockholdersEquity>
+    <us-gaap:StockIssuedDuringPeriodValueStockOptionsExercised contextRef="c-24" decimals="-6" id="f-292" unitRef="usd">61000000</us-gaap:StockIssuedDuringPeriodValueStockOptionsExercised>
+    <us-gaap:AdjustmentsToAdditionalPaidInCapitalSharebasedCompensationRequisiteServicePeriodRecognitionValue contextRef="c-24" decimals="-6" id="f-294" unitRef="usd">430000000</us-gaap:AdjustmentsToAdditionalPaidInCapitalSharebasedCompensationRequisiteServicePeriodRecognitionValue>
+    <us-gaap:StockIssuedDuringPeriodValueRestrictedStockAwardNetOfForfeitures contextRef="c-24" decimals="-6" id="f-298" unitRef="usd">-4000000</us-gaap:StockIssuedDuringPeriodValueRestrictedStockAwardNetOfForfeitures>
+    <us-gaap:ComprehensiveIncomeNetOfTax contextRef="c-24" decimals="-6" id="f-301" unitRef="usd">2005000000</us-gaap:ComprehensiveIncomeNetOfTax>
+    <us-gaap:StockholdersEquity contextRef="c-12" decimals="-6" id="f-307" unitRef="usd">11558000000</us-gaap:StockholdersEquity>
+    <us-gaap:StockIssuedDuringPeriodValueStockOptionsExercised contextRef="c-1" decimals="-6" id="f-311" unitRef="usd">232000000</us-gaap:StockIssuedDuringPeriodValueStockOptionsExercised>
+    <us-gaap:AdjustmentsToAdditionalPaidInCapitalSharebasedCompensationRequisiteServicePeriodRecognitionValue contextRef="c-1" decimals="-6" id="f-313" unitRef="usd">449000000</us-gaap:AdjustmentsToAdditionalPaidInCapitalSharebasedCompensationRequisiteServicePeriodRecognitionValue>
+    <us-gaap:StockIssuedDuringPeriodValueRestrictedStockAwardNetOfForfeitures contextRef="c-1" decimals="-6" id="f-317" unitRef="usd">-8000000</us-gaap:StockIssuedDuringPeriodValueRestrictedStockAwardNetOfForfeitures>
+    <us-gaap:StockIssuedDuringPeriodValueAcquisitions contextRef="c-1" decimals="-6" id="f-321" unitRef="usd">0</us-gaap:StockIssuedDuringPeriodValueAcquisitions>
+    <us-gaap:ComprehensiveIncomeNetOfTax contextRef="c-1" decimals="-6" id="f-324" unitRef="usd">1242000000</us-gaap:ComprehensiveIncomeNetOfTax>
+    <us-gaap:StockholdersEquity contextRef="c-11" decimals="-6" id="f-330" unitRef="usd">13473000000</us-gaap:StockholdersEquity>
+    <us-gaap:NetIncomeLoss contextRef="c-1" decimals="-6" id="f-331" unitRef="usd">1231000000</us-gaap:NetIncomeLoss>
+    <us-gaap:NetIncomeLoss contextRef="c-24" decimals="-6" id="f-332" unitRef="usd">2019000000</us-gaap:NetIncomeLoss>
+    <us-gaap:NetIncomeLoss contextRef="c-25" decimals="-6" id="f-333" unitRef="usd">132000000</us-gaap:NetIncomeLoss>
+    <us-gaap:DepreciationDepletionAndAmortization contextRef="c-1" decimals="-6" id="f-334" unitRef="usd">31000000</us-gaap:DepreciationDepletionAndAmortization>
+    <us-gaap:DepreciationDepletionAndAmortization contextRef="c-24" decimals="-6" id="f-335" unitRef="usd">36000000</us-gaap:DepreciationDepletionAndAmortization>
+    <us-gaap:DepreciationDepletionAndAmortization contextRef="c-25" decimals="-6" id="f-336" unitRef="usd">70000000</us-gaap:DepreciationDepletionAndAmortization>
+    <us-gaap:StockOptionPlanExpense contextRef="c-1" decimals="-6" id="f-337" unitRef="usd">449000000</us-gaap:StockOptionPlanExpense>
+    <us-gaap:StockOptionPlanExpense contextRef="c-24" decimals="-6" id="f-338" unitRef="usd">430000000</us-gaap:StockOptionPlanExpense>
+    <us-gaap:StockOptionPlanExpense contextRef="c-25" decimals="-6" id="f-339" unitRef="usd">615000000</us-gaap:StockOptionPlanExpense>
+    <us-gaap:OtherAssetImpairmentCharges contextRef="c-1" decimals="-6" id="f-340" unitRef="usd">13000000</us-gaap:OtherAssetImpairmentCharges>
+    <us-gaap:OtherAssetImpairmentCharges contextRef="c-24" decimals="-6" id="f-341" unitRef="usd">0</us-gaap:OtherAssetImpairmentCharges>
+    <us-gaap:OtherAssetImpairmentCharges contextRef="c-25" decimals="-6" id="f-342" unitRef="usd">38000000</us-gaap:OtherAssetImpairmentCharges>
+    <us-gaap:ProvisionForDoubtfulAccounts contextRef="c-1" decimals="-6" id="f-343" unitRef="usd">230000000</us-gaap:ProvisionForDoubtfulAccounts>
+    <us-gaap:ProvisionForDoubtfulAccounts contextRef="c-24" decimals="-6" id="f-344" unitRef="usd">148000000</us-gaap:ProvisionForDoubtfulAccounts>
+    <us-gaap:ProvisionForDoubtfulAccounts contextRef="c-25" decimals="-6" id="f-345" unitRef="usd">80000000</us-gaap:ProvisionForDoubtfulAccounts>
+    <us-gaap:IncreaseDecreaseInDeferredIncomeTaxes contextRef="c-1" decimals="-6" id="f-346" unitRef="usd">14000000</us-gaap:IncreaseDecreaseInDeferredIncomeTaxes>
+    <us-gaap:IncreaseDecreaseInDeferredIncomeTaxes contextRef="c-24" decimals="-6" id="f-347" unitRef="usd">-78000000</us-gaap:IncreaseDecreaseInDeferredIncomeTaxes>
+    <us-gaap:IncreaseDecreaseInDeferredIncomeTaxes contextRef="c-25" decimals="-6" id="f-348" unitRef="usd">1000000</us-gaap:IncreaseDecreaseInDeferredIncomeTaxes>
+    <shop:RevenueRelatedToNonCashConsideration contextRef="c-1" decimals="-6" id="f-349" unitRef="usd">49000000</shop:RevenueRelatedToNonCashConsideration>
+    <shop:RevenueRelatedToNonCashConsideration contextRef="c-24" decimals="-6" id="f-350" unitRef="usd">94000000</shop:RevenueRelatedToNonCashConsideration>
+    <shop:RevenueRelatedToNonCashConsideration contextRef="c-25" decimals="-6" id="f-351" unitRef="usd">158000000</shop:RevenueRelatedToNonCashConsideration>
+    <us-gaap:DisposalGroupNotDiscontinuedOperationLossGainOnWriteDown contextRef="c-1" decimals="-6" id="f-352" unitRef="usd">0</us-gaap:DisposalGroupNotDiscontinuedOperationLossGainOnWriteDown>
+    <us-gaap:DisposalGroupNotDiscontinuedOperationLossGainOnWriteDown contextRef="c-24" decimals="-6" id="f-353" unitRef="usd">0</us-gaap:DisposalGroupNotDiscontinuedOperationLossGainOnWriteDown>
+    <us-gaap:DisposalGroupNotDiscontinuedOperationLossGainOnWriteDown contextRef="c-25" decimals="-6" id="f-354" unitRef="usd">1340000000</us-gaap:DisposalGroupNotDiscontinuedOperationLossGainOnWriteDown>
+    <us-gaap:UnrealizedGainLossOnInvestments contextRef="c-1" decimals="-6" id="f-355" unitRef="usd">-153000000</us-gaap:UnrealizedGainLossOnInvestments>
+    <us-gaap:UnrealizedGainLossOnInvestments contextRef="c-24" decimals="-6" id="f-356" unitRef="usd">992000000</us-gaap:UnrealizedGainLossOnInvestments>
+    <us-gaap:UnrealizedGainLossOnInvestments contextRef="c-25" decimals="-6" id="f-357" unitRef="usd">1419000000</us-gaap:UnrealizedGainLossOnInvestments>
+    <us-gaap:IncomeLossFromEquityMethodInvestments contextRef="c-1" decimals="-6" id="f-358" unitRef="usd">-40000000</us-gaap:IncomeLossFromEquityMethodInvestments>
+    <us-gaap:IncomeLossFromEquityMethodInvestments contextRef="c-24" decimals="-6" id="f-359" unitRef="usd">-138000000</us-gaap:IncomeLossFromEquityMethodInvestments>
+    <us-gaap:IncomeLossFromEquityMethodInvestments contextRef="c-25" decimals="-6" id="f-360" unitRef="usd">-58000000</us-gaap:IncomeLossFromEquityMethodInvestments>
+    <us-gaap:EmbeddedDerivativeLossOnEmbeddedDerivative contextRef="c-1" decimals="-6" id="f-361" unitRef="usd">123000000</us-gaap:EmbeddedDerivativeLossOnEmbeddedDerivative>
+    <us-gaap:EmbeddedDerivativeLossOnEmbeddedDerivative contextRef="c-24" decimals="-6" id="f-362" unitRef="usd">0</us-gaap:EmbeddedDerivativeLossOnEmbeddedDerivative>
+    <us-gaap:EmbeddedDerivativeLossOnEmbeddedDerivative contextRef="c-25" decimals="-6" id="f-363" unitRef="usd">0</us-gaap:EmbeddedDerivativeLossOnEmbeddedDerivative>
+    <us-gaap:ForeignCurrencyTransactionGainLossUnrealized contextRef="c-1" decimals="-6" id="f-364" unitRef="usd">57000000</us-gaap:ForeignCurrencyTransactionGainLossUnrealized>
+    <us-gaap:ForeignCurrencyTransactionGainLossUnrealized contextRef="c-24" decimals="-6" id="f-365" unitRef="usd">-19000000</us-gaap:ForeignCurrencyTransactionGainLossUnrealized>
+    <us-gaap:ForeignCurrencyTransactionGainLossUnrealized contextRef="c-25" decimals="-6" id="f-366" unitRef="usd">6000000</us-gaap:ForeignCurrencyTransactionGainLossUnrealized>
+    <us-gaap:IncreaseDecreaseInAccountsAndOtherReceivables contextRef="c-1" decimals="-6" id="f-367" unitRef="usd">219000000</us-gaap:IncreaseDecreaseInAccountsAndOtherReceivables>
+    <us-gaap:IncreaseDecreaseInAccountsAndOtherReceivables contextRef="c-24" decimals="-6" id="f-368" unitRef="usd">148000000</us-gaap:IncreaseDecreaseInAccountsAndOtherReceivables>
+    <us-gaap:IncreaseDecreaseInAccountsAndOtherReceivables contextRef="c-25" decimals="-6" id="f-369" unitRef="usd">98000000</us-gaap:IncreaseDecreaseInAccountsAndOtherReceivables>
+    <us-gaap:IncreaseDecreaseInFinanceReceivables contextRef="c-1" decimals="-6" id="f-370" unitRef="usd">141000000</us-gaap:IncreaseDecreaseInFinanceReceivables>
+    <us-gaap:IncreaseDecreaseInFinanceReceivables contextRef="c-24" decimals="-6" id="f-371" unitRef="usd">82000000</us-gaap:IncreaseDecreaseInFinanceReceivables>
+    <us-gaap:IncreaseDecreaseInFinanceReceivables contextRef="c-25" decimals="-6" id="f-372" unitRef="usd">-214000000</us-gaap:IncreaseDecreaseInFinanceReceivables>
+    <us-gaap:IncreaseDecreaseInOtherOperatingAssets contextRef="c-1" decimals="-6" id="f-373" unitRef="usd">38000000</us-gaap:IncreaseDecreaseInOtherOperatingAssets>
+    <us-gaap:IncreaseDecreaseInOtherOperatingAssets contextRef="c-24" decimals="-6" id="f-374" unitRef="usd">72000000</us-gaap:IncreaseDecreaseInOtherOperatingAssets>
+    <us-gaap:IncreaseDecreaseInOtherOperatingAssets contextRef="c-25" decimals="-6" id="f-375" unitRef="usd">50000000</us-gaap:IncreaseDecreaseInOtherOperatingAssets>
+    <us-gaap:IncreaseDecreaseInAccountsPayableAndAccruedLiabilities contextRef="c-1" decimals="-6" id="f-376" unitRef="usd">262000000</us-gaap:IncreaseDecreaseInAccountsPayableAndAccruedLiabilities>
+    <us-gaap:IncreaseDecreaseInAccountsPayableAndAccruedLiabilities contextRef="c-24" decimals="-6" id="f-377" unitRef="usd">110000000</us-gaap:IncreaseDecreaseInAccountsPayableAndAccruedLiabilities>
+    <us-gaap:IncreaseDecreaseInAccountsPayableAndAccruedLiabilities contextRef="c-25" decimals="-6" id="f-378" unitRef="usd">69000000</us-gaap:IncreaseDecreaseInAccountsPayableAndAccruedLiabilities>
+    <us-gaap:IncreaseDecreaseInContractWithCustomerLiability contextRef="c-1" decimals="-6" id="f-379" unitRef="usd">19000000</us-gaap:IncreaseDecreaseInContractWithCustomerLiability>
+    <us-gaap:IncreaseDecreaseInContractWithCustomerLiability contextRef="c-24" decimals="-6" id="f-380" unitRef="usd">26000000</us-gaap:IncreaseDecreaseInContractWithCustomerLiability>
+    <us-gaap:IncreaseDecreaseInContractWithCustomerLiability contextRef="c-25" decimals="-6" id="f-381" unitRef="usd">60000000</us-gaap:IncreaseDecreaseInContractWithCustomerLiability>
+    <us-gaap:NetCashProvidedByUsedInOperatingActivities contextRef="c-1" decimals="-6" id="f-382" unitRef="usd">2033000000</us-gaap:NetCashProvidedByUsedInOperatingActivities>
+    <us-gaap:NetCashProvidedByUsedInOperatingActivities contextRef="c-24" decimals="-6" id="f-383" unitRef="usd">1616000000</us-gaap:NetCashProvidedByUsedInOperatingActivities>
+    <us-gaap:NetCashProvidedByUsedInOperatingActivities contextRef="c-25" decimals="-6" id="f-384" unitRef="usd">944000000</us-gaap:NetCashProvidedByUsedInOperatingActivities>
+    <us-gaap:PaymentsToAcquirePropertyPlantAndEquipment contextRef="c-1" decimals="-6" id="f-385" unitRef="usd">26000000</us-gaap:PaymentsToAcquirePropertyPlantAndEquipment>
+    <us-gaap:PaymentsToAcquirePropertyPlantAndEquipment contextRef="c-24" decimals="-6" id="f-386" unitRef="usd">19000000</us-gaap:PaymentsToAcquirePropertyPlantAndEquipment>
+    <us-gaap:PaymentsToAcquirePropertyPlantAndEquipment contextRef="c-25" decimals="-6" id="f-387" unitRef="usd">39000000</us-gaap:PaymentsToAcquirePropertyPlantAndEquipment>
+    <us-gaap:PaymentsToAcquireMarketableSecurities contextRef="c-1" decimals="-6" id="f-388" unitRef="usd">7040000000</us-gaap:PaymentsToAcquireMarketableSecurities>
+    <us-gaap:PaymentsToAcquireMarketableSecurities contextRef="c-24" decimals="-6" id="f-389" unitRef="usd">8396000000</us-gaap:PaymentsToAcquireMarketableSecurities>
+    <us-gaap:PaymentsToAcquireMarketableSecurities contextRef="c-25" decimals="-6" id="f-390" unitRef="usd">5841000000</us-gaap:PaymentsToAcquireMarketableSecurities>
+    <us-gaap:ProceedsFromSaleAndMaturityOfMarketableSecurities contextRef="c-1" decimals="-6" id="f-391" unitRef="usd">6552000000</us-gaap:ProceedsFromSaleAndMaturityOfMarketableSecurities>
+    <us-gaap:ProceedsFromSaleAndMaturityOfMarketableSecurities contextRef="c-24" decimals="-6" id="f-392" unitRef="usd">7457000000</us-gaap:ProceedsFromSaleAndMaturityOfMarketableSecurities>
+    <us-gaap:ProceedsFromSaleAndMaturityOfMarketableSecurities contextRef="c-25" decimals="-6" id="f-393" unitRef="usd">5590000000</us-gaap:ProceedsFromSaleAndMaturityOfMarketableSecurities>
+    <us-gaap:PaymentsToAcquireLoansHeldForInvestment contextRef="c-1" decimals="-6" id="f-394" unitRef="usd">4014000000</us-gaap:PaymentsToAcquireLoansHeldForInvestment>
+    <us-gaap:PaymentsToAcquireLoansHeldForInvestment contextRef="c-24" decimals="-6" id="f-395" unitRef="usd">3006000000</us-gaap:PaymentsToAcquireLoansHeldForInvestment>
+    <us-gaap:PaymentsToAcquireLoansHeldForInvestment contextRef="c-25" decimals="-6" id="f-396" unitRef="usd">1861000000</us-gaap:PaymentsToAcquireLoansHeldForInvestment>
+    <us-gaap:ProceedsFromPrincipalRepaymentsOnLoansAndLeasesHeldForInvestment contextRef="c-1" decimals="-6" id="f-397" unitRef="usd">3435000000</us-gaap:ProceedsFromPrincipalRepaymentsOnLoansAndLeasesHeldForInvestment>
+    <us-gaap:ProceedsFromPrincipalRepaymentsOnLoansAndLeasesHeldForInvestment contextRef="c-24" decimals="-6" id="f-398" unitRef="usd">2542000000</us-gaap:ProceedsFromPrincipalRepaymentsOnLoansAndLeasesHeldForInvestment>
+    <us-gaap:ProceedsFromPrincipalRepaymentsOnLoansAndLeasesHeldForInvestment contextRef="c-25" decimals="-6" id="f-399" unitRef="usd">1338000000</us-gaap:ProceedsFromPrincipalRepaymentsOnLoansAndLeasesHeldForInvestment>
+    <shop:PaymentsToAcquireEquityAndOtherInvestments contextRef="c-1" decimals="-6" id="f-400" unitRef="usd">99000000</shop:PaymentsToAcquireEquityAndOtherInvestments>
+    <shop:PaymentsToAcquireEquityAndOtherInvestments contextRef="c-24" decimals="-6" id="f-401" unitRef="usd">137000000</shop:PaymentsToAcquireEquityAndOtherInvestments>
+    <shop:PaymentsToAcquireEquityAndOtherInvestments contextRef="c-25" decimals="-6" id="f-402" unitRef="usd">364000000</shop:PaymentsToAcquireEquityAndOtherInvestments>
+    <us-gaap:PaymentsToAcquireBusinessesNetOfCashAcquired contextRef="c-1" decimals="-6" id="f-403" unitRef="usd">56000000</us-gaap:PaymentsToAcquireBusinessesNetOfCashAcquired>
+    <us-gaap:PaymentsToAcquireBusinessesNetOfCashAcquired contextRef="c-24" decimals="-6" id="f-404" unitRef="usd">30000000</us-gaap:PaymentsToAcquireBusinessesNetOfCashAcquired>
+    <us-gaap:PaymentsToAcquireBusinessesNetOfCashAcquired contextRef="c-25" decimals="-6" id="f-405" unitRef="usd">31000000</us-gaap:PaymentsToAcquireBusinessesNetOfCashAcquired>
+    <us-gaap:PaymentsForProceedsFromOtherInvestingActivities contextRef="c-1" decimals="-6" id="f-406" unitRef="usd">-58000000</us-gaap:PaymentsForProceedsFromOtherInvestingActivities>
+    <us-gaap:PaymentsForProceedsFromOtherInvestingActivities contextRef="c-24" decimals="-6" id="f-407" unitRef="usd">-3000000</us-gaap:PaymentsForProceedsFromOtherInvestingActivities>
+    <us-gaap:PaymentsForProceedsFromOtherInvestingActivities contextRef="c-25" decimals="-6" id="f-408" unitRef="usd">36000000</us-gaap:PaymentsForProceedsFromOtherInvestingActivities>
+    <us-gaap:NetCashProvidedByUsedInInvestingActivities contextRef="c-1" decimals="-6" id="f-409" unitRef="usd">-1190000000</us-gaap:NetCashProvidedByUsedInInvestingActivities>
+    <us-gaap:NetCashProvidedByUsedInInvestingActivities contextRef="c-24" decimals="-6" id="f-410" unitRef="usd">-1586000000</us-gaap:NetCashProvidedByUsedInInvestingActivities>
+    <us-gaap:NetCashProvidedByUsedInInvestingActivities contextRef="c-25" decimals="-6" id="f-411" unitRef="usd">-1244000000</us-gaap:NetCashProvidedByUsedInInvestingActivities>
+    <us-gaap:ProceedsFromStockOptionsExercised contextRef="c-1" decimals="-6" id="f-412" unitRef="usd">232000000</us-gaap:ProceedsFromStockOptionsExercised>
+    <us-gaap:ProceedsFromStockOptionsExercised contextRef="c-24" decimals="-6" id="f-413" unitRef="usd">61000000</us-gaap:ProceedsFromStockOptionsExercised>
+    <us-gaap:ProceedsFromStockOptionsExercised contextRef="c-25" decimals="-6" id="f-414" unitRef="usd">60000000</us-gaap:ProceedsFromStockOptionsExercised>
+    <us-gaap:ProceedsFromConvertibleDebt contextRef="c-1" decimals="-6" id="f-415" unitRef="usd">-1043000000</us-gaap:ProceedsFromConvertibleDebt>
+    <us-gaap:ProceedsFromConvertibleDebt contextRef="c-24" decimals="-6" id="f-416" unitRef="usd">0</us-gaap:ProceedsFromConvertibleDebt>
+    <us-gaap:ProceedsFromConvertibleDebt contextRef="c-25" decimals="-6" id="f-417" unitRef="usd">0</us-gaap:ProceedsFromConvertibleDebt>
+    <us-gaap:NetCashProvidedByUsedInFinancingActivities contextRef="c-1" decimals="-6" id="f-418" unitRef="usd">-811000000</us-gaap:NetCashProvidedByUsedInFinancingActivities>
+    <us-gaap:NetCashProvidedByUsedInFinancingActivities contextRef="c-24" decimals="-6" id="f-419" unitRef="usd">61000000</us-gaap:NetCashProvidedByUsedInFinancingActivities>
+    <us-gaap:NetCashProvidedByUsedInFinancingActivities contextRef="c-25" decimals="-6" id="f-420" unitRef="usd">60000000</us-gaap:NetCashProvidedByUsedInFinancingActivities>
+    <us-gaap:EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents contextRef="c-1" decimals="-6" id="f-421" unitRef="usd">15000000</us-gaap:EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents>
+    <us-gaap:EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents contextRef="c-24" decimals="-6" id="f-422" unitRef="usd">-6000000</us-gaap:EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents>
+    <us-gaap:EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents contextRef="c-25" decimals="-6" id="f-423" unitRef="usd">4000000</us-gaap:EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents>
+    <us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect contextRef="c-1" decimals="-6" id="f-424" unitRef="usd">47000000</us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect>
+    <us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect contextRef="c-24" decimals="-6" id="f-425" unitRef="usd">85000000</us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect>
+    <us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect contextRef="c-25" decimals="-6" id="f-426" unitRef="usd">-236000000</us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect>
+    <us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents contextRef="c-12" decimals="-6" id="f-427" unitRef="usd">1498000000</us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents>
+    <us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents contextRef="c-39" decimals="-6" id="f-428" unitRef="usd">1413000000</us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents>
+    <us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents contextRef="c-30" decimals="-6" id="f-429" unitRef="usd">1649000000</us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents>
+    <us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents contextRef="c-11" decimals="-6" id="f-430" unitRef="usd">1545000000</us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents>
+    <us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents contextRef="c-12" decimals="-6" id="f-431" unitRef="usd">1498000000</us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents>
+    <us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents contextRef="c-39" decimals="-6" id="f-432" unitRef="usd">1413000000</us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents>
+    <us-gaap:IncomeTaxesPaidNet contextRef="c-1" decimals="-6" id="f-433" unitRef="usd">194000000</us-gaap:IncomeTaxesPaidNet>
+    <us-gaap:IncomeTaxesPaidNet contextRef="c-24" decimals="-6" id="f-434" unitRef="usd">116000000</us-gaap:IncomeTaxesPaidNet>
+    <us-gaap:IncomeTaxesPaidNet contextRef="c-25" decimals="-6" id="f-435" unitRef="usd">50000000</us-gaap:IncomeTaxesPaidNet>
+    <us-gaap:InterestPaidNet contextRef="c-1" decimals="-6" id="f-436" unitRef="usd">1000000</us-gaap:InterestPaidNet>
+    <us-gaap:InterestPaidNet contextRef="c-24" decimals="-6" id="f-437" unitRef="usd">1000000</us-gaap:InterestPaidNet>
+    <us-gaap:InterestPaidNet contextRef="c-25" decimals="-6" id="f-438" unitRef="usd">1000000</us-gaap:InterestPaidNet>
+    <us-gaap:AdvertisingExpense contextRef="c-1" decimals="-6" id="f-449" unitRef="usd">753000000</us-gaap:AdvertisingExpense>
+    <us-gaap:AdvertisingExpense contextRef="c-24" decimals="-6" id="f-450" unitRef="usd">546000000</us-gaap:AdvertisingExpense>
+    <us-gaap:AdvertisingExpense contextRef="c-25" decimals="-6" id="f-451" unitRef="usd">497000000</us-gaap:AdvertisingExpense>
+    <us-gaap:NumberOfOperatingSegments contextRef="c-1" decimals="INF" id="f-486" unitRef="segment">1</us-gaap:NumberOfOperatingSegments>
+    <us-gaap:NumberOfReportableSegments contextRef="c-1" decimals="INF" id="f-487" unitRef="segment">1</us-gaap:NumberOfReportableSegments>
+    <us-gaap:BusinessAcquisitionPercentageOfVotingInterestsAcquired contextRef="c-71" decimals="INF" id="f-494" unitRef="number">1</us-gaap:BusinessAcquisitionPercentageOfVotingInterestsAcquired>
+    <us-gaap:PaymentsToAcquireBusinessesGross contextRef="c-72" decimals="-6" id="f-495" unitRef="usd">59000000</us-gaap:PaymentsToAcquireBusinessesGross>
+    <us-gaap:BusinessCombinationConsiderationTransferredEquityInterestsIssuedAndIssuable contextRef="c-72" decimals="-6" id="f-496" unitRef="usd">24000000</us-gaap:BusinessCombinationConsiderationTransferredEquityInterestsIssuedAndIssuable>
+    <shop:BusinessCombinationConsiderationTransferredPostCombinationCompensation contextRef="c-72" decimals="-6" id="f-497" unitRef="usd">6000000</shop:BusinessCombinationConsiderationTransferredPostCombinationCompensation>
+    <shop:BusinessCombinationRecognizedIdentifiableAssetsAcquiredAndLiabilitiesAssumedNetAssets contextRef="c-73" decimals="-6" id="f-499" unitRef="usd">0</shop:BusinessCombinationRecognizedIdentifiableAssetsAcquiredAndLiabilitiesAssumedNetAssets>
+    <us-gaap:BusinessCombinationRecognizedIdentifiableAssetsAcquiredAndLiabilitiesAssumedIntangibles contextRef="c-74" decimals="-6" id="f-500" unitRef="usd">20000000</us-gaap:BusinessCombinationRecognizedIdentifiableAssetsAcquiredAndLiabilitiesAssumedIntangibles>
+    <us-gaap:Goodwill contextRef="c-73" decimals="-6" id="f-501" unitRef="usd">39000000</us-gaap:Goodwill>
+    <us-gaap:BusinessCombinationRecognizedIdentifiableAssetsAcquiredAndLiabilitiesAssumedDeferredTaxLiabilities contextRef="c-73" decimals="-6" id="f-502" unitRef="usd">0</us-gaap:BusinessCombinationRecognizedIdentifiableAssetsAcquiredAndLiabilitiesAssumedDeferredTaxLiabilities>
+    <us-gaap:BusinessCombinationRecognizedIdentifiableAssetsAcquiredGoodwillAndLiabilitiesAssumedNet contextRef="c-73" decimals="-6" id="f-503" unitRef="usd">59000000</us-gaap:BusinessCombinationRecognizedIdentifiableAssetsAcquiredGoodwillAndLiabilitiesAssumedNet>
+    <us-gaap:FinitelivedIntangibleAssetsAcquired1 contextRef="c-75" decimals="-6" id="f-504" unitRef="usd">20000000</us-gaap:FinitelivedIntangibleAssetsAcquired1>
+    <us-gaap:BusinessAcquisitionPurchasePriceAllocationGoodwillExpectedTaxDeductibleAmount contextRef="c-71" decimals="INF" id="f-506" unitRef="usd">0</us-gaap:BusinessAcquisitionPurchasePriceAllocationGoodwillExpectedTaxDeductibleAmount>
+    <us-gaap:CashAndCashEquivalentsAtCarryingValue contextRef="c-11" decimals="-6" id="f-515" unitRef="usd">1545000000</us-gaap:CashAndCashEquivalentsAtCarryingValue>
+    <us-gaap:CashAndCashEquivalentsAtCarryingValue contextRef="c-12" decimals="-6" id="f-516" unitRef="usd">1498000000</us-gaap:CashAndCashEquivalentsAtCarryingValue>
+    <us-gaap:RestrictedCash contextRef="c-11" decimals="-6" id="f-519" unitRef="usd">11000000</us-gaap:RestrictedCash>
+    <us-gaap:RestrictedCash contextRef="c-12" decimals="-6" id="f-520" unitRef="usd">9000000</us-gaap:RestrictedCash>
+    <us-gaap:DebtSecuritiesAvailableForSaleChangeInPresentValueInterestIncome contextRef="c-1" decimals="-6" id="f-554" unitRef="usd">105000000</us-gaap:DebtSecuritiesAvailableForSaleChangeInPresentValueInterestIncome>
+    <us-gaap:DebtSecuritiesAvailableForSaleChangeInPresentValueInterestIncome contextRef="c-24" decimals="-6" id="f-591" unitRef="usd">62000000</us-gaap:DebtSecuritiesAvailableForSaleChangeInPresentValueInterestIncome>
+    <us-gaap:AvailableForSaleSecuritiesDebtMaturitiesWithinOneYearAmortizedCost contextRef="c-11" decimals="-6" id="f-593" unitRef="usd">4248000000</us-gaap:AvailableForSaleSecuritiesDebtMaturitiesWithinOneYearAmortizedCost>
+    <shop:DebtSecuritiesAvailableForSaleAmortizedCostMaturityAllocatedAndSingleMaturityDateAfterYearOneThroughThree contextRef="c-11" decimals="-6" id="f-594" unitRef="usd">976000000</shop:DebtSecuritiesAvailableForSaleAmortizedCostMaturityAllocatedAndSingleMaturityDateAfterYearOneThroughThree>
+    <us-gaap:AvailableForSaleDebtSecuritiesAmortizedCostBasis contextRef="c-11" decimals="-6" id="f-595" unitRef="usd">5224000000</us-gaap:AvailableForSaleDebtSecuritiesAmortizedCostBasis>
+    <us-gaap:EquitySecuritiesFvNiCurrentAndNoncurrent contextRef="c-11" decimals="-6" id="f-623" unitRef="usd">2986000000</us-gaap:EquitySecuritiesFvNiCurrentAndNoncurrent>
+    <us-gaap:EquitySecuritiesFvNiCurrentAndNoncurrent contextRef="c-12" decimals="-6" id="f-626" unitRef="usd">3183000000</us-gaap:EquitySecuritiesFvNiCurrentAndNoncurrent>
+    <us-gaap:EquityMethodInvestments contextRef="c-11" decimals="-6" id="f-668" unitRef="usd">602000000</us-gaap:EquityMethodInvestments>
+    <us-gaap:IncomeLossFromEquityMethodInvestments contextRef="c-1" decimals="-6" id="f-670" unitRef="usd">-40000000</us-gaap:IncomeLossFromEquityMethodInvestments>
+    <us-gaap:IncomeLossFromEquityMethodInvestments contextRef="c-24" decimals="-6" id="f-671" unitRef="usd">-138000000</us-gaap:IncomeLossFromEquityMethodInvestments>
+    <us-gaap:EmbeddedDerivativeLossOnEmbeddedDerivative contextRef="c-1" decimals="-6" id="f-702" unitRef="usd">123000000</us-gaap:EmbeddedDerivativeLossOnEmbeddedDerivative>
+    <us-gaap:ReceivablesNetCurrent contextRef="c-11" decimals="-6" id="f-720" unitRef="usd">500000000</us-gaap:ReceivablesNetCurrent>
+    <us-gaap:ReceivablesNetCurrent contextRef="c-12" decimals="-6" id="f-721" unitRef="usd">342000000</us-gaap:ReceivablesNetCurrent>
+    <us-gaap:ReceivablesNetCurrent contextRef="c-39" decimals="-6" id="f-722" unitRef="usd">282000000</us-gaap:ReceivablesNetCurrent>
+    <us-gaap:NotesAndLoansReceivableNetCurrent contextRef="c-11" decimals="-6" id="f-743" unitRef="usd">1784000000</us-gaap:NotesAndLoansReceivableNetCurrent>
+    <us-gaap:NotesAndLoansReceivableNetCurrent contextRef="c-12" decimals="-6" id="f-744" unitRef="usd">1224000000</us-gaap:NotesAndLoansReceivableNetCurrent>
+    <us-gaap:NotesAndLoansReceivableNetCurrent contextRef="c-39" decimals="-6" id="f-745" unitRef="usd">816000000</us-gaap:NotesAndLoansReceivableNetCurrent>
+    <us-gaap:FinancingReceivableAccruedInterestBeforeAllowanceForCreditLoss contextRef="c-11" decimals="-6" id="f-746" unitRef="usd">24000000</us-gaap:FinancingReceivableAccruedInterestBeforeAllowanceForCreditLoss>
+    <us-gaap:FinancingReceivableAccruedInterestBeforeAllowanceForCreditLoss contextRef="c-12" decimals="-6" id="f-747" unitRef="usd">15000000</us-gaap:FinancingReceivableAccruedInterestBeforeAllowanceForCreditLoss>
+    <us-gaap:FinancingReceivableAccruedInterestBeforeAllowanceForCreditLoss contextRef="c-39" decimals="-6" id="f-748" unitRef="usd">10000000</us-gaap:FinancingReceivableAccruedInterestBeforeAllowanceForCreditLoss>
+    <us-gaap:PaymentsToAcquireFinanceReceivables contextRef="c-1" decimals="-8" id="f-749" unitRef="usd">4200000000</us-gaap:PaymentsToAcquireFinanceReceivables>
+    <us-gaap:PaymentsToAcquireFinanceReceivables contextRef="c-24" decimals="-8" id="f-750" unitRef="usd">3000000000.0</us-gaap:PaymentsToAcquireFinanceReceivables>
+    <us-gaap:TransferOfFinancialAssetsAccountedForAsSalesCashProceedsReceivedForAssetsDerecognizedAmount contextRef="c-11" decimals="INF" id="f-751" unitRef="usd">0</us-gaap:TransferOfFinancialAssetsAccountedForAsSalesCashProceedsReceivedForAssetsDerecognizedAmount>
+    <us-gaap:TransferOfFinancialAssetsAccountedForAsSalesCashProceedsReceivedForAssetsDerecognizedAmount contextRef="c-12" decimals="-6" id="f-752" unitRef="usd">212000000</us-gaap:TransferOfFinancialAssetsAccountedForAsSalesCashProceedsReceivedForAssetsDerecognizedAmount>
+    <us-gaap:InterestAndFeeIncomeLoansAndLeases contextRef="c-1" decimals="-6" id="f-753" unitRef="usd">258000000</us-gaap:InterestAndFeeIncomeLoansAndLeases>
+    <us-gaap:InterestAndFeeIncomeLoansAndLeases contextRef="c-24" decimals="-6" id="f-754" unitRef="usd">205000000</us-gaap:InterestAndFeeIncomeLoansAndLeases>
+    <us-gaap:FinancingReceivableOriginatedInCurrentFiscalYear contextRef="c-11" decimals="-6" id="f-781" unitRef="usd">1564000000</us-gaap:FinancingReceivableOriginatedInCurrentFiscalYear>
+    <us-gaap:FinancingReceivableOriginatedInFiscalYearBeforeLatestFiscalYear contextRef="c-11" decimals="-6" id="f-782" unitRef="usd">57000000</us-gaap:FinancingReceivableOriginatedInFiscalYearBeforeLatestFiscalYear>
+    <us-gaap:NotesReceivableGross contextRef="c-11" decimals="-6" id="f-783" unitRef="usd">1621000000</us-gaap:NotesReceivableGross>
+    <srt:FinancingReceivableBeforeAllowanceForCreditLossToTotalPercent contextRef="c-11" decimals="INF" id="f-784" unitRef="number">1.000</srt:FinancingReceivableBeforeAllowanceForCreditLossToTotalPercent>
+    <us-gaap:FinancingReceivableOriginatedInCurrentFiscalYear contextRef="c-12" decimals="-6" id="f-801" unitRef="usd">1101000000</us-gaap:FinancingReceivableOriginatedInCurrentFiscalYear>
+    <us-gaap:FinancingReceivableOriginatedInFiscalYearBeforeLatestFiscalYear contextRef="c-12" decimals="-6" id="f-802" unitRef="usd">30000000</us-gaap:FinancingReceivableOriginatedInFiscalYearBeforeLatestFiscalYear>
+    <us-gaap:NotesReceivableGross contextRef="c-12" decimals="-6" id="f-803" unitRef="usd">1131000000</us-gaap:NotesReceivableGross>
+    <srt:FinancingReceivableBeforeAllowanceForCreditLossToTotalPercent contextRef="c-12" decimals="INF" id="f-804" unitRef="number">1.000</srt:FinancingReceivableBeforeAllowanceForCreditLossToTotalPercent>
+    <us-gaap:DepositsAssetsCurrent contextRef="c-11" decimals="-6" id="f-815" unitRef="usd">69000000</us-gaap:DepositsAssetsCurrent>
+    <us-gaap:DepositsAssetsCurrent contextRef="c-12" decimals="-6" id="f-816" unitRef="usd">35000000</us-gaap:DepositsAssetsCurrent>
+    <us-gaap:PrepaidExpenseCurrent contextRef="c-11" decimals="-6" id="f-817" unitRef="usd">55000000</us-gaap:PrepaidExpenseCurrent>
+    <us-gaap:PrepaidExpenseCurrent contextRef="c-12" decimals="-6" id="f-818" unitRef="usd">59000000</us-gaap:PrepaidExpenseCurrent>
+    <us-gaap:CapitalizedContractCostNetCurrent contextRef="c-11" decimals="-6" id="f-819" unitRef="usd">52000000</us-gaap:CapitalizedContractCostNetCurrent>
+    <us-gaap:CapitalizedContractCostNetCurrent contextRef="c-12" decimals="-6" id="f-820" unitRef="usd">57000000</us-gaap:CapitalizedContractCostNetCurrent>
+    <us-gaap:IncomeTaxesReceivable contextRef="c-11" decimals="-6" id="f-821" unitRef="usd">34000000</us-gaap:IncomeTaxesReceivable>
+    <us-gaap:IncomeTaxesReceivable contextRef="c-12" decimals="-6" id="f-822" unitRef="usd">32000000</us-gaap:IncomeTaxesReceivable>
+    <us-gaap:InventoryNet contextRef="c-11" decimals="-6" id="f-823" unitRef="usd">21000000</us-gaap:InventoryNet>
+    <us-gaap:InventoryNet contextRef="c-12" decimals="-6" id="f-824" unitRef="usd">26000000</us-gaap:InventoryNet>
+    <us-gaap:DerivativeAssetsCurrent contextRef="c-11" decimals="-6" id="f-825" unitRef="usd">3000000</us-gaap:DerivativeAssetsCurrent>
+    <us-gaap:DerivativeAssetsCurrent contextRef="c-12" decimals="-6" id="f-826" unitRef="usd">0</us-gaap:DerivativeAssetsCurrent>
+    <us-gaap:PrepaidExpenseAndOtherAssetsCurrent contextRef="c-11" decimals="-6" id="f-827" unitRef="usd">234000000</us-gaap:PrepaidExpenseAndOtherAssetsCurrent>
+    <us-gaap:PrepaidExpenseAndOtherAssetsCurrent contextRef="c-12" decimals="-6" id="f-828" unitRef="usd">209000000</us-gaap:PrepaidExpenseAndOtherAssetsCurrent>
+    <us-gaap:PropertyPlantAndEquipmentGross contextRef="c-11" decimals="-6" id="f-840" unitRef="usd">228000000</us-gaap:PropertyPlantAndEquipmentGross>
+    <us-gaap:AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment contextRef="c-11" decimals="-6" id="f-841" unitRef="usd">175000000</us-gaap:AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment>
+    <us-gaap:PropertyPlantAndEquipmentNet contextRef="c-11" decimals="-6" id="f-842" unitRef="usd">53000000</us-gaap:PropertyPlantAndEquipmentNet>
+    <us-gaap:PropertyPlantAndEquipmentGross contextRef="c-12" decimals="-6" id="f-852" unitRef="usd">217000000</us-gaap:PropertyPlantAndEquipmentGross>
+    <us-gaap:AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment contextRef="c-12" decimals="-6" id="f-853" unitRef="usd">170000000</us-gaap:AccumulatedDepreciationDepletionAndAmortizationPropertyPlantAndEquipment>
+    <us-gaap:PropertyPlantAndEquipmentNet contextRef="c-12" decimals="-6" id="f-854" unitRef="usd">47000000</us-gaap:PropertyPlantAndEquipmentNet>
+    <us-gaap:ImpairmentOfLeasehold contextRef="c-1" decimals="-6" id="f-855" unitRef="usd">5000000</us-gaap:ImpairmentOfLeasehold>
+    <us-gaap:ImpairmentOfLeasehold contextRef="c-25" decimals="-6" id="f-856" unitRef="usd">12000000</us-gaap:ImpairmentOfLeasehold>
+    <us-gaap:Depreciation contextRef="c-1" decimals="-6" id="f-873" unitRef="usd">18000000</us-gaap:Depreciation>
+    <us-gaap:Depreciation contextRef="c-24" decimals="-6" id="f-874" unitRef="usd">22000000</us-gaap:Depreciation>
+    <us-gaap:Depreciation contextRef="c-25" decimals="-6" id="f-875" unitRef="usd">28000000</us-gaap:Depreciation>
+    <us-gaap:OperatingLeaseCost contextRef="c-1" decimals="-6" id="f-882" unitRef="usd">23000000</us-gaap:OperatingLeaseCost>
+    <us-gaap:OperatingLeaseCost contextRef="c-24" decimals="-6" id="f-883" unitRef="usd">16000000</us-gaap:OperatingLeaseCost>
+    <us-gaap:OperatingLeaseCost contextRef="c-25" decimals="-6" id="f-884" unitRef="usd">31000000</us-gaap:OperatingLeaseCost>
+    <us-gaap:VariableLeaseCost contextRef="c-1" decimals="-6" id="f-885" unitRef="usd">15000000</us-gaap:VariableLeaseCost>
+    <us-gaap:VariableLeaseCost contextRef="c-24" decimals="-6" id="f-886" unitRef="usd">25000000</us-gaap:VariableLeaseCost>
+    <us-gaap:VariableLeaseCost contextRef="c-25" decimals="-6" id="f-887" unitRef="usd">17000000</us-gaap:VariableLeaseCost>
+    <us-gaap:LeaseCost contextRef="c-1" decimals="-6" id="f-888" unitRef="usd">38000000</us-gaap:LeaseCost>
+    <us-gaap:LeaseCost contextRef="c-24" decimals="-6" id="f-889" unitRef="usd">41000000</us-gaap:LeaseCost>
+    <us-gaap:LeaseCost contextRef="c-25" decimals="-6" id="f-890" unitRef="usd">48000000</us-gaap:LeaseCost>
+    <us-gaap:OperatingLeaseWeightedAverageDiscountRatePercent contextRef="c-11" decimals="3" id="f-892" unitRef="number">0.036</us-gaap:OperatingLeaseWeightedAverageDiscountRatePercent>
+    <us-gaap:OperatingLeaseWeightedAverageDiscountRatePercent contextRef="c-12" decimals="3" id="f-894" unitRef="number">0.034</us-gaap:OperatingLeaseWeightedAverageDiscountRatePercent>
+    <us-gaap:SubleaseIncome contextRef="c-1" decimals="-6" id="f-895" unitRef="usd">7000000</us-gaap:SubleaseIncome>
+    <us-gaap:SubleaseIncome contextRef="c-24" decimals="-6" id="f-896" unitRef="usd">6000000</us-gaap:SubleaseIncome>
+    <us-gaap:SubleaseIncome contextRef="c-25" decimals="-6" id="f-897" unitRef="usd">4000000</us-gaap:SubleaseIncome>
+    <us-gaap:OtherAssetImpairmentCharges contextRef="c-1" decimals="-6" id="f-898" unitRef="usd">13000000</us-gaap:OtherAssetImpairmentCharges>
+    <us-gaap:OtherAssetImpairmentCharges contextRef="c-25" decimals="-6" id="f-899" unitRef="usd">38000000</us-gaap:OtherAssetImpairmentCharges>
+    <us-gaap:LessorOperatingLeasePaymentsToBeReceivedNextTwelveMonths contextRef="c-11" decimals="-6" id="f-911" unitRef="usd">7000000</us-gaap:LessorOperatingLeasePaymentsToBeReceivedNextTwelveMonths>
+    <shop:LessorOperatingLeasePaymentToBeReceivedAfterYearFour contextRef="c-11" decimals="-6" id="f-912" unitRef="usd">145000000</shop:LessorOperatingLeasePaymentToBeReceivedAfterYearFour>
+    <us-gaap:LessorOperatingLeasePaymentsToBeReceivedThreeYears contextRef="c-11" decimals="-6" id="f-913" unitRef="usd">145000000</us-gaap:LessorOperatingLeasePaymentsToBeReceivedThreeYears>
+    <us-gaap:LessorOperatingLeasePaymentsToBeReceivedTwoYears contextRef="c-11" decimals="-6" id="f-914" unitRef="usd">145000000</us-gaap:LessorOperatingLeasePaymentsToBeReceivedTwoYears>
+    <us-gaap:LessorOperatingLeasePaymentsToBeReceivedFourYears contextRef="c-11" decimals="-6" id="f-915" unitRef="usd">145000000</us-gaap:LessorOperatingLeasePaymentsToBeReceivedFourYears>
+    <us-gaap:RightOfUseAssetObtainedInExchangeForOperatingLeaseLiability contextRef="c-1" decimals="-6" id="f-916" unitRef="usd">1000000</us-gaap:RightOfUseAssetObtainedInExchangeForOperatingLeaseLiability>
+    <us-gaap:RightOfUseAssetObtainedInExchangeForOperatingLeaseLiability contextRef="c-24" decimals="-6" id="f-917" unitRef="usd">7000000</us-gaap:RightOfUseAssetObtainedInExchangeForOperatingLeaseLiability>
+    <us-gaap:OperatingLeasePayments contextRef="c-1" decimals="-6" id="f-918" unitRef="usd">34000000</us-gaap:OperatingLeasePayments>
+    <us-gaap:OperatingLeasePayments contextRef="c-24" decimals="-6" id="f-919" unitRef="usd">35000000</us-gaap:OperatingLeasePayments>
+    <us-gaap:IntangibleAssetsGrossExcludingGoodwill contextRef="c-210" decimals="-6" id="f-922" unitRef="usd">93000000</us-gaap:IntangibleAssetsGrossExcludingGoodwill>
+    <us-gaap:FiniteLivedIntangibleAssetsAccumulatedAmortization contextRef="c-210" decimals="-6" id="f-923" unitRef="usd">64000000</us-gaap:FiniteLivedIntangibleAssetsAccumulatedAmortization>
+    <us-gaap:IntangibleAssetsNetExcludingGoodwill contextRef="c-210" decimals="-6" id="f-924" unitRef="usd">29000000</us-gaap:IntangibleAssetsNetExcludingGoodwill>
+    <us-gaap:IntangibleAssetsGrossExcludingGoodwill contextRef="c-211" decimals="-6" id="f-925" unitRef="usd">5000000</us-gaap:IntangibleAssetsGrossExcludingGoodwill>
+    <us-gaap:FiniteLivedIntangibleAssetsAccumulatedAmortization contextRef="c-211" decimals="-6" id="f-926" unitRef="usd">4000000</us-gaap:FiniteLivedIntangibleAssetsAccumulatedAmortization>
+    <us-gaap:IntangibleAssetsNetExcludingGoodwill contextRef="c-211" decimals="-6" id="f-927" unitRef="usd">1000000</us-gaap:IntangibleAssetsNetExcludingGoodwill>
+    <us-gaap:IntangibleAssetsGrossExcludingGoodwill contextRef="c-212" decimals="-6" id="f-928" unitRef="usd">14000000</us-gaap:IntangibleAssetsGrossExcludingGoodwill>
+    <us-gaap:FiniteLivedIntangibleAssetsAccumulatedAmortization contextRef="c-212" decimals="-6" id="f-929" unitRef="usd">14000000</us-gaap:FiniteLivedIntangibleAssetsAccumulatedAmortization>
+    <us-gaap:IntangibleAssetsNetExcludingGoodwill contextRef="c-212" decimals="-6" id="f-930" unitRef="usd">0</us-gaap:IntangibleAssetsNetExcludingGoodwill>
+    <us-gaap:IntangibleAssetsGrossExcludingGoodwill contextRef="c-11" decimals="-6" id="f-931" unitRef="usd">112000000</us-gaap:IntangibleAssetsGrossExcludingGoodwill>
+    <us-gaap:FiniteLivedIntangibleAssetsAccumulatedAmortization contextRef="c-11" decimals="-6" id="f-932" unitRef="usd">82000000</us-gaap:FiniteLivedIntangibleAssetsAccumulatedAmortization>
+    <us-gaap:IntangibleAssetsNetExcludingGoodwill contextRef="c-11" decimals="-6" id="f-933" unitRef="usd">30000000</us-gaap:IntangibleAssetsNetExcludingGoodwill>
+    <us-gaap:IntangibleAssetsGrossExcludingGoodwill contextRef="c-213" decimals="-6" id="f-934" unitRef="usd">72000000</us-gaap:IntangibleAssetsGrossExcludingGoodwill>
+    <us-gaap:FiniteLivedIntangibleAssetsAccumulatedAmortization contextRef="c-213" decimals="-6" id="f-935" unitRef="usd">51000000</us-gaap:FiniteLivedIntangibleAssetsAccumulatedAmortization>
+    <us-gaap:IntangibleAssetsNetExcludingGoodwill contextRef="c-213" decimals="-6" id="f-936" unitRef="usd">21000000</us-gaap:IntangibleAssetsNetExcludingGoodwill>
+    <us-gaap:IntangibleAssetsGrossExcludingGoodwill contextRef="c-214" decimals="-6" id="f-937" unitRef="usd">5000000</us-gaap:IntangibleAssetsGrossExcludingGoodwill>
+    <us-gaap:FiniteLivedIntangibleAssetsAccumulatedAmortization contextRef="c-214" decimals="-6" id="f-938" unitRef="usd">4000000</us-gaap:FiniteLivedIntangibleAssetsAccumulatedAmortization>
+    <us-gaap:IntangibleAssetsNetExcludingGoodwill contextRef="c-214" decimals="-6" id="f-939" unitRef="usd">1000000</us-gaap:IntangibleAssetsNetExcludingGoodwill>
+    <us-gaap:IntangibleAssetsGrossExcludingGoodwill contextRef="c-215" decimals="-6" id="f-940" unitRef="usd">14000000</us-gaap:IntangibleAssetsGrossExcludingGoodwill>
+    <us-gaap:FiniteLivedIntangibleAssetsAccumulatedAmortization contextRef="c-215" decimals="-6" id="f-941" unitRef="usd">14000000</us-gaap:FiniteLivedIntangibleAssetsAccumulatedAmortization>
+    <us-gaap:IntangibleAssetsNetExcludingGoodwill contextRef="c-215" decimals="-6" id="f-942" unitRef="usd">0</us-gaap:IntangibleAssetsNetExcludingGoodwill>
+    <us-gaap:IntangibleAssetsGrossExcludingGoodwill contextRef="c-12" decimals="-6" id="f-943" unitRef="usd">91000000</us-gaap:IntangibleAssetsGrossExcludingGoodwill>
+    <us-gaap:FiniteLivedIntangibleAssetsAccumulatedAmortization contextRef="c-12" decimals="-6" id="f-944" unitRef="usd">69000000</us-gaap:FiniteLivedIntangibleAssetsAccumulatedAmortization>
+    <us-gaap:IntangibleAssetsNetExcludingGoodwill contextRef="c-12" decimals="-6" id="f-945" unitRef="usd">22000000</us-gaap:IntangibleAssetsNetExcludingGoodwill>
+    <us-gaap:ImpairmentOfIntangibleAssetsFinitelived contextRef="c-218" decimals="-6" id="f-949" unitRef="usd">307000000</us-gaap:ImpairmentOfIntangibleAssetsFinitelived>
+    <us-gaap:ImpairmentOfIntangibleAssetsFinitelived contextRef="c-216" decimals="-6" id="f-950" unitRef="usd">27000000</us-gaap:ImpairmentOfIntangibleAssetsFinitelived>
+    <us-gaap:ImpairmentOfIntangibleAssetsFinitelived contextRef="c-217" decimals="-6" id="f-951" unitRef="usd">3000000</us-gaap:ImpairmentOfIntangibleAssetsFinitelived>
+    <shop:CostOfIntangibleAssetsSold contextRef="c-219" decimals="-6" id="f-952" unitRef="usd">440000000</shop:CostOfIntangibleAssetsSold>
+    <us-gaap:GainLossOnDispositionOfIntangibleAssets contextRef="c-220" decimals="INF" id="f-953" unitRef="usd">0</us-gaap:GainLossOnDispositionOfIntangibleAssets>
+    <us-gaap:AmortizationOfIntangibleAssets contextRef="c-1" decimals="-6" id="f-964" unitRef="usd">13000000</us-gaap:AmortizationOfIntangibleAssets>
+    <us-gaap:AmortizationOfIntangibleAssets contextRef="c-24" decimals="-6" id="f-965" unitRef="usd">14000000</us-gaap:AmortizationOfIntangibleAssets>
+    <us-gaap:AmortizationOfIntangibleAssets contextRef="c-25" decimals="-6" id="f-966" unitRef="usd">38000000</us-gaap:AmortizationOfIntangibleAssets>
+    <us-gaap:FiniteLivedIntangibleAssetsAmortizationExpenseNextTwelveMonths contextRef="c-11" decimals="-6" id="f-968" unitRef="usd">9000000</us-gaap:FiniteLivedIntangibleAssetsAmortizationExpenseNextTwelveMonths>
+    <us-gaap:FiniteLivedIntangibleAssetsAmortizationExpenseYearTwo contextRef="c-11" decimals="-6" id="f-969" unitRef="usd">8000000</us-gaap:FiniteLivedIntangibleAssetsAmortizationExpenseYearTwo>
+    <us-gaap:FiniteLivedIntangibleAssetsAmortizationExpenseYearThree contextRef="c-11" decimals="-6" id="f-970" unitRef="usd">2000000</us-gaap:FiniteLivedIntangibleAssetsAmortizationExpenseYearThree>
+    <us-gaap:FiniteLivedIntangibleAssetsNet contextRef="c-11" decimals="-6" id="f-971" unitRef="usd">19000000</us-gaap:FiniteLivedIntangibleAssetsNet>
+    <us-gaap:GoodwillImpairmentLoss contextRef="c-1" decimals="INF" id="f-973" unitRef="usd">0</us-gaap:GoodwillImpairmentLoss>
+    <us-gaap:GoodwillImpairmentLoss contextRef="c-24" decimals="INF" id="f-974" unitRef="usd">0</us-gaap:GoodwillImpairmentLoss>
+    <us-gaap:Goodwill contextRef="c-12" decimals="-6" id="f-978" unitRef="usd">452000000</us-gaap:Goodwill>
+    <us-gaap:Goodwill contextRef="c-39" decimals="-6" id="f-979" unitRef="usd">427000000</us-gaap:Goodwill>
+    <us-gaap:GoodwillAcquiredDuringPeriod contextRef="c-1" decimals="-6" id="f-980" unitRef="usd">39000000</us-gaap:GoodwillAcquiredDuringPeriod>
+    <us-gaap:GoodwillAcquiredDuringPeriod contextRef="c-24" decimals="-6" id="f-981" unitRef="usd">25000000</us-gaap:GoodwillAcquiredDuringPeriod>
+    <us-gaap:Goodwill contextRef="c-11" decimals="-6" id="f-982" unitRef="usd">491000000</us-gaap:Goodwill>
+    <us-gaap:Goodwill contextRef="c-12" decimals="-6" id="f-983" unitRef="usd">452000000</us-gaap:Goodwill>
+    <us-gaap:AccountsPayableTradeCurrent contextRef="c-11" decimals="-6" id="f-986" unitRef="usd">570000000</us-gaap:AccountsPayableTradeCurrent>
+    <us-gaap:AccountsPayableTradeCurrent contextRef="c-12" decimals="-6" id="f-987" unitRef="usd">360000000</us-gaap:AccountsPayableTradeCurrent>
+    <us-gaap:SalesAndExciseTaxPayableCurrent contextRef="c-11" decimals="-6" id="f-988" unitRef="usd">161000000</us-gaap:SalesAndExciseTaxPayableCurrent>
+    <us-gaap:SalesAndExciseTaxPayableCurrent contextRef="c-12" decimals="-6" id="f-989" unitRef="usd">121000000</us-gaap:SalesAndExciseTaxPayableCurrent>
+    <us-gaap:AccruedIncomeTaxesCurrent contextRef="c-11" decimals="-6" id="f-990" unitRef="usd">156000000</us-gaap:AccruedIncomeTaxesCurrent>
+    <us-gaap:AccruedIncomeTaxesCurrent contextRef="c-12" decimals="-6" id="f-991" unitRef="usd">58000000</us-gaap:AccruedIncomeTaxesCurrent>
+    <us-gaap:EmployeeRelatedLiabilitiesCurrent contextRef="c-11" decimals="-6" id="f-992" unitRef="usd">102000000</us-gaap:EmployeeRelatedLiabilitiesCurrent>
+    <us-gaap:EmployeeRelatedLiabilitiesCurrent contextRef="c-12" decimals="-6" id="f-993" unitRef="usd">99000000</us-gaap:EmployeeRelatedLiabilitiesCurrent>
+    <us-gaap:AllowanceForDoubtfulAccountsReceivableCurrent contextRef="c-11" decimals="-6" id="f-994" unitRef="usd">66000000</us-gaap:AllowanceForDoubtfulAccountsReceivableCurrent>
+    <us-gaap:AllowanceForDoubtfulAccountsReceivableCurrent contextRef="c-12" decimals="-6" id="f-995" unitRef="usd">48000000</us-gaap:AllowanceForDoubtfulAccountsReceivableCurrent>
+    <us-gaap:OtherAccruedLiabilitiesCurrent contextRef="c-11" decimals="-6" id="f-996" unitRef="usd">19000000</us-gaap:OtherAccruedLiabilitiesCurrent>
+    <us-gaap:OtherAccruedLiabilitiesCurrent contextRef="c-12" decimals="-6" id="f-997" unitRef="usd">38000000</us-gaap:OtherAccruedLiabilitiesCurrent>
+    <us-gaap:DerivativeLiabilitiesCurrent contextRef="c-11" decimals="-6" id="f-998" unitRef="usd">1000000</us-gaap:DerivativeLiabilitiesCurrent>
+    <us-gaap:DerivativeLiabilitiesCurrent contextRef="c-12" decimals="-6" id="f-999" unitRef="usd">13000000</us-gaap:DerivativeLiabilitiesCurrent>
+    <us-gaap:AccountsPayableAndAccruedLiabilitiesCurrent contextRef="c-11" decimals="-6" id="f-1000" unitRef="usd">1075000000</us-gaap:AccountsPayableAndAccruedLiabilitiesCurrent>
+    <us-gaap:AccountsPayableAndAccruedLiabilitiesCurrent contextRef="c-12" decimals="-6" id="f-1001" unitRef="usd">737000000</us-gaap:AccountsPayableAndAccruedLiabilitiesCurrent>
+    <us-gaap:ContractWithCustomerLiability contextRef="c-12" decimals="-6" id="f-1004" unitRef="usd">430000000</us-gaap:ContractWithCustomerLiability>
+    <us-gaap:ContractWithCustomerLiability contextRef="c-39" decimals="-6" id="f-1005" unitRef="usd">498000000</us-gaap:ContractWithCustomerLiability>
+    <shop:ContractwithCustomerLiabilityDeferralofRevenue contextRef="c-1" decimals="-6" id="f-1006" unitRef="usd">-224000000</shop:ContractwithCustomerLiabilityDeferralofRevenue>
+    <shop:ContractwithCustomerLiabilityDeferralofRevenue contextRef="c-24" decimals="-6" id="f-1007" unitRef="usd">-207000000</shop:ContractwithCustomerLiabilityDeferralofRevenue>
+    <us-gaap:ContractWithCustomerLiabilityRevenueRecognized contextRef="c-1" decimals="-6" id="f-1008" unitRef="usd">256000000</us-gaap:ContractWithCustomerLiabilityRevenueRecognized>
+    <us-gaap:ContractWithCustomerLiabilityRevenueRecognized contextRef="c-24" decimals="-6" id="f-1009" unitRef="usd">275000000</us-gaap:ContractWithCustomerLiabilityRevenueRecognized>
+    <us-gaap:ContractWithCustomerLiability contextRef="c-11" decimals="-6" id="f-1010" unitRef="usd">398000000</us-gaap:ContractWithCustomerLiability>
+    <us-gaap:ContractWithCustomerLiability contextRef="c-12" decimals="-6" id="f-1011" unitRef="usd">430000000</us-gaap:ContractWithCustomerLiability>
+    <us-gaap:ContractWithCustomerLiabilityCurrent contextRef="c-11" decimals="-6" id="f-1012" unitRef="usd">300000000</us-gaap:ContractWithCustomerLiabilityCurrent>
+    <us-gaap:ContractWithCustomerLiabilityCurrent contextRef="c-12" decimals="-6" id="f-1013" unitRef="usd">283000000</us-gaap:ContractWithCustomerLiabilityCurrent>
+    <us-gaap:ContractWithCustomerLiabilityNoncurrent contextRef="c-11" decimals="-6" id="f-1014" unitRef="usd">98000000</us-gaap:ContractWithCustomerLiabilityNoncurrent>
+    <us-gaap:ContractWithCustomerLiabilityNoncurrent contextRef="c-12" decimals="-6" id="f-1015" unitRef="usd">147000000</us-gaap:ContractWithCustomerLiabilityNoncurrent>
+    <us-gaap:ContractWithCustomerLiability contextRef="c-11" decimals="-6" id="f-1016" unitRef="usd">398000000</us-gaap:ContractWithCustomerLiability>
+    <us-gaap:ContractWithCustomerLiability contextRef="c-12" decimals="-6" id="f-1017" unitRef="usd">430000000</us-gaap:ContractWithCustomerLiability>
+    <us-gaap:ContractWithCustomerLiabilityCurrent contextRef="c-222" decimals="-6" id="f-1018" unitRef="usd">302000000</us-gaap:ContractWithCustomerLiabilityCurrent>
+    <us-gaap:ContractWithCustomerLiabilityNoncurrent contextRef="c-222" decimals="-6" id="f-1019" unitRef="usd">196000000</us-gaap:ContractWithCustomerLiabilityNoncurrent>
+    <shop:ContractWithCustomerLiabilityNonCashConsideration contextRef="c-12" decimals="-6" id="f-1022" unitRef="usd">190000000</shop:ContractWithCustomerLiabilityNonCashConsideration>
+    <shop:ContractWithCustomerLiabilityNonCashConsideration contextRef="c-39" decimals="-6" id="f-1023" unitRef="usd">284000000</shop:ContractWithCustomerLiabilityNonCashConsideration>
+    <shop:ContractWithCustomerLiabilityRevenueRecognizedRelatedToNonCashConsideration contextRef="c-1" decimals="-6" id="f-1024" unitRef="usd">49000000</shop:ContractWithCustomerLiabilityRevenueRecognizedRelatedToNonCashConsideration>
+    <shop:ContractWithCustomerLiabilityRevenueRecognizedRelatedToNonCashConsideration contextRef="c-24" decimals="-6" id="f-1025" unitRef="usd">94000000</shop:ContractWithCustomerLiabilityRevenueRecognizedRelatedToNonCashConsideration>
+    <shop:ContractWithCustomerLiabilityNonCashConsideration contextRef="c-11" decimals="-6" id="f-1026" unitRef="usd">141000000</shop:ContractWithCustomerLiabilityNonCashConsideration>
+    <shop:ContractWithCustomerLiabilityNonCashConsideration contextRef="c-12" decimals="-6" id="f-1027" unitRef="usd">190000000</shop:ContractWithCustomerLiabilityNonCashConsideration>
+    <shop:ContractWithCustomerLiabilityNonCashConsiderationCurrentPortion contextRef="c-11" decimals="-6" id="f-1028" unitRef="usd">48000000</shop:ContractWithCustomerLiabilityNonCashConsiderationCurrentPortion>
+    <shop:ContractWithCustomerLiabilityNonCashConsiderationCurrentPortion contextRef="c-12" decimals="-6" id="f-1029" unitRef="usd">50000000</shop:ContractWithCustomerLiabilityNonCashConsiderationCurrentPortion>
+    <shop:ContractWithCustomerLiabilityNonCashConsiderationLongTermPortion contextRef="c-11" decimals="-6" id="f-1030" unitRef="usd">93000000</shop:ContractWithCustomerLiabilityNonCashConsiderationLongTermPortion>
+    <shop:ContractWithCustomerLiabilityNonCashConsiderationLongTermPortion contextRef="c-12" decimals="-6" id="f-1031" unitRef="usd">140000000</shop:ContractWithCustomerLiabilityNonCashConsiderationLongTermPortion>
+    <shop:ContractWithCustomerLiabilityNonCashConsideration contextRef="c-11" decimals="-6" id="f-1032" unitRef="usd">141000000</shop:ContractWithCustomerLiabilityNonCashConsideration>
+    <shop:ContractWithCustomerLiabilityNonCashConsideration contextRef="c-12" decimals="-6" id="f-1033" unitRef="usd">190000000</shop:ContractWithCustomerLiabilityNonCashConsideration>
+    <us-gaap:EmbeddedDerivativeLossOnEmbeddedDerivative contextRef="c-1" decimals="-6" id="f-1043" unitRef="usd">123000000</us-gaap:EmbeddedDerivativeLossOnEmbeddedDerivative>
+    <shop:RecordedUnconditionalPurchaseObligationMinimumAnnualPurchase contextRef="c-12" decimals="-6" id="f-1058" unitRef="usd">200000000</shop:RecordedUnconditionalPurchaseObligationMinimumAnnualPurchase>
+    <shop:RecordedUnconditionalPurchaseObligationToBePaidYearsOneThroughThree contextRef="c-11" decimals="-6" id="f-1059" unitRef="usd">251000000</shop:RecordedUnconditionalPurchaseObligationToBePaidYearsOneThroughThree>
+    <us-gaap:LossContingencyAccrualCarryingValuePeriodIncreaseDecrease contextRef="c-24" decimals="-6" id="f-1060" unitRef="usd">-55000000</us-gaap:LossContingencyAccrualCarryingValuePeriodIncreaseDecrease>
+    <us-gaap:LossContingencyPatentsFoundInfringedNumber contextRef="c-24" decimals="INF" id="f-1061" unitRef="patent">3</us-gaap:LossContingencyPatentsFoundInfringedNumber>
+    <us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsOutstandingNumber contextRef="c-39" decimals="INF" id="f-1087" unitRef="shares">11462631</us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsOutstandingNumber>
+    <us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsOutstandingWeightedAverageExercisePrice contextRef="c-39" decimals="2" id="f-1088" unitRef="usdPerShare">49.88</us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsOutstandingWeightedAverageExercisePrice>
+    <us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsOutstandingIntrinsicValue contextRef="c-39" decimals="-6" id="f-1090" unitRef="usd">406000000</us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsOutstandingIntrinsicValue>
+    <us-gaap:SharebasedCompensationArrangementBySharebasedPaymentAwardOptionsNonvestedWeightedAverageGrantDateFairValue contextRef="c-39" decimals="2" id="f-1091" unitRef="usdPerShare">0</us-gaap:SharebasedCompensationArrangementBySharebasedPaymentAwardOptionsNonvestedWeightedAverageGrantDateFairValue>
+    <us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsGrantsInPeriodGross contextRef="c-24" decimals="INF" id="f-1094" unitRef="shares">6065237</us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsGrantsInPeriodGross>
+    <us-gaap:ShareBasedCompensationArrangementsByShareBasedPaymentAwardOptionsGrantsInPeriodWeightedAverageExercisePrice contextRef="c-24" decimals="2" id="f-1095" unitRef="usdPerShare">75.75</us-gaap:ShareBasedCompensationArrangementsByShareBasedPaymentAwardOptionsGrantsInPeriodWeightedAverageExercisePrice>
+    <us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsGrantsInPeriodWeightedAverageGrantDateFairValue contextRef="c-24" decimals="2" id="f-1096" unitRef="usdPerShare">39.74</us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsGrantsInPeriodWeightedAverageGrantDateFairValue>
+    <us-gaap:StockIssuedDuringPeriodSharesStockOptionsExercised contextRef="c-24" decimals="INF" id="f-1097" unitRef="shares">2576628</us-gaap:StockIssuedDuringPeriodSharesStockOptionsExercised>
+    <us-gaap:ShareBasedCompensationArrangementsByShareBasedPaymentAwardOptionsExercisesInPeriodWeightedAverageExercisePrice contextRef="c-24" decimals="2" id="f-1098" unitRef="usdPerShare">23.83</us-gaap:ShareBasedCompensationArrangementsByShareBasedPaymentAwardOptionsExercisesInPeriodWeightedAverageExercisePrice>
+    <us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsForfeituresInPeriod contextRef="c-24" decimals="INF" id="f-1099" unitRef="shares">314248</us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsForfeituresInPeriod>
+    <us-gaap:ShareBasedCompensationArrangementsByShareBasedPaymentAwardOptionsForfeituresInPeriodWeightedAverageExercisePrice contextRef="c-24" decimals="2" id="f-1100" unitRef="usdPerShare">82.40</us-gaap:ShareBasedCompensationArrangementsByShareBasedPaymentAwardOptionsForfeituresInPeriodWeightedAverageExercisePrice>
+    <us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsOutstandingNumber contextRef="c-12" decimals="INF" id="f-1107" unitRef="shares">14636992</us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsOutstandingNumber>
+    <us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsOutstandingWeightedAverageExercisePrice contextRef="c-12" decimals="2" id="f-1108" unitRef="usdPerShare">64.49</us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsOutstandingWeightedAverageExercisePrice>
+    <us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsOutstandingIntrinsicValue contextRef="c-12" decimals="-6" id="f-1110" unitRef="usd">623000000</us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsOutstandingIntrinsicValue>
+    <us-gaap:SharebasedCompensationArrangementBySharebasedPaymentAwardOptionsNonvestedWeightedAverageGrantDateFairValue contextRef="c-12" decimals="2" id="f-1111" unitRef="usdPerShare">0</us-gaap:SharebasedCompensationArrangementBySharebasedPaymentAwardOptionsNonvestedWeightedAverageGrantDateFairValue>
+    <us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsGrantsInPeriodGross contextRef="c-1" decimals="INF" id="f-1114" unitRef="shares">1746047</us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsGrantsInPeriodGross>
+    <us-gaap:ShareBasedCompensationArrangementsByShareBasedPaymentAwardOptionsGrantsInPeriodWeightedAverageExercisePrice contextRef="c-1" decimals="2" id="f-1115" unitRef="usdPerShare">125.35</us-gaap:ShareBasedCompensationArrangementsByShareBasedPaymentAwardOptionsGrantsInPeriodWeightedAverageExercisePrice>
+    <us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsGrantsInPeriodWeightedAverageGrantDateFairValue contextRef="c-1" decimals="2" id="f-1116" unitRef="usdPerShare">64.68</us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsGrantsInPeriodWeightedAverageGrantDateFairValue>
+    <us-gaap:StockIssuedDuringPeriodSharesStockOptionsExercised contextRef="c-1" decimals="INF" id="f-1117" unitRef="shares">4739441</us-gaap:StockIssuedDuringPeriodSharesStockOptionsExercised>
+    <us-gaap:ShareBasedCompensationArrangementsByShareBasedPaymentAwardOptionsExercisesInPeriodWeightedAverageExercisePrice contextRef="c-1" decimals="2" id="f-1118" unitRef="usdPerShare">48.85</us-gaap:ShareBasedCompensationArrangementsByShareBasedPaymentAwardOptionsExercisesInPeriodWeightedAverageExercisePrice>
+    <us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsForfeituresInPeriod contextRef="c-1" decimals="INF" id="f-1119" unitRef="shares">1442920</us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsForfeituresInPeriod>
+    <us-gaap:ShareBasedCompensationArrangementsByShareBasedPaymentAwardOptionsForfeituresInPeriodWeightedAverageExercisePrice contextRef="c-1" decimals="2" id="f-1120" unitRef="usdPerShare">79.66</us-gaap:ShareBasedCompensationArrangementsByShareBasedPaymentAwardOptionsForfeituresInPeriodWeightedAverageExercisePrice>
+    <us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsOutstandingNumber contextRef="c-11" decimals="INF" id="f-1127" unitRef="shares">10200678</us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsOutstandingNumber>
+    <us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsOutstandingWeightedAverageExercisePrice contextRef="c-11" decimals="2" id="f-1128" unitRef="usdPerShare">80.03</us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsOutstandingWeightedAverageExercisePrice>
+    <us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsOutstandingIntrinsicValue contextRef="c-11" decimals="-6" id="f-1130" unitRef="usd">826000000</us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsOutstandingIntrinsicValue>
+    <us-gaap:SharebasedCompensationArrangementBySharebasedPaymentAwardOptionsNonvestedWeightedAverageGrantDateFairValue contextRef="c-11" decimals="2" id="f-1131" unitRef="usdPerShare">0</us-gaap:SharebasedCompensationArrangementBySharebasedPaymentAwardOptionsNonvestedWeightedAverageGrantDateFairValue>
+    <us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsExercisableNumber contextRef="c-11" decimals="INF" id="f-1134" unitRef="shares">4770274</us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsExercisableNumber>
+    <us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsExercisableWeightedAverageExercisePrice contextRef="c-11" decimals="2" id="f-1135" unitRef="usdPerShare">71.13</us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsExercisableWeightedAverageExercisePrice>
+    <us-gaap:SharebasedCompensationArrangementBySharebasedPaymentAwardOptionsExercisableIntrinsicValue1 contextRef="c-11" decimals="-6" id="f-1137" unitRef="usd">429000000</us-gaap:SharebasedCompensationArrangementBySharebasedPaymentAwardOptionsExercisableIntrinsicValue1>
+    <us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsExercisesInPeriodTotalIntrinsicValue contextRef="c-1" decimals="-6" id="f-1141" unitRef="usd">956000000</us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsExercisesInPeriodTotalIntrinsicValue>
+    <us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsExercisesInPeriodTotalIntrinsicValue contextRef="c-24" decimals="-6" id="f-1142" unitRef="usd">609000000</us-gaap:ShareBasedCompensationArrangementByShareBasedPaymentAwardOptionsExercisesInPeriodTotalIntrinsicValue>
+    <us-gaap:EmployeeServiceShareBasedCompensationNonvestedAwardsTotalCompensationCostNotYetRecognized contextRef="c-11" decimals="-6" id="f-1143" unitRef="usd">486000000</us-gaap:EmployeeServiceShareBasedCompensationNonvestedAwardsTotalCompensationCostNotYetRecognized>
+    <us-gaap:EmployeeServiceShareBasedCompensationNonvestedAwardsTotalCompensationCostNotYetRecognized contextRef="c-12" decimals="-6" id="f-1144" unitRef="usd">487000000</us-gaap:EmployeeServiceShareBasedCompensationNonvestedAwardsTotalCompensationCostNotYetRecognized>
+    <us-gaap:BusinessAcquisitionEquityInterestsIssuedOrIssuableNumberOfSharesIssued contextRef="c-256" decimals="INF" id="f-1146" unitRef="shares">252257</us-gaap:BusinessAcquisitionEquityInterestsIssuedOrIssuableNumberOfSharesIssued>
+    <us-gaap:BusinessAcquisitionEquityInterestsIssuedOrIssuableNumberOfSharesIssued contextRef="c-257" decimals="INF" id="f-1147" unitRef="shares">252257</us-gaap:BusinessAcquisitionEquityInterestsIssuedOrIssuableNumberOfSharesIssued>
+    <us-gaap:AllocatedShareBasedCompensationExpense contextRef="c-1" decimals="-6" id="f-1171" unitRef="usd">449000000</us-gaap:AllocatedShareBasedCompensationExpense>
+    <us-gaap:AllocatedShareBasedCompensationExpense contextRef="c-24" decimals="-6" id="f-1172" unitRef="usd">430000000</us-gaap:AllocatedShareBasedCompensationExpense>
+    <us-gaap:AllocatedShareBasedCompensationExpense contextRef="c-25" decimals="-6" id="f-1173" unitRef="usd">615000000</us-gaap:AllocatedShareBasedCompensationExpense>
+    <us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesDomestic contextRef="c-1" decimals="-6" id="f-1206" unitRef="usd">450000000</us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesDomestic>
+    <us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesDomestic contextRef="c-24" decimals="-6" id="f-1207" unitRef="usd">537000000</us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesDomestic>
+    <us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesDomestic contextRef="c-25" decimals="-6" id="f-1208" unitRef="usd">599000000</us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesDomestic>
+    <us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesForeign contextRef="c-1" decimals="-6" id="f-1209" unitRef="usd">1059000000</us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesForeign>
+    <us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesForeign contextRef="c-24" decimals="-6" id="f-1210" unitRef="usd">1691000000</us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesForeign>
+    <us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesForeign contextRef="c-25" decimals="-6" id="f-1211" unitRef="usd">-414000000</us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesForeign>
+    <us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest contextRef="c-1" decimals="-6" id="f-1212" unitRef="usd">1509000000</us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest>
+    <us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest contextRef="c-24" decimals="-6" id="f-1213" unitRef="usd">2228000000</us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest>
+    <us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest contextRef="c-25" decimals="-6" id="f-1214" unitRef="usd">185000000</us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest>
+    <us-gaap:CurrentFederalTaxExpenseBenefit contextRef="c-1" decimals="-6" id="f-1215" unitRef="usd">35000000</us-gaap:CurrentFederalTaxExpenseBenefit>
+    <us-gaap:CurrentFederalTaxExpenseBenefit contextRef="c-24" decimals="-6" id="f-1216" unitRef="usd">14000000</us-gaap:CurrentFederalTaxExpenseBenefit>
+    <us-gaap:CurrentFederalTaxExpenseBenefit contextRef="c-25" decimals="-6" id="f-1217" unitRef="usd">-1000000</us-gaap:CurrentFederalTaxExpenseBenefit>
+    <us-gaap:CurrentStateAndLocalTaxExpenseBenefit contextRef="c-1" decimals="-6" id="f-1218" unitRef="usd">64000000</us-gaap:CurrentStateAndLocalTaxExpenseBenefit>
+    <us-gaap:CurrentStateAndLocalTaxExpenseBenefit contextRef="c-24" decimals="-6" id="f-1219" unitRef="usd">18000000</us-gaap:CurrentStateAndLocalTaxExpenseBenefit>
+    <us-gaap:CurrentStateAndLocalTaxExpenseBenefit contextRef="c-25" decimals="-6" id="f-1220" unitRef="usd">0</us-gaap:CurrentStateAndLocalTaxExpenseBenefit>
+    <us-gaap:CurrentForeignTaxExpenseBenefit contextRef="c-1" decimals="-6" id="f-1221" unitRef="usd">193000000</us-gaap:CurrentForeignTaxExpenseBenefit>
+    <us-gaap:CurrentForeignTaxExpenseBenefit contextRef="c-24" decimals="-6" id="f-1222" unitRef="usd">99000000</us-gaap:CurrentForeignTaxExpenseBenefit>
+    <us-gaap:CurrentForeignTaxExpenseBenefit contextRef="c-25" decimals="-6" id="f-1223" unitRef="usd">55000000</us-gaap:CurrentForeignTaxExpenseBenefit>
+    <us-gaap:CurrentIncomeTaxExpenseBenefit contextRef="c-1" decimals="-6" id="f-1224" unitRef="usd">292000000</us-gaap:CurrentIncomeTaxExpenseBenefit>
+    <us-gaap:CurrentIncomeTaxExpenseBenefit contextRef="c-24" decimals="-6" id="f-1225" unitRef="usd">131000000</us-gaap:CurrentIncomeTaxExpenseBenefit>
+    <us-gaap:CurrentIncomeTaxExpenseBenefit contextRef="c-25" decimals="-6" id="f-1226" unitRef="usd">54000000</us-gaap:CurrentIncomeTaxExpenseBenefit>
+    <us-gaap:DeferredFederalIncomeTaxExpenseBenefit contextRef="c-1" decimals="-6" id="f-1227" unitRef="usd">-1000000</us-gaap:DeferredFederalIncomeTaxExpenseBenefit>
+    <us-gaap:DeferredFederalIncomeTaxExpenseBenefit contextRef="c-24" decimals="-6" id="f-1228" unitRef="usd">41000000</us-gaap:DeferredFederalIncomeTaxExpenseBenefit>
+    <us-gaap:DeferredFederalIncomeTaxExpenseBenefit contextRef="c-25" decimals="-6" id="f-1229" unitRef="usd">1000000</us-gaap:DeferredFederalIncomeTaxExpenseBenefit>
+    <us-gaap:DeferredStateAndLocalIncomeTaxExpenseBenefit contextRef="c-1" decimals="-6" id="f-1230" unitRef="usd">-17000000</us-gaap:DeferredStateAndLocalIncomeTaxExpenseBenefit>
+    <us-gaap:DeferredStateAndLocalIncomeTaxExpenseBenefit contextRef="c-24" decimals="-6" id="f-1231" unitRef="usd">31000000</us-gaap:DeferredStateAndLocalIncomeTaxExpenseBenefit>
+    <us-gaap:DeferredStateAndLocalIncomeTaxExpenseBenefit contextRef="c-25" decimals="-6" id="f-1232" unitRef="usd">1000000</us-gaap:DeferredStateAndLocalIncomeTaxExpenseBenefit>
+    <us-gaap:DeferredForeignIncomeTaxExpenseBenefit contextRef="c-1" decimals="-6" id="f-1233" unitRef="usd">4000000</us-gaap:DeferredForeignIncomeTaxExpenseBenefit>
+    <us-gaap:DeferredForeignIncomeTaxExpenseBenefit contextRef="c-24" decimals="-6" id="f-1234" unitRef="usd">6000000</us-gaap:DeferredForeignIncomeTaxExpenseBenefit>
+    <us-gaap:DeferredForeignIncomeTaxExpenseBenefit contextRef="c-25" decimals="-6" id="f-1235" unitRef="usd">-3000000</us-gaap:DeferredForeignIncomeTaxExpenseBenefit>
+    <us-gaap:DeferredIncomeTaxExpenseBenefit contextRef="c-1" decimals="-6" id="f-1236" unitRef="usd">-14000000</us-gaap:DeferredIncomeTaxExpenseBenefit>
+    <us-gaap:DeferredIncomeTaxExpenseBenefit contextRef="c-24" decimals="-6" id="f-1237" unitRef="usd">78000000</us-gaap:DeferredIncomeTaxExpenseBenefit>
+    <us-gaap:DeferredIncomeTaxExpenseBenefit contextRef="c-25" decimals="-6" id="f-1238" unitRef="usd">-1000000</us-gaap:DeferredIncomeTaxExpenseBenefit>
+    <us-gaap:IncomeTaxExpenseBenefit contextRef="c-1" decimals="-6" id="f-1239" unitRef="usd">278000000</us-gaap:IncomeTaxExpenseBenefit>
+    <us-gaap:IncomeTaxExpenseBenefit contextRef="c-24" decimals="-6" id="f-1240" unitRef="usd">209000000</us-gaap:IncomeTaxExpenseBenefit>
+    <us-gaap:IncomeTaxExpenseBenefit contextRef="c-25" decimals="-6" id="f-1241" unitRef="usd">53000000</us-gaap:IncomeTaxExpenseBenefit>
+    <us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest contextRef="c-1" decimals="-6" id="f-1243" unitRef="usd">1509000000</us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest>
+    <us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest contextRef="c-24" decimals="-6" id="f-1244" unitRef="usd">2228000000</us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest>
+    <us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest contextRef="c-25" decimals="-6" id="f-1245" unitRef="usd">185000000</us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest>
+    <us-gaap:IncomeTaxReconciliationIncomeTaxExpenseBenefitAtFederalStatutoryIncomeTaxRate contextRef="c-1" decimals="-6" id="f-1246" unitRef="usd">226000000</us-gaap:IncomeTaxReconciliationIncomeTaxExpenseBenefitAtFederalStatutoryIncomeTaxRate>
+    <us-gaap:EffectiveIncomeTaxRateReconciliationAtFederalStatutoryIncomeTaxRate contextRef="c-1" decimals="3" id="f-1247" unitRef="number">0.150</us-gaap:EffectiveIncomeTaxRateReconciliationAtFederalStatutoryIncomeTaxRate>
+    <us-gaap:IncomeTaxReconciliationIncomeTaxExpenseBenefitAtFederalStatutoryIncomeTaxRate contextRef="c-24" decimals="-6" id="f-1248" unitRef="usd">334000000</us-gaap:IncomeTaxReconciliationIncomeTaxExpenseBenefitAtFederalStatutoryIncomeTaxRate>
+    <us-gaap:EffectiveIncomeTaxRateReconciliationAtFederalStatutoryIncomeTaxRate contextRef="c-24" decimals="3" id="f-1249" unitRef="number">0.150</us-gaap:EffectiveIncomeTaxRateReconciliationAtFederalStatutoryIncomeTaxRate>
+    <us-gaap:IncomeTaxReconciliationIncomeTaxExpenseBenefitAtFederalStatutoryIncomeTaxRate contextRef="c-25" decimals="-6" id="f-1250" unitRef="usd">28000000</us-gaap:IncomeTaxReconciliationIncomeTaxExpenseBenefitAtFederalStatutoryIncomeTaxRate>
+    <us-gaap:EffectiveIncomeTaxRateReconciliationAtFederalStatutoryIncomeTaxRate contextRef="c-25" decimals="3" id="f-1251" unitRef="number">0.150</us-gaap:EffectiveIncomeTaxRateReconciliationAtFederalStatutoryIncomeTaxRate>
+    <shop:EffectiveIncomeTaxRateReconciliationCrossBorderDomesticTaxesOnForeignEarningsAmount contextRef="c-1" decimals="-6" id="f-1366" unitRef="usd">66000000</shop:EffectiveIncomeTaxRateReconciliationCrossBorderDomesticTaxesOnForeignEarningsAmount>
+    <shop:EffectiveIncomeTaxRateReconciliationCrossBorderDomesticTaxesOnForeignEarningsPercent contextRef="c-1" decimals="3" id="f-1367" unitRef="number">0.044</shop:EffectiveIncomeTaxRateReconciliationCrossBorderDomesticTaxesOnForeignEarningsPercent>
+    <shop:EffectiveIncomeTaxRateReconciliationCrossBorderDomesticTaxesOnForeignEarningsAmount contextRef="c-24" decimals="-6" id="f-1368" unitRef="usd">60000000</shop:EffectiveIncomeTaxRateReconciliationCrossBorderDomesticTaxesOnForeignEarningsAmount>
+    <shop:EffectiveIncomeTaxRateReconciliationCrossBorderDomesticTaxesOnForeignEarningsPercent contextRef="c-24" decimals="3" id="f-1369" unitRef="number">0.027</shop:EffectiveIncomeTaxRateReconciliationCrossBorderDomesticTaxesOnForeignEarningsPercent>
+    <shop:EffectiveIncomeTaxRateReconciliationCrossBorderDomesticTaxesOnForeignEarningsAmount contextRef="c-25" decimals="-6" id="f-1370" unitRef="usd">58000000</shop:EffectiveIncomeTaxRateReconciliationCrossBorderDomesticTaxesOnForeignEarningsAmount>
+    <shop:EffectiveIncomeTaxRateReconciliationCrossBorderDomesticTaxesOnForeignEarningsPercent contextRef="c-25" decimals="3" id="f-1371" unitRef="number">0.314</shop:EffectiveIncomeTaxRateReconciliationCrossBorderDomesticTaxesOnForeignEarningsPercent>
+    <shop:EffectiveIncomeTaxRateReconciliationCrossBorderUnrealizedInvestmentGainsAmount contextRef="c-1" decimals="-6" id="f-1372" unitRef="usd">-46000000</shop:EffectiveIncomeTaxRateReconciliationCrossBorderUnrealizedInvestmentGainsAmount>
+    <shop:EffectiveIncomeTaxRateReconciliationCrossBorderUnrealizedInvestmentGainsPercent contextRef="c-1" decimals="3" id="f-1373" unitRef="number">-0.030</shop:EffectiveIncomeTaxRateReconciliationCrossBorderUnrealizedInvestmentGainsPercent>
+    <shop:EffectiveIncomeTaxRateReconciliationCrossBorderUnrealizedInvestmentGainsAmount contextRef="c-24" decimals="-3" id="f-1374" unitRef="usd">62000000</shop:EffectiveIncomeTaxRateReconciliationCrossBorderUnrealizedInvestmentGainsAmount>
+    <shop:EffectiveIncomeTaxRateReconciliationCrossBorderUnrealizedInvestmentGainsPercent contextRef="c-24" decimals="3" id="f-1375" unitRef="number">0.028</shop:EffectiveIncomeTaxRateReconciliationCrossBorderUnrealizedInvestmentGainsPercent>
+    <shop:EffectiveIncomeTaxRateReconciliationCrossBorderUnrealizedInvestmentGainsAmount contextRef="c-25" decimals="-3" id="f-1376" unitRef="usd">45000000</shop:EffectiveIncomeTaxRateReconciliationCrossBorderUnrealizedInvestmentGainsAmount>
+    <shop:EffectiveIncomeTaxRateReconciliationCrossBorderUnrealizedInvestmentGainsPercent contextRef="c-25" decimals="3" id="f-1377" unitRef="number">0.243</shop:EffectiveIncomeTaxRateReconciliationCrossBorderUnrealizedInvestmentGainsPercent>
+    <us-gaap:EffectiveIncomeTaxRateReconciliationCrossBorderOtherAmount contextRef="c-1" decimals="-6" id="f-1378" unitRef="usd">0</us-gaap:EffectiveIncomeTaxRateReconciliationCrossBorderOtherAmount>
+    <us-gaap:EffectiveIncomeTaxRateReconciliationCrossBorderOtherPercent contextRef="c-1" decimals="3" id="f-1379" unitRef="number">0</us-gaap:EffectiveIncomeTaxRateReconciliationCrossBorderOtherPercent>
+    <us-gaap:EffectiveIncomeTaxRateReconciliationCrossBorderOtherAmount contextRef="c-24" decimals="-6" id="f-1380" unitRef="usd">13000000</us-gaap:EffectiveIncomeTaxRateReconciliationCrossBorderOtherAmount>
+    <us-gaap:EffectiveIncomeTaxRateReconciliationCrossBorderOtherPercent contextRef="c-24" decimals="3" id="f-1381" unitRef="number">0.006</us-gaap:EffectiveIncomeTaxRateReconciliationCrossBorderOtherPercent>
+    <us-gaap:EffectiveIncomeTaxRateReconciliationCrossBorderOtherAmount contextRef="c-25" decimals="-6" id="f-1382" unitRef="usd">0</us-gaap:EffectiveIncomeTaxRateReconciliationCrossBorderOtherAmount>
+    <us-gaap:EffectiveIncomeTaxRateReconciliationCrossBorderOtherPercent contextRef="c-25" decimals="3" id="f-1383" unitRef="number">0</us-gaap:EffectiveIncomeTaxRateReconciliationCrossBorderOtherPercent>
+    <us-gaap:IncomeTaxReconciliationTaxCredits contextRef="c-1" decimals="-6" id="f-1384" unitRef="usd">30000000</us-gaap:IncomeTaxReconciliationTaxCredits>
+    <us-gaap:EffectiveIncomeTaxRateReconciliationTaxCredits contextRef="c-1" decimals="3" id="f-1385" unitRef="number">0.020</us-gaap:EffectiveIncomeTaxRateReconciliationTaxCredits>
+    <us-gaap:IncomeTaxReconciliationTaxCredits contextRef="c-24" decimals="-6" id="f-1386" unitRef="usd">13000000</us-gaap:IncomeTaxReconciliationTaxCredits>
+    <us-gaap:EffectiveIncomeTaxRateReconciliationTaxCredits contextRef="c-24" decimals="3" id="f-1387" unitRef="number">0.006</us-gaap:EffectiveIncomeTaxRateReconciliationTaxCredits>
+    <us-gaap:IncomeTaxReconciliationTaxCredits contextRef="c-25" decimals="-6" id="f-1388" unitRef="usd">18000000</us-gaap:IncomeTaxReconciliationTaxCredits>
+    <us-gaap:EffectiveIncomeTaxRateReconciliationTaxCredits contextRef="c-25" decimals="3" id="f-1389" unitRef="number">0.097</us-gaap:EffectiveIncomeTaxRateReconciliationTaxCredits>
+    <shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseUnrealizedGainOnEquityAndOtherInvestmentsAmount contextRef="c-1" decimals="-6" id="f-1396" unitRef="usd">-34000000</shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseUnrealizedGainOnEquityAndOtherInvestmentsAmount>
+    <shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseUnrealizedGainOnEquityAndOtherInvestmentsPercent contextRef="c-1" decimals="3" id="f-1397" unitRef="number">-0.023</shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseUnrealizedGainOnEquityAndOtherInvestmentsPercent>
+    <shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseUnrealizedGainOnEquityAndOtherInvestmentsAmount contextRef="c-24" decimals="-6" id="f-1398" unitRef="usd">-29000000</shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseUnrealizedGainOnEquityAndOtherInvestmentsAmount>
+    <shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseUnrealizedGainOnEquityAndOtherInvestmentsPercent contextRef="c-24" decimals="3" id="f-1399" unitRef="number">-0.013</shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseUnrealizedGainOnEquityAndOtherInvestmentsPercent>
+    <shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseUnrealizedGainOnEquityAndOtherInvestmentsAmount contextRef="c-25" decimals="-6" id="f-1400" unitRef="usd">-128000000</shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseUnrealizedGainOnEquityAndOtherInvestmentsAmount>
+    <shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseUnrealizedGainOnEquityAndOtherInvestmentsPercent contextRef="c-25" decimals="3" id="f-1401" unitRef="number">-0.692</shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseUnrealizedGainOnEquityAndOtherInvestmentsPercent>
+    <shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseLossOnDerivativeAmount contextRef="c-1" decimals="-6" id="f-1414" unitRef="usd">19000000</shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseLossOnDerivativeAmount>
+    <shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseLossOnDerivativePercent contextRef="c-1" decimals="3" id="f-1415" unitRef="number">0.013</shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseLossOnDerivativePercent>
+    <shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseLossOnDerivativeAmount contextRef="c-24" decimals="-6" id="f-1416" unitRef="usd">0</shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseLossOnDerivativeAmount>
+    <shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseLossOnDerivativePercent contextRef="c-24" decimals="3" id="f-1417" unitRef="number">0</shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseLossOnDerivativePercent>
+    <shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseLossOnDerivativeAmount contextRef="c-25" decimals="-6" id="f-1418" unitRef="usd">0</shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseLossOnDerivativeAmount>
+    <shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseLossOnDerivativePercent contextRef="c-25" decimals="3" id="f-1419" unitRef="number">0</shop:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseLossOnDerivativePercent>
+    <us-gaap:IncomeTaxReconciliationNondeductibleExpenseOther contextRef="c-1" decimals="-6" id="f-1420" unitRef="usd">-1000000</us-gaap:IncomeTaxReconciliationNondeductibleExpenseOther>
+    <us-gaap:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseOther contextRef="c-1" decimals="3" id="f-1421" unitRef="number">-0.001</us-gaap:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseOther>
+    <us-gaap:IncomeTaxReconciliationNondeductibleExpenseOther contextRef="c-24" decimals="-6" id="f-1422" unitRef="usd">3000000</us-gaap:IncomeTaxReconciliationNondeductibleExpenseOther>
+    <us-gaap:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseOther contextRef="c-24" decimals="3" id="f-1423" unitRef="number">0.001</us-gaap:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseOther>
+    <us-gaap:IncomeTaxReconciliationNondeductibleExpenseOther contextRef="c-25" decimals="-6" id="f-1424" unitRef="usd">1000000</us-gaap:IncomeTaxReconciliationNondeductibleExpenseOther>
+    <us-gaap:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseOther contextRef="c-25" decimals="3" id="f-1425" unitRef="number">0.005</us-gaap:EffectiveIncomeTaxRateReconciliationNondeductibleExpenseOther>
+    <us-gaap:IncomeTaxExpenseBenefit contextRef="c-1" decimals="-6" id="f-1431" unitRef="usd">278000000</us-gaap:IncomeTaxExpenseBenefit>
+    <us-gaap:EffectiveIncomeTaxRateContinuingOperations contextRef="c-1" decimals="3" id="f-1432" unitRef="number">0.184</us-gaap:EffectiveIncomeTaxRateContinuingOperations>
+    <us-gaap:IncomeTaxExpenseBenefit contextRef="c-24" decimals="-6" id="f-1433" unitRef="usd">209000000</us-gaap:IncomeTaxExpenseBenefit>
+    <us-gaap:EffectiveIncomeTaxRateContinuingOperations contextRef="c-24" decimals="3" id="f-1434" unitRef="number">0.094</us-gaap:EffectiveIncomeTaxRateContinuingOperations>
+    <us-gaap:IncomeTaxExpenseBenefit contextRef="c-25" decimals="-6" id="f-1435" unitRef="usd">53000000</us-gaap:IncomeTaxExpenseBenefit>
+    <us-gaap:EffectiveIncomeTaxRateContinuingOperations contextRef="c-25" decimals="3" id="f-1436" unitRef="number">0.286</us-gaap:EffectiveIncomeTaxRateContinuingOperations>
+    <shop:OperatingLossCarryforwardAndUndeductedResearchAndDevelopmentExpense contextRef="c-11" decimals="-6" id="f-1437" unitRef="usd">5000000</shop:OperatingLossCarryforwardAndUndeductedResearchAndDevelopmentExpense>
+    <shop:OperatingLossCarryforwardAndUndeductedResearchAndDevelopmentExpense contextRef="c-12" decimals="-6" id="f-1438" unitRef="usd">5000000</shop:OperatingLossCarryforwardAndUndeductedResearchAndDevelopmentExpense>
+    <shop:OperatingLossCarryforwardAndUndeductedResearchAndDevelopmentExpense contextRef="c-39" decimals="-6" id="f-1439" unitRef="usd">343000000</shop:OperatingLossCarryforwardAndUndeductedResearchAndDevelopmentExpense>
+    <us-gaap:TaxCreditCarryforwardAmount contextRef="c-11" decimals="INF" id="f-1440" unitRef="usd">0</us-gaap:TaxCreditCarryforwardAmount>
+    <us-gaap:TaxCreditCarryforwardAmount contextRef="c-12" decimals="-6" id="f-1441" unitRef="usd">26000000</us-gaap:TaxCreditCarryforwardAmount>
+    <us-gaap:TaxCreditCarryforwardAmount contextRef="c-39" decimals="-6" id="f-1442" unitRef="usd">94000000</us-gaap:TaxCreditCarryforwardAmount>
+    <us-gaap:IncomeTaxPaidFederalAfterRefundReceived contextRef="c-1" decimals="-6" id="f-1444" unitRef="usd">1000000</us-gaap:IncomeTaxPaidFederalAfterRefundReceived>
+    <us-gaap:IncomeTaxPaidFederalAfterRefundReceived contextRef="c-24" decimals="-6" id="f-1445" unitRef="usd">4000000</us-gaap:IncomeTaxPaidFederalAfterRefundReceived>
+    <us-gaap:IncomeTaxPaidFederalAfterRefundReceived contextRef="c-25" decimals="-6" id="f-1446" unitRef="usd">3000000</us-gaap:IncomeTaxPaidFederalAfterRefundReceived>
+    <us-gaap:IncomeTaxPaidStateAndLocalAfterRefundReceived contextRef="c-1" decimals="-6" id="f-1447" unitRef="usd">43000000</us-gaap:IncomeTaxPaidStateAndLocalAfterRefundReceived>
+    <us-gaap:IncomeTaxPaidStateAndLocalAfterRefundReceived contextRef="c-24" decimals="-6" id="f-1448" unitRef="usd">2000000</us-gaap:IncomeTaxPaidStateAndLocalAfterRefundReceived>
+    <us-gaap:IncomeTaxPaidStateAndLocalAfterRefundReceived contextRef="c-25" decimals="-6" id="f-1449" unitRef="usd">1000000</us-gaap:IncomeTaxPaidStateAndLocalAfterRefundReceived>
+    <us-gaap:IncomeTaxesPaidNet contextRef="c-1" decimals="-6" id="f-1462" unitRef="usd">194000000</us-gaap:IncomeTaxesPaidNet>
+    <us-gaap:IncomeTaxesPaidNet contextRef="c-24" decimals="-6" id="f-1463" unitRef="usd">116000000</us-gaap:IncomeTaxesPaidNet>
+    <us-gaap:IncomeTaxesPaidNet contextRef="c-25" decimals="-6" id="f-1464" unitRef="usd">50000000</us-gaap:IncomeTaxesPaidNet>
+    <us-gaap:DeferredTaxAssetsOperatingLossCarryforwards contextRef="c-11" decimals="-6" id="f-1466" unitRef="usd">578000000</us-gaap:DeferredTaxAssetsOperatingLossCarryforwards>
+    <us-gaap:DeferredTaxAssetsOperatingLossCarryforwards contextRef="c-12" decimals="-6" id="f-1467" unitRef="usd">608000000</us-gaap:DeferredTaxAssetsOperatingLossCarryforwards>
+    <us-gaap:DeferredTaxAssetsTaxDeferredExpenseReservesAndAccruals contextRef="c-11" decimals="-6" id="f-1468" unitRef="usd">124000000</us-gaap:DeferredTaxAssetsTaxDeferredExpenseReservesAndAccruals>
+    <us-gaap:DeferredTaxAssetsTaxDeferredExpenseReservesAndAccruals contextRef="c-12" decimals="-6" id="f-1469" unitRef="usd">107000000</us-gaap:DeferredTaxAssetsTaxDeferredExpenseReservesAndAccruals>
+    <shop:DeferredTaxAssetsLeaseAssetsandLiabilities contextRef="c-11" decimals="-6" id="f-1470" unitRef="usd">51000000</shop:DeferredTaxAssetsLeaseAssetsandLiabilities>
+    <shop:DeferredTaxAssetsLeaseAssetsandLiabilities contextRef="c-12" decimals="-6" id="f-1471" unitRef="usd">57000000</shop:DeferredTaxAssetsLeaseAssetsandLiabilities>
+    <shop:DeferredTaxAssetsPropertyPlantandEquipmentandIntangibleAssets contextRef="c-11" decimals="-6" id="f-1472" unitRef="usd">39000000</shop:DeferredTaxAssetsPropertyPlantandEquipmentandIntangibleAssets>
+    <shop:DeferredTaxAssetsPropertyPlantandEquipmentandIntangibleAssets contextRef="c-12" decimals="-6" id="f-1473" unitRef="usd">48000000</shop:DeferredTaxAssetsPropertyPlantandEquipmentandIntangibleAssets>
+    <us-gaap:DeferredTaxAssetsTaxDeferredExpenseCompensationAndBenefitsShareBasedCompensationCost contextRef="c-11" decimals="-6" id="f-1474" unitRef="usd">33000000</us-gaap:DeferredTaxAssetsTaxDeferredExpenseCompensationAndBenefitsShareBasedCompensationCost>
+    <us-gaap:DeferredTaxAssetsTaxDeferredExpenseCompensationAndBenefitsShareBasedCompensationCost contextRef="c-12" decimals="-6" id="f-1475" unitRef="usd">37000000</us-gaap:DeferredTaxAssetsTaxDeferredExpenseCompensationAndBenefitsShareBasedCompensationCost>
+    <shop:DeferredTaxAssetsResearchAndDevelopmentExpenditures contextRef="c-11" decimals="-6" id="f-1476" unitRef="usd">11000000</shop:DeferredTaxAssetsResearchAndDevelopmentExpenditures>
+    <shop:DeferredTaxAssetsResearchAndDevelopmentExpenditures contextRef="c-12" decimals="-6" id="f-1477" unitRef="usd">23000000</shop:DeferredTaxAssetsResearchAndDevelopmentExpenditures>
+    <us-gaap:DeferredTaxAssetsTaxCreditCarryforwards contextRef="c-11" decimals="-6" id="f-1478" unitRef="usd">0</us-gaap:DeferredTaxAssetsTaxCreditCarryforwards>
+    <us-gaap:DeferredTaxAssetsTaxCreditCarryforwards contextRef="c-12" decimals="-6" id="f-1479" unitRef="usd">15000000</us-gaap:DeferredTaxAssetsTaxCreditCarryforwards>
+    <us-gaap:DeferredTaxAssetsOther contextRef="c-11" decimals="-6" id="f-1480" unitRef="usd">1000000</us-gaap:DeferredTaxAssetsOther>
+    <us-gaap:DeferredTaxAssetsOther contextRef="c-12" decimals="-6" id="f-1481" unitRef="usd">0</us-gaap:DeferredTaxAssetsOther>
+    <us-gaap:DeferredTaxAssetsGross contextRef="c-11" decimals="-6" id="f-1482" unitRef="usd">837000000</us-gaap:DeferredTaxAssetsGross>
+    <us-gaap:DeferredTaxAssetsGross contextRef="c-12" decimals="-6" id="f-1483" unitRef="usd">895000000</us-gaap:DeferredTaxAssetsGross>
+    <us-gaap:DeferredTaxAssetsValuationAllowance contextRef="c-11" decimals="-6" id="f-1484" unitRef="usd">489000000</us-gaap:DeferredTaxAssetsValuationAllowance>
+    <us-gaap:DeferredTaxAssetsValuationAllowance contextRef="c-12" decimals="-6" id="f-1485" unitRef="usd">482000000</us-gaap:DeferredTaxAssetsValuationAllowance>
+    <us-gaap:DeferredTaxAssetsNet contextRef="c-11" decimals="-6" id="f-1486" unitRef="usd">348000000</us-gaap:DeferredTaxAssetsNet>
+    <us-gaap:DeferredTaxAssetsNet contextRef="c-12" decimals="-6" id="f-1487" unitRef="usd">413000000</us-gaap:DeferredTaxAssetsNet>
+    <us-gaap:DeferredTaxLiabilitiesInvestments contextRef="c-11" decimals="-6" id="f-1488" unitRef="usd">255000000</us-gaap:DeferredTaxLiabilitiesInvestments>
+    <us-gaap:DeferredTaxLiabilitiesInvestments contextRef="c-12" decimals="-6" id="f-1489" unitRef="usd">294000000</us-gaap:DeferredTaxLiabilitiesInvestments>
+    <shop:DeferredTaxLiabilitiesOutsideBasisDifferenceOfForeignSubsidiaries contextRef="c-11" decimals="-6" id="f-1490" unitRef="usd">80000000</shop:DeferredTaxLiabilitiesOutsideBasisDifferenceOfForeignSubsidiaries>
+    <shop:DeferredTaxLiabilitiesOutsideBasisDifferenceOfForeignSubsidiaries contextRef="c-12" decimals="-6" id="f-1491" unitRef="usd">125000000</shop:DeferredTaxLiabilitiesOutsideBasisDifferenceOfForeignSubsidiaries>
+    <us-gaap:DeferredTaxLiabilitiesLeasingArrangements contextRef="c-11" decimals="-6" id="f-1492" unitRef="usd">23000000</us-gaap:DeferredTaxLiabilitiesLeasingArrangements>
+    <us-gaap:DeferredTaxLiabilitiesLeasingArrangements contextRef="c-12" decimals="-6" id="f-1493" unitRef="usd">25000000</us-gaap:DeferredTaxLiabilitiesLeasingArrangements>
+    <us-gaap:DeferredTaxLiabilitiesDeferredExpenseCapitalizedSoftware contextRef="c-11" decimals="-6" id="f-1494" unitRef="usd">4000000</us-gaap:DeferredTaxLiabilitiesDeferredExpenseCapitalizedSoftware>
+    <us-gaap:DeferredTaxLiabilitiesDeferredExpenseCapitalizedSoftware contextRef="c-12" decimals="-6" id="f-1495" unitRef="usd">0</us-gaap:DeferredTaxLiabilitiesDeferredExpenseCapitalizedSoftware>
+    <us-gaap:DeferredTaxLiabilitiesOther contextRef="c-11" decimals="-6" id="f-1496" unitRef="usd">8000000</us-gaap:DeferredTaxLiabilitiesOther>
+    <us-gaap:DeferredTaxLiabilitiesOther contextRef="c-12" decimals="-6" id="f-1497" unitRef="usd">5000000</us-gaap:DeferredTaxLiabilitiesOther>
+    <us-gaap:DeferredIncomeTaxLiabilities contextRef="c-11" decimals="-6" id="f-1498" unitRef="usd">370000000</us-gaap:DeferredIncomeTaxLiabilities>
+    <us-gaap:DeferredIncomeTaxLiabilities contextRef="c-12" decimals="-6" id="f-1499" unitRef="usd">449000000</us-gaap:DeferredIncomeTaxLiabilities>
+    <us-gaap:DeferredTaxLiabilities contextRef="c-11" decimals="-6" id="f-1500" unitRef="usd">22000000</us-gaap:DeferredTaxLiabilities>
+    <us-gaap:DeferredTaxLiabilities contextRef="c-12" decimals="-6" id="f-1501" unitRef="usd">36000000</us-gaap:DeferredTaxLiabilities>
+    <us-gaap:IncomeTaxExpenseBenefit contextRef="c-1" decimals="-6" id="f-1502" unitRef="usd">278000000</us-gaap:IncomeTaxExpenseBenefit>
+    <us-gaap:IncomeTaxExpenseBenefit contextRef="c-24" decimals="-6" id="f-1503" unitRef="usd">209000000</us-gaap:IncomeTaxExpenseBenefit>
+    <us-gaap:IncomeTaxExpenseBenefit contextRef="c-25" decimals="-6" id="f-1504" unitRef="usd">53000000</us-gaap:IncomeTaxExpenseBenefit>
+    <us-gaap:UnrecognizedTaxBenefits contextRef="c-12" decimals="-6" id="f-1506" unitRef="usd">15000000</us-gaap:UnrecognizedTaxBenefits>
+    <us-gaap:UnrecognizedTaxBenefits contextRef="c-39" decimals="-6" id="f-1507" unitRef="usd">10000000</us-gaap:UnrecognizedTaxBenefits>
+    <us-gaap:UnrecognizedTaxBenefits contextRef="c-30" decimals="-6" id="f-1508" unitRef="usd">9000000</us-gaap:UnrecognizedTaxBenefits>
+    <us-gaap:UnrecognizedTaxBenefitsIncreasesResultingFromPriorPeriodTaxPositions contextRef="c-1" decimals="-6" id="f-1509" unitRef="usd">5000000</us-gaap:UnrecognizedTaxBenefitsIncreasesResultingFromPriorPeriodTaxPositions>
+    <us-gaap:UnrecognizedTaxBenefitsIncreasesResultingFromPriorPeriodTaxPositions contextRef="c-24" decimals="-6" id="f-1510" unitRef="usd">0</us-gaap:UnrecognizedTaxBenefitsIncreasesResultingFromPriorPeriodTaxPositions>
+    <us-gaap:UnrecognizedTaxBenefitsIncreasesResultingFromPriorPeriodTaxPositions contextRef="c-25" decimals="-6" id="f-1511" unitRef="usd">0</us-gaap:UnrecognizedTaxBenefitsIncreasesResultingFromPriorPeriodTaxPositions>
+    <us-gaap:UnrecognizedTaxBenefitsIncreasesResultingFromCurrentPeriodTaxPositions contextRef="c-1" decimals="-6" id="f-1512" unitRef="usd">5000000</us-gaap:UnrecognizedTaxBenefitsIncreasesResultingFromCurrentPeriodTaxPositions>
+    <us-gaap:UnrecognizedTaxBenefitsIncreasesResultingFromCurrentPeriodTaxPositions contextRef="c-24" decimals="-6" id="f-1513" unitRef="usd">5000000</us-gaap:UnrecognizedTaxBenefitsIncreasesResultingFromCurrentPeriodTaxPositions>
+    <us-gaap:UnrecognizedTaxBenefitsIncreasesResultingFromCurrentPeriodTaxPositions contextRef="c-25" decimals="-6" id="f-1514" unitRef="usd">1000000</us-gaap:UnrecognizedTaxBenefitsIncreasesResultingFromCurrentPeriodTaxPositions>
+    <us-gaap:UnrecognizedTaxBenefits contextRef="c-11" decimals="-6" id="f-1515" unitRef="usd">25000000</us-gaap:UnrecognizedTaxBenefits>
+    <us-gaap:UnrecognizedTaxBenefits contextRef="c-12" decimals="-6" id="f-1516" unitRef="usd">15000000</us-gaap:UnrecognizedTaxBenefits>
+    <us-gaap:UnrecognizedTaxBenefits contextRef="c-39" decimals="-6" id="f-1517" unitRef="usd">10000000</us-gaap:UnrecognizedTaxBenefits>
+    <us-gaap:UnrecognizedTaxBenefitsInterestOnIncomeTaxesAccrued contextRef="c-11" decimals="-6" id="f-1518" unitRef="usd">1000000</us-gaap:UnrecognizedTaxBenefitsInterestOnIncomeTaxesAccrued>
+    <us-gaap:UnrecognizedTaxBenefitsInterestOnIncomeTaxesAccrued contextRef="c-12" decimals="INF" id="f-1519" unitRef="usd">0</us-gaap:UnrecognizedTaxBenefitsInterestOnIncomeTaxesAccrued>
+    <us-gaap:UnrecognizedTaxBenefitsInterestOnIncomeTaxesAccrued contextRef="c-39" decimals="INF" id="f-1520" unitRef="usd">0</us-gaap:UnrecognizedTaxBenefitsInterestOnIncomeTaxesAccrued>
+    <us-gaap:NetIncomeLoss contextRef="c-1" decimals="-6" id="f-1539" unitRef="usd">1231000000</us-gaap:NetIncomeLoss>
+    <us-gaap:NetIncomeLoss contextRef="c-24" decimals="-6" id="f-1540" unitRef="usd">2019000000</us-gaap:NetIncomeLoss>
+    <us-gaap:NetIncomeLoss contextRef="c-25" decimals="-6" id="f-1541" unitRef="usd">132000000</us-gaap:NetIncomeLoss>
+    <us-gaap:WeightedAverageNumberOfSharesOutstandingBasic contextRef="c-1" decimals="0" id="f-1542" unitRef="shares">1298955860</us-gaap:WeightedAverageNumberOfSharesOutstandingBasic>
+    <us-gaap:WeightedAverageNumberOfSharesOutstandingBasic contextRef="c-24" decimals="0" id="f-1543" unitRef="shares">1289812124</us-gaap:WeightedAverageNumberOfSharesOutstandingBasic>
+    <us-gaap:WeightedAverageNumberOfSharesOutstandingBasic contextRef="c-25" decimals="0" id="f-1544" unitRef="shares">1281554559</us-gaap:WeightedAverageNumberOfSharesOutstandingBasic>
+    <us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding contextRef="c-1" decimals="0" id="f-1557" unitRef="shares">1304953255</us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding>
+    <us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding contextRef="c-24" decimals="0" id="f-1558" unitRef="shares">1301509980</us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding>
+    <us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding contextRef="c-25" decimals="0" id="f-1559" unitRef="shares">1295511385</us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding>
+    <us-gaap:EarningsPerShareBasic contextRef="c-1" decimals="2" id="f-1560" unitRef="usdPerShare">0.95</us-gaap:EarningsPerShareBasic>
+    <us-gaap:EarningsPerShareBasic contextRef="c-24" decimals="2" id="f-1561" unitRef="usdPerShare">1.57</us-gaap:EarningsPerShareBasic>
+    <us-gaap:EarningsPerShareBasic contextRef="c-25" decimals="2" id="f-1562" unitRef="usdPerShare">0.10</us-gaap:EarningsPerShareBasic>
+    <us-gaap:EarningsPerShareDiluted contextRef="c-1" decimals="2" id="f-1563" unitRef="usdPerShare">0.94</us-gaap:EarningsPerShareDiluted>
+    <us-gaap:EarningsPerShareDiluted contextRef="c-24" decimals="2" id="f-1564" unitRef="usdPerShare">1.55</us-gaap:EarningsPerShareDiluted>
+    <us-gaap:EarningsPerShareDiluted contextRef="c-25" decimals="2" id="f-1565" unitRef="usdPerShare">0.10</us-gaap:EarningsPerShareDiluted>
+    <us-gaap:AntidilutiveSecuritiesExcludedFromComputationOfEarningsPerShareAmount contextRef="c-1" decimals="0" id="f-1575" unitRef="shares">315702</us-gaap:AntidilutiveSecuritiesExcludedFromComputationOfEarningsPerShareAmount>
+    <us-gaap:AntidilutiveSecuritiesExcludedFromComputationOfEarningsPerShareAmount contextRef="c-24" decimals="0" id="f-1576" unitRef="shares">1317789</us-gaap:AntidilutiveSecuritiesExcludedFromComputationOfEarningsPerShareAmount>
+    <us-gaap:AntidilutiveSecuritiesExcludedFromComputationOfEarningsPerShareAmount contextRef="c-25" decimals="0" id="f-1577" unitRef="shares">1209186</us-gaap:AntidilutiveSecuritiesExcludedFromComputationOfEarningsPerShareAmount>
+    <us-gaap:NumberOfReportableSegments contextRef="c-1" decimals="INF" id="f-1579" unitRef="segment">1</us-gaap:NumberOfReportableSegments>
+    <us-gaap:NumberOfOperatingSegments contextRef="c-1" decimals="INF" id="f-1580" unitRef="segment">1</us-gaap:NumberOfOperatingSegments>
+    </ns0:xbrl>

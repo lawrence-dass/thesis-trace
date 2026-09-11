@@ -8,12 +8,13 @@ Re-ingesting the same payload creates no duplicate rows (AD-9 replayable).
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Filing, Issuer, RawFact
-from ingestion.company_facts import ParsedCompanyFacts
+from app.models import DataQualityIssue, Filing, Issuer, RawFact
+from ingestion.company_facts import ParsedCompanyFacts, ParsedFact
 
 
 def _to_date(iso: str | None) -> date | None:
@@ -104,5 +105,166 @@ async def persist_company_facts(
             )
         )
         counts["raw_facts_added"] += 1
+    await session.flush()
+    return counts
+
+
+async def persist_inline_facts(
+    session: AsyncSession,
+    facts: list[ParsedFact],
+    *,
+    accession_number: str,
+) -> dict[str, int]:
+    """Append Inline XBRL facts, reconciling same-identity overlaps with Company Facts (AD-4).
+
+    Two populations, handled differently and deliberately:
+
+    DIMENSIONED facts are inserted unconditionally (subject to the usual
+    idempotency key). They are never compared to their undimensioned
+    counterparts, because AD-3 rule 0 makes them different facts — a segment's
+    revenue is not a competing measurement of consolidated revenue. Company Facts
+    carries no dimensional data at all, so there is never an overlapping
+    candidate from the primary source to reconcile against.
+
+    UNDIMENSIONED facts CAN genuinely collide with a Company Facts fact for the
+    same (taxonomy, concept, unit, period). AD-4 governs: Company Facts wins, the
+    Inline value is not written, and the divergence opens a `source_conflict`
+    row. `issue_type = 'source_conflict'` has been an anticipated value in
+    `app/models.py` since Epic 1 and had never been emitted by anything — this is
+    the first writer for it.
+
+    The dedup ignores issue STATUS, so a `dismissed` conflict is not resurrected
+    as a fresh `needs_review` one on the next run — the same requirement
+    `canonicalize_issuer` and `run_validation` already carry, because
+    `pipeline/run.py` is a daily cron over the same inputs.
+    """
+    counts = {"raw_facts_added": 0, "source_conflicts": 0, "company_facts_preferred": 0}
+    if not facts:
+        return counts
+
+    existing_hashes = {
+        h
+        for (h,) in (
+            await session.execute(
+                select(RawFact.content_hash).where(RawFact.accession_number == accession_number)
+            )
+        ).all()
+    }
+
+    # Company Facts facts for this filing, keyed by identity-without-value. Keep
+    # all values: Company Facts can itself contain repeated same-identity rows
+    # with different values, and choosing the last row would make this source
+    # reconciliation depend on database iteration order.
+    primary: dict[tuple, set[Decimal]] = {}
+    for rf in (
+        await session.execute(
+            select(RawFact).where(
+                RawFact.accession_number == accession_number,
+                RawFact.source == "company_facts",
+            )
+        )
+    ).scalars():
+        if rf.value is None:
+            continue
+        key = (rf.taxonomy, rf.concept, rf.unit, rf.period_start, rf.period_end)
+        primary.setdefault(key, set()).add(Decimal(str(rf.value)))
+
+    existing_conflicts = {
+        (
+            d.get("taxonomy"),
+            d.get("concept"),
+            d.get("unit"),
+            d.get("period_start"),
+            d.get("period_end"),
+        )
+        for d in (
+            await session.execute(
+                select(DataQualityIssue.detail).where(
+                    DataQualityIssue.accession_number == accession_number,
+                    DataQualityIssue.issue_type == "source_conflict",
+                )
+            )
+        ).scalars()
+        if d
+    }
+
+    for fact in facts:
+        if fact.accession_number != accession_number:
+            raise ValueError(
+                f"Inline fact accession {fact.accession_number!r} does not match the filing "
+                f"accession {accession_number!r}"
+            )
+        if fact.content_hash in existing_hashes:
+            continue
+
+        if not fact.dimensions:
+            key = (
+                fact.taxonomy,
+                fact.concept,
+                fact.unit,
+                _to_date(fact.period_start),
+                _to_date(fact.period_end),
+            )
+            if key in primary:
+                primary_values = primary[key]
+                inline_value = Decimal(str(fact.value))
+                if inline_value not in primary_values:
+                    counts["company_facts_preferred"] += 1
+                    dedup = (
+                        fact.taxonomy,
+                        fact.concept,
+                        fact.unit,
+                        fact.period_start,
+                        fact.period_end,
+                    )
+                    if dedup not in existing_conflicts:
+                        existing_conflicts.add(dedup)
+                        counts["source_conflicts"] += 1
+                        company_facts_value: float | list[float]
+                        if len(primary_values) == 1:
+                            company_facts_value = float(next(iter(primary_values)))
+                        else:
+                            company_facts_value = sorted(float(value) for value in primary_values)
+                        session.add(
+                            DataQualityIssue(
+                                accession_number=accession_number,
+                                issue_type="source_conflict",
+                                raised_by="ingestion",
+                                detail={
+                                    "taxonomy": fact.taxonomy,
+                                    "concept": fact.concept,
+                                    "unit": fact.unit,
+                                    "period_start": fact.period_start,
+                                    "period_end": fact.period_end,
+                                    "company_facts_value": company_facts_value,
+                                    "inline_xbrl_value": fact.value,
+                                    "resolution": (
+                                        "Company Facts wins (AD-4); the Inline XBRL value "
+                                        "was not written."
+                                    ),
+                                },
+                            )
+                        )
+                # Whether or not the values agree, Company Facts already holds
+                # this fact — Inline supplies only what the primary source omits.
+                continue
+
+        existing_hashes.add(fact.content_hash)
+        session.add(
+            RawFact(
+                accession_number=fact.accession_number,
+                taxonomy=fact.taxonomy,
+                concept=fact.concept,
+                unit=fact.unit,
+                period_start=_to_date(fact.period_start),
+                period_end=_to_date(fact.period_end),
+                value=fact.value,
+                source=fact.source,
+                content_hash=fact.content_hash,
+                dimensions=fact.dimensions,
+            )
+        )
+        counts["raw_facts_added"] += 1
+
     await session.flush()
     return counts
