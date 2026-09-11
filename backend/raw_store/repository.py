@@ -94,6 +94,13 @@ async def persist_company_facts(
                 value=fact.value,
                 source=fact.source,
                 content_hash=fact.content_hash,
+                # Always None from Company Facts (it carries no dimensions at
+                # all). Mapped through anyway so the field is LIVE rather than
+                # declared: Story 13.2's Inline XBRL path reuses this writer, and
+                # an unmapped column would drop every member it parsed while the
+                # parse itself looked correct — the same declared-but-unexercised
+                # shape this story's own AD-3 rule 0 was written to close.
+                dimensions=fact.dimensions,
             )
         )
         counts["raw_facts_added"] += 1

@@ -38,6 +38,13 @@ class ParsedFact:
     fiscal_year: int
     source: str
     content_hash: str
+    #: XBRL dimensional qualifiers as ``{axis: member}``, or None for an
+    #: undimensioned (consolidated) fact. ALWAYS None from this module: the
+    #: Company Facts API carries no dimensional data whatsoever — verified live
+    #: against a 4.6 MB fetch, `company_facts_api_carries_no_segment_dimensions`.
+    #: The field exists here so the Inline XBRL path (AD-4) produces the same
+    #: shape, and so `_content_hash` has one signature rather than two.
+    dimensions: dict[str, str] | None = None
 
 
 @dataclass
@@ -48,8 +55,47 @@ class ParsedCompanyFacts:
     facts: list[ParsedFact] = field(default_factory=list)
 
 
-def _content_hash(taxonomy: str, concept: str, unit: str, start: str | None, end: str | None, value: float) -> str:
+def _serialize_dimensions(dimensions: dict[str, str] | None) -> str:
+    """Canonical, order-independent serialization of a fact's dimensions.
+
+    Sorted by axis so two dicts with the same pairs in a different insertion
+    order hash identically — an XBRL context's dimensions are a SET of
+    axis/member pairs, not a sequence, and an instance document does not
+    guarantee their order.
+
+    Returns "" for None/{}, and the caller OMITS the segment entirely in that
+    case rather than appending a trailing separator — appending one would change
+    every existing undimensioned hash and re-ingest the whole raw store, since
+    `raw_facts` is unique on (accession_number, content_hash). Pinned by
+    `test_undimensioned_hashes_are_unchanged_by_this_story`.
+    """
+    if not dimensions:
+        return ""
+    return ";".join(f"{axis}={member}" for axis, member in sorted(dimensions.items()))
+
+
+def _content_hash(
+    taxonomy: str,
+    concept: str,
+    unit: str,
+    start: str | None,
+    end: str | None,
+    value: float,
+    dimensions: dict[str, str] | None = None,
+) -> str:
+    """Content hash for `raw_facts`' (accession_number, content_hash) uniqueness.
+
+    DIMENSIONS ARE PART OF A FACT'S IDENTITY. Two segment members reporting the
+    same concept, period and value are two different facts; without dimensions in
+    the payload they collide on the unique constraint and one is silently dropped
+    — the second of the three seams in
+    `dimensioned_facts_would_contaminate_consolidated_canonical_facts`. This does
+    not bite today only because the sole production source is dimensionless.
+    """
     payload = f"{taxonomy}|{concept}|{unit}|{start or ''}|{end or ''}|{value}"
+    serialized = _serialize_dimensions(dimensions)
+    if serialized:
+        payload = f"{payload}|{serialized}"
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
