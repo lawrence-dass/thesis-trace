@@ -69,7 +69,7 @@ Derived from the Architecture spine (AD-1…AD-21) and Deployment section:
 - **Data model (structural seed):** `issuers` (CIK key), `filings` (accession_number key), `raw_facts` (append-only), `concept_mappings` (versioned), `canonical_facts`, `market_prices`, `score_runs` (append-only, supersede-not-mutate), `score_inputs`, `score_results`, `data_quality_issues`. Internal PKs UUID; `DATE` for fiscal/filing dates, `TIMESTAMPTZ` for computed/fetched.
 - **Versioned formula specs as code (AD-5):** `formulas/<model>_v1.yaml` carrying equation, inputs, thresholds, rounding mode, missing-data/divide-by-zero policy, `signal_key` vocabulary, and cited band copy. `score_run.formula_version` references the spec by string.
 - **Dual-source ingestion (AD-4):** SEC Company Facts API primary + Inline XBRL fallback for omitted facts; on conflict Company Facts wins and the divergence writes a `data_quality_issues` row.
-- **Canonical-fact selection rules (AD-3):** as-originally-filed > restated comparative; least-dimensioned/most-specific member; higher decimals; unresolved ambiguity writes `data_quality_issues:needs_review`.
+- **Canonical-fact selection rules (AD-3):** dimensioned facts are excluded from undimensioned canonical concepts; then as-originally-filed > restated comparative; higher decimals; unresolved ambiguity writes `data_quality_issues:needs_review`.
 - **Contracts to enforce across seams:** tri-state signal status (AD-16), single `data_quality_issues` shape/owner (AD-17), canonical `score_results` shape + `signal_key` (AD-18), sector-scope applicability state (AD-20), FastAPI error envelope `{error:{code,message,details}}`, `not_available` success envelope for a lens not yet covered.
 - **Config via env vars only for secrets:** EDGAR contact, Tiingo key, LLM (Claude) key, DB connection — never hardcoded.
 - **Amendment policy (AD-6):** a 10-K/A triggers a new append-only `score_run`; prior run marked superseded; current = latest non-superseded.
@@ -243,7 +243,7 @@ So that scoring reads unambiguous, audited canonical facts.
 **Given** ingested `raw_facts` for Shopify
 **When** canonicalization runs
 **Then** canonical facts are produced via versioned `concept_mappings`, never mutated in place (AD-2)
-**And** fact selection follows the deterministic order: as-originally-filed over restated comparative, least-dimensioned/most-specific member, higher decimals precision (AD-3)
+**And** fact selection follows the deterministic order: dimensioned facts are excluded from undimensioned canonical concepts, then as-originally-filed over restated comparative and higher decimals precision (AD-3)
 **And** any unresolved ambiguity writes a `data_quality_issues` row with status `needs_review` rather than defaulting a value (AD-3)
 **And** a failed accounting-identity check (e.g. balance sheet doesn't balance) writes a data-quality warning, never silently hidden (AD-17).
 
@@ -1328,14 +1328,14 @@ every existing score already depends on.
 
 **Acceptance Criteria:**
 
-**Given** three seams verified against the code on 2026-09-08, none of which any live data has ever
+**Given** four seams verified against the code on 2026-09-08, none of which any live data has ever
 exercised because Company Facts is dimensionless:
 (1) `canonicalize.py`'s candidate grouping keys on `(canonical_concept, period_end.year)` and never
 reads `rf.dimensions`, while `us-gaap:Revenues`, `CostOfGoodsAndServicesSold`, `OperatingIncomeLoss`
 and `PaymentsToAcquirePropertyPlantAndEquipment` are all mapped in `us-gaap_v12.yaml` **and** all
-tagged per segment by CPB — so segment revenue would join the same candidate group as consolidated
-revenue, disagree with it, and either win the rank or raise a spurious `ambiguous_selection` for
-every filer-year;
+tagged per segment by CPB — so a matching full-year segment fact would join the same candidate group
+as consolidated revenue; if its value differed, it would either win the rank or raise a spurious
+`ambiguous_selection`, depending on the other candidate metadata;
 (2) `_content_hash(taxonomy, concept, unit, start, end, value)` omits dimensions, and `raw_facts` is
 unique on `(accession_number, content_hash)` — two members reporting the same concept, period and
 value collide and one is silently dropped;
@@ -1345,19 +1345,21 @@ value collide and one is silently dropped;
 change nothing about what gets selected, so axis/member-aware mapping is **Story 13.3's** to own end
 to end;
 (4) `canonical_facts` carries a PARTIAL UNIQUE INDEX on `(issuer_cik, canonical_concept,
-fiscal_year, mapping_version) WHERE NOT superseded` (`models.py:163`), so it **structurally cannot
-hold more than one member** under a canonical concept — dimensioned facts have nowhere to live in it,
-and no story may assume otherwise
+fiscal_year, mapping_version) WHERE NOT superseded` (`models.py:163`), so it cannot represent
+more than one current member under a canonical concept — although one dimensioned row could technically
+be inserted, the key is not member-aware and dimensioned facts have no safe member-aware home there
 **When** this story completes
 **Then** AD-3 gains an explicit rule that a fact carrying dimensions is not a candidate for an
 undimensioned canonical concept — retiring the never-implemented "least-dimensioned/most-specific
 member" clause, which silently assumed a single flat candidate pool
 **And** AD-4's rule is extended to say that Inline XBRL supplies facts Company Facts *structurally
-cannot carry* (dimensioned facts), not only facts it happens to omit — its "on conflict, Company
-Facts wins" clause is recorded as inert for dimensioned facts, because there is never an overlapping
-candidate to conflict with
-**And** `_content_hash` includes a canonical serialization of `dimensions`, with a test proving two
-facts differing only by member produce different hashes and both persist
+cannot carry* (dimensioned facts), not only facts it happens to omit — for a dimensional-vs-undimensioned
+pair, its "on conflict, Company Facts wins" clause does not apply because AD-3 keeps them out of the
+same candidate pool; genuinely overlapping same-identity source conflicts remain a future ingestion
+responsibility
+**And** `_content_hash` includes a canonical JSON serialization of `dimensions`, with tests proving
+legacy undimensioned hashes are unchanged, member identity is distinct and delimiter-containing values
+cannot collide
 **And** the story states, as a decision rather than an assumption, **where dimensioned facts live** —
 NOT in `canonical_facts`, whose partial unique index admits one row per
 `(issuer, concept, year, mapping_version)`; Story 13.4 names and migrates the member-aware store, and
@@ -1396,6 +1398,10 @@ qualified names (`us-gaap:StatementBusinessSegmentsAxis` → `cpb:MealsBeverages
 normalized or prettified at ingestion — mapping is Story 13.3's job
 **And** ingestion is idempotent by `(accession_number, content_hash)` under Story 13.1's
 dimension-inclusive hash, and re-running it adds no rows
+**And** this story owns same-identity source reconciliation at the raw/canonical boundary: an
+undimensioned Inline fact overlapping a Company Facts fact leaves Company Facts as the winner and
+writes the AD-4 `data_quality_issues` divergence row, while dimensional facts remain separate
+under Story 13.1 and are not compared to their undimensioned counterparts
 **And** EDGAR access discipline (NFR-3) is unchanged — identifying User-Agent, ≤10 req/s, cached,
 retried with backoff
 **And** the parse is verified against the four instances already fetched live on 2026-09-08 — CPB
@@ -1499,10 +1505,16 @@ cannot support.
 **Given** that segment members are stable for CPB across FY2022–FY2025 (verified 4/4 years) but that
 "segment" means product categories at CPB, geographies at ZTS and individual brands at QSR
 **When** segment figures are computed
-**Then** this story owns **computation and storage only**. The mapping of segment tags — including
-the two verified CPB tag switches — belongs to Story 13.3 with the rest of the dimensional mapping,
-and every UI concern belongs to Story 13.7; this story is complete when the figures are correct and
-materialized, whether or not anything renders them
+**Then** this story owns **segment-payload computation and its derived output storage only**. It
+consumes the dimension-aware fact store defined by Story 13.4 and the segment mappings defined by
+Story 13.3; it does not define or migrate either upstream store. The mapping of segment tags —
+including the two verified CPB tag switches — belongs to Story 13.3 with the rest of the dimensional
+mapping, and every UI concern belongs to Story 13.7; this story is complete when the figures are
+correct and materialized, whether or not anything renders them
+**And** the segment-payload output is stored in a named `segment_payloads` relation with an
+active uniqueness/supersession key carrying issuer, axis, member, canonical concept, fiscal year and
+mapping version, plus member-level provenance; its idempotent writer must not use the one-row-per-
+concept/year `canonical_facts` key
 **And** it consumes 13.3's mappings for the two CPB tag switches rather than defining them, their
 exact boundaries being: segment profitability `us-gaap:OperatingIncomeLoss` (FY2022–FY2024) →
 `cpb:SegmentOperatingEarnings` (FY2025), and segment capex

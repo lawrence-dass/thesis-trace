@@ -187,6 +187,28 @@ async def canonicalize_issuer(
         canonical = SOURCE_TO_CANONICAL.get((rf.taxonomy, rf.concept))
         if canonical is None or rf.period_end is None:
             continue
+        # AD-3 rule 0: a DIMENSIONED fact is a different fact from its
+        # undimensioned counterpart, and is never a candidate for an
+        # undimensioned canonical concept.
+        #
+        # Without this, a segment-level us-gaap:Revenues row joins the SAME
+        # candidate group as consolidated revenue — every filter below passes it
+        # — and then either raises a spurious `ambiguous_selection` (when it
+        # disagrees) or silently BECOMES the canonical consolidated value (when
+        # it is the sole candidate for a filer-year, sits in a preferred filing
+        # tier, or ties on value and wins on tie-break metadata). The second mode
+        # is the dangerous one: "it would just get flagged" is not true.
+        #
+        # Not reachable today — the only production source, Company Facts, is
+        # dimensionless — which is exactly why AD-3's original rule (2)
+        # ("least-dimensioned/most-specific member") was never implemented and
+        # read as enforced for over a year. Story 13.2 makes it reachable, so
+        # this guard lands BEFORE the first dimensioned row is ever written.
+        # The current `canonical_facts` key cannot represent multiple member
+        # facts for one issuer/concept/year/mapping_version. Story 13.4 builds
+        # the member-aware store (or extends that key) separately.
+        if rf.dimensions:
+            continue
         if not _is_full_year_duration(rf):
             continue
         if not _matches_fiscal_year_end(rf, fye_day):
