@@ -4807,6 +4807,18 @@ segment_data_reachable_but_raos_is_not_a_segment:
     cpb:SovosInitiativesMember sits on RestructuringPlanAxis (integration
     charges). ImpairmentOfIntangibleAssetsIndefinitelivedExcludingGoodwill is
     live in the filing under Corporate & Other.
+  finding_superseded_by: >
+    NARROWED 2026-09-11 by `story_13_3_brand_member_live_verification`. The
+    sentence above — "ImpairmentOfIntangibleAssetsIndefinitelivedExcludingGoodwill
+    is live in the filing under Corporate & Other" — is true but INCOMPLETE: that
+    is the segment-axis copy of a fact CPB also tags PER BRAND on
+    us-gaap:IndefiniteLivedIntangibleAssetsByMajorClassAxis, where the per-brand
+    values sum exactly to the Corporate & Other total in FY2024 and FY2025.
+    Impairment IS brand-dimensioned for CPB, so the blocking question this entry
+    raised for 13.4/13.7 is answered YES for that filer (NO for ZTS, which tags
+    impairment consolidated-only, and QSR, which tags none). Same shape as the
+    compactAmount lesson: a precise measurement of one branch reads exactly like
+    a precise measurement of the whole.
   why_the_intangible_route_is_better: >
     An indefinite-lived intangible must be impairment-tested annually. A Rao's
     trademark still carried at full value is management AND the auditors
@@ -5147,3 +5159,71 @@ ad3_decimals_tiebreak_has_never_had_data:
     next opened. Verify by re-canonicalizing the dev store under a new mapping
     version and diffing which canonical values change — the dry-run-with-rollback
     technique from `canonical_facts_amendment_gap` applies directly.
+
+story_13_3_brand_member_live_verification:
+  status: done
+  found: 2026-09-11
+  found_by: >
+    Story 13.3's blocking question, resolved before any mapping was written. DoD
+    rule 2 first: Story 13.2's committed CPB fixture already answered it for one
+    filer, and re-reading that EVIDENCE rather than the earlier entry's
+    CONCLUSION is what exposed the gap. Then one approved live pass — CPB, ZTS
+    and QSR, four original 10-K instances each (FY2022-FY2025), fetched through
+    ingestion.edgar and parsed with Story 13.2's parse_instance.
+  question: >
+    Is impairment brand-dimensioned at all, and does every brand member a mapping
+    would name actually cover the years it is claimed for?
+  finding: >
+    THE ANSWER DIFFERS PER FILER; the epic's headline survives for one of three.
+    (1) CPB — impairment IS brand-dimensioned. ImpairmentOfIntangibleAssets-
+    IndefinitelivedExcludingGoodwill is tagged on us-gaap:IndefiniteLived-
+    IntangibleAssetsByMajorClassAxis: FY2024 TrademarksAlliedBrands 53M +
+    TrademarksPopSecret 76M = 129M, FY2025 TrademarksAlliedBrands 15M +
+    TrademarksLateJuly 11M + TrademarksSnydersOfHanover 150M = 176M. Each sum
+    equals that year's consolidated AND Corporate & Other figure exactly, which
+    proves the per-brand set is complete rather than a sample. The FY2022 and
+    FY2023 filings carry no impairment concept at all; the FY2024 filing reports
+    both years as 0.
+    (2) ZTS — impairment is reported ONLY consolidated, and under a DIFFERENT
+    concept, ImpairmentOfIntangibleAssetsExcludingGoodwill (FY2020 26M, FY2021
+    27M, FY2022 39M, FY2023 35M, FY2024 15M, FY2025 5M). Not one impairment fact
+    carries a member, in any of four filings.
+    (3) QSR — no impairment concept appears in any of its four filings.
+    (4) Rao's — cpb:TrademarksRaosMember appears from the FY2024 filing (Sovos
+    closed March 2024) carrying IndefiniteLivedIntangibleAssetsExcludingGoodwill
+    and IndefinitelivedIntangibleAssetsAcquired, and NEVER an impairment. Rao's
+    has not been written down through FY2025 — the acquirer's own annual
+    assertion that it is still worth what was paid.
+  member_names_are_not_stable: >
+    THE MAPPING-BREAKING FINDING, and it is not the one the story expected. CPB
+    renames its own custom members across filings, so a member verified on the
+    latest filing does not cover earlier years.
+    Kettle alone has THREE names: cpb:TradeNamesKettleMember (FY2022) ->
+    cpb:TrademarkssKettleMember (FY2023 — a double-s typo in the filer's own tag,
+    present for exactly one year) -> cpb:TrademarksKettleBrandMember (FY2024,
+    FY2025). The whole family renames TradeNames* -> Trademarks* between FY2022
+    and FY2023 (PacificFoods is singular cpb:TradeNamePacificFoodsMember in
+    FY2022), and the early-warning member renames cpb:TradeNamesCarryingValue-
+    With10OrLessExcessFairValueCoverageMember -> ...WithTenPercentOrLess... in
+    FY2024. Member counts run 9 -> 10 -> 13 -> 14 across FY2022-FY2025.
+    This is the member-level analogue of cpb_segment_members_stable_but_tags_
+    switch: that entry proved the SEGMENT members stable, and the brand members
+    are not. Mapping needs per-filer AND per-era member aliases, each verified
+    per year — mapping by exact name against the newest filing would silently
+    lose earlier years, the same class as the original shares_outstanding bug.
+  consequence_for_13_4_and_13_7: >
+    "Was this brand written down?" is answerable PER BRAND for CPB only. ZTS can
+    answer it at company level only; QSR cannot answer it at all. Both must
+    render insufficient_data for per-brand impairment under AD-16, and 13.4/13.7
+    must say so plainly rather than implying a per-brand link the data does not
+    support. Carrying value per brand, by contrast, resolves for all three.
+  reusable_conclusion: >
+    A MEMBER name is as unstable as a TAG name, and a filer's typo can exist for
+    exactly one year. Every "verify per-year coverage, never existence" rule in
+    this project applies to members as written, including the rule that an
+    exclusion needs value-level proof rather than a name-based inference.
+  not_verified_yet: >
+    FY2021 and earlier were not fetched (four original 10-Ks per filer). Whether
+    the TradeNames*/Trademarks* alias families extend further back is unknown.
+    Finite-lived intangible impairment and goodwill impairment concepts were
+    included in the scan and appear for none of the three filers in these years.
