@@ -433,7 +433,7 @@ class DataQualityIssue(Base):
     status: Mapped[IssueStatus] = mapped_column(
         Enum(IssueStatus, native_enum=False, length=16), default=IssueStatus.needs_review
     )
-    raised_by: Mapped[str] = mapped_column(String(32))  # canonicalization | validation
+    raised_by: Mapped[str] = mapped_column(String(32))  # canonicalization | validation | ingestion
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

@@ -1,7 +1,8 @@
 """Live SEC EDGAR client (AD-9).
 
-NOT exercised in the test suite — a live fetch requires network and would hit
-SEC's servers. Tests use committed fixtures via `company_facts.parse_company_facts`.
+Live network fetches are not exercised in the test suite because they would hit
+SEC's servers. Tests use committed fixtures via `company_facts.parse_company_facts`
+and mocked responses for the request-policy behavior.
 Enforces SEC fair-access discipline: identifying User-Agent, <=10 req/s, retry
 with backoff. Ingestion is replayable and made idempotent downstream by
 (accession_number, content_hash) in raw_store (AD-2, AD-9).
@@ -76,6 +77,24 @@ async def _fetch_json(url: str, *, max_retries: int = 3) -> dict:
     raise RuntimeError(f"EDGAR fetch failed after {max_retries} attempts: {url}")
 
 
+async def _fetch_text(url: str, *, max_retries: int = 3) -> str:
+    """Shared text GET with the same throttle + backoff as JSON requests."""
+    headers = {"User-Agent": _user_agent(), "Accept-Encoding": "gzip, deflate"}
+    delay = 1.0
+    async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
+        for attempt in range(1, max_retries + 1):
+            await _throttle()
+            resp = await client.get(url, headers=headers)
+            if resp.status_code == 200:
+                return resp.text
+            if resp.status_code in (429, 503) and attempt < max_retries:
+                await asyncio.sleep(delay)
+                delay *= 2
+                continue
+            resp.raise_for_status()
+    raise RuntimeError(f"EDGAR fetch failed after {max_retries} attempts: {url}")
+
+
 async def fetch_submissions(cik: str, *, max_retries: int = 3) -> dict:
     """Filing history for a zero-padded CIK (form types, accessions, dates)."""
     return await _fetch_json(SUBMISSIONS_URL.format(cik=str(cik).zfill(10)), max_retries=max_retries)
@@ -126,9 +145,4 @@ async def fetch_instance_document(cik: str, accession_number: str, *, max_retrie
     if not instances:
         raise RuntimeError(f"no Inline XBRL instance in {accession_number} (files: {len(names)})")
     url = ARCHIVE_FILE_URL.format(cik_int=cik_int, accn_nodash=accn_nodash, filename=instances[0])
-    headers = {"User-Agent": _user_agent(), "Accept-Encoding": "gzip, deflate"}
-    async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
-        await _throttle()
-        resp = await client.get(url, headers=headers)
-        resp.raise_for_status()
-        return resp.text
+    return await _fetch_text(url, max_retries=max_retries)

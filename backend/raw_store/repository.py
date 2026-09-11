@@ -8,6 +8,7 @@ Re-ingesting the same payload creates no duplicate rows (AD-9 replayable).
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -150,8 +151,11 @@ async def persist_inline_facts(
         ).all()
     }
 
-    # Company Facts facts for this filing, keyed by identity-without-value.
-    primary: dict[tuple, float] = {}
+    # Company Facts facts for this filing, keyed by identity-without-value. Keep
+    # all values: Company Facts can itself contain repeated same-identity rows
+    # with different values, and choosing the last row would make this source
+    # reconciliation depend on database iteration order.
+    primary: dict[tuple, set[Decimal]] = {}
     for rf in (
         await session.execute(
             select(RawFact).where(
@@ -160,12 +164,19 @@ async def persist_inline_facts(
             )
         )
     ).scalars():
-        primary[(rf.taxonomy, rf.concept, rf.unit, rf.period_start, rf.period_end)] = float(
-            rf.value
-        )
+        if rf.value is None:
+            continue
+        key = (rf.taxonomy, rf.concept, rf.unit, rf.period_start, rf.period_end)
+        primary.setdefault(key, set()).add(Decimal(str(rf.value)))
 
     existing_conflicts = {
-        (d.get("taxonomy"), d.get("concept"), d.get("period_end"))
+        (
+            d.get("taxonomy"),
+            d.get("concept"),
+            d.get("unit"),
+            d.get("period_start"),
+            d.get("period_end"),
+        )
         for d in (
             await session.execute(
                 select(DataQualityIssue.detail).where(
@@ -178,6 +189,11 @@ async def persist_inline_facts(
     }
 
     for fact in facts:
+        if fact.accession_number != accession_number:
+            raise ValueError(
+                f"Inline fact accession {fact.accession_number!r} does not match the filing "
+                f"accession {accession_number!r}"
+            )
         if fact.content_hash in existing_hashes:
             continue
 
@@ -190,12 +206,25 @@ async def persist_inline_facts(
                 _to_date(fact.period_end),
             )
             if key in primary:
-                if primary[key] != fact.value:
+                primary_values = primary[key]
+                inline_value = Decimal(str(fact.value))
+                if inline_value not in primary_values:
                     counts["company_facts_preferred"] += 1
-                    dedup = (fact.taxonomy, fact.concept, fact.period_end)
+                    dedup = (
+                        fact.taxonomy,
+                        fact.concept,
+                        fact.unit,
+                        fact.period_start,
+                        fact.period_end,
+                    )
                     if dedup not in existing_conflicts:
                         existing_conflicts.add(dedup)
                         counts["source_conflicts"] += 1
+                        company_facts_value: float | list[float]
+                        if len(primary_values) == 1:
+                            company_facts_value = float(next(iter(primary_values)))
+                        else:
+                            company_facts_value = sorted(float(value) for value in primary_values)
                         session.add(
                             DataQualityIssue(
                                 accession_number=accession_number,
@@ -204,8 +233,10 @@ async def persist_inline_facts(
                                 detail={
                                     "taxonomy": fact.taxonomy,
                                     "concept": fact.concept,
+                                    "unit": fact.unit,
+                                    "period_start": fact.period_start,
                                     "period_end": fact.period_end,
-                                    "company_facts_value": primary[key],
+                                    "company_facts_value": company_facts_value,
                                     "inline_xbrl_value": fact.value,
                                     "resolution": (
                                         "Company Facts wins (AD-4); the Inline XBRL value "

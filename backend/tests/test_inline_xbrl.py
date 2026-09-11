@@ -14,18 +14,26 @@ Sources: `segment_data_reachable_but_raos_is_not_a_segment`,
 `acquisition_epic_scoped_to_us_gaap_filers`.
 
 FIXTURE HONESTY (Story 13.6's standing warning applies to this story too). These
-fixtures are TRIMMED: every numeric fact on the four dimensional axes below is
-kept, plus at most 12 undimensioned contexts per filer. Dropped: TextBlock
+fixtures are TRIMMED: every numeric fact selected on the four acquisition-relevant
+dimensional axes — `BusinessAcquisitionAxis`, `StatementBusinessSegmentsAxis`,
+`IndefiniteLivedIntangibleAssetsByMajorClassAxis`, and
+`FiniteLivedIntangibleAssetsByMajorClassAxis` — is kept, plus at most 12
+undimensioned contexts per filer. A retained context can carry additional axes;
+those qualifiers remain part of the parsed fact identity. Dropped: TextBlock
 elements (one CPB footnote alone is 295 KB of embedded HTML), non-numeric facts,
-and undimensioned contexts beyond the cap. So they CAN exercise segment and
-brand-intangible parsing, member recovery, and dimension identity; they CANNOT
-exercise full-coverage per-year canonicalization, which is not this story's job.
+and undimensioned contexts beyond the cap. The committed trimmed files cannot
+independently prove completeness against the discarded live originals, so the
+tests assert recorded members, dimensional identity, and the trim bound. They
+CAN exercise segment and brand-intangible parsing, member recovery, and dimension
+identity; they CANNOT exercise full-coverage per-year canonicalization, which is
+not this story's job.
 """
 
 from __future__ import annotations
 
 import pathlib
 from datetime import date
+from unittest.mock import AsyncMock
 
 import pytest
 from sqlalchemy import select
@@ -39,9 +47,19 @@ FIXTURES = pathlib.Path(__file__).parent / "fixtures"
 SEGMENT_AXIS = "us-gaap:StatementBusinessSegmentsAxis"
 
 #: Context counts in the FULL instances as fetched live (2026-09-08, re-confirmed
-#: 2026-09-10). Asserted against the untrimmed documents only — kept here as the
-#: recorded answer a future live re-fetch should still produce.
+#: 2026-09-10). These are provenance notes, not executable assertions: the
+#: untrimmed documents are deliberately not committed, so a trimmed fixture
+#: cannot reproduce these counts.
 LIVE_CONTEXT_COUNTS = {"cpb": 601, "qsr": 562, "zts": 473, "shop": 333, "cp": 640}
+
+RETAINED_DIMENSIONAL_AXES = frozenset(
+    {
+        "us-gaap:BusinessAcquisitionAxis",
+        SEGMENT_AXIS,
+        "us-gaap:IndefiniteLivedIntangibleAssetsByMajorClassAxis",
+        "us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis",
+    }
+)
 
 #: Segment members per filer, verbatim. The KIND differs per filer and that is
 #: the finding, not an accident: CPB reports product categories, ZTS geographies,
@@ -91,6 +109,18 @@ def test_segment_members_match_the_live_gate_findings(filer: str) -> None:
     assert _members(_facts(filer), SEGMENT_AXIS) == EXPECTED_SEGMENT_MEMBERS[filer]
 
 
+@pytest.mark.parametrize("filer", sorted(EXPECTED_SEGMENT_MEMBERS))
+def test_trimmed_fixture_preserves_only_bounded_undimensioned_contexts(filer: str) -> None:
+    root = ElementTree.fromstring((FIXTURES / f"{filer}_instance.xml").read_text())
+    contexts = parse_contexts(root)
+    assert sum(context.dimensions is None for context in contexts.values()) <= 12
+    assert all(
+        set(f.dimensions).intersection(RETAINED_DIMENSIONAL_AXES)
+        for f in _facts(filer)
+        if f.dimensions
+    )
+
+
 def test_qsr_reports_each_acquired_brand_as_a_segment() -> None:
     """QSR is the epic's lead test case, and this is why.
 
@@ -137,6 +167,39 @@ def test_a_context_can_carry_several_axes_at_once() -> None:
     )
     multi = [c for c in contexts.values() if c.dimensions and len(c.dimensions) > 1]
     assert multi, "fixture carries no multi-axis context; it cannot exercise this"
+
+
+def test_scenario_and_typed_dimensions_are_not_mistaken_for_undimensioned() -> None:
+    """Every XBRL context location and dimension kind remains fact identity."""
+    xml = """\
+<xbrli:xbrl
+    xmlns:xbrli="http://www.xbrl.org/2003/instance"
+    xmlns:xbrldi="http://xbrl.org/2006/xbrldi"
+    xmlns:ex="http://example.com/taxonomy"
+    xmlns:us-gaap="http://fasb.org/us-gaap/2025">
+  <xbrli:context id="c">
+    <xbrli:entity><xbrli:identifier scheme="test">issuer</xbrli:identifier></xbrli:entity>
+    <xbrli:period>
+      <xbrli:startDate>2024-01-01</xbrli:startDate>
+      <xbrli:endDate>2024-12-31</xbrli:endDate>
+    </xbrli:period>
+    <xbrli:scenario>
+      <xbrldi:explicitMember dimension="us-gaap:StatementBusinessSegmentsAxis">ex:TotalMember</xbrldi:explicitMember>
+      <xbrldi:typedMember dimension="ex:ProductAxis"><ex:ProductCode>ABC</ex:ProductCode></xbrldi:typedMember>
+    </xbrli:scenario>
+  </xbrli:context>
+  <xbrli:unit id="usd"><xbrli:measure>iso4217:USD</xbrli:measure></xbrli:unit>
+  <us-gaap:Revenues contextRef="c" unitRef="usd">100</us-gaap:Revenues>
+</xbrli:xbrl>
+"""
+    contexts = parse_contexts(ElementTree.fromstring(xml))
+    dimensions = contexts["c"].dimensions
+    assert dimensions is not None
+    assert dimensions[SEGMENT_AXIS] == "ex:TotalMember"
+    assert dimensions["ex:ProductAxis"].startswith("__typed_member__:")
+
+    facts = parse_instance(xml, accession_number="test", fiscal_year=2024)
+    assert facts[0].dimensions == dimensions
 
 
 def test_facts_differing_only_by_member_hash_differently_on_real_filings() -> None:
@@ -399,3 +462,173 @@ async def test_reconciliation_is_idempotent_across_nightly_runs(db_session):
         )
     ).scalars().all()
     assert len(issues) == 1, f"one conflict accumulated into {len(issues)} rows"
+
+
+@requires_db
+async def test_source_conflicts_use_the_full_fact_identity(db_session):
+    """Instant and duration facts sharing an end date are separate conflicts."""
+    from app.models import DataQualityIssue, RawFact
+    from raw_store.repository import persist_inline_facts
+
+    accn = await _seed_filing(db_session)
+    instant = _fact(accession_number=accn, source="company_facts", period_start=None, value=100.0)
+    duration = _fact(
+        accession_number=accn,
+        source="company_facts",
+        period_start="2024-07-29",
+        value=200.0,
+    )
+    for primary in (instant, duration):
+        db_session.add(
+            RawFact(
+                accession_number=accn,
+                taxonomy=primary.taxonomy,
+                concept=primary.concept,
+                unit=primary.unit,
+                period_start=(
+                    date.fromisoformat(primary.period_start) if primary.period_start else None
+                ),
+                period_end=date.fromisoformat(primary.period_end),
+                value=primary.value,
+                source="company_facts",
+                content_hash=primary.content_hash,
+            )
+        )
+    await db_session.flush()
+
+    inline = [
+        _fact(accession_number=accn, period_start=None, value=101.0),
+        _fact(accession_number=accn, period_start="2024-07-29", value=201.0),
+    ]
+    counts = await persist_inline_facts(db_session, inline, accession_number=accn)
+
+    assert counts["source_conflicts"] == 2
+    details = (
+        await db_session.execute(
+            select(DataQualityIssue.detail).where(
+                DataQualityIssue.issue_type == "source_conflict"
+            )
+        )
+    ).scalars().all()
+    assert {
+        (d["unit"], d["period_start"], d["period_end"])
+        for d in details
+    } == {
+        ("USD", None, "2025-08-03"),
+        ("USD", "2024-07-29", "2025-08-03"),
+    }
+
+
+@requires_db
+async def test_reconciliation_considers_all_primary_values_for_one_identity(db_session):
+    """A duplicate primary identity must not be reduced to an arbitrary last row."""
+    from app.models import DataQualityIssue, RawFact
+    from raw_store.repository import persist_inline_facts
+
+    accn = await _seed_filing(db_session)
+    primary_facts = [
+        _fact(accession_number=accn, source="company_facts", value=100.0),
+        _fact(accession_number=accn, source="company_facts", value=200.0),
+    ]
+    for primary in primary_facts:
+        db_session.add(
+            RawFact(
+                accession_number=accn,
+                taxonomy=primary.taxonomy,
+                concept=primary.concept,
+                unit=primary.unit,
+                period_start=date.fromisoformat(primary.period_start),
+                period_end=date.fromisoformat(primary.period_end),
+                value=primary.value,
+                source="company_facts",
+                content_hash=primary.content_hash,
+            )
+        )
+    await db_session.flush()
+
+    await persist_inline_facts(
+        db_session, [_fact(accession_number=accn, value=300.0)], accession_number=accn
+    )
+    detail = (
+        await db_session.execute(
+            select(DataQualityIssue.detail).where(
+                DataQualityIssue.issue_type == "source_conflict"
+            )
+        )
+    ).scalars().one()
+    assert detail["company_facts_value"] == [100.0, 200.0]
+
+
+@requires_db
+async def test_inline_facts_must_belong_to_the_requested_filing(db_session):
+    from app.models import Filing
+    from raw_store.repository import persist_inline_facts
+
+    accn = await _seed_filing(db_session)
+    other_accn = "0000016732-25-999999"
+    db_session.add(
+        Filing(
+            accession_number=other_accn,
+            issuer_cik="0000016732",
+            form_type="10-K",
+            filing_date=date(2025, 9, 1),
+            fiscal_year=2025,
+            fiscal_year_end=date(2025, 8, 3),
+        )
+    )
+    await db_session.flush()
+    with pytest.raises(ValueError, match="does not match"):
+        await persist_inline_facts(
+            db_session,
+            [_fact(accession_number=other_accn)],
+            accession_number=accn,
+        )
+
+
+async def test_archive_instance_fetch_retries_transient_sec_errors(monkeypatch):
+    """The new archive GET must obey the same AD-9 retry contract as JSON GETs."""
+    import ingestion.edgar as edgar
+
+    class FakeResponse:
+        def __init__(self, status_code: int, text: str = ""):
+            self.status_code = status_code
+            self.text = text
+
+        def raise_for_status(self):
+            raise AssertionError(f"unexpected status {self.status_code}")
+
+    class FakeClient:
+        responses = [FakeResponse(503), FakeResponse(200, "<xbrl />")]
+        requests = []
+
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def get(self, url, **kwargs):
+            self.requests.append((url, kwargs))
+            return self.responses.pop(0)
+
+    monkeypatch.setattr(
+        edgar,
+        "_fetch_json",
+        AsyncMock(return_value={"directory": {"item": [{"name": "cpb-20250803_htm.xml"}]}}),
+    )
+    monkeypatch.setattr(edgar.httpx, "AsyncClient", FakeClient)
+    monkeypatch.setattr(edgar, "_user_agent", lambda: "test@example.com")
+    monkeypatch.setattr(edgar, "_throttle", AsyncMock())
+    sleep = AsyncMock()
+    monkeypatch.setattr(edgar.asyncio, "sleep", sleep)
+
+    text = await edgar.fetch_instance_document(
+        "0000016732", "0000016732-25-000112", max_retries=2
+    )
+
+    assert text == "<xbrl />"
+    assert len(FakeClient.requests) == 2
+    sleep.assert_awaited_once_with(1.0)

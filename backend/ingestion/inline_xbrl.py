@@ -12,17 +12,20 @@ committed fixtures, matching `ingestion.company_facts`. The live fetch lives in
 `raw_store.repository`.
 
 DIMENSIONS ARE PRESERVED VERBATIM. A context's `<xbrldi:explicitMember
-dimension="AXIS">MEMBER</>` pairs are stored as `{axis: member}` using the
-filer's own qualified names — `us-gaap:StatementBusinessSegmentsAxis` ->
-`cpb:MealsBeveragesMember` — never normalized, prefixed-expanded or prettified
-here. Mapping them to canonical concepts is Story 13.3's job, and it needs the
-filer's own vocabulary intact to do it: custom `cpb:`/`qsr:`/`zts:` tags are
-filer-specific by construction, so per-filer mapping is the point rather than an
-inconvenience (`cpb_segment_members_stable_but_tags_switch`).
+dimension="AXIS">MEMBER</>` pairs, whether under `entity/segment` or
+`scenario`, are stored as `{axis: member}` using the filer's own qualified names
+— `us-gaap:StatementBusinessSegmentsAxis` -> `cpb:MealsBeveragesMember` — never
+normalized, prefixed-expanded or prettified here. Typed members are stored under
+the same axis key with a deterministic XML identity because they have no QName
+member. Mapping named members to canonical concepts is Story 13.3's job, and it
+needs the filer's own vocabulary intact to do it: custom `cpb:`/`qsr:`/`zts:` tags
+are filer-specific by construction, so per-filer mapping is the point rather than
+an inconvenience (`cpb_segment_members_stable_but_tags_switch`).
 """
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from xml.etree import ElementTree
 
@@ -38,12 +41,14 @@ _CONTEXT = f"{{{XBRLI_NS}}}context"
 _ENTITY = f"{{{XBRLI_NS}}}entity"
 _SEGMENT = f"{{{XBRLI_NS}}}segment"
 _PERIOD = f"{{{XBRLI_NS}}}period"
+_SCENARIO = f"{{{XBRLI_NS}}}scenario"
 _START = f"{{{XBRLI_NS}}}startDate"
 _END = f"{{{XBRLI_NS}}}endDate"
 _INSTANT = f"{{{XBRLI_NS}}}instant"
 _UNIT = f"{{{XBRLI_NS}}}unit"
 _MEASURE = f"{{{XBRLI_NS}}}measure"
 _EXPLICIT_MEMBER = f"{{{XBRLDI_NS}}}explicitMember"
+_TYPED_MEMBER = f"{{{XBRLDI_NS}}}typedMember"
 
 
 @dataclass(frozen=True)
@@ -69,6 +74,30 @@ def _qname(tag: str, nsmap: dict[str, str]) -> tuple[str, str]:
     return nsmap.get(uri, uri), local
 
 
+def _typed_member_identity(node: ElementTree.Element) -> str:
+    """Return a stable identity for a typed dimension's XML payload.
+
+    Typed dimensions do not have a QName member like ``explicitMember`` does;
+    their member is an XML value.  The raw store's dimensions contract is still
+    a ``{axis: member}`` mapping, so encode that value as a deterministic,
+    namespace-aware JSON tree rather than silently treating the context as
+    undimensioned.  Story 13.3 can map named members without having to pretend
+    a typed member is a QName.
+    """
+
+    def encode(element: ElementTree.Element) -> dict:
+        return {
+            "tag": element.tag,
+            "attributes": sorted(element.attrib.items()),
+            "text": element.text or "",
+            "children": [encode(child) for child in element],
+        }
+
+    return "__typed_member__:" + json.dumps(
+        encode(node), sort_keys=True, separators=(",", ":")
+    )
+
+
 def parse_contexts(root: ElementTree.Element) -> dict[str, ParsedContext]:
     """Index every `<context>` by id, with its period and dimensions."""
     contexts: dict[str, ParsedContext] = {}
@@ -78,16 +107,33 @@ def parse_contexts(root: ElementTree.Element) -> dict[str, ParsedContext]:
             continue
 
         dimensions: dict[str, str] = {}
+
+        def add_dimension(axis: str | None, member: str | None) -> None:
+            if not axis or member is None:
+                return
+            value = member.strip()
+            if not value:
+                return
+            previous = dimensions.get(axis)
+            if previous is not None and previous != value:
+                raise ValueError(
+                    f"context {context_id!r} has conflicting members for dimension {axis!r}"
+                )
+            dimensions[axis] = value
+
         entity = node.find(_ENTITY)
         segment = entity.find(_SEGMENT) if entity is not None else None
-        if segment is not None:
-            for member in segment.iterfind(_EXPLICIT_MEMBER):
-                axis = member.get("dimension")
+        containers = [
+            container for container in (segment, node.find(_SCENARIO)) if container is not None
+        ]
+        for container in containers:
+            for member in container.iterfind(_EXPLICIT_MEMBER):
                 # Verbatim, including the filer's own prefix. A context may carry
                 # SEVERAL axes at once (CPB pairs MajorCustomersAxis with two
                 # concentration-risk axes), so this is a dict, not a single pair.
-                if axis and member.text:
-                    dimensions[axis] = member.text.strip()
+                add_dimension(member.get("dimension"), member.text)
+            for member in container.iterfind(_TYPED_MEMBER):
+                add_dimension(member.get("dimension"), _typed_member_identity(member))
 
         period = node.find(_PERIOD)
         start = end = None
