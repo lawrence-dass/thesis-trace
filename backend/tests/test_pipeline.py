@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 
 from sqlalchemy import func, select
@@ -98,6 +99,50 @@ async def test_run_issuer_scores_all_scoreable_years(db_session) -> None:
     models = {r.model for r in runs}
     # No market price provided -> Altman not scored; the three EDGAR-only models are.
     assert models == {Model.piotroski, Model.sloan, Model.beneish}
+
+
+@requires_db
+async def test_run_issuer_persists_inline_facts_before_canonicalization(db_session) -> None:
+    """The production write path must not leave the Inline writer orphaned."""
+    from ingestion.company_facts import ParsedFact, _content_hash
+
+    payload = json.loads(FIXTURE.read_text())
+    accession_number = "0001594805-25-000010"
+    dimensions = {"us-gaap:StatementBusinessSegmentsAxis": "shop:MerchantSolutionsMember"}
+    fact = ParsedFact(
+        accession_number=accession_number,
+        taxonomy="us-gaap",
+        concept="Revenues",
+        unit="USD",
+        period_start="2024-01-01",
+        period_end="2024-12-31",
+        value=123.0,
+        fiscal_year=2024,
+        source="inline_xbrl",
+        content_hash=_content_hash(
+            "us-gaap", "Revenues", "USD", "2024-01-01", "2024-12-31", 123.0, dimensions
+        ),
+        dimensions=dimensions,
+    )
+
+    await run_issuer(
+        db_session,
+        payload,
+        ticker="SHOP",
+        inline_facts=[fact],
+        inline_accession_number=accession_number,
+    )
+
+    stored = (
+        await db_session.execute(
+            select(RawFact).where(
+                RawFact.source == "inline_xbrl", RawFact.accession_number == accession_number
+            )
+        )
+    ).scalars().all()
+    assert len(stored) == 1
+    assert stored[0].dimensions == dimensions
+    assert stored[0].period_end == date(2024, 12, 31)
 
 
 @requires_db

@@ -20,10 +20,11 @@ from app.models import Filing
 from canonicalization.canonicalize import canonicalize_issuer
 from canonicalization.mappings import MAPPING_VERSION, seed_concept_mappings
 from canonicalization.taxonomies import FINANCIAL_TAXONOMIES, supersedes
-from ingestion.company_facts import parse_company_facts
+from ingestion.company_facts import ParsedFact, parse_company_facts
+from ingestion.inline_xbrl import parse_instance
 from raw_store.fx_rates import upsert_fx_rate
 from raw_store.market_prices import get_fye_close, upsert_fye_close
-from raw_store.repository import persist_company_facts
+from raw_store.repository import persist_company_facts, persist_inline_facts
 from scoring.facts import load_facts
 from scoring.runner import score_altman, score_beneish, score_piotroski, score_sloan
 from validation.checks import run_validation
@@ -67,6 +68,8 @@ async def run_issuer(
     fye_prices: dict[int, tuple[date, float]] | None = None,
     fx_rates: dict[int, tuple[date, float]] | None = None,
     reporting_currency: str | None = None,
+    inline_facts: list[ParsedFact] | None = None,
+    inline_accession_number: str | None = None,
 ) -> dict:
     """Full write-path pipeline for one issuer from a Company Facts payload.
 
@@ -78,6 +81,11 @@ async def run_issuer(
     report in a non-USD currency (e.g. CP reports in CAD) — see AD-11's currency
     fix (2026-07-23): Tiingo's price is always USD, so a non-USD filer's Altman
     X4 needs this conversion or it would silently divide mismatched currencies.
+
+    `inline_facts` is the optional dimensional population fetched for one
+    original US-GAAP annual filing. It is persisted before canonicalization so
+    the same write-path run sees the complete raw store; its accession is
+    explicit because a fact's content hash deliberately does not include it.
     """
     parsed = parse_company_facts(payload)
     await persist_company_facts(
@@ -88,6 +96,12 @@ async def run_issuer(
         is_financial_sector=is_financial_sector,
         is_capital_intensive=is_capital_intensive,
     )
+    if inline_facts is not None:
+        if inline_accession_number is None:
+            raise ValueError("inline_accession_number is required when inline_facts are supplied")
+        await persist_inline_facts(
+            session, inline_facts, accession_number=inline_accession_number
+        )
     await seed_concept_mappings(session)
     await canonicalize_issuer(session, parsed.cik)
 
@@ -225,6 +239,38 @@ def _payload_reporting_currency(payload: dict) -> str | None:
     return None
 
 
+async def _inline_facts_for(payload: dict, cik: str) -> tuple[str, list[ParsedFact]] | None:
+    """Fetch and parse the newest original US-GAAP annual filing's instance.
+
+    Inline XBRL is an augmentation to the successful Company Facts fetch, not a
+    reason to block that primary path. The caller handles a fetch/parse failure
+    as a warning and still runs the issuer through Company Facts.
+    """
+    if "us-gaap" not in payload.get("facts", {}):
+        return None  # Epic 13 is scoped to US-GAAP 10-K filers.
+
+    from ingestion.edgar import (
+        fetch_instance_document,
+        fetch_submissions,
+        latest_annual_original,
+    )
+
+    parsed = parse_company_facts(payload)
+    submissions = await fetch_submissions(cik)
+    accession_number, _filing_date = latest_annual_original(submissions)
+    filing = parsed.filings.get(accession_number)
+    if filing is None:
+        raise RuntimeError(
+            f"Company Facts payload has no annual metadata for selected filing {accession_number}"
+        )
+    document = await fetch_instance_document(cik, accession_number)
+    return accession_number, parse_instance(
+        document,
+        accession_number=accession_number,
+        fiscal_year=filing.fiscal_year,
+    )
+
+
 async def _fx_rates_for(payload: dict, reporting_currency: str | None) -> dict[int, tuple[date, float]]:
     """Fetch USD/{reporting_currency} rates covering every filed fiscal-year-end
     (AD-11 currency fix). Only Bank of Canada USD/CAD is supported; any other
@@ -286,6 +332,12 @@ async def main() -> None:  # pragma: no cover — live path, gated
             fye_prices = await _fye_prices_for(payload, entry.ticker)
             reporting_currency = _payload_reporting_currency(payload)
             fx_rates = await _fx_rates_for(payload, reporting_currency)
+            inline = None
+            if "us-gaap" in payload.get("facts", {}):
+                try:
+                    inline = await _inline_facts_for(payload, entry.cik)
+                except Exception as exc:  # noqa: BLE001 — primary ingestion still proceeds
+                    print(f"WARN {entry.ticker}: Inline XBRL fetch skipped: {exc}")
             async with sessionmaker() as session:
                 summary = await run_issuer(
                     session,
@@ -296,6 +348,8 @@ async def main() -> None:  # pragma: no cover — live path, gated
                     fye_prices=fye_prices,
                     fx_rates=fx_rates,
                     reporting_currency=reporting_currency,
+                    inline_accession_number=inline[0] if inline else None,
+                    inline_facts=inline[1] if inline else None,
                 )
         except Exception as exc:  # noqa: BLE001 — one filer's failure must not stop the run
             # parse_company_facts can now fail closed (ValueError) rather than guess a
