@@ -205,8 +205,11 @@ async def canonicalize_issuer(
         # read as enforced for over a year. Story 13.2 makes it reachable, so
         # this guard lands BEFORE the first dimensioned row is ever written.
         # The current `canonical_facts` key cannot represent multiple member
-        # facts for one issuer/concept/year/mapping_version. Story 13.4 builds
-        # the member-aware store (or extends that key) separately.
+        # facts for one issuer/concept/year/mapping_version — CPB impaired three
+        # brands in FY2025 alone. Story 13.3 builds the member-aware store those
+        # facts land in (moved there from 13.4 on 2026-09-11); this guard stays
+        # exactly as it is either way, because a dimensioned fact is never a
+        # candidate for an UNDIMENSIONED canonical concept.
         if rf.dimensions:
             continue
         if not _is_full_year_duration(rf):
