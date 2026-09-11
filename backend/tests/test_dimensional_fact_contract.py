@@ -102,6 +102,27 @@ def test_dimension_serialization_is_order_independent():
     )
 
 
+def test_dimension_serialization_does_not_collide_on_separator_characters():
+    """Dimension identity must not depend on delimiters being absent from values."""
+    base = {
+        "taxonomy": "us-gaap",
+        "concept": "Revenues",
+        "unit": "USD",
+        "start": "2024-01-01",
+        "end": "2024-12-31",
+        "value": 100.0,
+    }
+    dimensions_with_delimiters = {"axis": "member;other=member"}
+    dimensions_as_two_entries = {"axis": "member", "other": "member"}
+
+    assert _serialize_dimensions(dimensions_with_delimiters) != _serialize_dimensions(
+        dimensions_as_two_entries
+    )
+    assert _content_hash(**base, dimensions=dimensions_with_delimiters) != _content_hash(
+        **base, dimensions=dimensions_as_two_entries
+    )
+
+
 # --- Candidacy: the contamination guard, both failure modes ------------------
 
 
@@ -156,13 +177,14 @@ async def test_dimensioned_fact_does_not_raise_ambiguity_against_consolidated(db
         RawFact(
             accession_number="0001594805-25-000010",
             taxonomy="us-gaap",
-            concept="Assets",
+            concept="Revenues",
             unit="USD",
+            period_start=date(2024, 1, 1),
             period_end=date(2024, 12, 31),
             value=4_200_000_000,  # a segment's slice, smaller than consolidated
             dimensions={_SEGMENT_AXIS: "shop:MerchantSolutionsMember"},
             source="inline_xbrl",
-            content_hash="segment-assets-fy2024",
+            content_hash="segment-revenue-fy2024",
             fetched_at=datetime(2020, 1, 1, tzinfo=timezone.utc),
         )
     )
@@ -180,16 +202,16 @@ async def test_dimensioned_fact_does_not_raise_ambiguity_against_consolidated(db
         )
     ).scalars().all()
 
-    total_assets = (
+    total_revenue = (
         await db_session.execute(
             select(CanonicalFact).where(
-                CanonicalFact.canonical_concept == "total_assets",
+                CanonicalFact.canonical_concept == "revenue",
                 CanonicalFact.fiscal_year == 2024,
                 CanonicalFact.superseded.is_(False),
             )
         )
     ).scalars().one()
-    assert total_assets.value != 4_200_000_000, "segment value must never become consolidated"
+    assert total_revenue.value != 4_200_000_000, "segment value must never become consolidated"
 
 
 @requires_db
@@ -213,7 +235,7 @@ async def test_dimensioned_fact_does_not_become_canonical_when_sole_candidate(db
     assert not (
         await db_session.execute(
             select(CanonicalFact).where(
-                CanonicalFact.canonical_concept == "total_assets",
+                CanonicalFact.canonical_concept == "revenue",
                 CanonicalFact.fiscal_year == orphan_year,
             )
         )
@@ -223,14 +245,14 @@ async def test_dimensioned_fact_does_not_become_canonical_when_sole_candidate(db
         RawFact(
             accession_number="0001594805-25-000010",
             taxonomy="us-gaap",
-            concept="Assets",
+            concept="Revenues",
             unit="USD",
             period_start=date(orphan_year, 1, 1),
             period_end=date(orphan_year, 12, 31),
             value=1_234_000_000,
             dimensions={_SEGMENT_AXIS: "shop:SubscriptionSolutionsMember"},
             source="inline_xbrl",
-            content_hash="lone-segment-assets-fy2019",
+            content_hash="lone-segment-revenue-fy2019",
             fetched_at=datetime(2020, 1, 1, tzinfo=timezone.utc),
         )
     )
@@ -241,7 +263,7 @@ async def test_dimensioned_fact_does_not_become_canonical_when_sole_candidate(db
     assert not (
         await db_session.execute(
             select(CanonicalFact).where(
-                CanonicalFact.canonical_concept == "total_assets",
+                CanonicalFact.canonical_concept == "revenue",
                 CanonicalFact.fiscal_year == orphan_year,
             )
         )

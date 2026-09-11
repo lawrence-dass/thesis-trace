@@ -9,6 +9,7 @@ the fallback for omitted facts (AD-4).
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import dataclass, field
 from datetime import date
 from canonicalization.taxonomies import ANNUAL_FORM_TYPES, FINANCIAL_TAXONOMIES
@@ -71,7 +72,9 @@ def _serialize_dimensions(dimensions: dict[str, str] | None) -> str:
     """
     if not dimensions:
         return ""
-    return ";".join(f"{axis}={member}" for axis, member in sorted(dimensions.items()))
+    # JSON avoids collisions caused by axis/member values containing the
+    # separators used by the legacy human-readable form.
+    return json.dumps(dimensions, sort_keys=True, separators=(",", ":"))
 
 
 def _content_hash(

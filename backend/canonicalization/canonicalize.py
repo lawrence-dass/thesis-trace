@@ -204,9 +204,9 @@ async def canonicalize_issuer(
         # ("least-dimensioned/most-specific member") was never implemented and
         # read as enforced for over a year. Story 13.2 makes it reachable, so
         # this guard lands BEFORE the first dimensioned row is ever written.
-        # `canonical_facts` also cannot store members (partial unique index on
-        # issuer/concept/year/mapping_version), so there is nowhere for them to
-        # go here even in principle; Story 13.4 builds the member-aware store.
+        # The current `canonical_facts` key cannot represent multiple member
+        # facts for one issuer/concept/year/mapping_version. Story 13.4 builds
+        # the member-aware store (or extends that key) separately.
         if rf.dimensions:
             continue
         if not _is_full_year_duration(rf):
