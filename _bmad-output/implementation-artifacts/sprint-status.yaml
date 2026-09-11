@@ -6,7 +6,7 @@
 # this file — they were split out on 2026-08-20, when this file had reached
 # 1,279 lines of which only ~115 were status.
 #
-# STATUS AT A GLANCE (61 of 69 stories done, 9 of 13 epics complete)
+# STATUS AT A GLANCE (62 of 69 stories done, 9 of 13 epics complete)
 #
 #   Epic 1  done         10/10        Foundation & First Evidence (Walking Skeleton)
 #   Epic 2  done         6/6          Complete the Four Lenses
@@ -20,7 +20,7 @@
 #   Epic 10 done         7/7          Report-Style Company Page
 #   Epic 11 done         9/9          UI Redesign — Instrument Panel
 #   Epic 12 done         5/5          US Universe Expansion — Campbell's & Zoetis
-#   Epic 13 in-progress  0/8          Acquisition Performance — Brand Intangibles & Impairment
+#   Epic 13 in-progress  1/8          Acquisition Performance — Brand Intangibles & Impairment
 #
 # Epic 13 (added 2026-09-08) is the NEXT epic to build, and the first one D9's
 # gate actually selected: the 2026-09-01 CPB decision packet named "I could not
@@ -212,7 +212,7 @@ development_status:
   # no live data has exercised, and ingesting dimensioned facts before it lands
   # would corrupt consolidated canonical values.
   epic-13: in-progress
-  13-1-dimensional-fact-contract: review
+  13-1-dimensional-fact-contract: done
   13-2-inline-xbrl-instance-ingestion-for-dimensional-facts: backlog
   13-3-brand-intangible-concept-mapping-across-the-us-gaap-filers: backlog
   13-4-acquisition-performance-computation-and-versioned-spec: backlog
