@@ -117,6 +117,7 @@ CURATED_SECTIONS = (
     "segment_and_brand_intangible_tagging_across_filers",
     "acquisition_epic_scoped_to_us_gaap_filers",
     "dimensioned_facts_would_contaminate_consolidated_canonical_facts",
+    "ad3_decimals_tiebreak_has_never_had_data",
 )
 
 pytestmark = pytest.mark.skipif(

@@ -5094,3 +5094,56 @@ dimensioned_facts_would_contaminate_consolidated_canonical_facts:
     canonicalize.py:187 reads SOURCE_TO_CANONICAL, built from the YAML specs via
     mappings/engine.py:291, and the table is an audit projection. A migration
     alone would have changed nothing.
+
+ad3_decimals_tiebreak_has_never_had_data:
+  status: open
+  found: 2026-09-10
+  found_by: >
+    Writing the Inline XBRL parser for Story 13.2. The instance document carries
+    a `decimals` attribute on every numeric fact, so the question "should I
+    capture it?" came up — and answering it showed nothing else captures it
+    either. Found by looking at something adjacent, like most findings on this
+    project.
+  question: >
+    AD-3's selection rule (2) ranks candidates by "higher decimals precision".
+    Does that tiebreak actually operate?
+  finding: >
+    NO. It has never had data, in the entire history of the project.
+    canonicalize.py:259 genuinely implements the sort key —
+    `-(rf.decimals if rf.decimals is not None else -9)` — so the code READS as
+    enforced. But `RawFact.decimals` is never written: `ParsedFact` has no
+    decimals field at all (0 occurrences in ingestion/company_facts.py), and
+    persist_company_facts never sets the column (0 occurrences in
+    raw_store/repository.py). Verified live against the dev store on 2026-09-10:
+    65,291 raw_facts rows, 0 with a non-null `decimals`. Every candidate
+    therefore scores the identical -9 fallback and the tiebreak is a no-op, so
+    ranking falls through to fetched_at for every comparison it was meant to
+    settle.
+  why_this_matters: >
+    AD-3 exists to prevent "silent, arbitrary default selection among ambiguous
+    or conflicting XBRL facts". Where two candidates differ only in precision —
+    the case rule (2) was written for — the resolution is currently arbitrary in
+    exactly the way the AD forbids, decided by fetch order rather than by data
+    quality. No evidence yet that this has produced a wrong figure; the point is
+    that nothing would have revealed it if it had.
+  seventh_instance_of_the_conformance_rule: >
+    Same family as the six in project-context.md (2026-08-13), but a NEW
+    variant worth naming: the previous six were prose claiming what code did not
+    do, or a declared mechanism nothing executed. Here the code is present and
+    correct — a real sort key on a real column — and is inert because its INPUT
+    is never populated. Reading the implementation would confirm the rule works.
+    Only querying the data shows it cannot. Add "check the input is populated"
+    to the ways a conformance claim can be hollow.
+  deliberately_not_fixed_here: >
+    Out of scope for Story 13.2, which is ingestion of dimensional facts. Fixing
+    it means adding `decimals` to ParsedFact and to BOTH ingestion paths, and it
+    would change canonicalization ranking outcomes for any (concept, year) with
+    multiple candidates — a behavioural change needing its own story and its own
+    live verification of which selections flip. It does NOT change content
+    hashes (`_content_hash` excludes decimals), so it is not blocked by
+    re-ingestion concerns.
+  recommended_next: >
+    Its own small story, sequenced after Epic 13 or whenever canonicalization is
+    next opened. Verify by re-canonicalizing the dev store under a new mapping
+    version and diffing which canonical values change — the dry-run-with-rollback
+    technique from `canonical_facts_amendment_gap` applies directly.
