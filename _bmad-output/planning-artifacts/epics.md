@@ -1441,6 +1441,14 @@ member's *values* in its overlap years, never inferring from its name plus a red
 13.1 establishes only the contract; splitting the mapping across two stories would leave the YAML
 spec and the DB projection able to disagree, which is the shape of the `piotroski_v1.yaml`
 declared-vs-read defect
+**And** "end to end" INCLUDES the member-aware store those facts land in — the table, its
+member-carrying unique key, its supersession behaviour following `canonical_facts`'
+partial-unique-index pattern, and the provenance columns AD-19 needs down to the member. Moved here
+from Story 13.4 on 2026-09-11 (Lawrence's call) for a reason this story would otherwise hit head-on:
+AD-3 rule 0 discards every dimensioned fact, and `uq_canonical_facts_key` cannot represent two
+members in one `(issuer, concept, year, mapping_version)` — CPB impaired three brands in FY2025
+alone. Without the store in the same story, this mapping would be declared and never executed,
+which is instance 6 of the conformance rule arriving one story after the session that named it
 **And** `ImpairmentOfIntangibleAssetsIndefinitelivedExcludingGoodwill` is mapped as a distinct
 concept from carrying value, and CPB's
 `TradeNamesCarryingValueWithTenPercentOrLessExcessFairValueCoverageMember` is mapped as a first-class
@@ -1479,11 +1487,11 @@ defect where the two silently disagreed
 **And** ThesisTrace originates **no** threshold: the 10%-or-less band is the filer's own filed
 disclosure and is labelled as such; any presentation guard of our own is explicitly labelled ours,
 per the Cameco caveat rule ("a caveat may annotate a score; it must never alter one")
-**And** this story DEFINES AND MIGRATES the member-aware store that Story 13.1's contract keeps out
-of `canonical_facts`, specifying all four of: the table name; its unique key (which must carry the
-member, e.g. `(issuer_cik, canonical_concept, member, fiscal_year, mapping_version)`); its
-supersession behaviour, following `canonical_facts`' partial-unique-index pattern rather than
-inventing a second one; and the provenance columns needed to satisfy AD-19 down to the member
+**And** the member-aware store is ALREADY defined and migrated by Story 13.3 — moved there on
+2026-09-11, because 13.3's mapping cannot resolve anywhere without it and would otherwise ship
+declared-but-unexercised. This story WRITES INTO that store and must not redefine its table, its
+member-carrying unique key or its supersession behaviour; a second shape for the same facts is the
+`piotroski_v1.yaml` declared-vs-read defect with two tables instead of two lists
 **And** the writer's idempotency key is that same unique key — `pipeline/run.py` is a daily cron over
 the same canonical facts, and a writer without one accumulates a row per night
 **And** where Story 13.3 establishes that impairment is NOT brand-dimensioned, this story computes

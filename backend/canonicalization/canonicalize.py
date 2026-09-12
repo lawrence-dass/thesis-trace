@@ -34,10 +34,20 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import CanonicalFact, DataQualityIssue, Filing, IssueStatus, RawFact
+from app.models import (
+    CanonicalFact,
+    CanonicalMemberFact,
+    DataQualityIssue,
+    Filing,
+    IssueStatus,
+    RawFact,
+)
 from canonicalization.mappings import (
     DERIVATION_RULES,
     MAPPING_VERSION,
+    MEMBER_PERIOD_POLICIES,
+    MEMBER_RESOLUTION,
+    MEMBER_SOURCE_PRIORITY,
     NON_NEGATIVE_CONCEPTS,
     SOURCE_EXCLUDED_ACCESSIONS,
     SOURCE_EXCLUDED_ISSUERS,
@@ -83,7 +93,9 @@ def _is_full_year_duration(rf: RawFact) -> bool:
 
 
 def _day_of_year(month: int, day: int) -> int:
-    return date(2001, month, day).toordinal() - date(2001, 1, 1).toordinal()
+    # Leap-year anchor permits February 29 and makes month/day distances use a
+    # real calendar rather than throwing for a valid leap-day fiscal year end.
+    return date(2000, month, day).toordinal() - date(2000, 1, 1).toordinal()
 
 
 def _issuer_fye_day(filings: dict[str, Filing]) -> int | None:
@@ -97,6 +109,23 @@ def _issuer_fye_day(filings: dict[str, Filing]) -> int | None:
         if f.form_type in ORIGINAL_ANNUAL_FORM_TYPES
     )
     return counts.most_common(1)[0][0] if counts else None
+
+
+def _issuer_fye_dates(filings: dict[str, Filing]) -> frozenset[date]:
+    """Return exact fiscal-year-end dates declared by original annual filings.
+
+    The common month/day heuristic is useful for the legacy duration path, but
+    it is too permissive for instant member facts from a 52/53-week filer: the
+    first day of the next fiscal year is often one day after the prior close and
+    would otherwise be admitted into the prior calendar-year bucket. Member
+    balances must match a real annual close; event-dated members use a separate
+    policy and do not consult this set.
+    """
+    return frozenset(
+        f.fiscal_year_end
+        for f in filings.values()
+        if f.form_type in ORIGINAL_ANNUAL_FORM_TYPES
+    )
 
 
 def _matches_fiscal_year_end(rf: RawFact, fye_day: int | None) -> bool:
@@ -135,7 +164,17 @@ async def canonicalize_issuer(
     references the new fact and the prior run's inputs still resolve to the
     old one (AD-2, AD-6, AD-19). Tracked as `canonical_facts_amendment_gap`.
     """
-    counts = {"canonical_facts_added": 0, "canonical_facts_superseded": 0, "ambiguities_flagged": 0}
+    counts = {
+        "canonical_facts_added": 0,
+        "canonical_facts_superseded": 0,
+        "ambiguities_flagged": 0,
+        # Member-scoped facts are counted separately: they land in a different
+        # table under a different key, and a caller reading "canonical_facts_added"
+        # must not silently include facts that never reached canonical_facts.
+        "member_facts_added": 0,
+        "member_facts_superseded": 0,
+        "member_ambiguities_flagged": 0,
+    }
 
     filings = {
         f.accession_number: f
@@ -182,11 +221,20 @@ async def canonicalize_issuer(
 
     # Group candidate raw_facts by (canonical_concept, fiscal_year).
     fye_day = _issuer_fye_day(filings)
+    fye_dates = _issuer_fye_dates(filings)
     grouped: dict[tuple[str, int], list[RawFact]] = defaultdict(list)
+    # Dimensioned facts are not discarded — rule 0 keeps them out of THIS
+    # selection, and `_canonicalize_members` selects them into their own store.
+    dimensioned: list[RawFact] = []
     for rf in raw_facts:
-        canonical = SOURCE_TO_CANONICAL.get((rf.taxonomy, rf.concept))
-        if canonical is None or rf.period_end is None:
-            continue
+        # Rule 0 is applied BEFORE the undimensioned lookup, and the order is
+        # load-bearing: a brand concept is mapped only as a DIMENSIONED rule, so
+        # a SOURCE_TO_CANONICAL miss would drop the fact here and
+        # `_canonicalize_members` would receive nothing — the path would exist
+        # and never write a row. Caught by test_member_canonicalization.py on
+        # its first run, which is the reason that file asserts rows LAND rather
+        # than only that the mapping resolves.
+        #
         # AD-3 rule 0: a DIMENSIONED fact is a different fact from its
         # undimensioned counterpart, and is never a candidate for an
         # undimensioned canonical concept.
@@ -205,9 +253,16 @@ async def canonicalize_issuer(
         # read as enforced for over a year. Story 13.2 makes it reachable, so
         # this guard lands BEFORE the first dimensioned row is ever written.
         # The current `canonical_facts` key cannot represent multiple member
-        # facts for one issuer/concept/year/mapping_version. Story 13.4 builds
-        # the member-aware store (or extends that key) separately.
+        # facts for one issuer/concept/year/mapping_version — CPB impaired three
+        # brands in FY2025 alone. Story 13.3 builds the member-aware store those
+        # facts land in (moved there from 13.4 on 2026-09-11); this guard stays
+        # exactly as it is either way, because a dimensioned fact is never a
+        # candidate for an UNDIMENSIONED canonical concept.
         if rf.dimensions:
+            dimensioned.append(rf)
+            continue
+        canonical = SOURCE_TO_CANONICAL.get((rf.taxonomy, rf.concept))
+        if canonical is None or rf.period_end is None:
             continue
         if not _is_full_year_duration(rf):
             continue
@@ -348,6 +403,16 @@ async def canonicalize_issuer(
         if current.derivation is None and (canonical, fiscal_year) not in grouped_keys:
             await _retire_current_fact(session, current)
             counts["canonical_facts_superseded"] += 1
+
+    await _canonicalize_members(
+        session,
+        issuer_cik,
+        dimensioned=dimensioned,
+        filings=filings,
+        fye_dates=fye_dates,
+        mapping_version=mapping_version,
+        counts=counts,
+    )
 
     counts["derived_facts_added"] = await _apply_derivations(
         session, issuer_cik, mapping_version=mapping_version, counts=counts
@@ -497,6 +562,191 @@ async def _retire_current_fact(session: AsyncSession, fact: CanonicalFact) -> No
     """
     fact.superseded = True
     await session.flush()
+
+
+async def _supersede_member(
+    session: AsyncSession, old: CanonicalMemberFact, new: CanonicalMemberFact
+) -> None:
+    """`_supersede` for member facts — same three-flush ordering, same reason.
+
+    `uq_canonical_member_facts_key` is a partial index over NOT superseded and is
+    checked per statement, and SQLAlchemy emits INSERTs before UPDATEs within one
+    flush, so the retirement has to reach the database before the insert.
+    """
+    old.superseded = True
+    await session.flush()
+    session.add(new)
+    await session.flush()
+    old.superseded_by = new.id
+
+
+async def _retire_current_member_fact(session: AsyncSession, fact: CanonicalMemberFact) -> None:
+    """Retire a member fact that no longer has an eligible source candidate."""
+    fact.superseded = True
+    await session.flush()
+
+
+async def _canonicalize_members(
+    session: AsyncSession,
+    issuer_cik: str,
+    *,
+    dimensioned: list[RawFact],
+    filings: dict[str, Filing],
+    fye_dates: frozenset[date],  # exact dates from original annual filings
+    mapping_version: str,
+    counts: dict[str, int],
+) -> None:
+    """Select one canonical fact per (concept, member, fiscal year) into
+    `canonical_member_facts` (Story 13.3).
+
+    These are the facts AD-3 rule 0 keeps out of `canonical_facts`, where they
+    would collide: CPB impaired three brands in FY2025 and that table's key
+    carries no member. A fact is admitted only when the mapping spec resolves its
+    (issuer, taxonomy, concept, axis, member-as-filed) — an unmapped member is
+    skipped, never guessed at, so a filer's new brand appears as nothing until
+    the spec is extended and live-verified.
+
+    Annual instant facts use exact fiscal-year-end dates rather than only the
+    common month/day heuristic. That matters for CPB's 52/53-week calendar: a
+    first-day opening balance can be one day after the prior close and otherwise
+    look like a valid annual fact. Event-dated acquisition facts opt out of this
+    check in the mapping spec. Duration facts still pass the full-year guard.
+    """
+    existing: dict[tuple[str, str, int], CanonicalMemberFact] = {
+        (f.canonical_concept, f.member_key, f.fiscal_year): f
+        for f in (
+            await session.execute(
+                select(CanonicalMemberFact).where(
+                    CanonicalMemberFact.issuer_cik == issuer_cik,
+                    CanonicalMemberFact.mapping_version == mapping_version,
+                    CanonicalMemberFact.superseded.is_(False),
+                )
+            )
+        ).scalars()
+    }
+
+    grouped: dict[
+        tuple[str, str, int], list[tuple[RawFact, str, str, int]]
+    ] = defaultdict(list)
+    for rf in dimensioned:
+        if rf.period_end is None or not rf.dimensions or rf.value is None:
+            continue
+        for axis, member in rf.dimensions.items():
+            resolution_key = (issuer_cik, rf.taxonomy, rf.concept, axis, member)
+            resolved = MEMBER_RESOLUTION.get(resolution_key)
+            if resolved is None:
+                continue
+            period_policy = MEMBER_PERIOD_POLICIES[resolution_key]
+            if period_policy == "fiscal_year_end":
+                if rf.period_end not in fye_dates:
+                    continue
+                if rf.period_start is not None and not _is_full_year_duration(rf):
+                    continue
+            elif period_policy != "event":  # pragma: no cover - spec loader validates this
+                raise ValueError(f"unsupported dimensioned period policy: {period_policy!r}")
+            canonical_concept, member_key = resolved
+            grouped[(canonical_concept, member_key, rf.period_end.year)].append(
+                (rf, axis, member, MEMBER_SOURCE_PRIORITY[resolution_key])
+            )
+
+    if not grouped:
+        for current in existing.values():
+            await _retire_current_member_fact(session, current)
+            counts["member_facts_superseded"] += 1
+        return
+
+    # Idempotency key for the ambiguity writer, for the reason the undimensioned
+    # path carries one: a mapping-version bump re-resolves every concept and so
+    # re-flags every unresolvable one, and `pipeline/run.py` is a daily cron.
+    # Ignores status, so a dismissed issue is not resurrected.
+    existing_member_ambiguities = {
+        (d.get("canonical_concept"), d.get("member_key"), d.get("fiscal_year"))
+        for d in (
+            await session.execute(
+                select(DataQualityIssue.detail)
+                .join(Filing, Filing.accession_number == DataQualityIssue.accession_number)
+                .where(
+                    Filing.issuer_cik == issuer_cik,
+                    DataQualityIssue.raised_by == "canonicalization",
+                    DataQualityIssue.issue_type == "ambiguous_member_selection",
+                )
+            )
+        ).scalars()
+        if d
+    }
+
+    for (canonical_concept, member_key, fiscal_year), candidates in grouped.items():
+
+        def rank(entry: tuple[RawFact, str, str, int]) -> tuple:
+            rf = entry[0]
+            filing = filings[rf.accession_number]
+            originally_filed = filing.fiscal_year == fiscal_year
+            return (
+                0 if originally_filed else 1,
+                0 if originally_filed and is_amendment(filing.form_type) else 1,
+                entry[3],  # lower-priority source wins within the filed tier
+                -(rf.decimals if rf.decimals is not None else -9),
+                rf.fetched_at,
+            )
+
+        candidates.sort(key=rank)
+        best, best_axis, best_member, _best_priority = candidates[0]
+        top_tier = [c for c in candidates if rank(c)[:3] == rank(candidates[0])[:3]]
+        distinct_values = {Decimal(str(c[0].value)) for c in top_tier}
+
+        if len(distinct_values) > 1:
+            # Flag, do not guess (AD-3), one member deeper.
+            if (canonical_concept, member_key, fiscal_year) in existing_member_ambiguities:
+                continue
+            existing_member_ambiguities.add((canonical_concept, member_key, fiscal_year))
+            session.add(
+                DataQualityIssue(
+                    accession_number=best.accession_number,
+                    issue_type="ambiguous_member_selection",
+                    detail={
+                        "canonical_concept": canonical_concept,
+                        "member_key": member_key,
+                        "member_as_filed": best_member,
+                        "fiscal_year": fiscal_year,
+                        "values": sorted(str(v) for v in distinct_values),
+                    },
+                    status=IssueStatus.needs_review,
+                    raised_by="canonicalization",
+                )
+            )
+            counts["member_ambiguities_flagged"] += 1
+            continue
+
+        current = existing.get((canonical_concept, member_key, fiscal_year))
+        if current is not None and current.selected_from_raw_fact_id == best.id:
+            continue  # same winner as the last pass — nothing to do
+
+        replacement = CanonicalMemberFact(
+            issuer_cik=issuer_cik,
+            accession_number=best.accession_number,
+            canonical_concept=canonical_concept,
+            member_key=member_key,
+            member_as_filed=best_member,
+            axis_as_filed=best_axis,
+            fiscal_year=fiscal_year,
+            period_end=best.period_end,
+            value=Decimal(str(best.value)),
+            unit=best.unit,
+            mapping_version=mapping_version,
+            selected_from_raw_fact_id=best.id,
+        )
+        if current is not None:
+            await _supersede_member(session, current, replacement)
+            counts["member_facts_superseded"] += 1
+        else:
+            session.add(replacement)
+        counts["member_facts_added"] += 1
+
+    await session.flush()
+    for key, current in existing.items():
+        if key not in grouped:
+            await _retire_current_member_fact(session, current)
+            counts["member_facts_superseded"] += 1
 
 
 async def _source_concepts(

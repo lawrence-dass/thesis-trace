@@ -40,6 +40,12 @@ DERIVATION_OPERATIONS = frozenset({"subtract", "add"})
 # rule is true by definition once its operands are the right measurements.
 DERIVATION_KINDS = frozenset({"identity", "decision"})
 
+# Dimensioned concepts normally describe an annual balance or flow, but
+# acquisition accounting also carries event-dated facts (often as a zero-length
+# start/end period on the acquisition date). Keep that distinction in the spec
+# so canonicalization does not infer it from a tag name.
+DIMENSIONED_PERIOD_POLICIES = frozenset({"fiscal_year_end", "event"})
+
 
 @dataclass(frozen=True)
 class MappingRule:
@@ -89,6 +95,62 @@ class MappingRule:
 
 
 @dataclass(frozen=True)
+class DimensionedRule:
+    """A canonical concept read from a fact that carries an explicit XBRL member.
+
+    Keyed by (taxonomy, source_concept, axis, member) rather than by concept
+    alone, because one source concept means different things under different
+    members: IndefiniteLivedIntangibleAssetsExcludingGoodwill under a brand
+    member is that brand's carrying value, and under CPB's
+    within-10%-coverage member it is an aggregate over whichever trade names
+    qualify. Keying on the concept would have to pick one and mis-file the other.
+    """
+
+    canonical_concept: str
+    source_taxonomy: str
+    source_concept: str
+    axis: str
+    priority: int = 0
+    note: str | None = None
+    period_policy: str = "fiscal_year_end"
+    # CIKs this concept resolves for. Empty = every filer, which is right for a
+    # concept every filer tags per member. Non-empty where the live check found
+    # the concept is NOT member-tagged by some filers: ZTS tags impairment
+    # consolidated-only and QSR tags none, so resolving a per-brand impairment
+    # for them would attribute a company-level write-down to a single brand.
+    # The spec's prose said so before this field existed and the engine ignored
+    # it — the conformance rule, caught by the first live smoke test.
+    issuers: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class BrandMember:
+    """One real-world brand, under every member name its filer has used for it.
+
+    `aliases` is a per-era list, not a convenience: CPB renames its own members
+    between filings (story_13_3_brand_member_live_verification), so a member
+    verified against the newest filing silently covers none of the earlier
+    years — the same class as the original shares_outstanding bug. Members are
+    keyed by CIK because a `cpb:` or `qsr:` tag lives in that filer's own
+    extension namespace and is meaningless for any other filer.
+
+    `maps_to` redirects a member to a dimensioned concept other than the brand
+    default, for members that are not brands (CPB's within-10%-coverage
+    disclosure shares its source concept with per-brand carrying value).
+    `canonical_concepts` is an explicit allow-list for residual or aggregate
+    members that should resolve only to selected concepts.
+    """
+
+    issuer_cik: str
+    member_key: str
+    label: str
+    aliases: tuple[str, ...]
+    maps_to: str | None = None
+    canonical_concepts: tuple[str, ...] = ()
+    note: str | None = None
+
+
+@dataclass(frozen=True)
 class DerivationRule:
     """A canonical concept COMPUTED from other canonical concepts, not read from a
     filed tag. `rule` is the name recorded on CanonicalFact.derivation."""
@@ -135,6 +197,21 @@ class MappingSpec:
     # least one of them. Consulted by canonicalize.py to abs() the value at
     # selection time, before the ambiguity check.
     non_negative_concepts: frozenset[str]
+    # Dimensioned rules, and the members they resolve through.
+    dimensioned_rules: tuple[DimensionedRule, ...]
+    brand_members: tuple[BrandMember, ...]
+    # (issuer_cik, taxonomy, source concept, axis, member AS FILED) -> (canonical
+    # concept, member_key). Keyed by issuer because a generic member such as
+    # us-gaap:TradeNamesMember can be used by two filers for different assets,
+    # and by the member as filed because that is what a raw fact carries — the
+    # stable member_key comes back OUT of the lookup, which is what makes a
+    # filer's rename invisible downstream.
+    member_resolution: dict[tuple[str, str, str, str, str], tuple[str, str]]
+    # Selection metadata for the resolved dimensioned raw key. Kept beside,
+    # rather than embedded in, member_resolution so existing callers retain the
+    # concise (canonical concept, stable member key) lookup result.
+    member_source_priority: dict[tuple[str, str, str, str, str], int]
+    member_period_policy: dict[tuple[str, str, str, str, str], str]
 
 
 def _load_taxonomy_rules(spec_version: str) -> tuple[MappingRule, ...]:
@@ -226,14 +303,183 @@ def _load_derivations(spec_version: str) -> tuple[DerivationRule, ...]:
     return tuple(derivations)
 
 
+def _load_dimensioned_rules(spec_version: str) -> tuple[DimensionedRule, ...]:
+    """Load `dimensioned_concepts` from a taxonomy spec, if it declares any."""
+    data = yaml.safe_load((SPECS_DIR / f"{spec_version}.yaml").read_text())
+    taxonomy = data["taxonomy"]
+    rules: list[DimensionedRule] = []
+    for canonical_concept, body in (data.get("dimensioned_concepts") or {}).items():
+        axis = body.get("axis")
+        if not axis:
+            raise ValueError(
+                f"{spec_version}: dimensioned concept {canonical_concept!r} declares no axis — "
+                "without one it cannot be told apart from an undimensioned fact"
+            )
+        for priority, source in enumerate(body["sources"]):
+            rules.append(
+                DimensionedRule(
+                    canonical_concept=canonical_concept,
+                    source_taxonomy=taxonomy,
+                    source_concept=source["concept"],
+                    axis=axis,
+                    priority=priority,
+                    note=source.get("note") or body.get("note"),
+                    period_policy=body.get("period_policy", "fiscal_year_end"),
+                    issuers=tuple(str(cik) for cik in (body.get("issuers") or ())),
+                )
+            )
+            if rules[-1].period_policy not in DIMENSIONED_PERIOD_POLICIES:
+                raise ValueError(
+                    f"{spec_version}: dimensioned concept {canonical_concept!r} declares "
+                    f"unknown period_policy {rules[-1].period_policy!r}; expected one of "
+                    f"{sorted(DIMENSIONED_PERIOD_POLICIES)}"
+                )
+    return tuple(rules)
+
+
+def _load_brand_members(spec_version: str) -> tuple[BrandMember, ...]:
+    data = yaml.safe_load((SPECS_DIR / f"{spec_version}.yaml").read_text())
+    members: list[BrandMember] = []
+    for issuer_cik, entries in (data.get("brand_members") or {}).items():
+        for member_key, body in entries.items():
+            aliases = tuple(body["aliases"])
+            if not aliases:
+                raise ValueError(f"{spec_version}: member {member_key!r} declares no aliases")
+            members.append(
+                BrandMember(
+                    issuer_cik=str(issuer_cik),
+                    member_key=member_key,
+                    label=body["label"],
+                    aliases=aliases,
+                    maps_to=body.get("maps_to"),
+                    canonical_concepts=tuple(body.get("canonical_concepts") or ()),
+                    note=body.get("note"),
+                )
+            )
+    return tuple(members)
+
+
+def _resolve_members(
+    dimensioned: tuple[DimensionedRule, ...], members: tuple[BrandMember, ...]
+) -> dict[tuple[str, str, str, str, str], tuple[str, str]]:
+    """Build the (issuer, taxonomy, concept, axis, member-as-filed) lookup.
+
+    A member with no `maps_to` resolves EVERY dimensioned concept declared on
+    its axis — a brand has a carrying value, an impairment and an acquisition
+    value, all read through the same member. A member with `maps_to` resolves
+    only that concept, so CPB's within-10%-coverage member does not also claim
+    to be a brand's carrying value.
+    """
+    declared = {rule.canonical_concept for rule in dimensioned}
+    # A concept some member redirects to is reachable ONLY through that redirect.
+    # Inferred rather than declared twice, so adding a redirected member cannot
+    # forget to exempt its concept. Without this every brand member also claims
+    # CPB's within-10%-coverage aggregate, which shares its source concept with
+    # per-brand carrying value — caught by the one-meaning check below the first
+    # time this function ran against the real spec.
+    redirect_targets = {member.maps_to for member in members if member.maps_to}
+    resolution: dict[tuple[str, str, str, str, str], tuple[str, str]] = {}
+    claimed: dict[tuple[str, str], str] = {}
+    for member in members:
+        if member.maps_to and member.maps_to not in declared:
+            raise ValueError(
+                f"member {member.member_key!r} maps_to {member.maps_to!r}, which no "
+                f"dimensioned concept declares — the redirect would never fire"
+            )
+        unknown_concepts = set(member.canonical_concepts) - declared
+        if unknown_concepts:
+            raise ValueError(
+                f"member {member.member_key!r} names unknown canonical concepts "
+                f"{sorted(unknown_concepts)}"
+            )
+        if member.maps_to and member.canonical_concepts:
+            raise ValueError(
+                f"member {member.member_key!r} cannot use both maps_to and "
+                "canonical_concepts — the member would have two competing routing shapes"
+            )
+        for alias in member.aliases:
+            owner = claimed.get((member.issuer_cik, alias))
+            if owner is not None and owner != member.member_key:
+                raise ValueError(
+                    f"{alias!r} is claimed by both {owner!r} and {member.member_key!r} for "
+                    f"issuer {member.issuer_cik} — one member name is one brand"
+                )
+            claimed[(member.issuer_cik, alias)] = member.member_key
+            for rule in dimensioned:
+                if rule.issuers and member.issuer_cik not in rule.issuers:
+                    continue  # not member-tagged by this filer; see DimensionedRule.issuers
+                if member.maps_to:
+                    if rule.canonical_concept != member.maps_to:
+                        continue
+                elif member.canonical_concepts:
+                    if rule.canonical_concept not in member.canonical_concepts:
+                        continue
+                elif rule.canonical_concept in redirect_targets:
+                    continue
+                key = (
+                    member.issuer_cik,
+                    rule.source_taxonomy,
+                    rule.source_concept,
+                    rule.axis,
+                    alias,
+                )
+                existing = resolution.get(key)
+                if existing is not None and existing != (rule.canonical_concept, member.member_key):
+                    raise ValueError(
+                        f"{key} resolves to both {existing} and "
+                        f"{(rule.canonical_concept, member.member_key)} — a dimensioned fact "
+                        "must have exactly one canonical meaning"
+                    )
+                resolution[key] = (rule.canonical_concept, member.member_key)
+    return resolution
+
+
+def _resolve_member_metadata(
+    dimensioned: tuple[DimensionedRule, ...],
+    resolution: dict[tuple[str, str, str, str, str], tuple[str, str]],
+) -> tuple[
+    dict[tuple[str, str, str, str, str], int],
+    dict[tuple[str, str, str, str, str], str],
+]:
+    """Attach source priority and period policy to each resolved raw key."""
+    priorities: dict[tuple[str, str, str, str, str], int] = {}
+    policies: dict[tuple[str, str, str, str, str], str] = {}
+    for key, (canonical_concept, _member_key) in resolution.items():
+        issuer_cik, taxonomy, source_concept, axis, _member = key
+        matching = [
+            rule
+            for rule in dimensioned
+            if rule.canonical_concept == canonical_concept
+            and rule.source_taxonomy == taxonomy
+            and rule.source_concept == source_concept
+            and rule.axis == axis
+            and (not rule.issuers or issuer_cik in rule.issuers)
+        ]
+        if not matching:  # pragma: no cover - _resolve_members emits valid keys only
+            raise ValueError(f"no dimensioned rule metadata exists for resolved member key {key}")
+        policy_set = {rule.period_policy for rule in matching}
+        if len(policy_set) != 1:
+            raise ValueError(
+                f"{key} has conflicting period policies {sorted(policy_set)} — "
+                "one raw fact cannot have two period-selection rules"
+            )
+        priorities[key] = min(rule.priority for rule in matching)
+        policies[key] = matching[0].period_policy
+    return priorities, policies
+
+
 @lru_cache(maxsize=None)
 def load_mapping_spec() -> MappingSpec:
     """Load and cache the mapping set named by specs/registry.yaml."""
     registry = yaml.safe_load((SPECS_DIR / "registry.yaml").read_text())
 
     rules: tuple[MappingRule, ...] = ()
+    dimensioned: tuple[DimensionedRule, ...] = ()
+    members: tuple[BrandMember, ...] = ()
     for spec_version in registry["taxonomies"].values():
         rules += _load_taxonomy_rules(spec_version)
+        dimensioned += _load_dimensioned_rules(spec_version)
+        members += _load_brand_members(spec_version)
 
     # One source tag must not map to two canonical concepts: canonicalization looks
     # up (taxonomy, concept) and a duplicate would make the winner load-order-dependent.
@@ -251,6 +497,11 @@ def load_mapping_spec() -> MappingSpec:
                 f"{key} is marked like_for_like: false without a mismatch_reason — "
                 "the caveat shown to a user has to say what differs"
             )
+
+    member_resolution = _resolve_members(dimensioned, members)
+    member_source_priority, member_period_policy = _resolve_member_metadata(
+        dimensioned, member_resolution
+    )
 
     return MappingSpec(
         mapping_version=registry["mapping_version"],
@@ -278,6 +529,11 @@ def load_mapping_spec() -> MappingSpec:
         # (capex, us-gaap only as of v10) still normalizes consistently everywhere
         # it appears.
         non_negative_concepts=frozenset(r.canonical_concept for r in rules if r.non_negative),
+        dimensioned_rules=dimensioned,
+        brand_members=members,
+        member_resolution=member_resolution,
+        member_source_priority=member_source_priority,
+        member_period_policy=member_period_policy,
     )
 
 
@@ -320,29 +576,70 @@ SOURCE_EXCLUDED_ACCESSIONS: dict[tuple[str, str], frozenset[str]] = _SPEC.source
 # (two candidates agreeing on magnitude but disagreeing on sign).
 NON_NEGATIVE_CONCEPTS: frozenset[str] = _SPEC.non_negative_concepts
 
+# Dimensioned mapping (Story 13.3). These resolve facts that carry an explicit
+# XBRL member; AD-3 rule 0 keeps such facts out of the undimensioned lookups
+# above, and canonicalize.py routes them here instead.
+DIMENSIONED_RULES: tuple[DimensionedRule, ...] = _SPEC.dimensioned_rules
+BRAND_MEMBERS: tuple[BrandMember, ...] = _SPEC.brand_members
+
+# (issuer_cik, taxonomy, source concept, axis, member as filed) -> (canonical
+# concept, stable member_key). The member goes IN as the filer wrote it that
+# year and the stable key comes OUT, which is what makes CPB's renames
+# invisible to everything downstream.
+MEMBER_RESOLUTION: dict[tuple[str, str, str, str, str], tuple[str, str]] = _SPEC.member_resolution
+
+# Same raw-member key as MEMBER_RESOLUTION -> source priority / period policy.
+# Separate maps keep the existing public lookup tuple stable for callers that do
+# not participate in selection.
+MEMBER_SOURCE_PRIORITY: dict[tuple[str, str, str, str, str], int] = _SPEC.member_source_priority
+MEMBER_PERIOD_POLICIES: dict[tuple[str, str, str, str, str], str] = _SPEC.member_period_policy
+
+# member_key -> human label, for presentation only. Never used for selection:
+# labels are the spec's words, keys are the identity.
+MEMBER_LABELS: dict[str, str] = {m.member_key: m.label for m in _SPEC.brand_members}
+
 
 async def seed_concept_mappings(session: AsyncSession, *, version: str = MAPPING_VERSION) -> int:
-    """Insert the mapping rules for `version` if not already present. Returns rows added."""
+    """Insert the mapping rules for `version` if not already present. Returns rows added.
+
+    Both kinds of rule are projected. A dimensioned rule carries its axis, which
+    is what lets the projection show one source concept resolving two canonical
+    concepts under two members; an undimensioned rule leaves axis NULL. The
+    dedup key includes the axis for the same reason — without it the first rule
+    for a source concept would suppress its dimensioned sibling, and the
+    projection would silently under-report the rules canonicalization ran.
+    """
     existing = set(
         (
             await session.execute(
-                select(ConceptMapping.canonical_concept, ConceptMapping.source_concept).where(
-                    ConceptMapping.mapping_version == version
-                )
+                select(
+                    ConceptMapping.canonical_concept,
+                    ConceptMapping.source_taxonomy,
+                    ConceptMapping.source_concept,
+                    ConceptMapping.axis,
+                ).where(ConceptMapping.mapping_version == version)
             )
         ).all()
     )
     added = 0
-    for rule in MAPPING_RULES:
-        if (rule.canonical_concept, rule.source_concept) in existing:
+    projected: list[tuple[str, str, str, int, str | None]] = [
+        (r.canonical_concept, r.source_taxonomy, r.source_concept, r.priority, None)
+        for r in MAPPING_RULES
+    ] + [
+        (r.canonical_concept, r.source_taxonomy, r.source_concept, r.priority, r.axis)
+        for r in DIMENSIONED_RULES
+    ]
+    for canonical_concept, source_taxonomy, source_concept, priority, axis in projected:
+        if (canonical_concept, source_taxonomy, source_concept, axis) in existing:
             continue
         session.add(
             ConceptMapping(
                 mapping_version=version,
-                canonical_concept=rule.canonical_concept,
-                source_taxonomy=rule.source_taxonomy,
-                source_concept=rule.source_concept,
-                priority=rule.priority,
+                canonical_concept=canonical_concept,
+                source_taxonomy=source_taxonomy,
+                source_concept=source_concept,
+                axis=axis,
+                priority=priority,
             )
         )
         added += 1

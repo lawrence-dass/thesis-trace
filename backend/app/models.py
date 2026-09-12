@@ -149,6 +149,14 @@ class ConceptMapping(Base):
     canonical_concept: Mapped[str] = mapped_column(String(128), index=True)
     source_taxonomy: Mapped[str] = mapped_column(String(32))
     source_concept: Mapped[str] = mapped_column(String(128))
+    # NULL = an undimensioned rule, which is every rule before Story 13.3.
+    # Non-NULL names the XBRL axis a fact must carry for this rule to apply, so
+    # the projection can show that one source concept resolves two different
+    # canonical concepts under two different members. The MEMBER aliases
+    # themselves are not projected here: they are per-filer and per-era, and the
+    # versioned spec file is what reproduces them (AD-2), the same way the
+    # fallback ORDER is reproduced by list position rather than stored twice.
+    axis: Mapped[str | None] = mapped_column(String(256))
     priority: Mapped[int] = mapped_column(default=0)  # lower wins in selection (AD-3)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -196,6 +204,65 @@ class CanonicalFact(Base):
     # engine) deliberately do not, because a prior run's inputs ARE the old row.
     superseded: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
     superseded_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("canonical_facts.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CanonicalMemberFact(Base):
+    """A canonical fact scoped to ONE XBRL member — a single acquired brand.
+
+    Story 13.3. `canonical_facts` cannot hold these: its key is
+    (issuer, concept, fiscal_year, mapping_version) with no member, and CPB
+    impaired three brands in FY2025 alone, so all three would collide on one key
+    and two would be lost. AD-3 rule 0 keeps dimensioned facts out of that table
+    on purpose; this is where they land instead.
+
+    TWO member columns, because the filer renames its own members between
+    filings (story_13_3_brand_member_live_verification: Kettle is
+    cpb:TradeNamesKettleMember in FY2022, cpb:TrademarkssKettleMember — the
+    filer's own typo — in FY2023, and cpb:TrademarksKettleBrandMember from
+    FY2024):
+      * `member_key` is the spec's stable identity for the brand ("kettle").
+        It is what the unique key uses, so one brand stays one row per year
+        across every rename.
+      * `member_as_filed` is the qualified name the fact actually carried, kept
+        verbatim. AD-19 provenance has to reach the member: a citation must be
+        able to say which tag in which filing produced this figure, and after a
+        rename the stable key alone can no longer answer that.
+    """
+
+    __tablename__ = "canonical_member_facts"
+    __table_args__ = (
+        # Same shape as uq_canonical_facts_key one dimension deeper: one CURRENT
+        # fact per (issuer, concept, member, year, version), any number of
+        # superseded ones. Deliberately NOT a second supersession design.
+        Index(
+            "uq_canonical_member_facts_key",
+            "issuer_cik", "canonical_concept", "member_key", "fiscal_year", "mapping_version",
+            unique=True,
+            postgresql_where=text("NOT superseded"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    issuer_cik: Mapped[str] = mapped_column(ForeignKey("issuers.cik"), index=True)
+    accession_number: Mapped[str] = mapped_column(ForeignKey("filings.accession_number"))
+    canonical_concept: Mapped[str] = mapped_column(String(128), index=True)
+    member_key: Mapped[str] = mapped_column(String(64), index=True)
+    # 256 to match raw_facts.concept: real custom member names are long
+    # (cpb:TradeNamesCarryingValueWithTenPercentOrLessExcessFairValueCoverageMember
+    # is 76 characters before its prefix).
+    member_as_filed: Mapped[str] = mapped_column(String(256))
+    axis_as_filed: Mapped[str] = mapped_column(String(256))
+    fiscal_year: Mapped[int] = mapped_column(index=True)
+    period_end: Mapped[date] = mapped_column(Date)
+    value: Mapped[float] = mapped_column(Numeric(28, 6))  # NUMERIC (AD-15)
+    unit: Mapped[str | None] = mapped_column(String(32))
+    mapping_version: Mapped[str] = mapped_column(String(32))
+    selected_from_raw_fact_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("raw_facts.id"))
+    superseded: Mapped[bool] = mapped_column(default=False, server_default=text("false"))
+    superseded_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("canonical_member_facts.id")
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
