@@ -40,6 +40,12 @@ async def test_missing_required_flags_absent_env(monkeypatch: pytest.MonkeyPatch
 
 async def test_health_db_503_when_unconfigured(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("DATABASE_URL", raising=False)
+    # `get_engine()` builds Settings() internally, so the `.env` fallback has to be
+    # neutralised on the class rather than passed per-call. Without this the test
+    # asserts nothing for anyone holding a real `.env`: delenv clears the process var,
+    # Settings re-reads the file, and the endpoint connects to the DEV database and
+    # returns 200 — green in CI (which writes no `.env`) and red locally.
+    monkeypatch.setitem(Settings.model_config, "env_file", None)
     # Reset any cached engine so the unconfigured path is exercised.
     import app.db as db_module
 
