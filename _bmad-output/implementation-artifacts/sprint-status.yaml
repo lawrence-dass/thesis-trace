@@ -214,7 +214,7 @@ development_status:
   epic-13: in-progress
   13-1-dimensional-fact-contract: done
   13-2-inline-xbrl-instance-ingestion-for-dimensional-facts: done
-  13-3-brand-intangible-concept-mapping-across-the-us-gaap-filers: backlog
+  13-3-brand-intangible-concept-mapping-across-the-us-gaap-filers: review
   13-4-acquisition-performance-computation-and-versioned-spec: backlog
   13-5-segment-payload: backlog
   13-6-golden-dataset-coverage-for-acquisition-performance: backlog
