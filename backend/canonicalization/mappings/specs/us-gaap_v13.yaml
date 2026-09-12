@@ -677,6 +677,15 @@ dimensioned_concepts:
       filing never charged it against. Per-brand impairment is correctly
       insufficient_data for both (AD-16), and Stories 13.4/13.7 must say so
       plainly rather than implying a per-brand link the data does not support.
+    # ENFORCED, not merely stated above: without this allow-list the engine hands
+    # every filer's members every concept on the axis, and ZTS's aggregate
+    # zts:BrandsMember would resolve a per-brand impairment that filing never
+    # tags — a company-level write-down attributed to a brand. A note nothing
+    # executes is decoration (the conformance rule); this is the executable form
+    # of it. Absent `issuers` means "every filer", which is right for carrying
+    # value and acquisition, both of which all three filers tag per member.
+    issuers:
+      - "0000016732"  # CPB — the only filer of the three tagging impairment per member
     axis: us-gaap:IndefiniteLivedIntangibleAssetsByMajorClassAxis
     sources:
       - concept: ImpairmentOfIntangibleAssetsIndefinitelivedExcludingGoodwill
