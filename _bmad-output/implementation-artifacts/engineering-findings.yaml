@@ -5147,3 +5147,76 @@ ad3_decimals_tiebreak_has_never_had_data:
     next opened. Verify by re-canonicalizing the dev store under a new mapping
     version and diffing which canonical values change — the dry-run-with-rollback
     technique from `canonical_facts_amendment_gap` applies directly.
+golden_harness_cannot_reach_dimensioned_member_facts:
+  status: done
+  found: 2026-09-11
+  found_by: >
+    DoD rule 6 applied BEFORE writing any golden entry, not after — "confirm the
+    fixture can exercise the new concept" run as a check against Story 13.6's
+    precondition while Story 13.3 sat in review (PR #138). Three independent
+    reads: test_golden_dataset.py's own imports, the fact-row keys in
+    cpb_company_facts.json, and us-gaap_v13.yaml's existing note at line 468.
+  question: >
+    Can the golden dataset harness produce a canonical_member_facts row at all,
+    and can Story 13.6 therefore pin per-brand acquisition-performance values?
+  finding: >
+    IT CANNOT, AND THE GAP IS THE HARNESS RATHER THAN THE FIXTURES — the inverse
+    of story_6_7_golden_coverage, where the mappings were fine and the fixtures
+    were blind. Here the fixture DATA is already present and rich; nothing reads
+    it. test_golden_dataset.py ingests exactly one way: parse_company_facts ->
+    persist_company_facts -> canonicalize_issuer. It contains ZERO references to
+    an Inline XBRL instance. And the company-facts API carries no dimensions at
+    all: every fact row in cpb_company_facts.json has keys
+    accn/end/filed/form/fp/frame/fy/start/val and no dimension key of any kind.
+    us-gaap_v13.yaml:468 already states this for a different capability ("the
+    company-facts API exposes only non-dimensional facts"), and
+    phase1_golden.yaml already carries the consequence three times for the IFRS
+    maturity analysis: "ifrs-full maturity analysis is dimensional; unreachable
+    via company-facts". The same sentence is now true of brand members.
+    A Story 13.6 golden entry written against the harness as it stands would
+    resolve insufficient_data for every filer, pass, and keep passing if the
+    entire member path were deleted — pinning an outcome while asserting nothing,
+    exactly the shape of the OTEX no_profile entry.
+  the_fixture_data_already_exists: >
+    Story 13.2 committed cpb_instance.xml (302 KB) and it carries everything the
+    mapping needs: us-gaap:IndefiniteLivedIntangibleAssetsByMajorClassAxis (31
+    occurrences), ImpairmentOfIntangibleAssetsIndefinitelivedExcludingGoodwill
+    (40 occurrences), period years FY2022-FY2025, and 14 brand members including
+    TrademarksRaosMember, TrademarksPopSecretMember, TrademarksAlliedBrandsMember
+    and TrademarksKettleBrandMember. Story 13.6 therefore needs the harness
+    extended to ingest an instance fixture — NOT new fixture data, and NOT a live
+    fetch. Check this before spending an approved EDGAR pass on it (DoD rule 2).
+  second_gap_per_era_aliases_are_unreachable_from_one_instance: >
+    THE SUBTLER HALF, and the more dangerous one. The members ABSENT from
+    cpb_instance.xml are precisely the per-era aliases: TrademarkssKettleMember
+    (the filer's one-year double-s typo), TradeNamesKettleMember,
+    TradeNamesLanceMember, TradeNamesPaceMember, TradeNamesSnydersOfHanoverMember.
+    That is correct rather than defective — ONE INSTANCE IS ONE FILING, therefore
+    one era's member vocabulary. But it means the alias-resolution logic, which is
+    the genuinely novel and error-prone part of Story 13.3
+    (story_13_3_brand_member_live_verification), CANNOT be exercised by a single
+    instance fixture. A one-instance golden entry would exercise the happy path
+    convincingly — 14 members resolving cleanly — while the renaming logic that
+    took a live investigation to discover stays entirely untested. Covering it
+    requires a SECOND CPB instance from an earlier filing (FY2022 or FY2023).
+  scope_question_for_13_6: >
+    Golden ingests company-facts because that is what the nightly scoring path
+    consumes; member facts arrive by Story 13.2's separate Inline XBRL route.
+    These are genuinely two ingestion paths, so "extend the golden harness" is a
+    scope decision — does the golden dataset cover one pipeline or both? — and
+    not a defect to be silently patched. Decide it explicitly in 13.6.
+  reusable_conclusion: >
+    "Can the fixture exercise this?" has TWO answers that must be asked
+    separately: does the harness READ a source carrying the shape, and does the
+    chosen specimen SPAN the variation the code branches on. story_6_7_golden_
+    coverage is the first failure; per-era member aliases are the second, one
+    level down — verified on the era you happened to pick, the temporal sibling
+    of story_6_6_browser_verification's "verified on the filers you happened to
+    pick". A fixture can carry the right concept and still cover only one era of
+    it.
+  not_verified_yet: >
+    Whether extending the golden harness to instance XML disturbs the existing
+    company-facts-driven entries was NOT tested — no code was changed. The
+    per-era alias coverage would need an earlier CPB instance fixture that does
+    not yet exist in the repo; whether FY2022/FY2023 instances are small enough
+    to commit alongside the current 302 KB one is unmeasured.
