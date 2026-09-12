@@ -23,7 +23,16 @@ from datetime import date, datetime, timezone
 
 from sqlalchemy import select
 
-from app.models import CanonicalFact, CanonicalMemberFact, ConceptMapping, Filing, Issuer, RawFact
+from app.models import (
+    CanonicalFact,
+    CanonicalMemberFact,
+    ConceptMapping,
+    DataQualityIssue,
+    Filing,
+    Issuer,
+    IssueStatus,
+    RawFact,
+)
 from canonicalization.canonicalize import canonicalize_issuer
 from canonicalization.mappings import (
     MEMBER_PERIOD_POLICIES,
@@ -322,12 +331,11 @@ async def test_a_renamed_member_stays_one_brand_in_the_store(db_session) -> None
 
 
 @requires_db
-async def test_an_unmapped_member_is_skipped_never_guessed(db_session) -> None:
-    """A brand the spec has not been extended for resolves to nothing at all.
+async def test_an_unmapped_member_is_flagged_never_guessed(db_session) -> None:
+    """A brand the spec has not been extended for is withheld and flagged.
 
-    Silence is the correct answer: admitting it would invent a canonical meaning
-    for a member nobody live-verified, which is the failure the per-year member
-    verification exists to prevent.
+    Admitting it would invent a canonical meaning for a member nobody
+    live-verified; silently dropping it would hide a mapping gap from review.
     """
     await _issuer(db_session, CPB, "CPB")
     await _filing(db_session, CPB, FY2025_ACCN, 2025, date(2025, 8, 3))
@@ -341,9 +349,26 @@ async def test_an_unmapped_member_is_skipped_never_guessed(db_session) -> None:
     counts = await canonicalize_issuer(db_session, CPB)
 
     assert counts["member_facts_added"] == 0
+    assert counts["member_unmapped_flagged"] == 1
     assert (
         await db_session.execute(select(CanonicalMemberFact))
     ).scalars().all() == []
+    issue = (
+        await db_session.execute(
+            select(DataQualityIssue).where(DataQualityIssue.issue_type == "unmapped_member")
+        )
+    ).scalar_one()
+    assert issue.status.value == "needs_review"
+    issue.status = IssueStatus.dismissed
+    await db_session.flush()
+
+    second = await canonicalize_issuer(db_session, CPB)
+    assert second["member_unmapped_flagged"] == 0
+    assert (
+        await db_session.execute(
+            select(DataQualityIssue).where(DataQualityIssue.issue_type == "unmapped_member")
+        )
+    ).scalars().all() == [issue]
 
 
 @requires_db

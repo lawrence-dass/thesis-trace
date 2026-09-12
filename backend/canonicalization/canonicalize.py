@@ -43,7 +43,9 @@ from app.models import (
     RawFact,
 )
 from canonicalization.mappings import (
+    BRAND_MEMBERS,
     DERIVATION_RULES,
+    DIMENSIONED_RULES,
     MAPPING_VERSION,
     MEMBER_PERIOD_POLICIES,
     MEMBER_RESOLUTION,
@@ -174,6 +176,7 @@ async def canonicalize_issuer(
         "member_facts_added": 0,
         "member_facts_superseded": 0,
         "member_ambiguities_flagged": 0,
+        "member_unmapped_flagged": 0,
     }
 
     filings = {
@@ -602,9 +605,11 @@ async def _canonicalize_members(
     These are the facts AD-3 rule 0 keeps out of `canonical_facts`, where they
     would collide: CPB impaired three brands in FY2025 and that table's key
     carries no member. A fact is admitted only when the mapping spec resolves its
-    (issuer, taxonomy, concept, axis, member-as-filed) — an unmapped member is
-    skipped, never guessed at, so a filer's new brand appears as nothing until
-    the spec is extended and live-verified.
+    (issuer, taxonomy, concept, axis, member-as-filed). An unknown member on an
+    otherwise applicable mapped source is not guessed at: it is surfaced as an
+    `unmapped_member` issue and withheld until the spec is extended and
+    live-verified. Known members intentionally excluded by an issuer/concept
+    allow-list remain silent because that exclusion is itself a mapping decision.
 
     Annual instant facts use exact fiscal-year-end dates rather than only the
     common month/day heuristic. That matters for CPB's 52/53-week calendar: a
@@ -625,6 +630,38 @@ async def _canonicalize_members(
         ).scalars()
     }
 
+    known_member_aliases = {
+        (member.issuer_cik, alias)
+        for member in BRAND_MEMBERS
+        for alias in member.aliases
+    }
+    applicable_rule_sources = {
+        (rule.source_taxonomy, rule.source_concept, rule.axis)
+        for rule in DIMENSIONED_RULES
+        if not rule.issuers or issuer_cik in rule.issuers
+    }
+    existing_unmapped_members = {
+        (
+            detail.get("taxonomy"),
+            detail.get("source_concept"),
+            detail.get("axis"),
+            detail.get("member_as_filed"),
+            detail.get("fiscal_year"),
+        )
+        for detail in (
+            await session.execute(
+                select(DataQualityIssue.detail)
+                .join(Filing, Filing.accession_number == DataQualityIssue.accession_number)
+                .where(
+                    Filing.issuer_cik == issuer_cik,
+                    DataQualityIssue.raised_by == "canonicalization",
+                    DataQualityIssue.issue_type == "unmapped_member",
+                )
+            )
+        ).scalars()
+        if detail
+    }
+
     grouped: dict[
         tuple[str, str, int], list[tuple[RawFact, str, str, int]]
     ] = defaultdict(list)
@@ -635,6 +672,36 @@ async def _canonicalize_members(
             resolution_key = (issuer_cik, rf.taxonomy, rf.concept, axis, member)
             resolved = MEMBER_RESOLUTION.get(resolution_key)
             if resolved is None:
+                unmapped_key = (
+                    rf.taxonomy,
+                    rf.concept,
+                    axis,
+                    member,
+                    rf.period_end.year,
+                )
+                if (
+                    (issuer_cik, member) not in known_member_aliases
+                    and (rf.taxonomy, rf.concept, axis) in applicable_rule_sources
+                    and unmapped_key not in existing_unmapped_members
+                ):
+                    existing_unmapped_members.add(unmapped_key)
+                    session.add(
+                        DataQualityIssue(
+                            accession_number=rf.accession_number,
+                            issue_type="unmapped_member",
+                            detail={
+                                "taxonomy": rf.taxonomy,
+                                "source_concept": rf.concept,
+                                "axis": axis,
+                                "member_as_filed": member,
+                                "fiscal_year": rf.period_end.year,
+                                "period_end": rf.period_end.isoformat(),
+                            },
+                            status=IssueStatus.needs_review,
+                            raised_by="canonicalization",
+                        )
+                    )
+                    counts["member_unmapped_flagged"] += 1
                 continue
             period_policy = MEMBER_PERIOD_POLICIES[resolution_key]
             if period_policy == "fiscal_year_end":
@@ -650,6 +717,7 @@ async def _canonicalize_members(
             )
 
     if not grouped:
+        await session.flush()
         for current in existing.values():
             await _retire_current_member_fact(session, current)
             counts["member_facts_superseded"] += 1

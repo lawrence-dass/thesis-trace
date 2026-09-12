@@ -70,6 +70,7 @@ async def run_issuer(
     reporting_currency: str | None = None,
     inline_facts: list[ParsedFact] | None = None,
     inline_accession_number: str | None = None,
+    inline_filings: list[tuple[str, list[ParsedFact]]] | None = None,
 ) -> dict:
     """Full write-path pipeline for one issuer from a Company Facts payload.
 
@@ -82,10 +83,13 @@ async def run_issuer(
     fix (2026-07-23): Tiingo's price is always USD, so a non-USD filer's Altman
     X4 needs this conversion or it would silently divide mismatched currencies.
 
-    `inline_facts` is the optional dimensional population fetched for one
-    original US-GAAP annual filing. It is persisted before canonicalization so
-    the same write-path run sees the complete raw store; its accession is
-    explicit because a fact's content hash deliberately does not include it.
+    `inline_facts` is the backwards-compatible single-filing form of the
+    optional dimensional population. `inline_filings` carries one population
+    per original US-GAAP annual filing, which is required for per-era member
+    aliases and historical member trajectories. They are persisted before
+    canonicalization so the same write-path run sees the complete raw store;
+    each accession is explicit because a fact's content hash deliberately does
+    not include it.
     """
     parsed = parse_company_facts(payload)
     await persist_company_facts(
@@ -96,12 +100,14 @@ async def run_issuer(
         is_financial_sector=is_financial_sector,
         is_capital_intensive=is_capital_intensive,
     )
-    if inline_facts is not None:
+    if inline_filings is not None and (inline_facts is not None or inline_accession_number is not None):
+        raise ValueError("inline_filings cannot be combined with inline_facts")
+    if inline_filings is None and inline_facts is not None:
         if inline_accession_number is None:
             raise ValueError("inline_accession_number is required when inline_facts are supplied")
-        await persist_inline_facts(
-            session, inline_facts, accession_number=inline_accession_number
-        )
+        inline_filings = [(inline_accession_number, inline_facts)]
+    for accession_number, facts in inline_filings or []:
+        await persist_inline_facts(session, facts, accession_number=accession_number)
     await seed_concept_mappings(session)
     await canonicalize_issuer(session, parsed.cik)
 
@@ -239,36 +245,47 @@ def _payload_reporting_currency(payload: dict) -> str | None:
     return None
 
 
-async def _inline_facts_for(payload: dict, cik: str) -> tuple[str, list[ParsedFact]] | None:
-    """Fetch and parse the newest original US-GAAP annual filing's instance.
+async def _inline_facts_for(payload: dict, cik: str) -> list[tuple[str, list[ParsedFact]]] | None:
+    """Fetch and parse every original US-GAAP annual filing's instance.
 
     Inline XBRL is an augmentation to the successful Company Facts fetch, not a
-    reason to block that primary path. The caller handles a fetch/parse failure
-    as a warning and still runs the issuer through Company Facts.
+    reason to block that primary path. All originals are needed because member
+    aliases are per-era: fetching only the newest instance silently loses the
+    historical names and therefore the historical member facts. A failed
+    filing is warned and omitted independently, so one bad instance does not
+    hide the other eras or block the Company Facts path.
     """
     if "us-gaap" not in payload.get("facts", {}):
         return None  # Epic 13 is scoped to US-GAAP 10-K filers.
 
-    from ingestion.edgar import (
-        fetch_instance_document,
-        fetch_submissions,
-        latest_annual_original,
-    )
+    from ingestion.edgar import fetch_instance_document
 
     parsed = parse_company_facts(payload)
-    submissions = await fetch_submissions(cik)
-    accession_number, _filing_date = latest_annual_original(submissions)
-    filing = parsed.filings.get(accession_number)
-    if filing is None:
-        raise RuntimeError(
-            f"Company Facts payload has no annual metadata for selected filing {accession_number}"
+    originals = sorted(
+        (
+            accession_number,
+            filing,
         )
-    document = await fetch_instance_document(cik, accession_number)
-    return accession_number, parse_instance(
-        document,
-        accession_number=accession_number,
-        fiscal_year=filing.fiscal_year,
+        for accession_number, filing in parsed.filings.items()
+        if filing.form_type == "10-K"
     )
+    results: list[tuple[str, list[ParsedFact]]] = []
+    for accession_number, filing in originals:
+        try:
+            document = await fetch_instance_document(cik, accession_number)
+            results.append(
+                (
+                    accession_number,
+                    parse_instance(
+                        document,
+                        accession_number=accession_number,
+                        fiscal_year=filing.fiscal_year,
+                    ),
+                )
+            )
+        except Exception as exc:  # noqa: BLE001 — one filing must not hide other eras
+            print(f"WARN {cik}: Inline XBRL fetch skipped for {accession_number}: {exc}")
+    return results
 
 
 async def _fx_rates_for(payload: dict, reporting_currency: str | None) -> dict[int, tuple[date, float]]:
@@ -332,10 +349,10 @@ async def main() -> None:  # pragma: no cover — live path, gated
             fye_prices = await _fye_prices_for(payload, entry.ticker)
             reporting_currency = _payload_reporting_currency(payload)
             fx_rates = await _fx_rates_for(payload, reporting_currency)
-            inline = None
+            inline_filings = None
             if "us-gaap" in payload.get("facts", {}):
                 try:
-                    inline = await _inline_facts_for(payload, entry.cik)
+                    inline_filings = await _inline_facts_for(payload, entry.cik)
                 except Exception as exc:  # noqa: BLE001 — primary ingestion still proceeds
                     print(f"WARN {entry.ticker}: Inline XBRL fetch skipped: {exc}")
             async with sessionmaker() as session:
@@ -348,8 +365,7 @@ async def main() -> None:  # pragma: no cover — live path, gated
                     fye_prices=fye_prices,
                     fx_rates=fx_rates,
                     reporting_currency=reporting_currency,
-                    inline_accession_number=inline[0] if inline else None,
-                    inline_facts=inline[1] if inline else None,
+                    inline_filings=inline_filings,
                 )
         except Exception as exc:  # noqa: BLE001 — one filer's failure must not stop the run
             # parse_company_facts can now fail closed (ValueError) rather than guess a

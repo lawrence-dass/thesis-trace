@@ -495,7 +495,9 @@ class DataQualityIssue(Base):
     id: Mapped[uuid.UUID] = _uuid_pk()
     accession_number: Mapped[str | None] = mapped_column(ForeignKey("filings.accession_number"))
     canonical_fact_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("canonical_facts.id"))
-    issue_type: Mapped[str] = mapped_column(String(64))  # ambiguous_selection, identity_violation, source_conflict
+    issue_type: Mapped[str] = mapped_column(
+        String(64)
+    )  # ambiguous_selection, unmapped_member, identity_violation, source_conflict
     detail: Mapped[dict | None] = mapped_column(JSONB)
     status: Mapped[IssueStatus] = mapped_column(
         Enum(IssueStatus, native_enum=False, length=16), default=IssueStatus.needs_review

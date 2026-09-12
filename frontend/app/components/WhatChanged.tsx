@@ -118,6 +118,8 @@ const KIND_LABEL: Record<string, string> = {
 const ISSUE_LABEL: Record<string, string> = {
   identity_violation: "Accounting identity check",
   ambiguous_selection: "Ambiguous source selection",
+  ambiguous_member_selection: "Ambiguous member selection",
+  unmapped_member: "Unmapped XBRL member",
   source_conflict: "Conflicting sources",
 };
 

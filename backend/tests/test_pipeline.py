@@ -21,7 +21,7 @@ from app.models import (
     ScoreResult,
     ScoreRun,
 )
-from pipeline.run import _payload_reporting_currency, run_issuer, scoreable_years
+from pipeline.run import _inline_facts_for, _payload_reporting_currency, run_issuer, scoreable_years
 from pipeline.universe import PHASE1_UNIVERSE
 from tests.conftest import requires_db
 
@@ -66,6 +66,50 @@ def test_reporting_currency_is_deterministic_when_both_taxonomies_are_present() 
         }
     }
     assert len({_payload_reporting_currency(payload) for _ in range(20)}) == 1
+
+
+async def test_inline_facts_for_fetches_each_original_annual_instance(monkeypatch) -> None:
+    """Historical member aliases require historical Inline XBRL instances."""
+    payload = json.loads(FIXTURE.read_text())
+    fetched: list[str] = []
+
+    async def fake_fetch_instance(cik: str, accession_number: str) -> str:
+        fetched.append(accession_number)
+        return "<instance/>"
+
+    def fake_parse_instance(document: str, *, accession_number: str, fiscal_year: int):
+        return [accession_number, fiscal_year]
+
+    monkeypatch.setattr("ingestion.edgar.fetch_instance_document", fake_fetch_instance)
+    monkeypatch.setattr("pipeline.run.parse_instance", fake_parse_instance)
+
+    inline_filings = await _inline_facts_for(payload, "0001594805")
+
+    assert fetched == ["0001594805-24-000010", "0001594805-25-000010"]
+    assert inline_filings == [
+        ("0001594805-24-000010", ["0001594805-24-000010", 2023]),
+        ("0001594805-25-000010", ["0001594805-25-000010", 2024]),
+    ]
+
+
+async def test_inline_facts_for_keeps_other_eras_when_one_instance_fails(monkeypatch) -> None:
+    """A transient or malformed old filing must not erase usable eras."""
+    payload = json.loads(FIXTURE.read_text())
+
+    async def fake_fetch_instance(cik: str, accession_number: str) -> str:
+        if accession_number == "0001594805-24-000010":
+            raise RuntimeError("temporary EDGAR failure")
+        return "<instance/>"
+
+    def fake_parse_instance(document: str, *, accession_number: str, fiscal_year: int):
+        return [accession_number, fiscal_year]
+
+    monkeypatch.setattr("ingestion.edgar.fetch_instance_document", fake_fetch_instance)
+    monkeypatch.setattr("pipeline.run.parse_instance", fake_parse_instance)
+
+    inline_filings = await _inline_facts_for(payload, "0001594805")
+
+    assert inline_filings == [("0001594805-25-000010", ["0001594805-25-000010", 2024])]
 
 
 def test_universe_covers_both_reporting_regimes() -> None:
