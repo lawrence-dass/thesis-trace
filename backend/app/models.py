@@ -149,6 +149,14 @@ class ConceptMapping(Base):
     canonical_concept: Mapped[str] = mapped_column(String(128), index=True)
     source_taxonomy: Mapped[str] = mapped_column(String(32))
     source_concept: Mapped[str] = mapped_column(String(128))
+    # NULL = an undimensioned rule, which is every rule before Story 13.3.
+    # Non-NULL names the XBRL axis a fact must carry for this rule to apply, so
+    # the projection can show that one source concept resolves two different
+    # canonical concepts under two different members. The MEMBER aliases
+    # themselves are not projected here: they are per-filer and per-era, and the
+    # versioned spec file is what reproduces them (AD-2), the same way the
+    # fallback ORDER is reproduced by list position rather than stored twice.
+    axis: Mapped[str | None] = mapped_column(String(256))
     priority: Mapped[int] = mapped_column(default=0)  # lower wins in selection (AD-3)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

@@ -516,27 +516,45 @@ MEMBER_LABELS: dict[str, str] = {m.member_key: m.label for m in _SPEC.brand_memb
 
 
 async def seed_concept_mappings(session: AsyncSession, *, version: str = MAPPING_VERSION) -> int:
-    """Insert the mapping rules for `version` if not already present. Returns rows added."""
+    """Insert the mapping rules for `version` if not already present. Returns rows added.
+
+    Both kinds of rule are projected. A dimensioned rule carries its axis, which
+    is what lets the projection show one source concept resolving two canonical
+    concepts under two members; an undimensioned rule leaves axis NULL. The
+    dedup key includes the axis for the same reason — without it the first rule
+    for a source concept would suppress its dimensioned sibling, and the
+    projection would silently under-report the rules canonicalization ran.
+    """
     existing = set(
         (
             await session.execute(
-                select(ConceptMapping.canonical_concept, ConceptMapping.source_concept).where(
-                    ConceptMapping.mapping_version == version
-                )
+                select(
+                    ConceptMapping.canonical_concept,
+                    ConceptMapping.source_concept,
+                    ConceptMapping.axis,
+                ).where(ConceptMapping.mapping_version == version)
             )
         ).all()
     )
     added = 0
-    for rule in MAPPING_RULES:
-        if (rule.canonical_concept, rule.source_concept) in existing:
+    projected: list[tuple[str, str, str, int, str | None]] = [
+        (r.canonical_concept, r.source_taxonomy, r.source_concept, r.priority, None)
+        for r in MAPPING_RULES
+    ] + [
+        (r.canonical_concept, r.source_taxonomy, r.source_concept, r.priority, r.axis)
+        for r in DIMENSIONED_RULES
+    ]
+    for canonical_concept, source_taxonomy, source_concept, priority, axis in projected:
+        if (canonical_concept, source_concept, axis) in existing:
             continue
         session.add(
             ConceptMapping(
                 mapping_version=version,
-                canonical_concept=rule.canonical_concept,
-                source_taxonomy=rule.source_taxonomy,
-                source_concept=rule.source_concept,
-                priority=rule.priority,
+                canonical_concept=canonical_concept,
+                source_taxonomy=source_taxonomy,
+                source_concept=source_concept,
+                axis=axis,
+                priority=priority,
             )
         )
         added += 1
