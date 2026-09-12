@@ -32,6 +32,7 @@ CPB, ZTS, QSR = "0000016732", "0001555280", "0001618756"
 AXIS = "us-gaap:IndefiniteLivedIntangibleAssetsByMajorClassAxis"
 CARRYING = "IndefiniteLivedIntangibleAssetsExcludingGoodwill"
 IMPAIRMENT = "ImpairmentOfIntangibleAssetsIndefinitelivedExcludingGoodwill"
+ACQUIRED = "IndefinitelivedIntangibleAssetsAcquired"
 MIGRATION = (
     Path(__file__).resolve().parents[2]
     / "db/migrations/versions/e91b7c4d2a05_add_canonical_member_facts.py"
@@ -113,6 +114,16 @@ def test_per_brand_impairment_resolves_for_cpb_only() -> None:
     )
     assert resolve(ZTS, IMPAIRMENT, "zts:BrandsMember") is None
     assert resolve(QSR, IMPAIRMENT, "us-gaap:TradeNamesMember") is None
+
+
+def test_acquisition_mapping_is_allow_listed_to_the_live_verified_filer() -> None:
+    """A generic brand member must not invent acquisition facts for another filer."""
+    assert resolve(CPB, ACQUIRED, "cpb:TrademarksRaosMember") == (
+        "brand_intangible_acquired",
+        "raos",
+    )
+    assert resolve(ZTS, ACQUIRED, "zts:BrandsMember") is None
+    assert resolve(CPB, ACQUIRED, "cpb:TrademarksOtherMember") is None
 
 
 def test_suppressing_impairment_does_not_suppress_the_filer_entirely() -> None:

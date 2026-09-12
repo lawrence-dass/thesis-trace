@@ -25,7 +25,12 @@ from sqlalchemy import select
 
 from app.models import CanonicalFact, CanonicalMemberFact, ConceptMapping, Filing, Issuer, RawFact
 from canonicalization.canonicalize import canonicalize_issuer
-from canonicalization.mappings import seed_concept_mappings
+from canonicalization.mappings import (
+    MEMBER_PERIOD_POLICIES,
+    MEMBER_RESOLUTION,
+    MEMBER_SOURCE_PRIORITY,
+    seed_concept_mappings,
+)
 from tests.conftest import requires_db
 
 CPB = "0000016732"
@@ -33,6 +38,7 @@ ZTS = "0001555280"
 AXIS = "us-gaap:IndefiniteLivedIntangibleAssetsByMajorClassAxis"
 CARRYING = "IndefiniteLivedIntangibleAssetsExcludingGoodwill"
 IMPAIRMENT = "ImpairmentOfIntangibleAssetsIndefinitelivedExcludingGoodwill"
+ACQUIRED = "IndefinitelivedIntangibleAssetsAcquired"
 
 FY2024_ACCN = "0000016732-24-000130"
 FY2025_ACCN = "0000016732-25-000112"
@@ -59,17 +65,27 @@ async def _filing(
     await db_session.flush()
 
 
-def _fact(accn: str, concept: str, member: str, period_end: date, value: float, tag: str) -> RawFact:
-    """A dimensioned instant fact, the shape brand carrying value actually has."""
+def _fact(
+    accn: str,
+    concept: str,
+    member: str,
+    period_end: date,
+    value: float,
+    tag: str,
+    *,
+    period_start: date | None = None,
+    dimensions: dict[str, str] | None = None,
+) -> RawFact:
+    """A dimensioned fact, with optional duration/event shape for edge cases."""
     return RawFact(
         accession_number=accn,
         taxonomy="us-gaap",
         concept=concept,
         unit="USD",
-        period_start=None,
+        period_start=period_start,
         period_end=period_end,
         value=value,
-        dimensions={AXIS: member},
+        dimensions=dimensions or {AXIS: member},
         source="inline_xbrl",
         content_hash=tag,
         fetched_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
@@ -122,6 +138,146 @@ async def test_dimensioned_brand_facts_reach_the_member_store(db_session) -> Non
     impairment = by_key[("brand_intangible_impairment", "snyders_of_hanover", 2025)]
     assert impairment.value == 150_000_000
     assert impairment.member_as_filed == "cpb:TrademarksSnydersOfHanoverMember"
+
+
+@requires_db
+async def test_event_dated_acquisition_fact_is_not_filtered_as_non_annual(db_session) -> None:
+    """Acquisition facts are dated to the deal, not to the balance-sheet close."""
+    await _issuer(db_session, CPB, "CPB")
+    await _filing(db_session, CPB, FY2024_ACCN, 2024, date(2024, 7, 28))
+    db_session.add(
+        _fact(
+            FY2024_ACCN,
+            ACQUIRED,
+            "cpb:TrademarksRaosMember",
+            date(2024, 3, 12),
+            2_700_000_000,
+            "raos-acquired",
+            period_start=date(2024, 3, 12),
+            dimensions={
+                "us-gaap:BusinessAcquisitionAxis": "cpb:SovosBrandsMember",
+                AXIS: "cpb:TrademarksRaosMember",
+            },
+        )
+    )
+    await db_session.flush()
+    await seed_concept_mappings(db_session)
+
+    await canonicalize_issuer(db_session, CPB)
+
+    rows = (
+        await db_session.execute(
+            select(CanonicalMemberFact).where(CanonicalMemberFact.superseded.is_(False))
+        )
+    ).scalars().all()
+    assert [(r.canonical_concept, r.member_key, r.fiscal_year) for r in rows] == [
+        ("brand_intangible_acquired", "raos", 2024)
+    ]
+
+
+@requires_db
+async def test_instant_member_fact_must_match_an_actual_fiscal_year_end(db_session) -> None:
+    """A 52/53-week opening balance must not enter the prior annual bucket."""
+    await _cpb_two_years(db_session)
+    db_session.add(
+        _fact(
+            FY2024_ACCN,
+            CARRYING,
+            "cpb:TrademarksKettleBrandMember",
+            date(2024, 7, 29),
+            999_000_000,
+            "kettle-opening-balance",
+        )
+    )
+    await db_session.flush()
+
+    await canonicalize_issuer(db_session, CPB)
+
+    row = (
+        await db_session.execute(
+            select(CanonicalMemberFact).where(
+                CanonicalMemberFact.canonical_concept == "brand_intangible_carrying_value",
+                CanonicalMemberFact.member_key == "kettle",
+                CanonicalMemberFact.fiscal_year == 2024,
+                CanonicalMemberFact.superseded.is_(False),
+            )
+        )
+    ).scalar_one()
+    assert row.value == 400_000_000
+    current_rows = (
+        await db_session.execute(
+            select(CanonicalMemberFact).where(CanonicalMemberFact.superseded.is_(False))
+        )
+    ).scalars().all()
+    assert len([r for r in current_rows if r.member_key == "kettle" and r.fiscal_year == 2024]) == 1
+
+
+@requires_db
+async def test_dimensioned_source_priority_resolves_a_fallback_without_ambiguity(
+    db_session, monkeypatch
+) -> None:
+    """A preferred dimensioned source wins before value ambiguity is checked."""
+    await _cpb_two_years(db_session)
+    fallback_concept = "SyntheticDimensionedFallback"
+    primary_key = (CPB, "us-gaap", CARRYING, AXIS, "cpb:TrademarksKettleBrandMember")
+    fallback_key = (CPB, "us-gaap", fallback_concept, AXIS, "cpb:TrademarksKettleBrandMember")
+    monkeypatch.setitem(MEMBER_SOURCE_PRIORITY, primary_key, 1)
+    monkeypatch.setitem(MEMBER_RESOLUTION, fallback_key, ("brand_intangible_carrying_value", "kettle"))
+    monkeypatch.setitem(MEMBER_SOURCE_PRIORITY, fallback_key, 0)
+    monkeypatch.setitem(MEMBER_PERIOD_POLICIES, fallback_key, "fiscal_year_end")
+    db_session.add(
+        _fact(
+            FY2024_ACCN,
+            fallback_concept,
+            "cpb:TrademarksKettleBrandMember",
+            date(2024, 7, 28),
+            450_000_000,
+            "kettle-fallback-fy2024",
+        )
+    )
+    await db_session.flush()
+
+    counts = await canonicalize_issuer(db_session, CPB)
+
+    assert counts["member_ambiguities_flagged"] == 0
+    row = (
+        await db_session.execute(
+            select(CanonicalMemberFact).where(
+                CanonicalMemberFact.canonical_concept == "brand_intangible_carrying_value",
+                CanonicalMemberFact.member_key == "kettle",
+                CanonicalMemberFact.fiscal_year == 2024,
+                CanonicalMemberFact.superseded.is_(False),
+            )
+        )
+    ).scalar_one()
+    assert row.value == 450_000_000
+    assert row.member_as_filed == "cpb:TrademarksKettleBrandMember"
+
+
+@requires_db
+async def test_partial_duration_member_fact_is_not_an_annual_value(db_session) -> None:
+    """The annual policy keeps the full-year guard for duration facts."""
+    await _issuer(db_session, CPB, "CPB")
+    await _filing(db_session, CPB, FY2025_ACCN, 2025, date(2025, 8, 3))
+    db_session.add(
+        _fact(
+            FY2025_ACCN,
+            IMPAIRMENT,
+            "cpb:TrademarksSnydersOfHanoverMember",
+            date(2025, 8, 3),
+            150_000_000,
+            "partial-impairment",
+            period_start=date(2025, 5, 1),
+        )
+    )
+    await db_session.flush()
+    await seed_concept_mappings(db_session)
+
+    await canonicalize_issuer(db_session, CPB)
+
+    assert (
+        await db_session.execute(select(CanonicalMemberFact))
+    ).scalars().all() == []
 
 
 @requires_db
@@ -238,6 +394,26 @@ async def test_member_selection_is_idempotent(db_session) -> None:
     assert first["member_facts_added"] == 3
     assert second["member_facts_added"] == 0
     assert second["member_facts_superseded"] == 0
+
+
+@requires_db
+async def test_member_facts_are_retired_when_no_fiscal_year_candidate_remains(db_session) -> None:
+    """A corrected filing FYE must remove stale member rows from the current view."""
+    await _cpb_two_years(db_session)
+    await canonicalize_issuer(db_session, CPB)
+
+    filings = (
+        await db_session.execute(select(Filing).where(Filing.issuer_cik == CPB))
+    ).scalars().all()
+    for filing in filings:
+        filing.fiscal_year_end = date(filing.fiscal_year, 6, 30)
+    await db_session.flush()
+
+    counts = await canonicalize_issuer(db_session, CPB)
+
+    assert counts["member_facts_superseded"] == 3
+    all_rows = (await db_session.execute(select(CanonicalMemberFact))).scalars().all()
+    assert all(row.superseded for row in all_rows)
 
 
 @requires_db

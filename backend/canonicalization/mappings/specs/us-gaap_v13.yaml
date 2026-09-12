@@ -683,7 +683,9 @@ dimensioned_concepts:
     # tags — a company-level write-down attributed to a brand. A note nothing
     # executes is decoration (the conformance rule); this is the executable form
     # of it. Absent `issuers` means "every filer", which is right for carrying
-    # value and acquisition, both of which all three filers tag per member.
+    # value is live-verified for all three filers. Acquisition is deliberately
+    # allow-listed below until the same member-scoped fact is live-verified for
+    # another filer.
     issuers:
       - "0000016732"  # CPB — the only filer of the three tagging impairment per member
     axis: us-gaap:IndefiniteLivedIntangibleAssetsByMajorClassAxis
@@ -698,6 +700,9 @@ dimensioned_concepts:
       the FY2024 filing, the year the Sovos acquisition closed. Sparse by nature
       (a brand is acquired once), so absence in a year is expected and is never
       evidence of a mapping gap.
+    period_policy: event
+    issuers:
+      - "0000016732"  # CPB — the live-verified member-scoped acquisition fact
     axis: us-gaap:IndefiniteLivedIntangibleAssetsByMajorClassAxis
     sources:
       - concept: IndefinitelivedIntangibleAssetsAcquired
@@ -789,6 +794,7 @@ brand_members:
         The filer's own residual bucket, not a brand. Mapped so the per-brand
         figures can be reconciled against the total; never presented as an
         acquisition.
+      canonical_concepts: [brand_intangible_carrying_value]
       aliases: [cpb:TradeNamesOtherMember, cpb:TrademarksOtherMember]
     within_ten_percent_coverage:
       label: Trade names within 10% of impairment
