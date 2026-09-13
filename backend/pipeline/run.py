@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sqlalchemy import select
 
-from app.models import Filing
+from app.models import Filing, RawFact
 from canonicalization.canonicalize import canonicalize_issuer
 from canonicalization.mappings import MAPPING_VERSION, seed_concept_mappings
 from canonicalization.taxonomies import FINANCIAL_TAXONOMIES, supersedes
@@ -245,8 +245,32 @@ def _payload_reporting_currency(payload: dict) -> str | None:
     return None
 
 
-async def _inline_facts_for(payload: dict, cik: str) -> list[tuple[str, list[ParsedFact]]] | None:
-    """Fetch and parse every original US-GAAP annual filing's instance.
+async def _persisted_inline_accessions(session: AsyncSession, cik: str) -> frozenset[str]:
+    """Accessions of this issuer whose Inline XBRL facts are already stored.
+
+    Read before the network step so the fetch can skip them; see
+    `_inline_facts_for`. Keyed on `source` rather than on mere filing existence,
+    because every filing already has Company Facts rows.
+    """
+    return frozenset(
+        (
+            await session.execute(
+                select(RawFact.accession_number)
+                .join(Filing, Filing.accession_number == RawFact.accession_number)
+                .where(Filing.issuer_cik == cik, RawFact.source == "inline_xbrl")
+                .distinct()
+            )
+        ).scalars()
+    )
+
+
+async def _inline_facts_for(
+    payload: dict,
+    cik: str,
+    *,
+    already_ingested: frozenset[str] = frozenset(),
+) -> list[tuple[str, list[ParsedFact]]] | None:
+    """Fetch and parse each original US-GAAP annual filing's instance.
 
     Inline XBRL is an augmentation to the successful Company Facts fetch, not a
     reason to block that primary path. All originals are needed because member
@@ -254,6 +278,20 @@ async def _inline_facts_for(payload: dict, cik: str) -> list[tuple[str, list[Par
     historical names and therefore the historical member facts. A failed
     filing is warned and omitted independently, so one bad instance does not
     hide the other eras or block the Company Facts path.
+
+    `already_ingested` holds the accessions whose instance facts this database
+    already carries, and they are NOT re-fetched. `pipeline/run.py` is a daily
+    cron, an original filing's instance document is immutable, and
+    `persist_inline_facts` is idempotent on `content_hash` — so without this the
+    run re-downloads every historical instance every night to write zero rows.
+    That is 72 multi-MB documents across the current universe, growing by one
+    permanent nightly fetch per filing year, against a free public service.
+    Correctness never depended on it; EDGAR fair-access and the cost ceiling do.
+
+    An instance that parses to zero facts leaves no trace and is therefore
+    re-fetched nightly. Left deliberately: tracking it would need a new table,
+    and a real 10-K instance is never empty — a genuinely empty parse is a
+    defect worth the repeated warning rather than something to memoize.
     """
     if "us-gaap" not in payload.get("facts", {}):
         return None  # Epic 13 is scoped to US-GAAP 10-K filers.
@@ -267,7 +305,13 @@ async def _inline_facts_for(payload: dict, cik: str) -> list[tuple[str, list[Par
             filing,
         )
         for accession_number, filing in parsed.filings.items()
-        if filing.form_type == "10-K"
+        # EXACT match — '10-K/A' must never match. An amendment's XBRL instance
+        # carries only the amended portion (typically 12-13 KB, ~7 contexts),
+        # which is visually indistinguishable from a failed download and makes a
+        # filer look like it reports no segments or intangibles at all. The trap
+        # bit twice in one session on 2026-09-08 (SHOP and CP). Do not "widen"
+        # this to a prefix match to pick up amendments.
+        if filing.form_type == "10-K" and accession_number not in already_ingested
     )
     results: list[tuple[str, list[ParsedFact]]] = []
     for accession_number, filing in originals:
@@ -352,7 +396,14 @@ async def main() -> None:  # pragma: no cover — live path, gated
             inline_filings = None
             if "us-gaap" in payload.get("facts", {}):
                 try:
-                    inline_filings = await _inline_facts_for(payload, entry.cik)
+                    # Short read-only session, closed before the network step: a
+                    # DB connection must not be held open across many multi-MB
+                    # EDGAR fetches.
+                    async with sessionmaker() as probe:
+                        already_ingested = await _persisted_inline_accessions(probe, entry.cik)
+                    inline_filings = await _inline_facts_for(
+                        payload, entry.cik, already_ingested=already_ingested
+                    )
                 except Exception as exc:  # noqa: BLE001 — primary ingestion still proceeds
                     print(f"WARN {entry.ticker}: Inline XBRL fetch skipped: {exc}")
             async with sessionmaker() as session:
