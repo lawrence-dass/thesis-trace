@@ -18,7 +18,6 @@ import httpx
 from app.config import get_settings
 
 COMPANY_FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
-SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik}.json"
 FILING_INDEX_URL = "https://www.sec.gov/Archives/edgar/data/{cik_int}/{accn_nodash}/index.json"
 ARCHIVE_FILE_URL = "https://www.sec.gov/Archives/edgar/data/{cik_int}/{accn_nodash}/{filename}"
 _MIN_INTERVAL_SECONDS = 0.15  # <= ~6-7 req/s, safely under SEC's 10 req/s ceiling (AD-9)
@@ -93,38 +92,6 @@ async def _fetch_text(url: str, *, max_retries: int = 3) -> str:
                 continue
             resp.raise_for_status()
     raise RuntimeError(f"EDGAR fetch failed after {max_retries} attempts: {url}")
-
-
-async def fetch_submissions(cik: str, *, max_retries: int = 3) -> dict:
-    """Filing history for a zero-padded CIK (form types, accessions, dates)."""
-    return await _fetch_json(SUBMISSIONS_URL.format(cik=str(cik).zfill(10)), max_retries=max_retries)
-
-
-def latest_annual_original(submissions: dict, *, form_type: str = "10-K") -> tuple[str, str]:
-    """Return (accession_number, filing_date) of the newest ORIGINAL annual filing.
-
-    Matches `form` EXACTLY and orders by filing date, never by accession number.
-
-    `max(accession_number)` over `form LIKE '10-K%'` returns the 10-K/A, whose
-    XBRL instance carries only the amended portion — typically 12-13 KB with ~7
-    contexts, which is visually indistinguishable from a failed download and
-    makes a filer look like it reports no segments or intangibles at all. That
-    trap bit twice in one session on 2026-09-08 (SHOP and CP); SHOP's
-    0001594805-26-000011 is an amendment while its real 10-K is
-    0001594805-26-000007. Recorded in `acquisition_epic_scoped_to_us_gaap_filers`
-    and in project-context.md's anti-patterns.
-    """
-    recent = submissions["filings"]["recent"]
-    candidates = [
-        (accn, filed)
-        for accn, form, filed in zip(
-            recent["accessionNumber"], recent["form"], recent["filingDate"], strict=True
-        )
-        if form == form_type  # EXACT — '10-K/A' must not match
-    ]
-    if not candidates:
-        raise RuntimeError(f"no original {form_type} found in recent submissions")
-    return max(candidates, key=lambda c: c[1])
 
 
 async def fetch_instance_document(cik: str, accession_number: str, *, max_retries: int = 3) -> str:

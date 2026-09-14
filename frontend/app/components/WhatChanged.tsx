@@ -20,6 +20,7 @@ import { Badge, bandTone } from "./ui/Badge";
 import { Card } from "./ui/Card";
 import { CitationChip } from "./ui/CitationChip";
 import { AlertIcon } from "./ui/icons";
+import { ISSUE_LABEL } from "./issueLabels";
 
 export type ChangeProvenance = {
   accession_number: string | null;
@@ -115,11 +116,6 @@ const KIND_LABEL: Record<string, string> = {
   scored_year_added: "New fiscal year scored",
 };
 
-const ISSUE_LABEL: Record<string, string> = {
-  identity_violation: "Accounting identity check",
-  ambiguous_selection: "Ambiguous source selection",
-  source_conflict: "Conflicting sources",
-};
 
 // Rendered in UTC deliberately. The pivot is a stored UTC instant, and
 // formatting it in the viewer's zone shifts a midnight timestamp to the

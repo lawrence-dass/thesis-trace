@@ -118,6 +118,8 @@ CURATED_SECTIONS = (
     "acquisition_epic_scoped_to_us_gaap_filers",
     "dimensioned_facts_would_contaminate_consolidated_canonical_facts",
     "ad3_decimals_tiebreak_has_never_had_data",
+    "story_13_3_brand_member_live_verification",
+    "story_13_3_first_live_pipeline_run",
 )
 
 pytestmark = pytest.mark.skipif(
