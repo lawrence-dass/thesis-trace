@@ -12,6 +12,7 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from datetime import date
+from decimal import Decimal
 from canonicalization.taxonomies import ANNUAL_FORM_TYPES, FINANCIAL_TAXONOMIES
 
 
@@ -46,6 +47,23 @@ class ParsedFact:
     #: The field exists here so the Inline XBRL path (AD-4) produces the same
     #: shape, and so `_content_hash` has one signature rather than two.
     dimensions: dict[str, str] | None = None
+    #: The fact's XBRL `decimals` attribute: the power of ten it is accurate to
+    #: (-8 = accurate to 100,000,000; 0 = to the unit; None = not declared, or
+    #: "INF"/exact, which are both treated as "no tolerance" by
+    #: `precision_tolerance`). Populated by the Inline XBRL path ONLY.
+    #:
+    #: Deliberately NOT written to `RawFact.decimals`, and therefore NOT a fix
+    #: for `ad3_decimals_tiebreak_has_never_had_data`. That column is NULL for
+    #: every row, so AD-3's rule (2) scores every candidate at the same -9
+    #: fallback. Populating it for Inline facts alone would make the tiebreak
+    #: operate ASYMMETRICALLY — real precision scores on one source, the
+    #: fallback on the other — which systematically favours Inline facts rather
+    #: than fixing the no-op. Closing that finding means capturing decimals on
+    #: BOTH ingestion paths, in its own change.
+    #:
+    #: Not part of `_content_hash`: precision is metadata about a measurement,
+    #: not part of its identity, and including it would change every stored hash.
+    decimals: int | None = None
 
 
 @dataclass
@@ -75,6 +93,30 @@ def _serialize_dimensions(dimensions: dict[str, str] | None) -> str:
     # JSON avoids collisions caused by axis/member values containing the
     # separators used by the legacy human-readable form.
     return json.dumps(dimensions, sort_keys=True, separators=(",", ":"))
+
+
+def precision_tolerance(decimals: int | None) -> Decimal:
+    """Half a unit of the last place a `decimals` value claims to be accurate to.
+
+    XBRL's `decimals` is the power of ten a fact is accurate to, so -8 means
+    "to the nearest 100,000,000" and the most two facts can legitimately differ
+    while describing the SAME measurement is half of that. None (absent, or
+    "INF" meaning exact) yields zero: no tolerance, compare exactly.
+
+    Live case this exists for: ZTS tags the SAME measurement twice at two
+    precisions in one filing. Assets appears at decimals="-6" (15,467,000,000)
+    and at decimals="-8" (15,500,000,000); CommonStockSharesIssued appears at
+    decimals="0" (501,891,243) and at decimals="-5" (501,900,000). Neither pair
+    is a disagreement, and each difference falls within half the coarser fact's
+    last declared place (33,000,000 <= 50,000,000; 8,757 <= 50,000).
+
+    The tolerance is therefore driven by what the fact DECLARES, never by how
+    round the number looks. Two genuinely different values that both declare
+    decimals="0" still conflict, which is what keeps AD-4 switched on.
+    """
+    if decimals is None:
+        return Decimal(0)
+    return Decimal(10) ** (-decimals) / 2
 
 
 def _content_hash(

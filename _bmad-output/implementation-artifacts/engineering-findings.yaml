@@ -5286,17 +5286,27 @@ story_13_3_first_live_pipeline_run:
     unmodelled case, not a defect in the selection.
   finding_4_source_conflict_fires_on_precision_not_disagreement: >
     ZTS raised 34 source_conflict rows, the first time that writer has ever
-    emitted. They are not genuine divergences. Twelve are Assets, where EVERY
-    inline value is an exact multiple of 100,000,000 and differs from Company
-    Facts by at most 45,000,000 (0.39%) — the filer's rounded highlights figure
-    (decimals="-8") against the precise one. The other 22 are share counts
-    differing by 0.0017%-0.14% (e.g. 8,757 shares out of ~502M), consistent with
-    a different as-of date rather than rounding, though that was not confirmed
-    per-year. AD-4 produces the RIGHT outcome in every case (Company Facts wins,
-    the precise value is kept) but the comparison ignores each fact's own
-    `decimals`, so two values that agree within their stated precision register
-    as conflicting. 34 needs_review warnings on ZTS's page for no user-actionable
-    problem.
+    emitted. NOT ONE is a genuine divergence: every pair is the same measurement
+    tagged twice at two precisions in one filing. Assets appears at decimals="-6"
+    (15,467,000,000) and decimals="-8" (15,500,000,000); CommonStockSharesIssued
+    at decimals="0" (501,891,243) and decimals="-5" (501,900,000). Each
+    difference falls within half the coarser fact's last declared place.
+    CORRECTION, 2026-09-15: the first version of this entry read the 22
+    share-count rows as "consistent with a different as-of date rather than
+    rounding" and said so without confirming it. Reading the instance documents'
+    `decimals` attributes disproved that — they are rounding, at -5 rather than
+    the -8 seen on Assets, which is why they looked unrounded at a glance
+    (501,900,000 is not a suspiciously round number until you know the fact
+    claims accuracy only to the nearest 100,000). Inferring a mechanism from the
+    SHAPE of the numbers rather than from the metadata that states it is the
+    same error class as reading a coverage gap off a tag name.
+    AD-4 produced the right outcome throughout (Company Facts wins, the precise
+    value is kept) but the comparison ignored each fact's own `decimals`, so
+    values agreeing within their stated precision registered as conflicting.
+    FIXED: the comparison now admits a value within half the last place the
+    Inline fact declares. All 34 warnings go, and a real divergence still
+    conflicts because the tolerance is driven by the declared precision, never by
+    how round a number looks.
   finding_5_raw_issue_type_was_rendered_to_users: >
     The company report rendered `dq.issue_type` raw, so the panel read
     "unmapped_member (needs_review, raised by canonicalization)" six times. The
@@ -5331,3 +5341,80 @@ story_13_3_first_live_pipeline_run:
     suggests at least the multi-axis case will recur. The 34 ZTS source_conflict
     rows and the 8 QSR ambiguity rows are left in the database as raised,
     deliberately, rather than dismissed.
+
+story_13_3_data_quality_issues_are_write_only:
+  status: open
+  found: 2026-09-15
+  found_by: >
+    Fixing finding 1 of story_13_3_first_live_pipeline_run. Mapping CPB's
+    aggregate member stops the six unmapped_member warnings being RAISED — but
+    asking whether that clears the six already stored showed nothing anywhere
+    can clear them.
+  question: >
+    When the cause of a data-quality issue is fixed, what retracts the issue?
+  finding: >
+    NOTHING. `IssueStatus` declares `resolved` and `dismissed`, and no
+    production code path ever sets either, or deletes a row: the only writes are
+    three `status=IssueStatus.needs_review` inserts in canonicalize.py plus one
+    in raw_store/repository.py, and the only uses of `resolved`/`dismissed`
+    anywhere are in tests. Issues are append-only. Every writer carefully dedups
+    so the daily cron does not ADD a duplicate, which is the problem this
+    project already learned about — but dedup is not retraction, and a warning
+    whose cause no longer exists stays on the company's report forever.
+    Canonical facts have supersession for exactly this; data-quality issues have
+    no equivalent.
+  why_it_did_not_bite_here: >
+    concepts_v14 has never been merged or deployed, so the only rows in this
+    state were the six in the local dev database, created hours earlier by the
+    first live run and deleted by hand before re-canonicalizing. On any deployed
+    database the fix would have prevented the warnings without removing them.
+  scope: >
+    PRE-EXISTING and not introduced by Story 13.3 — it applies equally to
+    ambiguous_selection, identity_violation and source_conflict, and the
+    precision fix in the same change has the same shape (it stops the 34 ZTS
+    conflicts being raised; it would not have retracted stored ones). Left
+    unfixed deliberately: retraction is a new mechanism touching every writer
+    and every consumer of `data_quality` in the API, which is its own story.
+  reusable_conclusion: >
+    A DEDUP IS NOT A RETRACTION. Getting idempotency right makes a writer safe
+    to re-run, which reads like the whole problem and is only half of it: the
+    other half is what happens when the finding stops being true. Any
+    append-only diagnostic needs an answer to "what unsays this", decided when
+    the writer is built rather than the first time a fix lands.
+
+story_13_3_zts_non_brand_intangibles_land_as_brand_value:
+  status: open
+  found: 2026-09-15
+  found_by: >
+    Checking, during the finding-1 fix, why ZTS's
+    us-gaap:InProcessResearchAndDevelopmentMember never raised an
+    unmapped_member warning the way CPB's aggregate did.
+  question: >
+    Is everything landing in `brand_intangible_carrying_value` actually a brand?
+  finding: >
+    NO, for ZTS. It raised no warning because it is not unmapped — the spec
+    lists in_process_rnd, product_rights, developed_technology and
+    other_intangibles as ordinary members for that filer, so they resolve to
+    `brand_intangible_carrying_value` like any brand. Three of them land:
+    `brands` (8 rows), `in_process_rnd` (8) and `product_rights` (8), FY2018 to
+    FY2025. In-process R&D is not a brand; neither are product rights. The
+    concept name asserts something the ZTS rows do not honour, and a consumer
+    reading it as "brand value" would show "In-process R&D" as a brand.
+  contrast_that_makes_it_a_question_rather_than_a_defect: >
+    The same spec DELIBERATELY excludes us-gaap:CustomerRelationshipsMember for
+    CPB and ZTS as "a customer intangible, a different asset class from the
+    brand itself", and QSR's OffMarketFavorableLeaseMember as "a lease
+    intangible, not an acquired brand". Those two exclusions and these three
+    inclusions cannot both be right under one reading of the concept. Either the
+    concept is the indefinite-lived intangible CLASS breakdown (and the
+    exclusions are wrong, and the name is), or it is brands (and ZTS's IPR&D and
+    product rights are wrong).
+  consequence_for_13_4: >
+    Acquisition performance per brand reads this concept. For ZTS it would
+    currently attribute IPR&D and product-rights value to "brand", which is the
+    kind of figure this project's deterministic boundary exists to prevent.
+    Needs a decision before 13.4 consumes the store, not after.
+  scope: >
+    PRE-EXISTING in the 13.3 spec as merged into this PR, and NOT touched by the
+    finding-1 fix: mapping CPB's aggregate changed nothing about which ZTS
+    members resolve. Left for a decision rather than silently re-scoped.

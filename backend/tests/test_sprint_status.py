@@ -120,6 +120,8 @@ CURATED_SECTIONS = (
     "ad3_decimals_tiebreak_has_never_had_data",
     "story_13_3_brand_member_live_verification",
     "story_13_3_first_live_pipeline_run",
+    "story_13_3_data_quality_issues_are_write_only",
+    "story_13_3_zts_non_brand_intangibles_land_as_brand_value",
 )
 
 pytestmark = pytest.mark.skipif(

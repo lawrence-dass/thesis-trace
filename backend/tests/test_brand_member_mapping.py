@@ -238,3 +238,49 @@ def test_model_and_migration_do_not_drift() -> None:
         )
     assert "uq_canonical_member_facts_key" in migration
     assert "postgresql_where" in migration, "the partial unique index must survive the migration"
+
+
+# --- The filer's own total (story_13_3_first_live_pipeline_run) --------------
+
+
+def test_cpb_aggregate_trademark_member_resolves_to_the_total_not_a_brand() -> None:
+    """us-gaap:TrademarksMember is CPB's class total, and must not be a brand.
+
+    Identified by VALUE, not by name: in FY2023 and FY2025 it equals the sum of
+    the mapped per-brand rows to the dollar (2,541M and 3,678M). Before it was
+    mapped it was simply unknown to the engine, so the unmapped_member guard
+    raised six permanent needs_review warnings on CPB's report — one per year —
+    for something the spec had already recorded as a decision in a comment that
+    nothing executed.
+    """
+    key = (
+        "0000016732",
+        "us-gaap",
+        "IndefiniteLivedIntangibleAssetsExcludingGoodwill",
+        "us-gaap:IndefiniteLivedIntangibleAssetsByMajorClassAxis",
+        "us-gaap:TrademarksMember",
+    )
+    resolved = MEMBER_RESOLUTION.get(key)
+    assert resolved is not None, "the aggregate member must resolve, or it flags as unmapped"
+    canonical_concept, member_key = resolved
+    assert canonical_concept == "brand_intangible_carrying_value_total"
+    # The hazard the spec's own note names: it double-counts the members it
+    # contains, so it must never share a concept with them.
+    assert canonical_concept != "brand_intangible_carrying_value"
+    assert member_key != "other_trade_names"
+
+
+def test_the_total_concept_is_reachable_only_through_the_aggregate_member() -> None:
+    """A brand must not also claim the total, or the total is triple-written.
+
+    Same guard shape as the within-10%-coverage member: `maps_to` makes the
+    concept a redirect target, which `_resolve_members` then excludes from every
+    member that does NOT redirect to it.
+    """
+    claimants = {
+        member_key
+        for (_cik, _tax, _concept, _axis, _alias), (canonical, member_key)
+        in MEMBER_RESOLUTION.items()
+        if canonical == "brand_intangible_carrying_value_total"
+    }
+    assert claimants == {"all_trademarks"}

@@ -170,6 +170,25 @@ def parse_units(root: ElementTree.Element, nsmap: dict[str, str]) -> dict[str, s
     return units
 
 
+def _parse_decimals(raw: str | None) -> int | None:
+    """XBRL `decimals` as an int, or None when it declares no usable precision.
+
+    "INF" means the fact is exact. It maps to None rather than to a huge int
+    because `precision_tolerance` treats None as "compare exactly", which is the
+    same outcome and avoids an arbitrary sentinel. A malformed value is also
+    None: an unreadable precision claim must not widen a tolerance.
+    """
+    if raw is None:
+        return None
+    text = raw.strip()
+    if not text or text.upper() == "INF":
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
+
 def parse_instance(
     xml_text: str,
     *,
@@ -211,13 +230,19 @@ def parse_instance(
         if not taxonomy:
             continue
 
-        # NOTE: `node.get("decimals")` is available here and is NOT captured,
-        # because `ParsedFact` has no decimals field and neither ingestion path
-        # populates `RawFact.decimals` — it has been NULL for every row since
-        # Epic 1. AD-3's rule (2) ranks candidates on "higher decimals
-        # precision", so that tiebreak has never had data to work with. Real,
-        # pre-existing, and deliberately out of scope for this story: adding it
-        # changes Company Facts ingestion and every existing content hash.
+        # `decimals` IS captured now, onto ParsedFact only — AD-4's source
+        # reconciliation needs it to tell "the same measurement at two
+        # precisions" from "two different numbers". ZTS tags Assets at
+        # decimals="-8" in a highlights table while Company Facts carries the
+        # precise figure, and comparing them exactly raised twelve
+        # source_conflict rows for no user-actionable problem.
+        #
+        # It is still NOT written to `RawFact.decimals`, so
+        # `ad3_decimals_tiebreak_has_never_had_data` stays OPEN: that column is
+        # NULL on every row and AD-3's rule (2) still scores every candidate at
+        # the same fallback. Populating it here alone would make the tiebreak
+        # favour Inline facts over Company Facts ones on precision the latter
+        # never gets to declare. Both paths, or neither.
         facts.append(
             ParsedFact(
                 accession_number=accession_number,
@@ -229,6 +254,7 @@ def parse_instance(
                 value=value,
                 fiscal_year=fiscal_year,
                 source=source,
+                decimals=_parse_decimals(node.get("decimals")),
                 content_hash=_content_hash(
                     taxonomy,
                     concept,

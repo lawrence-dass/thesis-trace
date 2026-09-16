@@ -140,6 +140,23 @@
 #                 is in scope for this epic (acquisition_epic_scoped_to_us_gaap_
 #                 filers), so ifrs-full and derivations keep their existing
 #                 specs, per the per-taxonomy rule above.
+#                 AMENDED IN PLACE after the first live run
+#                 (story_13_3_first_live_pipeline_run), before this version had
+#                 ever been merged or deployed: adds
+#                 brand_intangible_carrying_value_total, the filer's OWN total
+#                 for the trademark class, read from CPB's aggregate
+#                 us-gaap:TrademarksMember. Two reasons, both found live — the
+#                 per-brand rows cannot be summed into a total (a newly itemized
+#                 brand is still inside the residual bucket that year), and
+#                 leaving the aggregate member unmapped made the new
+#                 unmapped_member guard raise six permanent warnings on CPB's
+#                 report for what the spec already recorded as a decision.
+#                 Amending rather than bumping to concepts_v15 is deliberate and
+#                 is NOT an exception to the never-edit-a-stored-spec rule
+#                 above: main is still on concepts_v13/us-gaap_v12, so v14 has
+#                 no shipped rows to keep reproducible, and a bump would invent
+#                 a mapping generation that never ran anywhere. The local dev
+#                 database was re-canonicalized so its v14 rows match this file.
 
 mapping_version: concepts_v14
 

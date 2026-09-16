@@ -723,6 +723,36 @@ dimensioned_concepts:
     sources:
       - concept: IndefiniteLivedIntangibleAssetsExcludingGoodwill
 
+  brand_intangible_carrying_value_total:
+    note: >-
+      The filer's OWN total for the indefinite-lived trademark class, read from
+      the aggregate member rather than computed by ThesisTrace. It exists
+      because the per-brand rows CANNOT be summed to get it, which the first
+      live run proved by arithmetic: summing brand_intangible_carrying_value
+      overshoots this total by exactly the brands newly itemized that year —
+      FY2021 +318M (kettle), FY2022 +187M (cape_cod), FY2024 +71M (allied_brands
+      43M + pop_secret 28M) — because a brand broken out for the first time is
+      ALSO still inside the other_trade_names residual bucket. FY2023 and FY2025
+      agree to the dollar (2,541M and 3,678M), which is what identifies this
+      member as the total in the first place; FY2020 undershoots by 1,419M
+      because fewer brands were itemized at all.
+      Mapped as its OWN concept, never as a brand: the deliberately-unmapped
+      note below is right that us-gaap:TrademarksMember double-counts the named
+      members it contains, and that hazard is exactly why it must not sit in the
+      same concept as them. Same shape as
+      trade_names_within_ten_percent_of_impairment — an aggregate told apart
+      from per-brand carrying value ONLY by its member.
+      Before this, the member was simply unknown to the engine, so the
+      unmapped_member guard raised six permanent needs_review warnings on CPB's
+      report — one per year, every night — for what was already a recorded
+      decision. A decision a note records and nothing executes is decoration.
+      [Source: engineering-findings.yaml#story_13_3_first_live_pipeline_run]
+    issuers:
+      - "0000016732"  # CPB — the only filer of the three tagging this aggregate
+    axis: us-gaap:IndefiniteLivedIntangibleAssetsByMajorClassAxis
+    sources:
+      - concept: IndefiniteLivedIntangibleAssetsExcludingGoodwill
+
 # --- Members, per filer -----------------------------------------------------
 #
 # `aliases` is the SAME real-world brand under every name its filer has used.
@@ -791,11 +821,26 @@ brand_members:
     other_trade_names:
       label: Other trade names
       note: >-
-        The filer's own residual bucket, not a brand. Mapped so the per-brand
-        figures can be reconciled against the total; never presented as an
-        acquisition.
+        The filer's own residual bucket, not a brand; never presented as an
+        acquisition. It does NOT complete the per-brand rows into the total:
+        in the year a brand is first itemized it is still counted inside this
+        bucket too, so summing overshoots by exactly that brand (FY2021 kettle
+        318M, FY2022 cape_cod 187M, FY2024 allied_brands + pop_secret 71M).
+        Use brand_intangible_carrying_value_total for a total. An earlier
+        version of this note claimed the figures "can be reconciled against the
+        total" — the first live run disproved it by arithmetic.
       canonical_concepts: [brand_intangible_carrying_value]
       aliases: [cpb:TradeNamesOtherMember, cpb:TrademarksOtherMember]
+    all_trademarks:
+      label: All trademarks (filer's total)
+      note: >-
+        NOT a brand — the standard-taxonomy aggregate for the whole
+        indefinite-lived trademark class, and the only correct source for a
+        total (see brand_intangible_carrying_value_total). Routed away from the
+        brand default by maps_to, so it cannot land beside the named members it
+        contains.
+      maps_to: brand_intangible_carrying_value_total
+      aliases: [us-gaap:TrademarksMember]
     within_ten_percent_coverage:
       label: Trade names within 10% of impairment
       maps_to: trade_names_within_ten_percent_of_impairment
@@ -843,7 +888,12 @@ brand_members:
 # oversight:
 #   us-gaap:OffMarketFavorableLeaseMember (QSR) — a lease intangible, not an
 #     acquired brand; including it would inflate "brand value".
-#   us-gaap:TrademarksMember (CPB) — the aggregate trademark CLASS, which
-#     double-counts the named members it contains.
+#   (us-gaap:TrademarksMember (CPB) was here, and is NOW MAPPED — as its own
+#     concept brand_intangible_carrying_value_total, not as a brand. The reason
+#     it was listed, that it double-counts the named members it contains, is
+#     why it gets a separate concept rather than why it stays unmapped.)
+# NOTE: the entries below are still only a note. Nothing executes this list, so
+#   each one will raise an unmapped_member warning if it ever appears on a
+#   mapped source/axis — neither does today.
 #   us-gaap:CustomerRelationshipsMember (CPB, ZTS) — a customer intangible, a
 #     different asset class from the brand itself.
