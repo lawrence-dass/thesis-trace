@@ -5486,8 +5486,14 @@ story_13_3_multi_axis_member_identity_verified:
     +/-500,000,000,000 tolerance. Left deliberately: AD-4 still keeps the Company
     Facts value and never writes the Inline one, so the worst case is a MISSED
     warning, never a wrong figure.
-  not_verified: >
-    Browser render. Port 8000 was held by another local process not serving this
-    project (its /health answered with a different payload on each check), and
-    that process was not this session's to stop. Verified at the API-free
-    database level instead.
+  browser_verified: >
+    DoD item 5 closed on 2026-09-17. Port 8000 turned out to be held by a
+    different local project's dev server (riskpulse), so it was left alone and
+    ThesisTrace ran on 8001/3001 instead, via NEXT_PUBLIC_API_BASE_URL. The API
+    returned 0 data_quality issues for CPB, ZTS and QSR, and all three report
+    pages rendered with no "Data-quality warnings" panel. On CPB that panel had
+    previously shown six "Unmapped XBRL member" rows. Both servers were stopped
+    afterwards.
+    Lesson for the next render: "the backend is unreachable" and "a different
+    app answers on the port" look alike from the page. Check which process owns
+    the port (lsof, then its cwd) before assuming this project's server died.
