@@ -5233,7 +5233,7 @@ story_13_3_first_live_pipeline_run:
   found: 2026-09-13
   found_by: >
     Story 13.3's DoD item 5 (render it in a browser), run after the Codex review
-    round (9ff10a8) and the re-fetch fix (b6dc911). Until this point the whole
+    round (9ff10a8) and the re-fetch fix (7dcc35d). Until this point the whole
     story was verified by tests alone: the dev database had NO
     canonical_member_facts table (neither migration had ever been applied
     anywhere but a throwaway DB) and ZERO inline_xbrl raw facts. Both migrations
@@ -5284,7 +5284,7 @@ story_13_3_first_live_pipeline_run:
     was flagged, nothing was guessed, nothing landed. But the member model is
     single-axis and at least one filer in the universe is not. This is an
     unmodelled case, not a defect in the selection.
-    RESOLVED by a89fc86 (full multi-axis context identity) — see
+    RESOLVED by 47c2143 (full multi-axis context identity) — see
     story_13_3_multi_axis_member_identity_verified for what QSR turned out to
     contain.
   finding_4_source_conflict_fires_on_precision_not_disagreement: >
@@ -5323,7 +5323,7 @@ story_13_3_first_live_pipeline_run:
     The SEC's Inline XBRL mandate phases in from 2019, so every original 10-K
     before it has no instance document: 10 for CPB, 6 for ZTS, 5 for QSR. Those
     fetches fail every night, permanently, and leave nothing persisted — so the
-    b6dc911 skip-set, which keys on facts actually stored, does not cover them.
+    7dcc35d skip-set, which keys on facts actually stored, does not cover them.
     Cheap (a filing-index JSON each, not a multi-MB document) but permanent log
     noise and unnecessary requests. A date floor on the fetch loop would close
     it.
@@ -5426,7 +5426,7 @@ story_13_3_multi_axis_member_identity_verified:
   status: done
   found: 2026-09-17
   found_by: >
-    Verifying Codex's second review round (a89fc86), which it committed without
+    Verifying Codex's second review round (47c2143), which it committed without
     running any database test because the local Postgres container had exited.
     Its riskiest change — a new migration with a data BACKFILL — was therefore
     untested against any populated database.
@@ -5475,7 +5475,7 @@ story_13_3_multi_axis_member_identity_verified:
     retire the ORIGINAL. Deleted by hand in dev only.
   stale_v14_rows: >
     The six concepts_v14 brand_intangible_carrying_value_total rows were
-    produced by the in-place amendment of us-gaap_v13 that a89fc86 reverted. Once
+    produced by the in-place amendment of us-gaap_v13 that 47c2143 reverted. Once
     v13 was restored they claimed a spec that never produced them — exactly the
     AD-2 reproducibility failure the version bump exists to prevent, confirming
     Codex was right to overrule the in-place amendment. Deleted from dev; the 76
