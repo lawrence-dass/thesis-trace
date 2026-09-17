@@ -139,17 +139,14 @@ def test_mapping_version_bumped_for_a_real_mapping_change() -> None:
 
     The version is pinned by name on purpose — a bump should be a deliberate edit
     here, not something that rides along with a spec change. Last moved 2026-09-11
-    for concepts_v14 (Story 13.3 / story_13_3_brand_member_live_verification: the
-    first DIMENSIONED mappings — per-brand intangible carrying value, per-brand
-    impairment, acquisition value and CPB's own within-10%-of-impairment
-    disclosure, with per-era member aliases because CPB renames its own members
-    between filings; us-gaap only). The superseded-spec check is
+    for concepts_v15 (Story 13.3's aggregate-total correction layered on the
+    first DIMENSIONED mappings in concepts_v14). The superseded-spec check is
     deliberately NOT pinned: it derives the list from the registry's own
     history, so adding a version cannot quietly leave an older spec unprotected.
     """
     registry = yaml.safe_load((SPECS / "registry.yaml").read_text())
-    assert registry["mapping_version"] == "concepts_v14"
-    assert registry["taxonomies"]["us-gaap"] == "us-gaap_v13"
+    assert registry["mapping_version"] == "concepts_v15"
+    assert registry["taxonomies"]["us-gaap"] == "us-gaap_v14"
     assert registry["taxonomies"]["ifrs-full"] == "ifrs-full_v4"
     assert registry["derivations"] == "derivations_v5"
 
@@ -169,6 +166,7 @@ def test_mapping_version_bumped_for_a_real_mapping_change() -> None:
         "us-gaap_v10.yaml",
         "us-gaap_v11.yaml",
         "us-gaap_v12.yaml",
+        "us-gaap_v13.yaml",
         "ifrs-full_v1.yaml",
         "ifrs-full_v2.yaml",
         "ifrs-full_v3.yaml",

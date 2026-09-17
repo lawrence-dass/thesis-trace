@@ -152,6 +152,29 @@ def _effective_value(canonical_concept: str, value) -> Decimal:
     return abs(decimal_value) if canonical_concept in NON_NEGATIVE_CONCEPTS else decimal_value
 
 
+def _dimension_identity(
+    dimensions: dict | None, *, mapped_axis: str | None = None, member_key: str | None = None
+) -> tuple[tuple[str, str], ...]:
+    """Return a stable context identity, normalizing the mapped member alias.
+
+    The raw dimensions retain the filer's spelling for provenance, but that
+    spelling is not identity: an amendment can rename a member within the same
+    fiscal year. Other axes remain verbatim because they distinguish separate
+    XBRL contexts.
+    """
+    if not dimensions:
+        return ()
+    return tuple(
+        sorted(
+            (
+                str(axis),
+                (member_key if axis == mapped_axis and member_key is not None else str(member)),
+            )
+            for axis, member in dimensions.items()
+        )
+    )
+
+
 async def canonicalize_issuer(
     session: AsyncSession, issuer_cik: str, *, mapping_version: str = MAPPING_VERSION
 ) -> dict[str, int]:
@@ -599,7 +622,7 @@ async def _canonicalize_members(
     mapping_version: str,
     counts: dict[str, int],
 ) -> None:
-    """Select one canonical fact per (concept, member, fiscal year) into
+    """Select one canonical fact per (concept, member, context, fiscal year) into
     `canonical_member_facts` (Story 13.3).
 
     These are the facts AD-3 rule 0 keeps out of `canonical_facts`, where they
@@ -611,14 +634,25 @@ async def _canonicalize_members(
     live-verified. Known members intentionally excluded by an issuer/concept
     allow-list remain silent because that exclusion is itself a mapping decision.
 
+    A context can carry more than the mapped member axis. Those qualifiers are
+    part of the raw fact identity, so they are retained in the member store and
+    in its current-row key rather than silently collapsed.
+
     Annual instant facts use exact fiscal-year-end dates rather than only the
     common month/day heuristic. That matters for CPB's 52/53-week calendar: a
     first-day opening balance can be one day after the prior close and otherwise
     look like a valid annual fact. Event-dated acquisition facts opt out of this
     check in the mapping spec. Duration facts still pass the full-year guard.
     """
-    existing: dict[tuple[str, str, int], CanonicalMemberFact] = {
-        (f.canonical_concept, f.member_key, f.fiscal_year): f
+    existing: dict[
+        tuple[str, str, int, tuple[tuple[str, str], ...]], CanonicalMemberFact
+    ] = {
+        (
+            f.canonical_concept,
+            f.member_key,
+            f.fiscal_year,
+            _dimension_identity(f.context_key),
+        ): f
         for f in (
             await session.execute(
                 select(CanonicalMemberFact).where(
@@ -663,7 +697,7 @@ async def _canonicalize_members(
     }
 
     grouped: dict[
-        tuple[str, str, int], list[tuple[RawFact, str, str, int]]
+        tuple[str, str, int, tuple[tuple[str, str], ...]], list[tuple[RawFact, str, str, int]]
     ] = defaultdict(list)
     for rf in dimensioned:
         if rf.period_end is None or not rf.dimensions or rf.value is None:
@@ -712,9 +746,14 @@ async def _canonicalize_members(
             elif period_policy != "event":  # pragma: no cover - spec loader validates this
                 raise ValueError(f"unsupported dimensioned period policy: {period_policy!r}")
             canonical_concept, member_key = resolved
-            grouped[(canonical_concept, member_key, rf.period_end.year)].append(
-                (rf, axis, member, MEMBER_SOURCE_PRIORITY[resolution_key])
-            )
+            grouped[
+                (
+                    canonical_concept,
+                    member_key,
+                    rf.period_end.year,
+                    _dimension_identity(rf.dimensions, mapped_axis=axis, member_key=member_key),
+                )
+            ].append((rf, axis, member, MEMBER_SOURCE_PRIORITY[resolution_key]))
 
     if not grouped:
         await session.flush()
@@ -727,23 +766,55 @@ async def _canonicalize_members(
     # path carries one: a mapping-version bump re-resolves every concept and so
     # re-flags every unresolvable one, and `pipeline/run.py` is a daily cron.
     # Ignores status, so a dismissed issue is not resurrected.
-    existing_member_ambiguities = {
-        (d.get("canonical_concept"), d.get("member_key"), d.get("fiscal_year"))
-        for d in (
-            await session.execute(
-                select(DataQualityIssue.detail)
-                .join(Filing, Filing.accession_number == DataQualityIssue.accession_number)
-                .where(
-                    Filing.issuer_cik == issuer_cik,
-                    DataQualityIssue.raised_by == "canonicalization",
-                    DataQualityIssue.issue_type == "ambiguous_member_selection",
+    existing_member_ambiguities: set[tuple[str, str, int, tuple[tuple[str, str], ...]]] = set()
+    # Keep the old three-field key readable during the transition. Before the
+    # full context was stored, an ambiguity had no dimension payload; treating
+    # that historical issue as a wildcard prevents a version bump from adding
+    # another copy of the same warning.
+    legacy_member_ambiguities: set[tuple[str, str, int]] = set()
+    for detail in (
+        await session.execute(
+            select(DataQualityIssue.detail)
+            .join(Filing, Filing.accession_number == DataQualityIssue.accession_number)
+            .where(
+                Filing.issuer_cik == issuer_cik,
+                DataQualityIssue.raised_by == "canonicalization",
+                DataQualityIssue.issue_type == "ambiguous_member_selection",
+            )
+        )
+    ).scalars():
+        if not detail:
+            continue
+        key = (detail.get("canonical_concept"), detail.get("member_key"), detail.get("fiscal_year"))
+        if "context_key" in detail:
+            existing_member_ambiguities.add((*key, _dimension_identity(detail["context_key"])))
+        elif "dimensions" in detail:
+            # Transitional compatibility with the first member-context issue
+            # shape, which carried raw dimensions but not the normalized key.
+            axis = detail.get("axis")
+            if axis is None:
+                axis = next(
+                    (
+                        candidate_axis
+                        for candidate_axis, candidate_member in detail["dimensions"].items()
+                        if candidate_member == detail.get("member_as_filed")
+                    ),
+                    None,
+                )
+            existing_member_ambiguities.add(
+                (
+                    *key,
+                    _dimension_identity(
+                        detail["dimensions"],
+                        mapped_axis=axis,
+                        member_key=detail.get("member_key"),
+                    ),
                 )
             )
-        ).scalars()
-        if d
-    }
+        else:
+            legacy_member_ambiguities.add(key)
 
-    for (canonical_concept, member_key, fiscal_year), candidates in grouped.items():
+    for (canonical_concept, member_key, fiscal_year, dimensions), candidates in grouped.items():
 
         def rank(entry: tuple[RawFact, str, str, int]) -> tuple:
             rf = entry[0]
@@ -764,9 +835,18 @@ async def _canonicalize_members(
 
         if len(distinct_values) > 1:
             # Flag, do not guess (AD-3), one member deeper.
-            if (canonical_concept, member_key, fiscal_year) in existing_member_ambiguities:
+            if (
+                canonical_concept,
+                member_key,
+                fiscal_year,
+                dimensions,
+            ) in existing_member_ambiguities:
                 continue
-            existing_member_ambiguities.add((canonical_concept, member_key, fiscal_year))
+            if (canonical_concept, member_key, fiscal_year) in legacy_member_ambiguities:
+                continue
+            existing_member_ambiguities.add(
+                (canonical_concept, member_key, fiscal_year, dimensions)
+            )
             session.add(
                 DataQualityIssue(
                     accession_number=best.accession_number,
@@ -775,7 +855,10 @@ async def _canonicalize_members(
                         "canonical_concept": canonical_concept,
                         "member_key": member_key,
                         "member_as_filed": best_member,
+                        "axis": best_axis,
                         "fiscal_year": fiscal_year,
+                        "dimensions": best.dimensions,
+                        "context_key": dict(dimensions),
                         "values": sorted(str(v) for v in distinct_values),
                     },
                     status=IssueStatus.needs_review,
@@ -785,7 +868,7 @@ async def _canonicalize_members(
             counts["member_ambiguities_flagged"] += 1
             continue
 
-        current = existing.get((canonical_concept, member_key, fiscal_year))
+        current = existing.get((canonical_concept, member_key, fiscal_year, dimensions))
         if current is not None and current.selected_from_raw_fact_id == best.id:
             continue  # same winner as the last pass — nothing to do
 
@@ -796,6 +879,8 @@ async def _canonicalize_members(
             member_key=member_key,
             member_as_filed=best_member,
             axis_as_filed=best_axis,
+            dimensions=best.dimensions,
+            context_key=dict(dimensions),
             fiscal_year=fiscal_year,
             period_end=best.period_end,
             value=Decimal(str(best.value)),

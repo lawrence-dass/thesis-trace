@@ -222,8 +222,8 @@ class CanonicalMemberFact(Base):
     filer's own typo — in FY2023, and cpb:TrademarksKettleBrandMember from
     FY2024):
       * `member_key` is the spec's stable identity for the brand ("kettle").
-        It is what the unique key uses, so one brand stays one row per year
-        across every rename.
+        It is part of the unique key, so a rename does not split one context's
+        brand series into different identities.
       * `member_as_filed` is the qualified name the fact actually carried, kept
         verbatim. AD-19 provenance has to reach the member: a citation must be
         able to say which tag in which filing produced this figure, and after a
@@ -232,12 +232,13 @@ class CanonicalMemberFact(Base):
 
     __tablename__ = "canonical_member_facts"
     __table_args__ = (
-        # Same shape as uq_canonical_facts_key one dimension deeper: one CURRENT
-        # fact per (issuer, concept, member, year, version), any number of
-        # superseded ones. Deliberately NOT a second supersession design.
+        # Same shape as uq_canonical_facts_key, with the normalized full context
+        # added to the member identity. Multiple contexts can describe the same
+        # mapped member in one year; any number of superseded rows remain legal.
         Index(
             "uq_canonical_member_facts_key",
             "issuer_cik", "canonical_concept", "member_key", "fiscal_year", "mapping_version",
+            "context_key",
             unique=True,
             postgresql_where=text("NOT superseded"),
         ),
@@ -253,6 +254,14 @@ class CanonicalMemberFact(Base):
     # is 76 characters before its prefix).
     member_as_filed: Mapped[str] = mapped_column(String(256))
     axis_as_filed: Mapped[str] = mapped_column(String(256))
+    # A context may carry more than the mapped member axis. Those qualifiers
+    # are part of the raw fact identity (AD-3) and must remain in provenance.
+    dimensions: Mapped[dict] = mapped_column(JSONB)
+    # Same context as `dimensions`, but with the mapped axis's filer-specific
+    # alias replaced by the stable `member_key`. This keeps an in-year rename
+    # from creating two current rows while preserving the verbatim dimensions
+    # above for citation and audit.
+    context_key: Mapped[dict] = mapped_column(JSONB)
     fiscal_year: Mapped[int] = mapped_column(index=True)
     period_end: Mapped[date] = mapped_column(Date)
     value: Mapped[float] = mapped_column(Numeric(28, 6))  # NUMERIC (AD-15)

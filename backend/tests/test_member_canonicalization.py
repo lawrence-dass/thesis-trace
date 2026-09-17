@@ -150,6 +150,99 @@ async def test_dimensioned_brand_facts_reach_the_member_store(db_session) -> Non
 
 
 @requires_db
+async def test_multi_axis_member_facts_keep_their_full_context_identity(db_session) -> None:
+    """Different extra qualifiers are distinct facts, not competing values."""
+    await _issuer(db_session, CPB, "CPB")
+    await _filing(db_session, CPB, FY2025_ACCN, 2025, date(2025, 8, 3))
+    db_session.add_all(
+        [
+            _fact(
+                FY2025_ACCN,
+                CARRYING,
+                "cpb:TrademarksKettleBrandMember",
+                date(2025, 8, 3),
+                400_000_000,
+                "kettle-context-a",
+                dimensions={
+                    AXIS: "cpb:TrademarksKettleBrandMember",
+                    "example:ContextAxis": "example:ContextAMember",
+                },
+            ),
+            _fact(
+                FY2025_ACCN,
+                CARRYING,
+                "cpb:TrademarksKettleBrandMember",
+                date(2025, 8, 3),
+                450_000_000,
+                "kettle-context-b",
+                dimensions={
+                    AXIS: "cpb:TrademarksKettleBrandMember",
+                    "example:ContextAxis": "example:ContextBMember",
+                },
+            ),
+        ]
+    )
+    await db_session.flush()
+    await seed_concept_mappings(db_session)
+
+    counts = await canonicalize_issuer(db_session, CPB)
+
+    assert counts["member_ambiguities_flagged"] == 0
+    rows = (
+        await db_session.execute(
+            select(CanonicalMemberFact).where(CanonicalMemberFact.superseded.is_(False))
+        )
+    ).scalars().all()
+    assert {(row.value, row.dimensions["example:ContextAxis"]) for row in rows} == {
+        (400_000_000, "example:ContextAMember"),
+        (450_000_000, "example:ContextBMember"),
+    }
+    second = await canonicalize_issuer(db_session, CPB)
+    assert second["member_facts_added"] == 0
+    assert second["member_facts_superseded"] == 0
+
+
+@requires_db
+async def test_member_ambiguity_key_includes_dimensions_and_is_idempotent(db_session) -> None:
+    """One context's unresolved conflict is reported once, including its context."""
+    await _issuer(db_session, CPB, "CPB")
+    first_accn = FY2025_ACCN
+    second_accn = "0000016732-25-000999"
+    await _filing(db_session, CPB, first_accn, 2025, date(2025, 8, 3))
+    await _filing(db_session, CPB, second_accn, 2025, date(2025, 8, 3))
+    dimensions = {
+        AXIS: "cpb:TrademarksKettleBrandMember",
+        "example:ContextAxis": "example:ContextAMember",
+    }
+    db_session.add_all(
+        [
+            _fact(first_accn, CARRYING, dimensions[AXIS], date(2025, 8, 3), 400_000_000,
+                  "ambiguous-a", dimensions=dimensions),
+            _fact(second_accn, CARRYING, dimensions[AXIS], date(2025, 8, 3), 450_000_000,
+                  "ambiguous-b", dimensions=dimensions),
+        ]
+    )
+    await db_session.flush()
+    await seed_concept_mappings(db_session)
+
+    first = await canonicalize_issuer(db_session, CPB)
+    second = await canonicalize_issuer(db_session, CPB)
+
+    assert first["member_ambiguities_flagged"] == 1
+    assert second["member_ambiguities_flagged"] == 0
+    issues = (
+        await db_session.execute(
+            select(DataQualityIssue).where(
+                DataQualityIssue.issue_type == "ambiguous_member_selection"
+            )
+        )
+    ).scalars().all()
+    assert len(issues) == 1
+    issue = issues[0]
+    assert issue.detail["dimensions"] == dimensions
+
+
+@requires_db
 async def test_event_dated_acquisition_fact_is_not_filtered_as_non_annual(db_session) -> None:
     """Acquisition facts are dated to the deal, not to the balance-sheet close."""
     await _issuer(db_session, CPB, "CPB")
@@ -328,6 +421,39 @@ async def test_a_renamed_member_stays_one_brand_in_the_store(db_session) -> None
         "cpb:TradeNamesKettleMember",
         "cpb:TrademarksKettleBrandMember",
     }, "each row must keep the name its own filing carried (AD-19)"
+
+
+@requires_db
+async def test_same_year_member_rename_does_not_create_two_current_rows(db_session) -> None:
+    """The stable member key also controls an in-year amendment rename."""
+    await _issuer(db_session, CPB, "CPB")
+    original = FY2025_ACCN
+    amendment = "0000016732-25-000999"
+    await _filing(db_session, CPB, original, 2025, date(2025, 8, 3))
+    await _filing(db_session, CPB, amendment, 2025, date(2025, 8, 3), form_type="10-K/A")
+    db_session.add_all(
+        [
+            _fact(original, CARRYING, "cpb:TradeNamesKettleMember", date(2025, 8, 3),
+                  400_000_000, "kettle-original"),
+            _fact(amendment, CARRYING, "cpb:TrademarksKettleBrandMember", date(2025, 8, 3),
+                  395_000_000, "kettle-amended"),
+        ]
+    )
+    await db_session.flush()
+    await seed_concept_mappings(db_session)
+
+    await canonicalize_issuer(db_session, CPB)
+
+    rows = (
+        await db_session.execute(
+            select(CanonicalMemberFact).where(CanonicalMemberFact.superseded.is_(False))
+        )
+    ).scalars().all()
+    assert len(rows) == 1
+    assert rows[0].member_key == "kettle"
+    assert rows[0].member_as_filed == "cpb:TrademarksKettleBrandMember"
+    assert rows[0].value == 395_000_000
+    assert rows[0].context_key[AXIS] == "kettle"
 
 
 @requires_db

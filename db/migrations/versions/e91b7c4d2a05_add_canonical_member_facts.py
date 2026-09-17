@@ -15,7 +15,8 @@ stable key cannot say which tag a figure came from.
 
 Supersession mirrors canonical_facts (c7e1f4a92b06) one dimension deeper rather
 than inventing a second pattern: a partial unique index over non-superseded
-rows, so a restated value is a new row and the prior one is kept.
+rows, so a restated value is a new row and the prior one is kept. The full
+multi-axis context is added to that key by the follow-up migration.
 
 Revision ID: e91b7c4d2a05
 Revises: c7e1f4a92b06

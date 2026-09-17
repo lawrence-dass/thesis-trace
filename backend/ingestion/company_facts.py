@@ -12,7 +12,7 @@ import hashlib
 import json
 from dataclasses import dataclass, field
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation, Overflow
 from canonicalization.taxonomies import ANNUAL_FORM_TYPES, FINANCIAL_TAXONOMIES
 
 
@@ -116,7 +116,13 @@ def precision_tolerance(decimals: int | None) -> Decimal:
     """
     if decimals is None:
         return Decimal(0)
-    return Decimal(10) ** (-decimals) / 2
+    try:
+        return Decimal(10) ** (-decimals) / 2
+    except (InvalidOperation, Overflow):
+        # A hostile or corrupt attribute must fail closed. Do not turn an
+        # unrepresentable exponent into an effectively unlimited tolerance,
+        # and do not abort ingestion of the whole filing.
+        return Decimal(0)
 
 
 def _content_hash(

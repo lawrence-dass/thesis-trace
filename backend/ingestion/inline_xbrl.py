@@ -26,6 +26,8 @@ an inconvenience (`cpb_segment_members_stable_but_tags_switch`).
 from __future__ import annotations
 
 import json
+import math
+import re
 from dataclasses import dataclass
 from xml.etree import ElementTree
 
@@ -183,6 +185,8 @@ def _parse_decimals(raw: str | None) -> int | None:
     text = raw.strip()
     if not text or text.upper() == "INF":
         return None
+    if re.fullmatch(r"[+-]?\d+", text) is None:
+        return None
     try:
         return int(text)
     except ValueError:
@@ -225,6 +229,8 @@ def parse_instance(
             value = float(node.text.strip())
         except ValueError:
             continue  # non-numeric despite carrying a unitRef
+        if not math.isfinite(value):
+            continue  # XBRL numeric facts cannot be NaN or infinite
 
         taxonomy, concept = _qname(node.tag, nsmap)
         if not taxonomy:

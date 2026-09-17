@@ -19,5 +19,11 @@ export const ISSUE_LABEL: Record<string, string> = {
 };
 
 export function issueLabel(issueType: string): string {
-  return ISSUE_LABEL[issueType] ?? issueType;
+  if (Object.prototype.hasOwnProperty.call(ISSUE_LABEL, issueType)) {
+    return ISSUE_LABEL[issueType];
+  }
+  const baseType = issueType.split(":", 1)[0];
+  return Object.prototype.hasOwnProperty.call(ISSUE_LABEL, baseType)
+    ? ISSUE_LABEL[baseType]
+    : issueType;
 }

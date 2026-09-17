@@ -37,6 +37,10 @@ MIGRATION = (
     Path(__file__).resolve().parents[2]
     / "db/migrations/versions/e91b7c4d2a05_add_canonical_member_facts.py"
 )
+DIMENSIONS_MIGRATION = (
+    Path(__file__).resolve().parents[2]
+    / "db/migrations/versions/d4f61a2b9c30_member_dimensions_identity.py"
+)
 
 
 def resolve(cik: str, concept: str, member: str) -> tuple[str, str] | None:
@@ -213,6 +217,7 @@ def test_the_store_key_carries_the_member() -> None:
         "member_key",
         "fiscal_year",
         "mapping_version",
+        "context_key",
     ]
     assert index.unique
 
@@ -232,12 +237,15 @@ def test_model_and_migration_do_not_drift() -> None:
     migrations, so a column added to the model without a migration would pass
     every other test in this suite and then fail against a real database."""
     migration = MIGRATION.read_text()
+    dimensions_migration = DIMENSIONS_MIGRATION.read_text()
     for column in CanonicalMemberFact.__table__.columns.keys():
-        assert f"'{column}'" in migration, (
-            f"{column} is on the model but not in {MIGRATION.name} — create_all hides this"
+        assert f"'{column}'" in migration or f'"{column}"' in dimensions_migration, (
+            f"{column} is on the model but not in the migrations — create_all hides this"
         )
     assert "uq_canonical_member_facts_key" in migration
-    assert "postgresql_where" in migration, "the partial unique index must survive the migration"
+    assert "postgresql_where" in migration and "context_key" in dimensions_migration, (
+        "the partial unique index and its normalized context identity must survive the migrations"
+    )
 
 
 # --- The filer's own total (story_13_3_first_live_pipeline_run) --------------

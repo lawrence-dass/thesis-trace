@@ -656,7 +656,14 @@ def test_inline_decimals_are_parsed_including_inf_and_junk() -> None:
     # without inventing a sentinel. Junk must never WIDEN a tolerance.
     assert _parse_decimals("INF") is None
     assert _parse_decimals("bogus") is None
+    assert _parse_decimals("1_0") is None
     assert _parse_decimals(None) is None
+
+
+def test_precision_tolerance_fails_closed_for_an_unrepresentable_exponent() -> None:
+    from ingestion.company_facts import precision_tolerance
+
+    assert precision_tolerance(-1_000_000) == Decimal(0)
 
 
 @requires_db
