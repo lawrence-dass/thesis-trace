@@ -138,15 +138,15 @@ def test_mapping_version_bumped_for_a_real_mapping_change() -> None:
     stored facts under earlier versions must stay addressable by their own specs.
 
     The version is pinned by name on purpose — a bump should be a deliberate edit
-    here, not something that rides along with a spec change. Last moved 2026-09-11
-    for concepts_v15 (Story 13.3's aggregate-total correction layered on the
-    first DIMENSIONED mappings in concepts_v14). The superseded-spec check is
+    here, not something that rides along with a spec change. Last moved 2026-09-17
+    for concepts_v16 (brand_intangible_carrying_value narrowed to brands only,
+    with the new excluded_members block). The superseded-spec check is
     deliberately NOT pinned: it derives the list from the registry's own
     history, so adding a version cannot quietly leave an older spec unprotected.
     """
     registry = yaml.safe_load((SPECS / "registry.yaml").read_text())
-    assert registry["mapping_version"] == "concepts_v15"
-    assert registry["taxonomies"]["us-gaap"] == "us-gaap_v14"
+    assert registry["mapping_version"] == "concepts_v16"
+    assert registry["taxonomies"]["us-gaap"] == "us-gaap_v15"
     assert registry["taxonomies"]["ifrs-full"] == "ifrs-full_v4"
     assert registry["derivations"] == "derivations_v5"
 
@@ -167,6 +167,7 @@ def test_mapping_version_bumped_for_a_real_mapping_change() -> None:
         "us-gaap_v11.yaml",
         "us-gaap_v12.yaml",
         "us-gaap_v13.yaml",
+        "us-gaap_v14.yaml",
         "ifrs-full_v1.yaml",
         "ifrs-full_v2.yaml",
         "ifrs-full_v3.yaml",

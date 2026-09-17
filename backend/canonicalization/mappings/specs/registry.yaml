@@ -151,10 +151,20 @@
 #                 prior concepts_v14 spec is retained unchanged on disk so rows
 #                 already stamped with it remain reproducible (AD-2).
 
-mapping_version: concepts_v15
+#   concepts_v16  us-gaap_v15 + ifrs-full_v4 + derivations_v5. A real mapping
+#                 change (story_13_3_zts_non_brand_intangibles_land_as_brand_value):
+#                 brand_intangible_carrying_value now resolves BRANDS only. ZTS's
+#                 in-process R&D and product rights, which concepts_v15 stored as
+#                 brand value, are declared under the new `excluded_members`
+#                 block instead. Bumped rather than amended because the dev
+#                 database already holds concepts_v15 rows: a spec is frozen once
+#                 any database stamps its version, merged or not. us-gaap_v14 is
+#                 retained unchanged so those rows stay reproducible (AD-2).
+
+mapping_version: concepts_v16
 
 taxonomies:
-  us-gaap: us-gaap_v14
+  us-gaap: us-gaap_v15
   ifrs-full: ifrs-full_v4
 
 derivations: derivations_v5

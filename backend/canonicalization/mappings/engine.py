@@ -151,6 +151,25 @@ class BrandMember:
 
 
 @dataclass(frozen=True)
+class ExcludedMember:
+    """A member the spec KNOWS and deliberately does not map.
+
+    The third state between mapped and unknown. An unknown member on a mapped
+    source raises `unmapped_member`, which is right for a gap nobody has looked
+    at and wrong for a recorded decision: without this, a decision such as "ZTS's
+    in-process R&D is not a brand" would surface as a needs_review warning every
+    night (story_13_3_zts_non_brand_intangibles_land_as_brand_value). Scoped per
+    filer like BrandMember, because an exclusion is a claim about that filer's
+    own tagging.
+    """
+
+    issuer_cik: str
+    member_key: str
+    aliases: tuple[str, ...]
+    reason: str
+
+
+@dataclass(frozen=True)
 class DerivationRule:
     """A canonical concept COMPUTED from other canonical concepts, not read from a
     filed tag. `rule` is the name recorded on CanonicalFact.derivation."""
@@ -200,6 +219,7 @@ class MappingSpec:
     # Dimensioned rules, and the members they resolve through.
     dimensioned_rules: tuple[DimensionedRule, ...]
     brand_members: tuple[BrandMember, ...]
+    excluded_members: tuple[ExcludedMember, ...]
     # (issuer_cik, taxonomy, source concept, axis, member AS FILED) -> (canonical
     # concept, member_key). Keyed by issuer because a generic member such as
     # us-gaap:TradeNamesMember can be used by two filers for different assets,
@@ -359,6 +379,47 @@ def _load_brand_members(spec_version: str) -> tuple[BrandMember, ...]:
     return tuple(members)
 
 
+def _load_excluded_members(spec_version: str) -> tuple[ExcludedMember, ...]:
+    data = yaml.safe_load((SPECS_DIR / f"{spec_version}.yaml").read_text())
+    return tuple(
+        ExcludedMember(
+            issuer_cik=str(issuer_cik),
+            member_key=member_key,
+            aliases=tuple(body["aliases"]),
+            reason=body.get("reason") or "",
+        )
+        for issuer_cik, entries in (data.get("excluded_members") or {}).items()
+        for member_key, body in entries.items()
+    )
+
+
+def _check_exclusions(
+    members: tuple[BrandMember, ...], excluded: tuple[ExcludedMember, ...]
+) -> None:
+    """An exclusion must say why, and must not contradict a mapping.
+
+    A member both mapped and excluded would be silently resolved (the lookup
+    wins) while the spec claims it is kept out, which is the conformance rule's
+    failure shape: the claim false and nothing failing.
+    """
+    mapped = {(m.issuer_cik, alias): m.member_key for m in members for alias in m.aliases}
+    for entry in excluded:
+        if not entry.reason.strip():
+            raise ValueError(
+                f"excluded member {entry.member_key!r} states no reason — an exclusion "
+                "is a mapping decision and has to carry its argument"
+            )
+        if not entry.aliases:
+            raise ValueError(f"excluded member {entry.member_key!r} declares no aliases")
+        for alias in entry.aliases:
+            owner = mapped.get((entry.issuer_cik, alias))
+            if owner is not None:
+                raise ValueError(
+                    f"{alias!r} is both mapped (as {owner!r}) and excluded (as "
+                    f"{entry.member_key!r}) for issuer {entry.issuer_cik}"
+                )
+
+
 def _resolve_members(
     dimensioned: tuple[DimensionedRule, ...], members: tuple[BrandMember, ...]
 ) -> dict[tuple[str, str, str, str, str], tuple[str, str]]:
@@ -476,10 +537,13 @@ def load_mapping_spec() -> MappingSpec:
     rules: tuple[MappingRule, ...] = ()
     dimensioned: tuple[DimensionedRule, ...] = ()
     members: tuple[BrandMember, ...] = ()
+    excluded: tuple[ExcludedMember, ...] = ()
     for spec_version in registry["taxonomies"].values():
         rules += _load_taxonomy_rules(spec_version)
         dimensioned += _load_dimensioned_rules(spec_version)
         members += _load_brand_members(spec_version)
+        excluded += _load_excluded_members(spec_version)
+    _check_exclusions(members, excluded)
 
     # One source tag must not map to two canonical concepts: canonicalization looks
     # up (taxonomy, concept) and a duplicate would make the winner load-order-dependent.
@@ -531,6 +595,7 @@ def load_mapping_spec() -> MappingSpec:
         non_negative_concepts=frozenset(r.canonical_concept for r in rules if r.non_negative),
         dimensioned_rules=dimensioned,
         brand_members=members,
+        excluded_members=excluded,
         member_resolution=member_resolution,
         member_source_priority=member_source_priority,
         member_period_policy=member_period_policy,
@@ -581,6 +646,9 @@ NON_NEGATIVE_CONCEPTS: frozenset[str] = _SPEC.non_negative_concepts
 # above, and canonicalize.py routes them here instead.
 DIMENSIONED_RULES: tuple[DimensionedRule, ...] = _SPEC.dimensioned_rules
 BRAND_MEMBERS: tuple[BrandMember, ...] = _SPEC.brand_members
+# Known members deliberately kept out of every dimensioned concept. Consulted by
+# canonicalize.py only to stay silent about them; they never resolve anything.
+EXCLUDED_MEMBERS: tuple[ExcludedMember, ...] = _SPEC.excluded_members
 
 # (issuer_cik, taxonomy, source concept, axis, member as filed) -> (canonical
 # concept, stable member_key). The member goes IN as the filer wrote it that

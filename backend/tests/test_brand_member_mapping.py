@@ -21,10 +21,13 @@ from app.models import CanonicalMemberFact
 from canonicalization.mappings.engine import (
     BRAND_MEMBERS,
     DIMENSIONED_RULES,
+    EXCLUDED_MEMBERS,
     MEMBER_LABELS,
     MEMBER_RESOLUTION,
     BrandMember,
     DimensionedRule,
+    ExcludedMember,
+    _check_exclusions,
     _resolve_members,
 )
 
@@ -137,9 +140,9 @@ def test_suppressing_impairment_does_not_suppress_the_filer_entirely() -> None:
         "brand_intangible_carrying_value",
         "brands",
     )
-    assert resolve(QSR, CARRYING, "us-gaap:FranchiseRightsMember") == (
+    assert resolve(QSR, CARRYING, "us-gaap:TradeNamesMember") == (
         "brand_intangible_carrying_value",
-        "franchise_rights",
+        "trade_names",
     )
 
 
@@ -292,3 +295,73 @@ def test_the_total_concept_is_reachable_only_through_the_aggregate_member() -> N
         if canonical == "brand_intangible_carrying_value_total"
     }
     assert claimants == {"all_trademarks"}
+
+
+# --- brand means brand (story_13_3_zts_non_brand_intangibles_land_as_brand_value)
+
+
+def test_zts_non_brand_intangible_classes_never_resolve_as_brand_value() -> None:
+    """IPR&D and product rights are tagged on the SAME indefinite-lived axis as
+    zts:BrandsMember (live dev store: 8 rows each, FY2018-FY2025). Resolving them
+    stored in-process R&D as brand value, which Story 13.4 would then have
+    reported as brand performance."""
+    assert resolve(ZTS, CARRYING, "us-gaap:InProcessResearchAndDevelopmentMember") is None
+    assert resolve(ZTS, CARRYING, "zts:ProductRightsMember") is None
+    assert resolve(ZTS, CARRYING, "us-gaap:DevelopedTechnologyRightsMember") is None
+    assert resolve(ZTS, CARRYING, "us-gaap:OtherIntangibleAssetsMember") is None
+    assert resolve(ZTS, CARRYING, "zts:BrandsMember") == (
+        "brand_intangible_carrying_value",
+        "brands",
+    )
+
+
+def test_qsr_franchise_intangibles_are_not_brands() -> None:
+    assert resolve(QSR, CARRYING, "us-gaap:FranchiseRightsMember") is None
+    assert resolve(QSR, CARRYING, "qsr:FranchiseAgreementMember") is None
+    assert resolve(QSR, CARRYING, "us-gaap:TradeNamesMember") == (
+        "brand_intangible_carrying_value",
+        "trade_names",
+    )
+
+
+def test_every_brand_member_is_a_brand_or_an_explicit_aggregate() -> None:
+    """A member with no routing resolves brand_intangible_carrying_value, so it is
+    asserting "this is a brand". The only non-brand members allowed on the spec
+    are routed ones (maps_to / canonical_concepts), whose notes say what they
+    are instead."""
+    non_brand_words = ("research", "r&d", "product rights", "technology", "franchise",
+                       "customer", "lease", "other intangible")
+    for member in BRAND_MEMBERS:
+        if member.maps_to or member.canonical_concepts:
+            continue
+        label = member.label.lower()
+        assert not any(word in label for word in non_brand_words), (
+            f"{member.issuer_cik}/{member.member_key} ({member.label}) would land as a "
+            "brand; declare it under excluded_members instead"
+        )
+
+
+def test_every_exclusion_states_why_and_is_not_also_mapped() -> None:
+    assert EXCLUDED_MEMBERS, "the recorded exclusions must be executable data"
+    mapped = {(m.issuer_cik, alias) for m in BRAND_MEMBERS for alias in m.aliases}
+    for excluded in EXCLUDED_MEMBERS:
+        assert excluded.reason.strip(), f"{excluded.member_key} has no reason"
+        for alias in excluded.aliases:
+            assert (excluded.issuer_cik, alias) not in mapped
+
+
+def test_a_member_cannot_be_both_mapped_and_excluded() -> None:
+    brand = BrandMember(issuer_cik=ZTS, member_key="x", label="X", aliases=("zts:XMember",))
+    excluded = ExcludedMember(
+        issuer_cik=ZTS, member_key="x_excluded", aliases=("zts:XMember",), reason="not a brand"
+    )
+    with pytest.raises(ValueError, match="both mapped .* and excluded"):
+        _check_exclusions((brand,), (excluded,))
+
+
+def test_an_exclusion_without_a_reason_is_rejected() -> None:
+    excluded = ExcludedMember(
+        issuer_cik=ZTS, member_key="x", aliases=("zts:XMember",), reason="  "
+    )
+    with pytest.raises(ValueError, match="reason"):
+        _check_exclusions((), (excluded,))

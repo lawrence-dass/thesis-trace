@@ -534,6 +534,66 @@ async def test_zts_impairment_never_reaches_the_member_store(db_session) -> None
 
 
 @requires_db
+async def test_an_excluded_member_is_withheld_without_a_warning(db_session) -> None:
+    """The third state between mapped and unknown: known and deliberately excluded.
+
+    ZTS tags in-process R&D on the same axis and concept as its brands. It must
+    not land as brand value, and because that is a recorded decision rather than
+    a gap it must not raise an unmapped_member warning every night either.
+    """
+    accn = "0001555280-26-000011"
+    await _issuer(db_session, ZTS, "ZTS")
+    await _filing(db_session, ZTS, accn, 2025, date(2025, 12, 31))
+    db_session.add_all(
+        [
+            _fact(accn, CARRYING, "zts:BrandsMember",
+                  date(2025, 12, 31), 900_000_000, "zts-brands"),
+            _fact(accn, CARRYING, "us-gaap:InProcessResearchAndDevelopmentMember",
+                  date(2025, 12, 31), 400_000_000, "zts-iprd"),
+            _fact(accn, CARRYING, "zts:ProductRightsMember",
+                  date(2025, 12, 31), 100_000_000, "zts-product-rights"),
+        ]
+    )
+    await db_session.flush()
+    await seed_concept_mappings(db_session)
+
+    counts = await canonicalize_issuer(db_session, ZTS)
+
+    assert counts["member_unmapped_flagged"] == 0
+    rows = (
+        await db_session.execute(
+            select(CanonicalMemberFact).where(CanonicalMemberFact.superseded.is_(False))
+        )
+    ).scalars().all()
+    assert [(r.canonical_concept, r.member_key) for r in rows] == [
+        ("brand_intangible_carrying_value", "brands")
+    ]
+    assert (
+        await db_session.execute(
+            select(DataQualityIssue).where(DataQualityIssue.issue_type == "unmapped_member")
+        )
+    ).scalars().all() == []
+
+
+@requires_db
+async def test_an_exclusion_is_scoped_to_its_own_filer(db_session) -> None:
+    """ZTS's exclusion is a claim about ZTS's filings. The same standard member
+    appearing for CPB has been verified by nobody, so it is still flagged."""
+    await _issuer(db_session, CPB, "CPB")
+    await _filing(db_session, CPB, FY2025_ACCN, 2025, date(2025, 8, 3))
+    db_session.add(
+        _fact(FY2025_ACCN, CARRYING, "us-gaap:InProcessResearchAndDevelopmentMember",
+              date(2025, 8, 3), 1_000_000, "cpb-iprd")
+    )
+    await db_session.flush()
+    await seed_concept_mappings(db_session)
+
+    counts = await canonicalize_issuer(db_session, CPB)
+
+    assert counts["member_unmapped_flagged"] == 1
+
+
+@requires_db
 async def test_member_selection_is_idempotent(db_session) -> None:
     """`pipeline/run.py` is a daily cron over the same facts: a writer without an
     idempotency key accumulates a row per night."""

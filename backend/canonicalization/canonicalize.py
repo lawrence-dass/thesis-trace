@@ -44,6 +44,7 @@ from app.models import (
 )
 from canonicalization.mappings import (
     BRAND_MEMBERS,
+    EXCLUDED_MEMBERS,
     DERIVATION_RULES,
     DIMENSIONED_RULES,
     MAPPING_VERSION,
@@ -666,7 +667,7 @@ async def _canonicalize_members(
 
     known_member_aliases = {
         (member.issuer_cik, alias)
-        for member in BRAND_MEMBERS
+        for member in (*BRAND_MEMBERS, *EXCLUDED_MEMBERS)
         for alias in member.aliases
     }
     applicable_rule_sources = {
