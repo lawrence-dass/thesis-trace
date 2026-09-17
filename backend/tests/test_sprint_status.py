@@ -122,6 +122,7 @@ CURATED_SECTIONS = (
     "story_13_3_first_live_pipeline_run",
     "story_13_3_data_quality_issues_are_write_only",
     "story_13_3_zts_non_brand_intangibles_land_as_brand_value",
+    "story_13_3_multi_axis_member_identity_verified",
 )
 
 pytestmark = pytest.mark.skipif(

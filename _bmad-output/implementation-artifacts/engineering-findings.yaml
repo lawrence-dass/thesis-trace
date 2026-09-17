@@ -5284,6 +5284,9 @@ story_13_3_first_live_pipeline_run:
     was flagged, nothing was guessed, nothing landed. But the member model is
     single-axis and at least one filer in the universe is not. This is an
     unmodelled case, not a defect in the selection.
+    RESOLVED by a89fc86 (full multi-axis context identity) — see
+    story_13_3_multi_axis_member_identity_verified for what QSR turned out to
+    contain.
   finding_4_source_conflict_fires_on_precision_not_disagreement: >
     ZTS raised 34 source_conflict rows, the first time that writer has ever
     emitted. NOT ONE is a genuine divergence: every pair is the same measurement
@@ -5418,3 +5421,73 @@ story_13_3_zts_non_brand_intangibles_land_as_brand_value:
     PRE-EXISTING in the 13.3 spec as merged into this PR, and NOT touched by the
     finding-1 fix: mapping CPB's aggregate changed nothing about which ZTS
     members resolve. Left for a decision rather than silently re-scoped.
+
+story_13_3_multi_axis_member_identity_verified:
+  status: done
+  found: 2026-09-17
+  found_by: >
+    Verifying Codex's second review round (a89fc86), which it committed without
+    running any database test because the local Postgres container had exited.
+    Its riskiest change — a new migration with a data BACKFILL — was therefore
+    untested against any populated database.
+  question: >
+    Does d4f61a2b9c30 migrate a real populated store safely, does the new
+    context identity stay idempotent, and what does QSR actually contain once
+    member identity reads every axis?
+  finding: >
+    THE MIGRATION IS SAFE, AND QSR HAS PER-BRAND BRAND VALUES AFTER ALL.
+    Verified in order: full chain base->head on an empty scratch DB, then down
+    one and back up; the backfill on a pg_dump COPY of the populated dev store
+    (82 rows, 0 left with NULL dimensions or context_key); downgrade on the
+    populated copy refused and rolled back as designed; only then applied to dev.
+    496 backend tests pass including every DB test. Two consecutive
+    canonicalization passes under concepts_v15: the second added, superseded and
+    flagged nothing for CPB, ZTS or QSR. The Python normalization
+    (_dimension_identity) and the SQL backfill (jsonb_set of the mapped axis to
+    member_key) agree: every axis verbatim except the mapped one, which becomes
+    the canonical member_key, so Kettle's FY2023 double-s typo is kept in
+    `dimensions` and normalized to `kettle` in `context_key`.
+  qsr_per_brand_trade_names: >
+    QSR went from 0 member facts and 8 ambiguities to 30 member facts and 0
+    ambiguities. The "three values in one year" were never a conflict: its
+    us-gaap:TradeNamesMember facts are split by us-gaap:StatementBusinessSegmentsAxis,
+    one per restaurant brand — FY2019 Tim Hortons 6,534M, Burger King 2,117M,
+    Popeyes 1,355M; FY2024 Tim Hortons 5,972M, Burger King 2,068M, Popeyes
+    1,355M, Firehouse Subs 816M (acquired December 2021). No undimensioned-by-
+    segment total row exists alongside them, so there is no double count.
+    This CORRECTS story_13_3_brand_member_live_verification's picture of QSR:
+    it has no per-brand IMPAIRMENT (still true), but it does have per-brand
+    trade-name carrying value, reached through the segment axis rather than the
+    intangible-class axis.
+  consequence_for_13_4_and_13_7: >
+    For QSR every one of those rows has member_key "trade_names"; the BRAND is
+    the segment member inside context_key. A consumer that labels or groups by
+    member_key alone would show four rows all called "Trade names" and lose
+    which brand each is. 13.4/13.7 must read the brand from context_key for QSR,
+    and must not assume member_key names a brand for every filer.
+  data_quality_issues_are_not_versioned: >
+    Sharpens story_13_3_data_quality_issues_are_write_only. The 8 QSR ambiguity
+    rows were raised under concepts_v14 and carry no mapping_version, so the
+    concepts_v15 bump that resolved their cause left them live — on a deployed
+    database they would have rendered on QSR's report indefinitely, describing an
+    ambiguity that no longer exists. Codex's transitional code treats such
+    legacy rows as wildcards, which correctly prevents a DUPLICATE but cannot
+    retire the ORIGINAL. Deleted by hand in dev only.
+  stale_v14_rows: >
+    The six concepts_v14 brand_intangible_carrying_value_total rows were
+    produced by the in-place amendment of us-gaap_v13 that a89fc86 reverted. Once
+    v13 was restored they claimed a spec that never produced them — exactly the
+    AD-2 reproducibility failure the version bump exists to prevent, confirming
+    Codex was right to overrule the in-place amendment. Deleted from dev; the 76
+    other v14 rows are reproducible from the restored spec and were kept.
+  tolerance_has_no_ceiling: >
+    Asked of Codex and not added: precision_tolerance has an overflow guard but
+    no upper bound, so a filer declaring decimals="-12" on a fact gets a
+    +/-500,000,000,000 tolerance. Left deliberately: AD-4 still keeps the Company
+    Facts value and never writes the Inline one, so the worst case is a MISSED
+    warning, never a wrong figure.
+  not_verified: >
+    Browser render. Port 8000 was held by another local process not serving this
+    project (its /health answered with a different payload on each check), and
+    that process was not this session's to stop. Verified at the API-free
+    database level instead.
