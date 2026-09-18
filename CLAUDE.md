@@ -43,11 +43,86 @@ grep -n "pattern" bigdoc.md                    # locate a section before reading
 3. **Explain in plain language.** After each major task, give an easy-to-read recap of what was done and how to review it, so Lawrence can step away and come back without digging.
 4. **Ask for all permissions in one go.** Before starting research or any multi-fetch task, list every web domain, live API fetch, or approval the whole task will need and ask **once**. Never drip-feed one approval at a time — it turns a single task into a chain of interruptions for no added safety, since the activity itself is already approved. Applies equally to the standing "ask before live EDGAR fetch" rule: name all the tickers/CIKs in a single request.
 
+   **The mechanical half of this is now pre-granted** in `.claude/settings.json`: local
+   commands (uv/pytest/ruff/alembic, the `thesistrace-pg` container, npm/next, lsof, curl to
+   localhost) and the `data.sec.gov` / `www.sec.gov` domains no longer prompt. That file
+   replaced 201 accumulated one-off entries — 38 separate `curl -s` strings, 7 variants of
+   the same pytest command — which is why prompts kept firing despite a long allowlist.
+   **The editorial obligation is unchanged:** name every ticker and CIK you are about to
+   fetch, in one message, BEFORE fetching. The permission is pre-granted; the disclosure is
+   not optional, because its purpose is data integrity, not access control.
+
 ## Project shape
 
 - BMad planning-driven project. Planning artifacts live under `_bmad-output/`.
 - Canonical contract: `_bmad-output/specs/spec-thesistrace/SPEC.md` (+ its adopted companions: the architecture spine, the PRD, and `foundational-decisions.md`).
 - Deterministic/LLM boundary is inviolable: all scores/numbers are computed deterministically; the LLM only explains and cites, never originates a figure.
+
+## Running things — use `make`, not a command chain
+
+`make` with no target lists everything. **Use the target, not the underlying command**,
+even when the chain is short.
+
+This is not cosmetic. A permission rule is a PREFIX match, and 47% of this project's
+3,254 recorded shell calls were unmatchable by any rule: 39% chained three or more
+segments, 13% were `python3 - <<'PY'` heredocs, and 8% opened with `set -a && source
+../.env`. The single most frequent blocked segment in the project's whole history is
+`set +a`. Every one of those was a prompt for Lawrence. `Bash(make *)` covers all of it.
+
+- **Tests are `make test`**, which REFUSES to run when `TEST_DATABASE_URL` is unset or
+  equal to `DATABASE_URL`. The teardown drops every table, and that near-miss was
+  previously prevented only by a rule in a document (see Anti-Patterns in
+  `project-context.md`). It is now prevented by the tool.
+- **One-off analysis goes in a FILE**, run with `make py F=<path>` — the scratchpad for
+  throwaway work, `scripts/` for anything worth keeping. Never a heredoc: it cannot be
+  allowlisted (it contains arbitrary code), it cannot be re-run, and it leaves no artifact
+  to review.
+- **Servers are `make api` (:8001) and `make web` (:3001).** Port 8000 belongs to
+  Lawrence's riskpulse dev server — do not take it, and do not kill what is on it.
+- Adding a workflow? Add a target with a `##` comment. A command typed twice is a
+  missing target.
+
+## Story workflow (read before starting a story)
+
+Measured 2026-09-18 against `reslint`, the sibling BMad project: reslint averages **1.15
+commits per story** and clears 4-8 stories a day; ThesisTrace's Story 13.3 took **19
+commits over 8 days**, shipped three mapping versions, and was declared "complete" seven
+days before it merged. The quality bar is not the difference — reslint's own Epic 29, where
+it began verifying an LLM instead of trusting it, slowed to the same pace. The difference is
+that reslint stories are BOUNDED and ThesisTrace's were not.
+
+1. **No implementation without a story file.** Run `bmad-create-story` first and write
+   `_bmad-output/implementation-artifacts/<epic>-<story>-<slug>.md`: numbered acceptance
+   criteria, then a task checklist. **The checklist is the exit condition** — when the boxes
+   are ticked the story is over, even if the system is still interesting. reslint has 37 of
+   these files; ThesisTrace had 2 (stories 1.1 and 5.7), and everything after Epic 5 was
+   implemented straight from `epics.md` prose. That is the whole gap. `epics.md` ACs
+   describe a destination; the story checklist describes a stopping point, and detail in the
+   wrong artifact reads like coverage.
+
+2. **One outcome per story.** Compare the two title shapes: reslint's "credit a keyword
+   everywhere it appears" against 13.3's "brand-intangible concept mapping across the
+   US-GAAP filers" (three filers, fourteen members, a new engine mechanism, a migration and
+   an audit projection). **Split immediately when either trigger fires:**
+   - the story needs a SECOND spec/mapping version, or
+   - it opens a finding its own ACs do not require.
+
+   Both fired twice in 13.3. When splitting genuinely risks two artifacts disagreeing — the
+   argument 13.3's own AC made for staying whole — ship the artifacts in one story and move
+   the PER-FILER data into the next one; the risk lives in the mechanism, not in the data.
+
+3. **Ship the fix, defer the finding.** A discovery is BLOCKING only if it contradicts this
+   story's own ACs, or a wrong figure is already user-visible. Everything else becomes a new
+   story and the current one merges. Default is defer. The ZTS brand-concept question was
+   found on 2026-09-15 and blocked Story 13.4, not 13.3 — deferring it would have merged
+   13.3 four days earlier with nothing lost. This rule does NOT relax the Definition of Done
+   below; it decides which story the DoD is applied in.
+
+4. **Ask a blocking decision the moment it surfaces, with a recommendation.** Lawrence
+   confirmed 2026-09-18 that mid-story decisions and review handoffs do NOT break his flow —
+   mechanical approvals do (see standing preference 4). Parking a decision in a handover
+   turned a two-minute call into three days of latency. Ask immediately, batched with any
+   other open questions, and say which option you recommend.
 
 ## Definition of Done — live-data stories (read before calling one finished)
 
@@ -80,6 +155,9 @@ written analysis of that exact helper. Rendering the page is what found both.
    outcome while asserting nothing.
 7. **Record the verification** in `engineering-findings.yaml`, and **ask for every
    domain, ticker and CIK in one request** (standing preference 4).
+8. **Triage what the verification finds** — blocking vs deferred, per rule 3 of the story
+   workflow above. Every one of the six defects that reopened Story 13.3 was real; only two
+   of them blocked 13.3's own acceptance criteria.
 
 Full incident record: `.claude/context/project-context.md`.
 
