@@ -208,4 +208,23 @@
 - **Read the metadata that states a mechanism before inferring it from the numbers' shape.** 22 ZTS share-count conflicts were written up as an as-of-date mismatch because 501,900,000 "didn't look rounded". Their XBRL `decimals="-5"` said otherwise.
 - **An unmapped-X guard needs three states, not two:** mapped, unknown, and known-and-deliberately-excluded. Without the third, a recorded mapping decision becomes a permanent nightly warning.
 - **A history rewrite invalidates every commit id cited anywhere,** in messages and in files. Remap them in the same pass (`git filter-branch`'s `map`), keep both dates (`filter-branch` preserves committer dates; a plain rebase does not), and pin the force-push lease to the exact remote id.
+- **A concept name is a CLAIM about every row in it, and the axis does not enforce it.**
+  `IndefiniteLivedIntangibleAssetsByMajorClassAxis` carries every indefinite-lived
+  class, so `brand_intangible_carrying_value` quietly collected ZTS's in-process R&D
+  and product rights (8 rows each) while the SAME spec excluded customer and lease
+  intangibles as "a different asset class". Two exclusions and three inclusions could
+  not both be right. When a mapping admits members by axis, check what else that axis
+  carries for each filer — and when two entries in one spec imply different readings
+  of a concept, that is the finding.
+  [Source: `engineering-findings.yaml#story_13_3_zts_non_brand_intangibles_land_as_brand_value`]
+- **Deleting a mapping turns a decision into a nightly warning — exclusions need to be
+  DATA.** An unmapped-X guard needs three states (mapped / unknown / known-and-excluded);
+  without the third, removing a member makes it unknown and the guard flags it forever.
+  `us-gaap_v15`'s `excluded_members` is that third state: it never resolves, never
+  flags, is rejected at load if it carries no reason or is also mapped, and is scoped
+  per filer so the same member at an unverified filer is still flagged.
+- **The latent instance is worth the same grep as the live one.** ZTS's leak was live;
+  QSR's franchise rights and agreements were the identical defect one filing from
+  landing (both tagged finite-lived only today). The `compactAmount` lesson in reverse —
+  there the documented case was safe and its undocumented sibling was live.
 - **"Backend unreachable" can mean another app owns the port.** Before assuming this project's server died, check `lsof -iTCP:<port>` and that process's working directory. Port 8000 is often Lawrence's riskpulse dev server; render ThesisTrace on a spare port via `NEXT_PUBLIC_API_BASE_URL`.

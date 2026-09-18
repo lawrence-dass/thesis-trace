@@ -5386,7 +5386,7 @@ story_13_3_data_quality_issues_are_write_only:
     the writer is built rather than the first time a fix lands.
 
 story_13_3_zts_non_brand_intangibles_land_as_brand_value:
-  status: open
+  status: done
   found: 2026-09-15
   found_by: >
     Checking, during the finding-1 fix, why ZTS's
@@ -5421,6 +5421,50 @@ story_13_3_zts_non_brand_intangibles_land_as_brand_value:
     PRE-EXISTING in the 13.3 spec as merged into this PR, and NOT touched by the
     finding-1 fix: mapping CPB's aggregate changed nothing about which ZTS
     members resolve. Left for a decision rather than silently re-scoped.
+  decision: >
+    2026-09-17, Lawrence: the concept MEANS BRANDS. Fixed in PR #138 rather than
+    deferred to 13.4, so the store 13.4 consumes never held the wrong figures.
+    us-gaap_v15 / concepts_v16 resolve zts:BrandsMember only; every other class
+    ZTS tags is declared under the new `excluded_members` block. The reading that
+    was rejected — the concept as the whole indefinite-lived CLASS breakdown —
+    would have required deleting the CustomerRelationships and
+    OffMarketFavorableLease exclusions and renaming the concept, and would have
+    put three different asset classes behind one "brand performance" headline.
+  fix: >
+    `excluded_members` is a new engine capability, and the reason it was needed
+    rather than just deleting the four ZTS members: a deleted member becomes
+    UNKNOWN, and an unknown member on a mapped source raises `unmapped_member`
+    every night. An unmapped-X guard needs three states — mapped, unknown, and
+    known-and-deliberately-excluded — which is the same lesson the
+    brand_intangible_carrying_value_total fix produced one version earlier, now
+    generalized. Enforced at load: an exclusion with no reason, or one that is
+    also mapped, raises. Scoped per filer, so the same standard member at an
+    unverified filer is still flagged (tested both ways).
+  also_corrected: >
+    QSR was listed with franchise_rights and franchise_agreements as brand
+    members. Franchise rights are reacquired contractual rights and franchise
+    agreements are contracts; the dev store shows both tagged ONLY on
+    us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis, so neither ever landed a
+    row — a latent instance of the same defect, one filing away from landing.
+    The spec's note claiming QSR's brand value "sits in franchise rights and
+    trade names" is wrong on the first half and is corrected. The two exclusions
+    that existed only as a YAML comment (CustomerRelationshipsMember for CPB and
+    ZTS, OffMarketFavorableLeaseMember for QSR) are now executed data.
+  verified_live: >
+    2026-09-18 against the dev database, from stored raw facts, no EDGAR fetch.
+    ZTS went from 24 member rows to 8 (brands only, FY2018-FY2025, 104M falling
+    to 67M); CPB's 58 and QSR's 30 are unchanged. Zero unmapped_member issues
+    exist afterwards, which is the point of the exclusion block. A second
+    canonicalization pass over CPB/ZTS/QSR added, superseded and flagged nothing.
+    All nine dev filers were re-canonicalized, not just the three: six were still
+    on concepts_v13 and the debt queries filter on mapping_version (the
+    half-degraded-page state recorded 2026-08-05). Rendered CPB, ZTS, QSR, CP and
+    SU: CP's CAD repayment schedule and SU's near-term debt headline were chosen
+    because they exercise MaturityProfile and NearTermDebtShare, the two
+    components the compactAmount defect hid in. Zero console errors; the only
+    warnings on any page are CP's nine pre-existing ambiguous_selection rows,
+    which predate this change and cannot be retracted
+    (story_13_3_data_quality_issues_are_write_only).
 
 story_13_3_multi_axis_member_identity_verified:
   status: done
