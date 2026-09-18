@@ -594,6 +594,49 @@ async def test_an_exclusion_is_scoped_to_its_own_filer(db_session) -> None:
 
 
 @requires_db
+async def test_a_known_member_on_an_unruled_concept_is_still_flagged(db_session) -> None:
+    """Codex round, PR #138: suppression must follow the DECISION, not the name.
+
+    CPB's residual bucket maps to the residual carrying-value concept. If CPB ever
+    tags an IMPAIRMENT against that same member, the spec has not ruled on what that
+    means — `maps_to` answers where the carrying value goes, not that the member can
+    never be impaired. Keying suppression on (issuer, alias) dropped such a fact
+    silently; it must raise unmapped_member instead.
+    """
+    await _issuer(db_session, CPB, "CPB")
+    await _filing(db_session, CPB, FY2025_ACCN, 2025, date(2025, 8, 3))
+    db_session.add_all(
+        [
+            _fact(FY2025_ACCN, CARRYING, "cpb:TrademarksOtherMember",
+                  date(2025, 8, 3), 500_000_000, "residual-carrying"),
+            _fact(FY2025_ACCN, IMPAIRMENT, "cpb:TrademarksOtherMember",
+                  date(2025, 8, 3), 25_000_000, "residual-impairment"),
+        ]
+    )
+    await db_session.flush()
+    await seed_concept_mappings(db_session)
+
+    counts = await canonicalize_issuer(db_session, CPB)
+
+    assert counts["member_unmapped_flagged"] == 1
+    rows = (
+        await db_session.execute(
+            select(CanonicalMemberFact).where(CanonicalMemberFact.superseded.is_(False))
+        )
+    ).scalars().all()
+    assert [(r.canonical_concept, r.member_key) for r in rows] == [
+        ("brand_intangible_carrying_value_residual", "other_trade_names")
+    ]
+    issue = (
+        await db_session.execute(
+            select(DataQualityIssue).where(DataQualityIssue.issue_type == "unmapped_member")
+        )
+    ).scalar_one()
+    assert issue.detail["source_concept"] == IMPAIRMENT
+    assert issue.detail["member_as_filed"] == "cpb:TrademarksOtherMember"
+
+
+@requires_db
 async def test_member_selection_is_idempotent(db_session) -> None:
     """`pipeline/run.py` is a daily cron over the same facts: a writer without an
     idempotency key accumulates a row per night."""

@@ -161,10 +161,19 @@
 #                 any database stamps its version, merged or not. us-gaap_v14 is
 #                 retained unchanged so those rows stay reproducible (AD-2).
 
-mapping_version: concepts_v16
+#   concepts_v17  us-gaap_v16 + ifrs-full_v4 + derivations_v5. A real mapping
+#                 change (the Codex round on PR #138): CPB's own residual trade-name
+#                 bucket moves out of brand_intangible_carrying_value into
+#                 brand_intangible_carrying_value_residual. concepts_v16 answered
+#                 "is everything in this concept a brand" for ZTS and left CPB's
+#                 residual behind. Bumped, not amended: the dev database already
+#                 holds concepts_v16 rows, and a spec is frozen the moment any
+#                 database stamps its version.
+
+mapping_version: concepts_v17
 
 taxonomies:
-  us-gaap: us-gaap_v15
+  us-gaap: us-gaap_v16
   ifrs-full: ifrs-full_v4
 
 derivations: derivations_v5

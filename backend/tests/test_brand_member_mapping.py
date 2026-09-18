@@ -365,3 +365,51 @@ def test_an_exclusion_without_a_reason_is_rejected() -> None:
     )
     with pytest.raises(ValueError, match="reason"):
         _check_exclusions((), (excluded,))
+
+
+# --- the residual bucket is not a brand either (Codex round, PR #138) --------
+
+RESIDUAL = "brand_intangible_carrying_value_residual"
+
+
+def test_cpb_residual_bucket_is_not_stored_as_a_brand() -> None:
+    """us-gaap_v15 answered "is everything in this concept a brand" for ZTS and left
+    CPB's own residual behind: 9 raw facts over two per-era aliases resolving into
+    brand_intangible_carrying_value while the spec note called it "not a brand".
+    Its original justification — reconciling the per-brand rows against the total —
+    was disproved by arithmetic in v14."""
+    for alias in ("cpb:TradeNamesOtherMember", "cpb:TrademarksOtherMember"):
+        assert resolve(CPB, CARRYING, alias) == (RESIDUAL, "other_trade_names")
+
+
+def test_the_residual_concept_is_reachable_only_through_the_residual_member() -> None:
+    """Same guard the aggregate total has: were a named brand able to resolve it,
+    the residual would double-count brands it does not contain."""
+    reachable = {
+        member for (_, _, _, _, member), (concept, _) in MEMBER_RESOLUTION.items()
+        if concept == RESIDUAL
+    }
+    assert reachable == {"cpb:TradeNamesOtherMember", "cpb:TrademarksOtherMember"}
+
+
+def test_a_routed_member_does_not_claim_the_brands_concept() -> None:
+    """Every member that resolves brand_intangible_carrying_value must be a NAMED
+    brand — no aggregate, no residual, no other asset class. The assertion the
+    concept's name makes, checked against the resolution table rather than against
+    the spec's prose."""
+    brands = {
+        key for key, (concept, _) in MEMBER_RESOLUTION.items()
+        if concept == "brand_intangible_carrying_value"
+    }
+    # ANY routing, not just maps_to: us-gaap_v15 kept the residual out of the brands
+    # concept's way with a `canonical_concepts` allow-list that still named the brands
+    # concept, so a maps_to-only check passes against the very bug this guards.
+    routed_keys = {
+        member.member_key
+        for member in BRAND_MEMBERS
+        if member.maps_to or member.canonical_concepts
+    }
+    landed = {MEMBER_RESOLUTION[k][1] for k in brands}
+    assert not (landed & routed_keys), (
+        f"routed members {sorted(landed & routed_keys)} still land in the brands concept"
+    )

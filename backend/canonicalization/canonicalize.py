@@ -43,7 +43,6 @@ from app.models import (
     RawFact,
 )
 from canonicalization.mappings import (
-    BRAND_MEMBERS,
     EXCLUDED_MEMBERS,
     DERIVATION_RULES,
     DIMENSIONED_RULES,
@@ -632,8 +631,12 @@ async def _canonicalize_members(
     (issuer, taxonomy, concept, axis, member-as-filed). An unknown member on an
     otherwise applicable mapped source is not guessed at: it is surfaced as an
     `unmapped_member` issue and withheld until the spec is extended and
-    live-verified. Known members intentionally excluded by an issuer/concept
-    allow-list remain silent because that exclusion is itself a mapping decision.
+    live-verified. Silence is reserved for an actual DECISION: a member the spec
+    excludes wholesale, or a concept that member's own routing declines. A mapped
+    member appearing on an applicable concept its routing never ruled on is flagged,
+    because "this alias is known somewhere" is not the same claim as "the spec knows
+    what this fact means" — the difference is the first impairment a filer tags
+    against an aggregate or residual bucket.
 
     A context can carry more than the mapped member axis. Those qualifiers are
     part of the raw fact identity, so they are retained in the member store and
@@ -665,9 +668,15 @@ async def _canonicalize_members(
         ).scalars()
     }
 
-    known_member_aliases = {
+    # A member the spec excludes WHOLESALE — no concept on any axis means it.
+    # Mapped members are NOT in here. A mapped member turning up on an applicable
+    # concept its routing does not map is still FLAGGED: `maps_to` answers "where
+    # does this member's carrying value go", not "this member can never be impaired",
+    # and the first impairment a filer tags against an aggregate or residual bucket
+    # is a question for a human, not a fact to drop.
+    excluded_member_aliases = {
         (member.issuer_cik, alias)
-        for member in (*BRAND_MEMBERS, *EXCLUDED_MEMBERS)
+        for member in EXCLUDED_MEMBERS
         for alias in member.aliases
     }
     applicable_rule_sources = {
@@ -715,7 +724,7 @@ async def _canonicalize_members(
                     rf.period_end.year,
                 )
                 if (
-                    (issuer_cik, member) not in known_member_aliases
+                    (issuer_cik, member) not in excluded_member_aliases
                     and (rf.taxonomy, rf.concept, axis) in applicable_rule_sources
                     and unmapped_key not in existing_unmapped_members
                 ):

@@ -5450,6 +5450,30 @@ story_13_3_zts_non_brand_intangibles_land_as_brand_value:
     trade names" is wrong on the first half and is corrected. The two exclusions
     that existed only as a YAML comment (CustomerRelationshipsMember for CPB and
     ZTS, OffMarketFavorableLeaseMember for QSR) are now executed data.
+  codex_round_2026_09_18: >
+    The review found the fix INCOMPLETE and was right: CPB's own residual bucket
+    (other_trade_names, 9 raw facts over two per-era aliases, 5 stored rows) was
+    still resolving into brand_intangible_carrying_value. The same question —
+    "is everything in this concept a brand?" — answered for ZTS and not for the
+    filer the epic exists for. Its ONE justification, reconciling the per-brand
+    rows against the total, had already been disproved by arithmetic in v14, so
+    nothing was holding it there but inertia.
+    Fixed in us-gaap_v16 / concepts_v17: the residual gets its own concept,
+    brand_intangible_carrying_value_residual, routed by `maps_to` exactly as the
+    all_trademarks aggregate is. The figure is kept (it is real filed brand value)
+    and the concept's name stops asserting something its rows do not honour.
+    Lawrence's call, 2026-09-18, consistent with the ZTS decision three days
+    earlier. Verified live: the brands concept now holds ONLY named brands — CPB's
+    nine, QSR's trade_names, ZTS's brands.
+    Second finding from the same round, also valid: suppression of unmapped_member
+    was keyed on (issuer, alias) while resolution is keyed on the full
+    (issuer, taxonomy, concept, axis, member) identity, so a KNOWN member appearing
+    on a concept the spec never ruled on was dropped in silence. Now only a
+    wholesale `excluded_members` entry suppresses. `maps_to` answers where a
+    member's carrying value goes, NOT that the member can never be impaired — the
+    first impairment a filer tags against an aggregate or residual bucket is a
+    question for a human. Not reachable today (CPB tags impairment on four named
+    brands only), so this was a latent hole in a guard added by this same PR.
   verified_live: >
     2026-09-18 against the dev database, from stored raw facts, no EDGAR fetch.
     ZTS went from 24 member rows to 8 (brands only, FY2018-FY2025, 104M falling
@@ -5541,3 +5565,37 @@ story_13_3_multi_axis_member_identity_verified:
     Lesson for the next render: "the backend is unreachable" and "a different
     app answers on the port" look alike from the page. Check which process owns
     the port (lsof, then its cwd) before assuming this project's server died.
+
+
+story_13_3_member_exclusions_are_not_axis_scoped:
+  status: open
+  found: 2026-09-18
+  found_by: >
+    The Codex round on PR #138, third finding. Deferred deliberately under
+    CLAUDE.md's story-workflow rule 3 (ship the fix, defer the finding): it is a
+    spec-FORMAT change with no live occurrence, and PR #138 was otherwise ready.
+  question: >
+    An `excluded_members` entry suppresses the unmapped_member warning for its
+    member everywhere. Should it suppress on an axis or source concept nobody
+    verified it against?
+  finding: >
+    NO, and two things follow from it. (1) The exclusion is a claim about where the
+    member was actually observed — ZTS's in-process R&D was verified on
+    us-gaap:IndefiniteLivedIntangibleAssetsByMajorClassAxis, and says nothing about
+    the same standard member appearing on a future axis. (2) `_check_exclusions`
+    validates that an exclusion carries a reason and is not also mapped, but never
+    that it is REACHABLE: QSR's franchise_rights, franchise_agreements and
+    favorable_leases are currently INERT, because those facts are tagged on the
+    finite-lived axis that no dimensioned rule touches. An inert exclusion reads
+    exactly like an enforced one — the conformance rule again, this time in a
+    mechanism added to satisfy the conformance rule.
+  not_reachable_today: >
+    No filer tags an excluded member on a mapped axis outside the one it was
+    verified on, so nothing is being wrongly suppressed right now. The exposure is
+    the next tagging change, which is the class of event this project plans for.
+  proposed_fix: >
+    Give `excluded_members` an explicit `axis` (and optionally source concept), key
+    suppression on the full resolution identity, and have the loader reject an
+    exclusion that no dimensioned rule could ever reach — with tests for the
+    wrong-axis and unreachable-exclusion cases. Belongs to the Epic 13 re-cut as its
+    own story, beside the brand-identity work.
