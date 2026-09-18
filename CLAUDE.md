@@ -58,6 +58,30 @@ grep -n "pattern" bigdoc.md                    # locate a section before reading
 - Canonical contract: `_bmad-output/specs/spec-thesistrace/SPEC.md` (+ its adopted companions: the architecture spine, the PRD, and `foundational-decisions.md`).
 - Deterministic/LLM boundary is inviolable: all scores/numbers are computed deterministically; the LLM only explains and cites, never originates a figure.
 
+## Running things — use `make`, not a command chain
+
+`make` with no target lists everything. **Use the target, not the underlying command**,
+even when the chain is short.
+
+This is not cosmetic. A permission rule is a PREFIX match, and 47% of this project's
+3,254 recorded shell calls were unmatchable by any rule: 39% chained three or more
+segments, 13% were `python3 - <<'PY'` heredocs, and 8% opened with `set -a && source
+../.env`. The single most frequent blocked segment in the project's whole history is
+`set +a`. Every one of those was a prompt for Lawrence. `Bash(make *)` covers all of it.
+
+- **Tests are `make test`**, which REFUSES to run when `TEST_DATABASE_URL` is unset or
+  equal to `DATABASE_URL`. The teardown drops every table, and that near-miss was
+  previously prevented only by a rule in a document (see Anti-Patterns in
+  `project-context.md`). It is now prevented by the tool.
+- **One-off analysis goes in a FILE**, run with `make py F=<path>` — the scratchpad for
+  throwaway work, `scripts/` for anything worth keeping. Never a heredoc: it cannot be
+  allowlisted (it contains arbitrary code), it cannot be re-run, and it leaves no artifact
+  to review.
+- **Servers are `make api` (:8001) and `make web` (:3001).** Port 8000 belongs to
+  Lawrence's riskpulse dev server — do not take it, and do not kill what is on it.
+- Adding a workflow? Add a target with a `##` comment. A command typed twice is a
+  missing target.
+
 ## Story workflow (read before starting a story)
 
 Measured 2026-09-18 against `reslint`, the sibling BMad project: reslint averages **1.15

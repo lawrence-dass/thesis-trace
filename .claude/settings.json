@@ -13,6 +13,8 @@
   },
   "permissions": {
     "allow": [
+      "Bash(make)",
+      "Bash(make *)",
       "Bash(uv run *)",
       "Bash(uv sync*)",
       "Bash(uv add *)",
