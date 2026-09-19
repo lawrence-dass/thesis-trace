@@ -4807,6 +4807,18 @@ segment_data_reachable_but_raos_is_not_a_segment:
     cpb:SovosInitiativesMember sits on RestructuringPlanAxis (integration
     charges). ImpairmentOfIntangibleAssetsIndefinitelivedExcludingGoodwill is
     live in the filing under Corporate & Other.
+  finding_superseded_by: >
+    NARROWED 2026-09-11 by `story_13_3_brand_member_live_verification`. The
+    sentence above — "ImpairmentOfIntangibleAssetsIndefinitelivedExcludingGoodwill
+    is live in the filing under Corporate & Other" — is true but INCOMPLETE: that
+    is the segment-axis copy of a fact CPB also tags PER BRAND on
+    us-gaap:IndefiniteLivedIntangibleAssetsByMajorClassAxis, where the per-brand
+    values sum exactly to the Corporate & Other total in FY2024 and FY2025.
+    Impairment IS brand-dimensioned for CPB, so the blocking question this entry
+    raised for 13.4/13.7 is answered YES for that filer (NO for ZTS, which tags
+    impairment consolidated-only, and QSR, which tags none). Same shape as the
+    compactAmount lesson: a precise measurement of one branch reads exactly like
+    a precise measurement of the whole.
   why_the_intangible_route_is_better: >
     An indefinite-lived intangible must be impairment-tested annually. A Rao's
     trademark still carried at full value is management AND the auditors
@@ -5147,3 +5159,443 @@ ad3_decimals_tiebreak_has_never_had_data:
     next opened. Verify by re-canonicalizing the dev store under a new mapping
     version and diffing which canonical values change — the dry-run-with-rollback
     technique from `canonical_facts_amendment_gap` applies directly.
+
+story_13_3_brand_member_live_verification:
+  status: done
+  found: 2026-09-11
+  found_by: >
+    Story 13.3's blocking question, resolved before any mapping was written. DoD
+    rule 2 first: Story 13.2's committed CPB fixture already answered it for one
+    filer, and re-reading that EVIDENCE rather than the earlier entry's
+    CONCLUSION is what exposed the gap. Then one approved live pass — CPB, ZTS
+    and QSR, four original 10-K instances each (FY2022-FY2025), fetched through
+    ingestion.edgar and parsed with Story 13.2's parse_instance.
+  question: >
+    Is impairment brand-dimensioned at all, and does every brand member a mapping
+    would name actually cover the years it is claimed for?
+  finding: >
+    THE ANSWER DIFFERS PER FILER; the epic's headline survives for one of three.
+    (1) CPB — impairment IS brand-dimensioned. ImpairmentOfIntangibleAssets-
+    IndefinitelivedExcludingGoodwill is tagged on us-gaap:IndefiniteLived-
+    IntangibleAssetsByMajorClassAxis: FY2024 TrademarksAlliedBrands 53M +
+    TrademarksPopSecret 76M = 129M, FY2025 TrademarksAlliedBrands 15M +
+    TrademarksLateJuly 11M + TrademarksSnydersOfHanover 150M = 176M. Each sum
+    equals that year's consolidated AND Corporate & Other figure exactly, which
+    proves the per-brand set is complete rather than a sample. The FY2022 and
+    FY2023 filings carry no impairment concept at all; the FY2024 filing reports
+    both years as 0.
+    (2) ZTS — impairment is reported ONLY consolidated, and under a DIFFERENT
+    concept, ImpairmentOfIntangibleAssetsExcludingGoodwill (FY2020 26M, FY2021
+    27M, FY2022 39M, FY2023 35M, FY2024 15M, FY2025 5M). Not one impairment fact
+    carries a member, in any of four filings.
+    (3) QSR — no impairment concept appears in any of its four filings.
+    (4) Rao's — cpb:TrademarksRaosMember appears from the FY2024 filing (Sovos
+    closed March 2024) carrying IndefiniteLivedIntangibleAssetsExcludingGoodwill
+    and IndefinitelivedIntangibleAssetsAcquired, and NEVER an impairment. Rao's
+    has not been written down through FY2025 — the acquirer's own annual
+    assertion that it is still worth what was paid.
+  member_names_are_not_stable: >
+    THE MAPPING-BREAKING FINDING, and it is not the one the story expected. CPB
+    renames its own custom members across filings, so a member verified on the
+    latest filing does not cover earlier years.
+    Kettle alone has THREE names: cpb:TradeNamesKettleMember (FY2022) ->
+    cpb:TrademarkssKettleMember (FY2023 — a double-s typo in the filer's own tag,
+    present for exactly one year) -> cpb:TrademarksKettleBrandMember (FY2024,
+    FY2025). The whole family renames TradeNames* -> Trademarks* between FY2022
+    and FY2023 (PacificFoods is singular cpb:TradeNamePacificFoodsMember in
+    FY2022), and the early-warning member renames cpb:TradeNamesCarryingValue-
+    With10OrLessExcessFairValueCoverageMember -> ...WithTenPercentOrLess... in
+    FY2024. Member counts run 9 -> 10 -> 13 -> 14 across FY2022-FY2025.
+    This is the member-level analogue of cpb_segment_members_stable_but_tags_
+    switch: that entry proved the SEGMENT members stable, and the brand members
+    are not. Mapping needs per-filer AND per-era member aliases, each verified
+    per year — mapping by exact name against the newest filing would silently
+    lose earlier years, the same class as the original shares_outstanding bug.
+  consequence_for_13_4_and_13_7: >
+    "Was this brand written down?" is answerable PER BRAND for CPB only. ZTS can
+    answer it at company level only; QSR cannot answer it at all. Both must
+    render insufficient_data for per-brand impairment under AD-16, and 13.4/13.7
+    must say so plainly rather than implying a per-brand link the data does not
+    support. Carrying value per brand, by contrast, resolves for all three.
+  reusable_conclusion: >
+    A MEMBER name is as unstable as a TAG name, and a filer's typo can exist for
+    exactly one year. Every "verify per-year coverage, never existence" rule in
+    this project applies to members as written, including the rule that an
+    exclusion needs value-level proof rather than a name-based inference.
+  not_verified_yet: >
+    FY2021 and earlier were not fetched (four original 10-Ks per filer). Whether
+    the TradeNames*/Trademarks* alias families extend further back is unknown.
+    Finite-lived intangible impairment and goodwill impairment concepts were
+    included in the scan and appear for none of the three filers in these years.
+
+story_13_3_first_live_pipeline_run:
+  status: done
+  found: 2026-09-13
+  found_by: >
+    Story 13.3's DoD item 5 (render it in a browser), run after the Codex review
+    round (9ff10a8) and the re-fetch fix (7dcc35d). Until this point the whole
+    story was verified by tests alone: the dev database had NO
+    canonical_member_facts table (neither migration had ever been applied
+    anywhere but a throwaway DB) and ZERO inline_xbrl raw facts. Both migrations
+    were applied to the real dev database, then the pipeline was run live for
+    CPB / ZTS / QSR — chosen by which code paths they exercise, not by
+    convenience — and CPB's report was opened in a browser.
+  question: >
+    Does the member-aware mapping actually resolve, land and render against real
+    filings, and does the issuer allow-list bite outside the test fixtures?
+  finding: >
+    IT WORKS, AND THE HEADLINE CLAIM REPRODUCES EXACTLY THROUGH THE REAL
+    PIPELINE. 17,990 inline_xbrl raw facts (all dimensioned) produced 76
+    canonical member facts. CPB per-brand impairment sums to 129,000,000 for
+    FY2024 and 176,000,000 for FY2025 — equal to the consolidated figures to the
+    dollar, now demonstrated end-to-end rather than asserted from a hand scan.
+    ZTS produced brand_intangible_carrying_value only (24 rows) and ZERO
+    impairment rows: the `issuers:` allow-list genuinely bites on live data.
+    QSR produced no member facts at all. Both migrations applied cleanly to a
+    database carrying real data, in order, first try.
+  finding_1_aggregate_member_flags_as_unmapped: >
+    us-gaap:TrademarksMember is CPB's OWN AGGREGATE TOTAL for indefinite-lived
+    trademarks, not a brand — proven by value, not by name: in FY2023 and FY2025
+    it equals the sum of the mapped per-brand rows to the dollar (2,541,000,000
+    and 3,678,000,000). Because it is not in BRAND_MEMBERS it is not "known", so
+    the new unmapped_member guard raises it once per year: SIX permanent
+    needs_review warnings on CPB's page, every night. The guard cannot currently
+    tell "a new brand we must map" from "a standard-taxonomy aggregate that is
+    correctly not a brand". Mapping it as its own aggregate concept (the shape
+    already used for trade_names_within_ten_percent_of_impairment) would both
+    silence the false positives and supply a correct total — see finding 2.
+  finding_2_member_rows_must_never_be_summed: >
+    Summing brand_intangible_carrying_value across members does NOT reconstruct
+    the total, and the error is exact and legible: FY2021 +318M (= kettle),
+    FY2022 +187M (= cape_cod), FY2024 +71M (= allied_brands 43M + pop_secret
+    28M), FY2023 and FY2025 0, FY2020 -1,419M. The overshoot in each year equals
+    precisely the brands newly itemized that year, i.e. a brand broken out for
+    the first time is ALSO still inside the residual other_trade_names bucket;
+    FY2020 undershoots because fewer brands were itemized at all. Consequence
+    for 13.4/13.7: a total must come from the filer's own aggregate member, never
+    from a SUM over member rows. Nothing in 13.3 sums them — this is a trap set
+    for whoever builds on the store next.
+  finding_3_members_can_be_qualified_by_more_than_one_axis: >
+    QSR raised 8 ambiguous_member_selection issues while landing zero member
+    facts. Its us-gaap:TradeNamesMember carries THREE different values in the
+    same fiscal year (FY2019: 1,355M / 2,117M / 6,534M) because the facts are
+    additionally qualified by a SECOND axis that member resolution does not read
+    — one member key, three distinct facts. AD-3 behaved correctly: the conflict
+    was flagged, nothing was guessed, nothing landed. But the member model is
+    single-axis and at least one filer in the universe is not. This is an
+    unmodelled case, not a defect in the selection.
+    RESOLVED by 47c2143 (full multi-axis context identity) — see
+    story_13_3_multi_axis_member_identity_verified for what QSR turned out to
+    contain.
+  finding_4_source_conflict_fires_on_precision_not_disagreement: >
+    ZTS raised 34 source_conflict rows, the first time that writer has ever
+    emitted. NOT ONE is a genuine divergence: every pair is the same measurement
+    tagged twice at two precisions in one filing. Assets appears at decimals="-6"
+    (15,467,000,000) and decimals="-8" (15,500,000,000); CommonStockSharesIssued
+    at decimals="0" (501,891,243) and decimals="-5" (501,900,000). Each
+    difference falls within half the coarser fact's last declared place.
+    CORRECTION, 2026-09-15: the first version of this entry read the 22
+    share-count rows as "consistent with a different as-of date rather than
+    rounding" and said so without confirming it. Reading the instance documents'
+    `decimals` attributes disproved that — they are rounding, at -5 rather than
+    the -8 seen on Assets, which is why they looked unrounded at a glance
+    (501,900,000 is not a suspiciously round number until you know the fact
+    claims accuracy only to the nearest 100,000). Inferring a mechanism from the
+    SHAPE of the numbers rather than from the metadata that states it is the
+    same error class as reading a coverage gap off a tag name.
+    AD-4 produced the right outcome throughout (Company Facts wins, the precise
+    value is kept) but the comparison ignored each fact's own `decimals`, so
+    values agreeing within their stated precision registered as conflicting.
+    FIXED: the comparison now admits a value within half the last place the
+    Inline fact declares. All 34 warnings go, and a real divergence still
+    conflicts because the tolerance is driven by the declared precision, never by
+    how round a number looks.
+  finding_5_raw_issue_type_was_rendered_to_users: >
+    The company report rendered `dq.issue_type` raw, so the panel read
+    "unmapped_member (needs_review, raised by canonicalization)" six times. The
+    friendly ISSUE_LABEL map existed but lived inside WhatChanged.tsx and was
+    never used by the report page. Pre-existing; Story 13.3 made it visible by
+    adding a type that lands six times on one page. Fixed here by extracting
+    components/issueLabels.ts and using it in both places, verified by rendering
+    rather than by tsc. The six rows remain indistinguishable from one another —
+    no member name, no year — which is a separate, unfixed UX gap.
+  finding_6_pre_2019_filings_have_no_inline_instance: >
+    The SEC's Inline XBRL mandate phases in from 2019, so every original 10-K
+    before it has no instance document: 10 for CPB, 6 for ZTS, 5 for QSR. Those
+    fetches fail every night, permanently, and leave nothing persisted — so the
+    7dcc35d skip-set, which keys on facts actually stored, does not cover them.
+    Cheap (a filing-index JSON each, not a multi-MB document) but permanent log
+    noise and unnecessary requests. A date floor on the fetch loop would close
+    it.
+  reusable_conclusion: >
+    A GREEN SUITE PROVED NOTHING AGAIN — this is the third instance. 484 tests,
+    clean ruff, clean tsc and a completed external code review all passed while
+    the feature had never touched a real database, and one run surfaced six
+    findings, four of them user-visible. The specific lesson beyond that: an
+    unmapped-X guard needs a THIRD state. "Mapped" and "unknown" are not
+    exhaustive — "known, and deliberately not mapped" is a real category
+    (aggregates, totals, residual buckets), and without it the guard converts a
+    correct mapping decision into a permanent data-quality warning.
+  not_verified_yet: >
+    OTEX, SHOP and CP were not included in this run (18, 2 and 11 originals
+    respectively) — the three approved filers were chosen for brand-path
+    coverage. Whether their instances raise unmapped_member, multi-axis
+    ambiguities or precision-class source_conflicts is unknown, and finding 3
+    suggests at least the multi-axis case will recur. The 34 ZTS source_conflict
+    rows and the 8 QSR ambiguity rows are left in the database as raised,
+    deliberately, rather than dismissed.
+
+story_13_3_data_quality_issues_are_write_only:
+  status: open
+  found: 2026-09-15
+  found_by: >
+    Fixing finding 1 of story_13_3_first_live_pipeline_run. Mapping CPB's
+    aggregate member stops the six unmapped_member warnings being RAISED — but
+    asking whether that clears the six already stored showed nothing anywhere
+    can clear them.
+  question: >
+    When the cause of a data-quality issue is fixed, what retracts the issue?
+  finding: >
+    NOTHING. `IssueStatus` declares `resolved` and `dismissed`, and no
+    production code path ever sets either, or deletes a row: the only writes are
+    three `status=IssueStatus.needs_review` inserts in canonicalize.py plus one
+    in raw_store/repository.py, and the only uses of `resolved`/`dismissed`
+    anywhere are in tests. Issues are append-only. Every writer carefully dedups
+    so the daily cron does not ADD a duplicate, which is the problem this
+    project already learned about — but dedup is not retraction, and a warning
+    whose cause no longer exists stays on the company's report forever.
+    Canonical facts have supersession for exactly this; data-quality issues have
+    no equivalent.
+  why_it_did_not_bite_here: >
+    concepts_v14 has never been merged or deployed, so the only rows in this
+    state were the six in the local dev database, created hours earlier by the
+    first live run and deleted by hand before re-canonicalizing. On any deployed
+    database the fix would have prevented the warnings without removing them.
+  scope: >
+    PRE-EXISTING and not introduced by Story 13.3 — it applies equally to
+    ambiguous_selection, identity_violation and source_conflict, and the
+    precision fix in the same change has the same shape (it stops the 34 ZTS
+    conflicts being raised; it would not have retracted stored ones). Left
+    unfixed deliberately: retraction is a new mechanism touching every writer
+    and every consumer of `data_quality` in the API, which is its own story.
+  reusable_conclusion: >
+    A DEDUP IS NOT A RETRACTION. Getting idempotency right makes a writer safe
+    to re-run, which reads like the whole problem and is only half of it: the
+    other half is what happens when the finding stops being true. Any
+    append-only diagnostic needs an answer to "what unsays this", decided when
+    the writer is built rather than the first time a fix lands.
+
+story_13_3_zts_non_brand_intangibles_land_as_brand_value:
+  status: done
+  found: 2026-09-15
+  found_by: >
+    Checking, during the finding-1 fix, why ZTS's
+    us-gaap:InProcessResearchAndDevelopmentMember never raised an
+    unmapped_member warning the way CPB's aggregate did.
+  question: >
+    Is everything landing in `brand_intangible_carrying_value` actually a brand?
+  finding: >
+    NO, for ZTS. It raised no warning because it is not unmapped — the spec
+    lists in_process_rnd, product_rights, developed_technology and
+    other_intangibles as ordinary members for that filer, so they resolve to
+    `brand_intangible_carrying_value` like any brand. Three of them land:
+    `brands` (8 rows), `in_process_rnd` (8) and `product_rights` (8), FY2018 to
+    FY2025. In-process R&D is not a brand; neither are product rights. The
+    concept name asserts something the ZTS rows do not honour, and a consumer
+    reading it as "brand value" would show "In-process R&D" as a brand.
+  contrast_that_makes_it_a_question_rather_than_a_defect: >
+    The same spec DELIBERATELY excludes us-gaap:CustomerRelationshipsMember for
+    CPB and ZTS as "a customer intangible, a different asset class from the
+    brand itself", and QSR's OffMarketFavorableLeaseMember as "a lease
+    intangible, not an acquired brand". Those two exclusions and these three
+    inclusions cannot both be right under one reading of the concept. Either the
+    concept is the indefinite-lived intangible CLASS breakdown (and the
+    exclusions are wrong, and the name is), or it is brands (and ZTS's IPR&D and
+    product rights are wrong).
+  consequence_for_13_4: >
+    Acquisition performance per brand reads this concept. For ZTS it would
+    currently attribute IPR&D and product-rights value to "brand", which is the
+    kind of figure this project's deterministic boundary exists to prevent.
+    Needs a decision before 13.4 consumes the store, not after.
+  scope: >
+    PRE-EXISTING in the 13.3 spec as merged into this PR, and NOT touched by the
+    finding-1 fix: mapping CPB's aggregate changed nothing about which ZTS
+    members resolve. Left for a decision rather than silently re-scoped.
+  decision: >
+    2026-09-17, Lawrence: the concept MEANS BRANDS. Fixed in PR #138 rather than
+    deferred to 13.4, so the store 13.4 consumes never held the wrong figures.
+    us-gaap_v15 / concepts_v16 resolve zts:BrandsMember only; every other class
+    ZTS tags is declared under the new `excluded_members` block. The reading that
+    was rejected — the concept as the whole indefinite-lived CLASS breakdown —
+    would have required deleting the CustomerRelationships and
+    OffMarketFavorableLease exclusions and renaming the concept, and would have
+    put three different asset classes behind one "brand performance" headline.
+  fix: >
+    `excluded_members` is a new engine capability, and the reason it was needed
+    rather than just deleting the four ZTS members: a deleted member becomes
+    UNKNOWN, and an unknown member on a mapped source raises `unmapped_member`
+    every night. An unmapped-X guard needs three states — mapped, unknown, and
+    known-and-deliberately-excluded — which is the same lesson the
+    brand_intangible_carrying_value_total fix produced one version earlier, now
+    generalized. Enforced at load: an exclusion with no reason, or one that is
+    also mapped, raises. Scoped per filer, so the same standard member at an
+    unverified filer is still flagged (tested both ways).
+  also_corrected: >
+    QSR was listed with franchise_rights and franchise_agreements as brand
+    members. Franchise rights are reacquired contractual rights and franchise
+    agreements are contracts; the dev store shows both tagged ONLY on
+    us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis, so neither ever landed a
+    row — a latent instance of the same defect, one filing away from landing.
+    The spec's note claiming QSR's brand value "sits in franchise rights and
+    trade names" is wrong on the first half and is corrected. The two exclusions
+    that existed only as a YAML comment (CustomerRelationshipsMember for CPB and
+    ZTS, OffMarketFavorableLeaseMember for QSR) are now executed data.
+  codex_round_2026_09_18: >
+    The review found the fix INCOMPLETE and was right: CPB's own residual bucket
+    (other_trade_names, 9 raw facts over two per-era aliases, 5 stored rows) was
+    still resolving into brand_intangible_carrying_value. The same question —
+    "is everything in this concept a brand?" — answered for ZTS and not for the
+    filer the epic exists for. Its ONE justification, reconciling the per-brand
+    rows against the total, had already been disproved by arithmetic in v14, so
+    nothing was holding it there but inertia.
+    Fixed in us-gaap_v16 / concepts_v17: the residual gets its own concept,
+    brand_intangible_carrying_value_residual, routed by `maps_to` exactly as the
+    all_trademarks aggregate is. The figure is kept (it is real filed brand value)
+    and the concept's name stops asserting something its rows do not honour.
+    Lawrence's call, 2026-09-18, consistent with the ZTS decision three days
+    earlier. Verified live: the brands concept now holds ONLY named brands — CPB's
+    nine, QSR's trade_names, ZTS's brands.
+    Second finding from the same round, also valid: suppression of unmapped_member
+    was keyed on (issuer, alias) while resolution is keyed on the full
+    (issuer, taxonomy, concept, axis, member) identity, so a KNOWN member appearing
+    on a concept the spec never ruled on was dropped in silence. Now only a
+    wholesale `excluded_members` entry suppresses. `maps_to` answers where a
+    member's carrying value goes, NOT that the member can never be impaired — the
+    first impairment a filer tags against an aggregate or residual bucket is a
+    question for a human. Not reachable today (CPB tags impairment on four named
+    brands only), so this was a latent hole in a guard added by this same PR.
+  verified_live: >
+    2026-09-18 against the dev database, from stored raw facts, no EDGAR fetch.
+    ZTS went from 24 member rows to 8 (brands only, FY2018-FY2025, 104M falling
+    to 67M); CPB's 58 and QSR's 30 are unchanged. Zero unmapped_member issues
+    exist afterwards, which is the point of the exclusion block. A second
+    canonicalization pass over CPB/ZTS/QSR added, superseded and flagged nothing.
+    All nine dev filers were re-canonicalized, not just the three: six were still
+    on concepts_v13 and the debt queries filter on mapping_version (the
+    half-degraded-page state recorded 2026-08-05). Rendered CPB, ZTS, QSR, CP and
+    SU: CP's CAD repayment schedule and SU's near-term debt headline were chosen
+    because they exercise MaturityProfile and NearTermDebtShare, the two
+    components the compactAmount defect hid in. Zero console errors; the only
+    warnings on any page are CP's nine pre-existing ambiguous_selection rows,
+    which predate this change and cannot be retracted
+    (story_13_3_data_quality_issues_are_write_only).
+
+story_13_3_multi_axis_member_identity_verified:
+  status: done
+  found: 2026-09-17
+  found_by: >
+    Verifying Codex's second review round (47c2143), which it committed without
+    running any database test because the local Postgres container had exited.
+    Its riskiest change — a new migration with a data BACKFILL — was therefore
+    untested against any populated database.
+  question: >
+    Does d4f61a2b9c30 migrate a real populated store safely, does the new
+    context identity stay idempotent, and what does QSR actually contain once
+    member identity reads every axis?
+  finding: >
+    THE MIGRATION IS SAFE, AND QSR HAS PER-BRAND BRAND VALUES AFTER ALL.
+    Verified in order: full chain base->head on an empty scratch DB, then down
+    one and back up; the backfill on a pg_dump COPY of the populated dev store
+    (82 rows, 0 left with NULL dimensions or context_key); downgrade on the
+    populated copy refused and rolled back as designed; only then applied to dev.
+    496 backend tests pass including every DB test. Two consecutive
+    canonicalization passes under concepts_v15: the second added, superseded and
+    flagged nothing for CPB, ZTS or QSR. The Python normalization
+    (_dimension_identity) and the SQL backfill (jsonb_set of the mapped axis to
+    member_key) agree: every axis verbatim except the mapped one, which becomes
+    the canonical member_key, so Kettle's FY2023 double-s typo is kept in
+    `dimensions` and normalized to `kettle` in `context_key`.
+  qsr_per_brand_trade_names: >
+    QSR went from 0 member facts and 8 ambiguities to 30 member facts and 0
+    ambiguities. The "three values in one year" were never a conflict: its
+    us-gaap:TradeNamesMember facts are split by us-gaap:StatementBusinessSegmentsAxis,
+    one per restaurant brand — FY2019 Tim Hortons 6,534M, Burger King 2,117M,
+    Popeyes 1,355M; FY2024 Tim Hortons 5,972M, Burger King 2,068M, Popeyes
+    1,355M, Firehouse Subs 816M (acquired December 2021). No undimensioned-by-
+    segment total row exists alongside them, so there is no double count.
+    This CORRECTS story_13_3_brand_member_live_verification's picture of QSR:
+    it has no per-brand IMPAIRMENT (still true), but it does have per-brand
+    trade-name carrying value, reached through the segment axis rather than the
+    intangible-class axis.
+  consequence_for_13_4_and_13_7: >
+    For QSR every one of those rows has member_key "trade_names"; the BRAND is
+    the segment member inside context_key. A consumer that labels or groups by
+    member_key alone would show four rows all called "Trade names" and lose
+    which brand each is. 13.4/13.7 must read the brand from context_key for QSR,
+    and must not assume member_key names a brand for every filer.
+  data_quality_issues_are_not_versioned: >
+    Sharpens story_13_3_data_quality_issues_are_write_only. The 8 QSR ambiguity
+    rows were raised under concepts_v14 and carry no mapping_version, so the
+    concepts_v15 bump that resolved their cause left them live — on a deployed
+    database they would have rendered on QSR's report indefinitely, describing an
+    ambiguity that no longer exists. Codex's transitional code treats such
+    legacy rows as wildcards, which correctly prevents a DUPLICATE but cannot
+    retire the ORIGINAL. Deleted by hand in dev only.
+  stale_v14_rows: >
+    The six concepts_v14 brand_intangible_carrying_value_total rows were
+    produced by the in-place amendment of us-gaap_v13 that 47c2143 reverted. Once
+    v13 was restored they claimed a spec that never produced them — exactly the
+    AD-2 reproducibility failure the version bump exists to prevent, confirming
+    Codex was right to overrule the in-place amendment. Deleted from dev; the 76
+    other v14 rows are reproducible from the restored spec and were kept.
+  tolerance_has_no_ceiling: >
+    Asked of Codex and not added: precision_tolerance has an overflow guard but
+    no upper bound, so a filer declaring decimals="-12" on a fact gets a
+    +/-500,000,000,000 tolerance. Left deliberately: AD-4 still keeps the Company
+    Facts value and never writes the Inline one, so the worst case is a MISSED
+    warning, never a wrong figure.
+  browser_verified: >
+    DoD item 5 closed on 2026-09-17. Port 8000 turned out to be held by a
+    different local project's dev server (riskpulse), so it was left alone and
+    ThesisTrace ran on 8001/3001 instead, via NEXT_PUBLIC_API_BASE_URL. The API
+    returned 0 data_quality issues for CPB, ZTS and QSR, and all three report
+    pages rendered with no "Data-quality warnings" panel. On CPB that panel had
+    previously shown six "Unmapped XBRL member" rows. Both servers were stopped
+    afterwards.
+    Lesson for the next render: "the backend is unreachable" and "a different
+    app answers on the port" look alike from the page. Check which process owns
+    the port (lsof, then its cwd) before assuming this project's server died.
+
+
+story_13_3_member_exclusions_are_not_axis_scoped:
+  status: open
+  found: 2026-09-18
+  found_by: >
+    The Codex round on PR #138, third finding. Deferred deliberately under
+    CLAUDE.md's story-workflow rule 3 (ship the fix, defer the finding): it is a
+    spec-FORMAT change with no live occurrence, and PR #138 was otherwise ready.
+  question: >
+    An `excluded_members` entry suppresses the unmapped_member warning for its
+    member everywhere. Should it suppress on an axis or source concept nobody
+    verified it against?
+  finding: >
+    NO, and two things follow from it. (1) The exclusion is a claim about where the
+    member was actually observed — ZTS's in-process R&D was verified on
+    us-gaap:IndefiniteLivedIntangibleAssetsByMajorClassAxis, and says nothing about
+    the same standard member appearing on a future axis. (2) `_check_exclusions`
+    validates that an exclusion carries a reason and is not also mapped, but never
+    that it is REACHABLE: QSR's franchise_rights, franchise_agreements and
+    favorable_leases are currently INERT, because those facts are tagged on the
+    finite-lived axis that no dimensioned rule touches. An inert exclusion reads
+    exactly like an enforced one — the conformance rule again, this time in a
+    mechanism added to satisfy the conformance rule.
+  not_reachable_today: >
+    No filer tags an excluded member on a mapped axis outside the one it was
+    verified on, so nothing is being wrongly suppressed right now. The exposure is
+    the next tagging change, which is the class of event this project plans for.
+  proposed_fix: >
+    Give `excluded_members` an explicit `axis` (and optionally source concept), key
+    suppression on the full resolution identity, and have the loader reject an
+    exclusion that no dimensioned rule could ever reach — with tests for the
+    wrong-axis and unreachable-exclusion cases. Belongs to the Epic 13 re-cut as its
+    own story, beside the brand-identity work.

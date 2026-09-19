@@ -121,10 +121,59 @@
 #                 not a latent one. us-gaap ONLY; ifrs-full and derivations
 #                 keep their existing specs.
 
-mapping_version: concepts_v13
+#   concepts_v14  us-gaap_v13 + ifrs-full_v4 + derivations_v5. A real mapping
+#                 change (Story 13.3 / story_13_3_brand_member_live_verification):
+#                 the first DIMENSIONED mappings in this project — per-brand
+#                 intangible carrying value, per-brand impairment, acquisition
+#                 value, and CPB's own within-10%-of-impairment disclosure, all
+#                 on us-gaap:IndefiniteLivedIntangibleAssetsByMajorClassAxis.
+#                 Dimensioned rules key on (taxonomy, concept, axis, member)
+#                 because one source concept means two different things under
+#                 two different members. Members carry PER-ERA aliases: CPB
+#                 renames its own members between filings (Kettle has three
+#                 names in four filings, one of them the filer's own double-s
+#                 typo), so a member verified on the newest filing does not
+#                 cover earlier years. Per-brand impairment is mapped for CPB
+#                 only — ZTS tags impairment consolidated-only under a different
+#                 concept and QSR tags none, which is recorded as data rather
+#                 than left as an unexplained gap. us-gaap ONLY: no IFRS filer
+#                 is in scope for this epic (acquisition_epic_scoped_to_us_gaap_
+#                 filers), so ifrs-full and derivations keep their existing
+#                 specs, per the per-taxonomy rule above.
+
+#   concepts_v15  us-gaap_v14 + ifrs-full_v4 + derivations_v5. A real mapping
+#                 change (story_13_3_first_live_pipeline_run): adds
+#                 brand_intangible_carrying_value_total, the filer's OWN total
+#                 for the trademark class, read from CPB's aggregate
+#                 us-gaap:TrademarksMember. The per-brand rows cannot be summed
+#                 into a total, and leaving this deliberate aggregate unmapped
+#                 made the member guard raise false needs_review warnings. The
+#                 prior concepts_v14 spec is retained unchanged on disk so rows
+#                 already stamped with it remain reproducible (AD-2).
+
+#   concepts_v16  us-gaap_v15 + ifrs-full_v4 + derivations_v5. A real mapping
+#                 change (story_13_3_zts_non_brand_intangibles_land_as_brand_value):
+#                 brand_intangible_carrying_value now resolves BRANDS only. ZTS's
+#                 in-process R&D and product rights, which concepts_v15 stored as
+#                 brand value, are declared under the new `excluded_members`
+#                 block instead. Bumped rather than amended because the dev
+#                 database already holds concepts_v15 rows: a spec is frozen once
+#                 any database stamps its version, merged or not. us-gaap_v14 is
+#                 retained unchanged so those rows stay reproducible (AD-2).
+
+#   concepts_v17  us-gaap_v16 + ifrs-full_v4 + derivations_v5. A real mapping
+#                 change (the Codex round on PR #138): CPB's own residual trade-name
+#                 bucket moves out of brand_intangible_carrying_value into
+#                 brand_intangible_carrying_value_residual. concepts_v16 answered
+#                 "is everything in this concept a brand" for ZTS and left CPB's
+#                 residual behind. Bumped, not amended: the dev database already
+#                 holds concepts_v16 rows, and a spec is frozen the moment any
+#                 database stamps its version.
+
+mapping_version: concepts_v17
 
 taxonomies:
-  us-gaap: us-gaap_v12
+  us-gaap: us-gaap_v16
   ifrs-full: ifrs-full_v4
 
 derivations: derivations_v5

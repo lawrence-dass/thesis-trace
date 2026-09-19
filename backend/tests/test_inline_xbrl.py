@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import pathlib
 from datetime import date
+from decimal import Decimal
 from unittest.mock import AsyncMock
 
 import pytest
@@ -632,3 +633,129 @@ async def test_archive_instance_fetch_retries_transient_sec_errors(monkeypatch):
     assert text == "<xbrl />"
     assert len(FakeClient.requests) == 2
     sleep.assert_awaited_once_with(1.0)
+
+
+# --- AD-4 compares at declared precision (story_13_3_first_live_pipeline_run) ---
+
+
+def test_precision_tolerance_is_half_the_last_declared_place() -> None:
+    from ingestion.company_facts import precision_tolerance
+
+    assert precision_tolerance(-8) == Decimal(50_000_000)  # to the nearest 100M
+    assert precision_tolerance(0) == Decimal("0.5")  # to the unit
+    assert precision_tolerance(None) == Decimal(0)  # exact / undeclared -> no tolerance
+
+
+def test_inline_decimals_are_parsed_including_inf_and_junk() -> None:
+    from ingestion.inline_xbrl import _parse_decimals
+
+    assert _parse_decimals("-8") == -8
+    assert _parse_decimals(" -3 ") == -3
+    assert _parse_decimals("0") == 0
+    # "INF" means exact; None gives a zero tolerance, which is the same outcome
+    # without inventing a sentinel. Junk must never WIDEN a tolerance.
+    assert _parse_decimals("INF") is None
+    assert _parse_decimals("bogus") is None
+    assert _parse_decimals("1_0") is None
+    assert _parse_decimals(None) is None
+
+
+def test_precision_tolerance_fails_closed_for_an_unrepresentable_exponent() -> None:
+    from ingestion.company_facts import precision_tolerance
+
+    assert precision_tolerance(-1_000_000) == Decimal(0)
+
+
+@requires_db
+async def test_a_rounded_inline_restatement_is_not_a_source_conflict(db_session):
+    """Two precisions of one measurement are not a disagreement.
+
+    Live case: ZTS tags Assets at both decimals="-6" (15,467,000,000) and
+    decimals="-8" (15,500,000,000) in the same filing. Comparing exactly raised
+    a needs_review row per pair — 34 across the filer — describing nothing a
+    reader could act on. 45,000,000 <= 50,000,000, so they agree at the
+    precision the Inline fact itself claims.
+    """
+    from app.models import DataQualityIssue, RawFact
+    from raw_store.repository import persist_inline_facts
+
+    accn = await _seed_filing(db_session)
+    primary = _fact(accession_number=accn, value=11_545_000_000.0)
+    db_session.add(
+        RawFact(
+            accession_number=accn,
+            taxonomy=primary.taxonomy,
+            concept=primary.concept,
+            unit=primary.unit,
+            period_start=date(2024, 7, 29),
+            period_end=date(2025, 8, 3),
+            value=primary.value,
+            source="company_facts",
+            content_hash=primary.content_hash,
+        )
+    )
+    await db_session.flush()
+
+    counts = await persist_inline_facts(
+        db_session,
+        [_fact(accession_number=accn, value=11_500_000_000.0, decimals=-8)],
+        accession_number=accn,
+    )
+
+    assert counts["source_conflicts"] == 0
+    assert counts["raw_facts_added"] == 0, "Company Facts still holds the fact; AD-4 unchanged"
+    issues = (
+        await db_session.execute(
+            select(DataQualityIssue).where(DataQualityIssue.issue_type == "source_conflict")
+        )
+    ).scalars().all()
+    assert issues == []
+
+
+@requires_db
+async def test_a_genuine_divergence_still_conflicts_at_the_same_precision(db_session):
+    """The tolerance must not swallow real disagreement — the guard that bites.
+
+    The tolerance comes from what a fact DECLARES, never from how round the
+    number looks, so two different values that both claim decimals="0" are at
+    most 0.5 apart and still conflict. Without this the precision fix would have
+    turned AD-4 off rather than tuned it.
+
+    Deliberately synthetic. Every same-identity divergence found live in ZTS was
+    a precision artifact once decimals were read (two tagged precisions of one
+    measurement), so there is no real pair to pin here — which is exactly why an
+    invented one is needed to prove the comparison still rejects something.
+    """
+    from app.models import DataQualityIssue, RawFact
+    from raw_store.repository import persist_inline_facts
+
+    accn = await _seed_filing(db_session)
+    primary = _fact(accession_number=accn, value=501_891_243.0)
+    db_session.add(
+        RawFact(
+            accession_number=accn,
+            taxonomy=primary.taxonomy,
+            concept=primary.concept,
+            unit=primary.unit,
+            period_start=date(2024, 7, 29),
+            period_end=date(2025, 8, 3),
+            value=primary.value,
+            source="company_facts",
+            content_hash=primary.content_hash,
+        )
+    )
+    await db_session.flush()
+
+    counts = await persist_inline_facts(
+        db_session,
+        [_fact(accession_number=accn, value=501_882_486.0, decimals=0)],
+        accession_number=accn,
+    )
+
+    assert counts["source_conflicts"] == 1
+    issue = (
+        await db_session.execute(
+            select(DataQualityIssue).where(DataQualityIssue.issue_type == "source_conflict")
+        )
+    ).scalars().one()
+    assert issue.detail["inline_xbrl_value"] == 501_882_486.0
