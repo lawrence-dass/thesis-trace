@@ -218,7 +218,12 @@ def declared() -> tuple[dict[str, int], set[int]]:
     """({story_key: epic_number}, {epic_numbers}) as declared in epics.md."""
     text = EPICS_PATH.read_text()
     stories = {}
-    for m in re.finditer(r"^### Story (\d+)\.(\d+):\s*(.+)$", text, re.M):
+    # The letter suffix is how a story SPLIT records its lineage (13.4 -> 13.4a..13.4e,
+    # the 2026-09-18 re-cut; reslint's 29-2a/29-2b is the same convention). Without it
+    # here, a lettered story is declared in epics.md, matches neither the missing-story
+    # check below nor the orphan check, and is tracked by nothing — meaning parked where
+    # nothing reads it, which is this file's oldest failure mode.
+    for m in re.finditer(r"^### Story (\d+)\.(\d+[a-z]?):\s*(.+)$", text, re.M):
         epic, story, title = m.group(1), m.group(2), m.group(3).replace("*", "").strip()
         stories[f"{epic}-{story}-{_kebab(title)}"] = int(epic)
     epics = set(stories.values()) | {
@@ -228,7 +233,7 @@ def declared() -> tuple[dict[str, int], set[int]]:
 
 
 def _story_keys(dev_status: dict) -> set[str]:
-    return {k for k in dev_status if re.match(r"^\d+-\d+-", k)}
+    return {k for k in dev_status if re.match(r"^\d+-\d+[a-z]?-", k)}
 
 
 def test_development_status_section_exists(status):
@@ -609,9 +614,11 @@ def test_an_active_story_has_a_story_file(status, declared) -> None:
     location = REPO_ROOT / status["story_location"]
     missing = []
     for key, value in status["development_status"].items():
-        if not re.match(r"^\d+-\d+-", key) or value == "backlog":
+        if not re.match(r"^\d+-\d+[a-z]?-", key) or value == "backlog":
             continue
-        epic, number = (int(part) for part in key.split("-")[:2])
+        epic_part, number_part = key.split("-")[:2]
+        # "4a" sorts immediately after "4": a split story inherits its parent's position.
+        epic, number = int(epic_part), int(number_part.rstrip("abcdefghijklmnopqrstuvwxyz"))
         if (epic, number) < STORY_FILE_REQUIRED_FROM:
             continue
         if not (location / f"{key}.md").exists():
@@ -622,3 +629,36 @@ def test_an_active_story_has_a_story_file(status, declared) -> None:
         "numbered ACs and task checklist are the story's exit condition (CLAUDE.md, "
         "Story workflow rule 1)."
     )
+
+
+def test_the_per_epic_glance_lines_match_the_data(status) -> None:
+    """The header's PER-EPIC counts, not just its totals.
+
+    `test_status_at_a_glance_matches_the_data` guards the two totals on the header
+    line; the per-epic table under it was guarded by nothing, and the 2026-09-18
+    re-cut left `Epic 13 ... 2/8` sitting above a development_status holding 17
+    stories. Every other epic's line was accurate — the counts are maintained, just
+    not enforced, which is this file's recurring shape: meaning parked where nothing
+    reads it.
+    """
+    text = STATUS_PATH.read_text()
+    totals: dict[int, int] = {}
+    done: dict[int, int] = {}
+    for key, value in status["development_status"].items():
+        m = re.match(r"^(\d+)-(\d+[a-z]?)-", key)
+        if not m:
+            continue
+        epic = int(m.group(1))
+        totals[epic] = totals.get(epic, 0) + 1
+        done[epic] = done.get(epic, 0) + (value == "done")
+
+    lines = list(re.finditer(r"^#   Epic (\d+)\s+\S+\s+(\d+)/(\d+)", text, re.M))
+    assert lines, "the per-epic glance table is missing or its shape changed"
+    wrong = [
+        f"Epic {int(m.group(1))}: header {m.group(2)}/{m.group(3)}, data "
+        f"{done.get(int(m.group(1)), 0)}/{totals.get(int(m.group(1)), 0)}"
+        for m in lines
+        if (int(m.group(2)), int(m.group(3)))
+        != (done.get(int(m.group(1)), 0), totals.get(int(m.group(1)), 0))
+    ]
+    assert not wrong, f"glance table disagrees with development_status: {wrong}"
