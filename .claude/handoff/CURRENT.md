@@ -4,16 +4,16 @@
 Task complete — two PRs green and mergeable, both waiting on Lawrence.
 
 ## Focus
-- **Task**: Story 13.3 close-out (PR #138) + workflow diagnosis (PR #141)
+- **Task**: Story 13.3 close-out (#138), workflow fixes (#141), Epic 13 re-cut (#142)
 - **Branch**: `claude/story-13-3-brand-mapping-2026-09-11`; also worktree
   `../ThesisTrace-workflow` on `claude/workflow-fixes-2026-09-18`
 - **State**: complete-pending-review, no blockers
 - **Progress**: Epic 13 at 3/8; 13.3 survived two Codex rounds
 
 ## Resume Point
-Nothing half-done. Either apply Lawrence's redline to the Epic 13 re-cut (13.4–13.8 →
-13 one-outcome stories, drafted in this session's transcript, NOT yet in `epics.md`),
-or run `/post-merge` once #141 and #138 land.
+Nothing half-done. Three PRs are green and waiting on Lawrence, and they must merge in
+order: #141 (rules + Makefile) → #142 (Epic 13 re-cut, contains #141) → #138 (Story 13.3).
+Then `/post-merge`. The first story under the new rules is 13.4a.
 
 ## Uncommitted Files
 None — working tree clean.
@@ -49,8 +49,9 @@ None — working tree clean.
   renumbered Epic 13 stories? merge #141 before #138 (recommended)?
 
 ## Next Action
-`gh pr merge 141 --squash` then `gh pr merge 138 --squash`, then `/post-merge`
-(13.3 → `done` at `sprint-status.yaml:217`).
+Merge #141, then #142, then #138 (order matters: #142 carries #141, and #138 should land
+under the new rules). Then `/post-merge` (13.3 → `done` at `sprint-status.yaml:217`).
+#141 and #142 have NOT had a Codex round yet; #138 has had two.
 
 ## References
 - `_bmad-output/implementation-artifacts/engineering-findings.yaml`
