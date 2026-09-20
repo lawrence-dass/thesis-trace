@@ -224,7 +224,12 @@ def declared() -> tuple[dict[str, int], set[int]]:
     """({story_key: epic_number}, {epic_numbers}) as declared in epics.md."""
     text = EPICS_PATH.read_text()
     stories = {}
-    for m in re.finditer(r"^### Story (\d+)\.(\d+):\s*(.+)$", text, re.M):
+    # The letter suffix is how a story SPLIT records its lineage (13.4 -> 13.4a..13.4e,
+    # the 2026-09-18 re-cut; reslint's 29-2a/29-2b is the same convention). Without it
+    # here, a lettered story is declared in epics.md, matches neither the missing-story
+    # check below nor the orphan check, and is tracked by nothing — meaning parked where
+    # nothing reads it, which is this file's oldest failure mode.
+    for m in re.finditer(r"^### Story (\d+)\.(\d+[a-z]?):\s*(.+)$", text, re.M):
         epic, story, title = m.group(1), m.group(2), m.group(3).replace("*", "").strip()
         stories[f"{epic}-{story}-{_kebab(title)}"] = int(epic)
     epics = set(stories.values()) | {
@@ -234,7 +239,7 @@ def declared() -> tuple[dict[str, int], set[int]]:
 
 
 def _story_keys(dev_status: dict) -> set[str]:
-    return {k for k in dev_status if re.match(r"^\d+-\d+-", k)}
+    return {k for k in dev_status if STORY_KEY.match(k)}
 
 
 def test_development_status_section_exists(status):
@@ -589,3 +594,112 @@ def test_comment_header_metadata_matches_the_parsed_fields(status):
             f"header comment says {field}={commented.group(1)} but the YAML field "
             f"says {status[field]} — the two copies have drifted"
         )
+
+
+# --- the story file is the exit condition (2026-09-18) -----------------------
+
+# Stories from this one onward must carry a story file before leaving `backlog`.
+# A cutoff rather than a blanket rule: everything before it was implemented straight
+# from epics.md prose, and back-filling 60 files would be fiction, not enforcement.
+STORY_FILE_REQUIRED_FROM = (13, 4)
+
+# The ONE definition of a story key, so the recognizers cannot drift apart. A single
+# lowercase suffix letter is a split story (13.4a); anything else — uppercase, two
+# letters, a stray dot — is a typo, and a typo that merely fails to MATCH is a story
+# tracked by nothing, which is this file's oldest failure mode.
+STORY_KEY = re.compile(r"^\d+-\d+[a-z]?-[a-z0-9-]+$")
+
+
+def test_every_story_shaped_key_is_well_formed(status) -> None:
+    """A key that looks like a story but does not parse is rejected, not skipped."""
+    malformed = [
+        key
+        for key in status["development_status"]
+        if re.match(r"^\d+[-.]", key) and not STORY_KEY.match(key)
+    ]
+    assert not malformed, (
+        f"malformed story keys (expected `<epic>-<story><letter?>-<kebab-title>`): {malformed}"
+    )
+
+
+def test_an_active_story_has_a_story_file(status, declared) -> None:
+    """CLAUDE.md's story workflow rule 1, enforced rather than stated.
+
+    The story file's task checklist is what tells a session the story is FINISHED;
+    without one, a story ends when verification stops finding things, which against
+    live SEC data is never. Story 13.3 ran 19 commits over 8 days and was "complete"
+    seven days before it merged, while reslint — same methodology, same author, a
+    story file for every story — averages 1.15 commits per story.
+
+    Keyed off `story_location` and the story key, which is how the two existing
+    files are already named.
+    """
+    stories, _ = declared
+    location = REPO_ROOT / status["story_location"]
+    missing = []
+    for key, value in status["development_status"].items():
+        if not STORY_KEY.match(key) or value == "backlog":
+            continue
+        epic_part, number_part = key.split("-")[:2]
+        # "4a" sorts immediately after "4": a split story inherits its parent's position.
+        epic, number = int(epic_part), int(number_part.rstrip("abcdefghijklmnopqrstuvwxyz"))
+        if (epic, number) < STORY_FILE_REQUIRED_FROM:
+            continue
+        if not (location / f"{key}.md").is_file():
+            missing.append(f"{key} (status: {value})")
+    assert not missing, (
+        "these stories left `backlog` with no story file in "
+        f"{status['story_location']}: {missing}. Run bmad-create-story first — the "
+        "numbered ACs and task checklist are the story's exit condition (CLAUDE.md, "
+        "Story workflow rule 1)."
+    )
+
+
+def test_the_per_epic_glance_lines_match_the_data(status) -> None:
+    """The header's PER-EPIC counts, not just its totals.
+
+    `test_status_at_a_glance_matches_the_data` guards the two totals on the header
+    line; the per-epic table under it was guarded by nothing, and the 2026-09-18
+    re-cut left `Epic 13 ... 2/8` sitting above a development_status holding 17
+    stories. Every other epic's line was accurate — the counts are maintained, just
+    not enforced, which is this file's recurring shape: meaning parked where nothing
+    reads it.
+    """
+    text = STATUS_PATH.read_text()
+    totals: dict[int, int] = {}
+    done: dict[int, int] = {}
+    for key, value in status["development_status"].items():
+        m = re.match(r"^(\d+)-(\d+[a-z]?)-", key)
+        if not m:
+            continue
+        epic = int(m.group(1))
+        totals[epic] = totals.get(epic, 0) + 1
+        done[epic] = done.get(epic, 0) + (value == "done")
+
+    # EVERY row, including the `no stories` ones. Matching only `x/y` rows left Epics
+    # 7-9 unchecked, so a stale or missing row there passed in silence — the same
+    # "unparsed means unguarded" shape as the totals this test was added for.
+    lines = list(re.finditer(r"^#   Epic (\d+)\s+\S+\s+(\d+/\d+|no stories)", text, re.M))
+    assert lines, "the per-epic glance table is missing or its shape changed"
+    listed = {int(m.group(1)) for m in lines}
+    tracked = {
+        int(key.split("-")[1])
+        for key in status["development_status"]
+        if re.fullmatch(r"epic-\d+", key)
+    }
+    assert listed == tracked, (
+        f"glance table lists epics {sorted(listed)}; development_status tracks "
+        f"{sorted(tracked)} — a missing row is an epic nobody reports on"
+    )
+    wrong = []
+    for m in lines:
+        epic = int(m.group(1))
+        actual = (done.get(epic, 0), totals.get(epic, 0))
+        claim = m.group(2)
+        if claim == "no stories":
+            if totals.get(epic, 0):
+                wrong.append(f"Epic {epic}: header says 'no stories', data has {actual[1]}")
+            continue
+        if tuple(int(x) for x in claim.split("/")) != actual:
+            wrong.append(f"Epic {epic}: header {claim}, data {actual[0]}/{actual[1]}")
+    assert not wrong, f"glance table disagrees with development_status: {wrong}"

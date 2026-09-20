@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
+from urllib.parse import urlsplit
 
 import pytest
 import pytest_asyncio
@@ -30,14 +31,46 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.models import Base
 
 
+def _database_identity(url: str) -> tuple[str, str, str]:
+    """(host, port, database) — what a DSN actually POINTS AT.
+
+    Two DSNs that differ as strings can address one database: a query parameter, a
+    trailing slash, a different driver prefix or a spelled-out default port all change
+    the text and nothing else. Comparing the text is therefore not a safety check, and
+    `drop_all` is not an operation that tolerates an approximate one.
+    """
+    parsed = urlsplit(url)
+    port = parsed.port or 5432
+    return (parsed.hostname or "", str(port), (parsed.path or "").lstrip("/"))
+
+
 def _resolve_test_db_url(env: Mapping[str, str]) -> str | None:
     """The database `db_session` is allowed to drop and recreate.
 
     `TEST_DATABASE_URL` only, and empty is treated as absent so an exported-but-blank
     variable cannot resolve to something falsy that later code treats as configured.
     See the module docstring for why `DATABASE_URL` is not consulted.
+
+    REFUSES, loudly, when it addresses the same database as `DATABASE_URL`. Verified
+    2026-09-20: `.../thesistrace?sslmode=disable` beside `DATABASE_URL=.../thesistrace`
+    passed a string comparison and started a full run against the dev store — it
+    survived only because asyncpg rejects that parameter, not because anything stopped
+    it. The guard belongs here, beside the drop_all, rather than only in the Makefile:
+    a direct `pytest` invocation never reaches a make target.
     """
-    return env.get("TEST_DATABASE_URL") or None
+    test_url = env.get("TEST_DATABASE_URL") or None
+    if test_url is None:
+        return None
+    dev_url = env.get("DATABASE_URL") or None
+    if dev_url and _database_identity(test_url) == _database_identity(dev_url):
+        host, port, name = _database_identity(test_url)
+        raise RuntimeError(
+            f"TEST_DATABASE_URL and DATABASE_URL both address {name} at {host}:{port}. "
+            "The DB fixtures drop every table on setup and teardown; this run would "
+            "have destroyed the development database. The two URLs differing as TEXT "
+            "is not enough — see .env.example."
+        )
+    return test_url
 
 
 TEST_DB_URL = _resolve_test_db_url(os.environ)
