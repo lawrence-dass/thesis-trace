@@ -78,9 +78,8 @@ through it.
 9. **The spec version is bumped, not amended.** The dev database already holds `concepts_v17`
    rows, and a spec is frozen the moment any database stamps its version, merged or not
    (`story_13_3_multi_axis_member_identity_verified`). The declarations land in a new
-   `us-gaap_v17.yaml` behind a new `mapping_version`, with the registry HISTORY entry stating that
-   this version changes no figure. *(See Dev Notes "Open decision" — confirm with Lawrence before
-   starting Task 2.)*
+   `us-gaap_v17.yaml` behind `concepts_v18`, with the registry HISTORY entry stating that this
+   version changes no figure. Confirmed by Lawrence 2026-09-20 — see Dev Notes "Decision".
 
 10. **Tests fail before the fix.** Each of AC 2, 4, 5, 6 and 7 has a test that was confirmed red
     against the pre-change code. The QSR test asserts four distinct brands from rows that
@@ -88,8 +87,8 @@ through it.
 
 ## Tasks / Subtasks
 
-- [ ] **1. Confirm the open decision** (AC: 9) — get Lawrence's call on spec bump vs. separate
-      identity artifact before writing YAML. Recommendation is in Dev Notes.
+- [x] **1. Confirm the versioning decision** (AC: 9) — **done 2026-09-20: bump.** `us-gaap_v17` +
+      `concepts_v18`. See Dev Notes "Decision".
 - [ ] **2. Declare the identities in the spec** (AC: 3, 4, 6, 8, 9)
   - [ ] Copy `us-gaap_v16.yaml` → `us-gaap_v17.yaml`; never edit v16.
   - [ ] Add QSR's four segment brands under a new per-filer block keyed on
@@ -177,25 +176,24 @@ there is no double count.
 Re-query with:
 `make psql Q="select issuer_cik, canonical_concept, member_key, context_key from canonical_member_facts where not superseded and mapping_version='concepts_v17'"`
 
-### Open decision — ask before Task 2
+### Decision — versioning (Lawrence, 2026-09-20)
 
-Adding declarations to the spec means editing a file a stored `mapping_version` already points at.
-Two ways out:
+**Bump: `us-gaap_v17` + `concepts_v18`.** The declarations go in the versioned taxonomy spec
+beside `brand_members`, and the registry HISTORY entry states explicitly that no stored figure
+changes.
 
-- **(A) Bump to `us-gaap_v17` + a new `concepts_v18` — RECOMMENDED.** One source of truth; the
-  loader and re-canonicalization paths already exist and are idempotent; it honours the rule
-  learned the hard way on 2026-09-17 ("always bump — a spec is frozen the moment any database
-  stamps its version"). Cost: one re-canonicalization pass writing 96 rows whose values are
-  identical, and a version whose HISTORY entry has to say "no figure changed".
-- **(B) A separately versioned identity artifact** (`brand_identity_v1.yaml`) outside
-  `mapping_version`, on the argument that identity is read-time and produces no stored fact, so
-  folding it into `mapping_version` would restamp rows whose values did not change — and a label
-  typo would then invalidate a reproducibility claim. Cost: a second versioning axis, a new
-  concept and a new failure mode, and `label` already lives inside the versioned spec today.
+The rejected alternative was a separately versioned `brand_identity_v1.yaml` outside
+`mapping_version`, argued on the grounds that identity is read-time and produces no stored fact, so
+folding it into `mapping_version` restamps rows whose values did not change. Rejected because it
+adds a second versioning axis for one file, splits labels across two homes (`label` already lives
+in the versioned spec), and rests on the same "it changes nothing, so amending is safe" reasoning
+that in 13.3 left six unreproducible `concepts_v14` rows in the dev store. Bumping is cheap; the
+precedent is not.
 
-Recommend **(A)**: the "it changes nothing, so amending is safe" argument is exactly the one that
-failed in 13.3 and left six unreproducible rows in the dev store. Bumping is cheap; the precedent
-is not.
+Concretely: copy `us-gaap_v16.yaml` → `us-gaap_v17.yaml` and add `segment_brand_members` (QSR's
+four, keyed on `us-gaap:StatementBusinessSegmentsAxis`) plus `kind` on every `brand_members` entry;
+point `registry.yaml` at it under `mapping_version: concepts_v18`. Task 6's check — same 22 groups
+/ 96 rows, same values, new stamp — is what proves the bump moved nothing.
 
 ### Deferred: the segment-rename exposure
 
