@@ -583,3 +583,42 @@ def test_comment_header_metadata_matches_the_parsed_fields(status):
             f"header comment says {field}={commented.group(1)} but the YAML field "
             f"says {status[field]} — the two copies have drifted"
         )
+
+
+# --- the story file is the exit condition (2026-09-18) -----------------------
+
+# Stories from this one onward must carry a story file before leaving `backlog`.
+# A cutoff rather than a blanket rule: everything before it was implemented straight
+# from epics.md prose, and back-filling 60 files would be fiction, not enforcement.
+STORY_FILE_REQUIRED_FROM = (13, 4)
+
+
+def test_an_active_story_has_a_story_file(status, declared) -> None:
+    """CLAUDE.md's story workflow rule 1, enforced rather than stated.
+
+    The story file's task checklist is what tells a session the story is FINISHED;
+    without one, a story ends when verification stops finding things, which against
+    live SEC data is never. Story 13.3 ran 19 commits over 8 days and was "complete"
+    seven days before it merged, while reslint — same methodology, same author, a
+    story file for every story — averages 1.15 commits per story.
+
+    Keyed off `story_location` and the story key, which is how the two existing
+    files are already named.
+    """
+    stories, _ = declared
+    location = REPO_ROOT / status["story_location"]
+    missing = []
+    for key, value in status["development_status"].items():
+        if not re.match(r"^\d+-\d+-", key) or value == "backlog":
+            continue
+        epic, number = (int(part) for part in key.split("-")[:2])
+        if (epic, number) < STORY_FILE_REQUIRED_FROM:
+            continue
+        if not (location / f"{key}.md").exists():
+            missing.append(f"{key} (status: {value})")
+    assert not missing, (
+        "these stories left `backlog` with no story file in "
+        f"{status['story_location']}: {missing}. Run bmad-create-story first — the "
+        "numbered ACs and task checklist are the story's exit condition (CLAUDE.md, "
+        "Story workflow rule 1)."
+    )

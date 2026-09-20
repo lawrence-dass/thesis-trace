@@ -149,6 +149,7 @@ async def test_an_ambiguity_is_flagged_once_not_once_per_mapping_version(db_sess
         "warning once per version bump"
     )
 
+@requires_db
 async def test_shares_outstanding_prefers_point_in_time_over_dei_and_ignores_wrong_year_dei(db_session) -> None:
     """Regression guard (AD-3/AD-11): dei:EntityCommonStockSharesOutstanding is dated to
     the filing date, not FYE — for a December filer that files in Jan/Feb, its `end` date
