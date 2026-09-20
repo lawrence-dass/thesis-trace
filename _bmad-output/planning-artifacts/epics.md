@@ -1362,8 +1362,9 @@ legacy undimensioned hashes are unchanged, member identity is distinct and delim
 cannot collide
 **And** the story states, as a decision rather than an assumption, **where dimensioned facts live** —
 NOT in `canonical_facts`, whose partial unique index admits one row per
-`(issuer, concept, year, mapping_version)`; Story 13.4 names and migrates the member-aware store, and
-this story's contract is what forbids the shortcut of widening `canonical_facts` in place
+`(issuer, concept, year, mapping_version)`. Story 13.3 named and migrated the member-aware store
+(moved there on 2026-09-11), and this story's contract is what forbids the shortcut of widening
+`canonical_facts` in place
 **And** a test asserts the contamination guard directly, covering **both** reachable failure modes
 rather than only the loud one: a dimensioned `us-gaap:Revenues` row in `raw_facts` (a) must not raise
 an `ambiguous_selection` when it disagrees with the consolidated total, and (b) must not become the
@@ -1449,150 +1450,258 @@ early-warning disclosure rather than treated as a curiosity
 **brand-dimensioned at all**: the gate finding records CPB's
 `ImpairmentOfIntangibleAssetsIndefinitelivedExcludingGoodwill` appearing under Corporate & Other, not
 under a trademark member. If impairment is only ever a filer- or segment-level event, then "was this
-brand written down?" cannot be answered per brand from XBRL, and Stories 13.4 and 13.7 must say so
+brand written down?" cannot be answered per brand from XBRL, and Stories 13.4d and 13.7b must say so
 plainly instead of implying a per-brand link the data does not support — the epic's headline claim
 depends on this answer, so it is a blocking question for 13.4, not a detail
 **And** every mapping decision carries a `note` stating the argument (what the tag includes and what
 the alternative excludes), not merely the choice — so a future reader challenging it has the evidence,
 per the BCE debt note that survived exactly that challenge
 
-### Story 13.4: Acquisition-performance computation and versioned spec
+### Story 13.4a: Every member row resolves to exactly one brand
 
 As Lawrence (developer),
-I want per-brand acquisition performance computed deterministically on the write path against a
-versioned spec,
-So that every figure shown obeys the deterministic/LLM boundary and AD-1's CQRS discipline, and the
-thresholds are the filer's own filed disclosures rather than ThesisTrace's invention.
+I want one brand identity per stored member row, whatever axis carries it,
+So that a consumer never labels four different brands with the same name, and never treats a
+member key as a brand for a filer where it is not one.
 
 **Acceptance Criteria:**
 
-**Given** the canonical dimensioned facts from Stories 13.2–13.3
-**When** the batch pipeline runs
-**Then** each acquired brand's carrying-value trajectory, any impairment charged against it, and its
-within-10%-of-impairment flag are computed in `pipeline/run.py` and materialized — never solved on
-the read path (AD-1, NFR-8), with the standing consequence stated up front: the feature is **absent
-until the pipeline runs**, so a fresh database renders nothing rather than computing on demand
-**And** the spec is a versioned `formulas/`-style artifact declaring its inputs, its missing-data
-policy and its rounding mode via the shared decimal engine (AD-5, AD-15, NFR-2) — and the declared
-`inputs` list is enforced as a superset of what the code actually reads, per the `piotroski_v1.yaml`
-defect where the two silently disagreed
-**And** ThesisTrace originates **no** threshold: the 10%-or-less band is the filer's own filed
-disclosure and is labelled as such; any presentation guard of our own is explicitly labelled ours,
-per the Cameco caveat rule ("a caveat may annotate a score; it must never alter one")
-**And** this story DEFINES AND MIGRATES the member-aware store that Story 13.1's contract keeps out
-of `canonical_facts`, specifying all four of: the table name; its unique key (which must carry the
-member, e.g. `(issuer_cik, canonical_concept, member, fiscal_year, mapping_version)`); its
-supersession behaviour, following `canonical_facts`' partial-unique-index pattern rather than
-inventing a second one; and the provenance columns needed to satisfy AD-19 down to the member
-**And** the writer's idempotency key is that same unique key — `pipeline/run.py` is a daily cron over
-the same canonical facts, and a writer without one accumulates a row per night
-**And** where Story 13.3 establishes that impairment is NOT brand-dimensioned, this story computes
-and stores it at the level the filing actually supports, and records that level as data — never
-attributing a filer- or segment-level write-down to a specific brand
-**And** a brand with no impairment test disclosed for a year is `insufficient_data` for that year,
-never an assumed "no impairment" (AD-16)
+**Given** that CPB and ZTS carry the brand in `member_key` while QSR carries it in the SEGMENT
+member inside `context_key` — all 30 of QSR's rows share `member_key: trade_names`
+(`story_13_3_multi_axis_member_identity_verified`)
+**When** a consumer asks "which brand is this row"
+**Then** a single resolution answers it for every filer, returning the brand's stable key and its
+label from the spec's own words, never from a tag name parsed at read time
+**And** a filer whose brand identity is not resolvable is `insufficient_data` for that row, never a
+row labelled with the member key as though it were a brand name (AD-16)
+**And** this story adds NO new figure: it is identity only, so it can merge before any computation
+exists and every later story in this epic reads through it
 
-### Story 13.5: Segment payload — per-filer, within-filer comparison only
+### Story 13.4b: An exclusion says which axis it speaks for
+
+As Lawrence (developer),
+I want `excluded_members` scoped to the axis it was verified against, and unreachable exclusions
+rejected at load,
+So that a recorded decision keeps suppressing exactly what it ruled on, and an exclusion that can
+never fire is caught instead of reading like an enforced one.
+
+**Acceptance Criteria:**
+
+**Given** `story_13_3_member_exclusions_are_not_axis_scoped` — an exclusion currently suppresses its
+member everywhere, and QSR's `franchise_rights`, `franchise_agreements` and `favorable_leases` are
+INERT because those facts are tagged on the finite-lived axis no dimensioned rule touches
+**When** the mapping spec loads
+**Then** an exclusion declares the axis (and where it matters, the source concept) it was
+live-verified against, and suppresses only there
+**And** an exclusion no dimensioned rule could ever reach is REJECTED at load with its member named —
+an inert guard reads exactly like a working one, which is the conformance rule this mechanism was
+added to satisfy in the first place
+**And** tests cover the wrong-axis occurrence and the unreachable-exclusion rejection, both
+confirmed to fail before the fix
+
+### Story 13.4c: Per-brand carrying value, computed and materialized
 
 As Lawrence (investor),
-I want each filer's own reportable-segment figures across years where the filer defines segments,
-So that where an acquired brand *is* a segment — QSR's Burger King, Tim Hortons, Popeyes, Firehouse
-Subs — post-acquisition performance is directly readable, without implying any comparison the data
-cannot support.
+I want each acquired brand's carrying-value trajectory computed on the write path against a
+versioned spec,
+So that every figure obeys the deterministic boundary and AD-1's CQRS discipline.
 
 **Acceptance Criteria:**
 
-**Given** that segment members are stable for CPB across FY2022–FY2025 (verified 4/4 years) but that
-"segment" means product categories at CPB, geographies at ZTS and individual brands at QSR
-**When** segment figures are computed
-**Then** this story owns **segment-payload computation and its derived output storage only**. It
-consumes the dimension-aware fact store defined by Story 13.4 and the segment mappings defined by
-Story 13.3; it does not define or migrate either upstream store. The mapping of segment tags —
-including the two verified CPB tag switches — belongs to Story 13.3 with the rest of the dimensional
-mapping, and every UI concern belongs to Story 13.7; this story is complete when the figures are
-correct and materialized, whether or not anything renders them
-**And** the segment-payload output is stored in a named `segment_payloads` relation with an
-active uniqueness/supersession key carrying issuer, axis, member, canonical concept, fiscal year and
-mapping version, plus member-level provenance; its idempotent writer must not use the one-row-per-
-concept/year `canonical_facts` key
-**And** it consumes 13.3's mappings for the two CPB tag switches rather than defining them, their
-exact boundaries being: segment profitability `us-gaap:OperatingIncomeLoss` (FY2022–FY2024) →
-`cpb:SegmentOperatingEarnings` (FY2025), and segment capex
-`us-gaap:PaymentsToAcquirePropertyPlantAndEquipment` (FY2022–FY2023) →
+**Given** the member store Story 13.3 defined and migrated (moved there on 2026-09-11; this story
+WRITES INTO it and must not redefine its table, its member-carrying unique key or its supersession
+behaviour)
+**When** the batch pipeline runs
+**Then** each brand's carrying value per fiscal year is materialized in `pipeline/run.py`, never
+solved on the read path (AD-1, NFR-8) — with the standing consequence stated up front: the feature
+is **absent until the pipeline runs**, so a fresh database renders nothing
+**And** the writer's idempotency key is that same unique key; `pipeline/run.py` is a daily cron over
+the same canonical facts, and a writer without one accumulates a row per night
+**And** the versioned `formulas/`-style spec declares its inputs, missing-data policy and rounding
+mode via the shared decimal engine (AD-5, AD-15, NFR-2), with the declared `inputs` list ENFORCED as
+a superset of what the code reads — the `piotroski_v1.yaml` defect where the two silently disagreed
+**And** the residual and total concepts (`..._residual`, `..._total`, us-gaap_v16) are computed
+separately and never summed into the per-brand series, which the FY2021/FY2022/FY2024 overshoot
+already disproved by arithmetic
+
+### Story 13.4d: Impairment stored at the level the filing supports
+
+As Lawrence (investor),
+I want any write-down recorded against exactly the level its filing charges it to,
+So that a company-level charge is never attributed to a brand the filer never named.
+
+**Acceptance Criteria:**
+
+**Given** that CPB tags impairment per member, ZTS tags it consolidated-only under a different
+concept, and QSR tags none at all (`story_13_3_brand_member_live_verification`)
+**When** impairment is computed
+**Then** the level is stored AS DATA beside the figure — per brand, per filer, or absent — never
+inferred later from which table a row sits in
+**And** a brand with no impairment test disclosed for a year is `insufficient_data` for that year,
+never an assumed "no impairment" (AD-16)
+**And** Stories 13.7b and 13.8a must be able to say plainly that ZTS and QSR have no per-brand
+impairment, rather than implying a link the filings do not support
+**And** it is materialized on the WRITE path under Story 13.4c's spec and idempotency key, never
+solved on read (AD-1, NFR-8) — the requirement lived in the old undivided 13.4 and applies to every
+figure this epic stores, not only to carrying value
+
+### Story 13.4e: The 10%-or-less disclosure, as the filer's own statement
+
+As Lawrence (investor),
+I want CPB's filed early-warning disclosure stored and labelled as CPB's,
+So that a brand approaching a write-down is visible before one lands, with no threshold invented by
+ThesisTrace.
+
+**Acceptance Criteria:**
+
+**Given** the aggregate member CPB renames between FY2023 and FY2024 (both spellings live-verified)
+**When** the disclosure is stored
+**Then** ThesisTrace originates **no** threshold: the 10%-or-less band is the filer's own filed
+number and is labelled as such, and any presentation guard of ours is explicitly labelled ours, per
+the Cameco rule — a caveat may annotate a figure, never alter one
+**And** it is stored as the AGGREGATE it is, never attributed to a named brand, since it shares its
+source concept with per-brand carrying value and is told apart only by its member
+**And** it too is materialized on the write path under Story 13.4c's spec and idempotency key
+(AD-1, NFR-8)
+
+### Story 13.5a: CPB's segment concepts, mapped
+
+As Lawrence (developer),
+I want CPB's segment figures mapped, including both verified tag switches,
+So that segment payload computation has mappings to consume rather than assuming them.
+
+**Acceptance Criteria:**
+
+**Given** that Story 13.3 mapped brand intangibles only — segment concept mapping is currently owned
+by NO story, an ownership gap found while re-cutting this epic on 2026-09-18
+**When** the mapping spec is extended
+**Then** both live-verified switches are carried as per-era sources: segment profitability
+`us-gaap:OperatingIncomeLoss` (FY2022–FY2024) → `cpb:SegmentOperatingEarnings` (FY2025), and segment
+capex `us-gaap:PaymentsToAcquirePropertyPlantAndEquipment` (FY2022–FY2023) →
 `cpb:SegmentExpenditureAdditionToPPE` (FY2024–FY2025)
+**And** per-year coverage is verified against live `data.sec.gov` company-facts, never tag existence
 **And** the recorded but **unconfirmed** hypothesis — that FY2025's additions reflect the new
-segment-reporting standard's significant-segment-expense disclosure and are therefore systematic
-across filers at roughly one date — is either confirmed against a second filer or left explicitly
-unconfirmed in the spec `note`, never relied on as though verified
-**And** the stored figures carry the filer's own segment-kind as data (product category / geography /
-brand), so that 13.7 can enforce within-filer-only comparison from a recorded fact rather than from a
-UI convention that a later change could quietly drop
+segment-reporting standard and are therefore systematic across filers at roughly one date — is
+either confirmed against a second filer or left explicitly unconfirmed in the spec `note`, never
+relied on as though verified
+
+### Story 13.5b: Segment figures materialized into their own store
+
+As Lawrence (developer),
+I want segment payloads computed and stored with their own key,
+So that per-segment figures cannot collide in a table whose key carries no segment.
+
+**Acceptance Criteria:**
+
+**Given** the mappings from Story 13.5a
+**When** segment figures are computed
+**Then** they are stored in a named `segment_payloads` relation whose active uniqueness/supersession
+key carries issuer, axis, member, canonical concept, fiscal year and mapping version, plus
+member-level provenance — never the one-row-per-concept/year `canonical_facts` key
+**And** its writer is idempotent under the daily cron, proven by a second pass that adds,
+supersedes and flags nothing
+**And** this story is complete when the figures are correct and materialized, whether or not
+anything renders them
+
+### Story 13.5c: Each filer's segment-kind, recorded as data
+
+As Lawrence (investor),
+I want to know what a filer's "segment" actually means before any two are shown together,
+So that a product category is never silently compared against a brand.
+
+**Acceptance Criteria:**
+
+**Given** that "segment" means product categories at CPB, geographies at ZTS and individual brands
+at QSR
+**When** a segment payload is stored
+**Then** the filer's own segment-kind is stored beside it as data, so Story 13.7b enforces
+within-filer-only comparison from a recorded fact rather than from a UI convention a later change
+could quietly drop
 **And** a filer with no segment axis (SHOP, CP) or a single generic member (OTEX's
 `otex:ReportableSegmentMember`) resolves `insufficient_data`, never a defaulted zero (AD-16)
 
-### Story 13.6: Golden-dataset coverage for acquisition performance
+### Story 13.6a: The golden harness can express a dimensioned fact
 
 As Lawrence (developer),
-I want acquisition-performance figures hand-verified against real EDGAR data and pinned in
-`phase1_golden.yaml`,
-So that SM-1's guarantee — reopened by every new capability, not only by every new filer — holds for
-this feature rather than lapsing silently.
+I want a fixture format that can carry a member, proved by one entry end to end,
+So that golden entries for this epic assert something rather than pinning an outcome.
 
 **Acceptance Criteria:**
 
-**Given** the standing finding that the golden fixtures are **trimmed subsets**, and that every new
-capability has hit that wall (Story 6.7: CP's fixture carried neither a capex nor a cash tag, so all
-seven filers resolved `insufficient_data` while the entries looked complete)
-**When** golden entries are written
-**Then** the story first SPECIFIES the dimensioned fixture format and who asserts against it — the
-existing harness consumes Company Facts fixtures and scalar canonical facts, and neither shape can
-express a member, so this is new fixture design and not a data top-up
-**And** the fixtures are confirmed to actually carry the dimensioned contexts each new entry
-exercises **before** any entry is written — an entry a fixture cannot reproduce is reworked or the
-fixture is rebuilt from the dev store's own `raw_facts`, never left in place asserting nothing
-**And** each expected value is hand-computed independently, without importing the code that produces
-it — the independence that caught the IFRS golden dataset's own averaging error
-**And** corrupting an expected value is confirmed to fail the suite, for at least one entry
-**And** the three filers where the feature does not resolve (OTEX, SHOP, CP) carry explicit
-`insufficient_data` entries with the *verified reason* recorded, so a future change that makes one of
-them resolve fails loudly rather than passing unnoticed
+**Given** that the existing harness consumes Company Facts fixtures and scalar canonical facts, and
+NEITHER shape can express a member — this is fixture design, not a data top-up
+**When** the format is defined
+**Then** one real entry is written against it and corrupting its expected value is confirmed to fail
+the suite
+**And** the fixture is confirmed to carry the dimensioned contexts that entry exercises, rebuilt from
+the dev store's own `raw_facts` where it does not (Story 6.7's wall: CP's fixture carried neither a
+capex nor a cash tag, so all seven filers resolved `insufficient_data` while the entries looked
+complete)
 
-### Story 13.7: Acquisition-performance report section
+### Story 13.6b: Golden entries for every filer, resolving or not
+
+As Lawrence (developer),
+I want each filer's acquisition-performance figures hand-verified and pinned,
+So that SM-1 holds for this capability instead of lapsing silently.
+
+**Acceptance Criteria:**
+
+**Given** the format from Story 13.6a
+**When** entries are written
+**Then** each expected value is hand-computed independently, without importing the code that
+produces it — the independence that caught the IFRS golden dataset's own averaging error
+**And** EVERY entry — not only 13.6a's proof entry — is written only after its fixture is confirmed
+to carry the dimensioned contexts that entry exercises; where it cannot, the fixture is rebuilt from
+the dev store's own `raw_facts` or the entry says so explicitly. An entry a fixture cannot reproduce
+pins an outcome while asserting nothing, and the trimmed fixtures have caught every new capability
+so far (Story 6.7, and the OTEX `no_profile` entry before it)
+**And** the three filers where the feature does not resolve (OTEX, SHOP, CP) carry explicit
+`insufficient_data` entries with the *verified reason* recorded, so a future change that makes one
+resolve fails loudly rather than passing unnoticed
+
+### Story 13.7a: Provenance carries the member
+
+As Lawrence (developer),
+I want the API's `Provenance` schema to represent a member,
+So that a per-brand figure can resolve to the fact it came from.
+
+**Acceptance Criteria:**
+
+**Given** that `api/schemas.py:11` carries `accession_number`, `canonical_concept`, `fiscal_year`,
+`period_end`, `source_filing_form` and `derivation` only — member-level provenance is
+unrepresentable today
+**When** the schema is extended
+**Then** every per-brand figure resolves to `(accession_number, xbrl_concept, member, period)`
+(AD-19, NFR-4), and a value with no resolvable provenance is not shown as fact
+**And** the extension is additive: existing consumers of `Provenance` keep working unchanged
+
+### Story 13.7b: The acquisition-performance section
 
 As Lawrence (investor),
-I want an acquisition-performance section on the company report that shows, per acquired brand, what
-the company says it is still worth and whether that has been written down,
-So that the CPB packet's blocking question — "is the Sovos Brands / Rao's acquisition actually
-performing?" — is answerable from the page rather than from a manual filing read.
+I want a report section showing, per acquired brand, what the company says it is still worth and
+whether it has been written down,
+So that the CPB packet's blocking question — is the Rao's acquisition performing? — is answerable
+from the page.
 
 **Acceptance Criteria:**
 
-**Given** Epic 11's Instrument Panel design system and Epic 10's report shell
+**Given** Epic 11's Instrument Panel design system, Epic 10's report shell, and the identity from
+Story 13.4a
 **When** the section renders
-**Then** the API's `Provenance` schema is EXTENDED with a `member` field — it currently carries
-`accession_number`, `canonical_concept`, `fiscal_year`, `period_end`, `source_filing_form` and
-`derivation` only (`api/schemas.py:11`), so member-level provenance is unrepresentable today and the
-extension is this story's work, not an assumed capability
-**And** every figure is an already-computed deterministic value with resolvable provenance to
-`(accession_number, xbrl_concept, member, period)` (AD-19, NFR-4) — a value with no resolvable
-provenance is not shown as fact
-**And** within-filer-only comparison is enforced from the segment-kind Story 13.5 stores as data, so
-the constraint survives a later UI change
-**And** the within-10%-of-impairment disclosure is presented as the filer's own filed statement, with
-its status encoded by more than colour alone (AD-16's accessibility floor)
-**And** jargon terms use the existing `Term` inline-definition component rather than new prose
+**Then** brands are shown side by side with no multi-brand aggregate score, grade or blended shape
+(D12) — the Verdict rule applied to brands
+**And** within-filer-only comparison is enforced from the segment-kind Story 13.5c stores as data
+**And** the 10%-or-less disclosure is presented as the filer's own filed statement, with its status
+encoded by more than colour alone (AD-16's accessibility floor)
+**And** jargon uses the existing `Term` inline-definition component rather than new prose
 **And** a filer where the feature does not resolve renders an explicit, readable `insufficient_data`
 state naming the honest reason — these companies do not buy brands — never a blank section
-**And** no multi-brand aggregate score, grade or blended shape is introduced (D12): brands are shown
-side by side, the way the four models are
 
-### Story 13.8: Full-universe browser verification and data-quality disposition
+### Story 13.8a: Every filer rendered, chosen by code path
 
 As Lawrence (investor),
-I want every US-GAAP filer's report rendered in a real browser and every data-quality row this epic
-raised dispositioned,
-So that the epic closes on evidence rather than on a green suite — which on this project has
-repeatedly meant nothing.
+I want the feature verified in a real browser across the filers that exercise different paths,
+So that the epic closes on evidence rather than on a green suite.
 
 **Acceptance Criteria:**
 
@@ -1600,20 +1709,34 @@ repeatedly meant nothing.
 not by convenience (Story 6.6 was clean on four filers and broken on the two not chosen)
 **When** verification runs
 **Then** all six US-GAAP filers are rendered live: QSR (brands *as* segments — the lead case), CPB
-(brands on the intangibles axis only, plus both tag switches and a non-calendar FYE), ZTS (geographic
-segments), and OTEX, SHOP and CP as the three `insufficient_data` paths, each confirmed to render the
-honest absence rather than a broken section
-**And** at least one IFRS filer is opened to confirm the out-of-scope path renders correctly and no
-other feature regressed — BCE/SU/CCJ are deliberately out of scope, and that is designed behaviour,
+(intangibles axis, both tag switches, a non-calendar FYE), ZTS (geographic segments), and OTEX,
+SHOP and CP as the three `insufficient_data` paths, each confirmed to render the honest absence
+**And** at least one IFRS filer is opened to confirm the out-of-scope path renders correctly and
+nothing else regressed — BCE/SU/CCJ are deliberately out of scope, which is designed behaviour and
 not a defect to fix
-**And** every `data_quality_issues` row this epic raised is reviewed and dispositioned (resolved, or
-explicitly accepted with a reason), never left open and unexamined — with particular attention to any
-`ambiguous_selection` on a consolidated concept, which would mean Story 13.1's contamination guard
-did not hold
-**And** any defect found is DISPOSITIONED before this epic closes, on a bounded rule rather than an
-open-ended promise to fix whatever turns up: a defect in a surface **this epic built** is fixed here;
-a defect found in a pre-existing surface is RECORDED in `engineering-findings.yaml` with its
-reachability assessed, and fixed here only if it is user-facing and caused by this epic's changes.
-Anything else is logged for its own story — the 2026-09-02 sessions each found two or three unrelated
-live defects while verifying one thing, and absorbing those into a verification story is how a
-closing story becomes unclosable
+**And** a defect in a surface THIS EPIC BUILT is fixed here; a defect in a pre-existing surface is
+recorded in `engineering-findings.yaml` with its reachability assessed, and fixed here only if it is
+user-facing and caused by this epic's changes. Anything else is logged for its own story — the
+2026-09-02 sessions each found two or three unrelated live defects while verifying one thing
+**And** EVERY defect found is dispositioned — fixed, recorded with its reachability, or logged as
+its own story — BEFORE the epic closes. None may be left merely noticed; the routing rule above
+decides where each goes, and this clause is what makes the epic's closure conditional on all of
+them having gone somewhere
+
+### Story 13.8b: Every data-quality row this epic raised, dispositioned
+
+As Lawrence (developer),
+I want each `data_quality_issues` row from this epic reviewed and closed out,
+So that the epic does not end with a page full of unexamined warnings.
+
+**Acceptance Criteria:**
+
+**Given** that data-quality issues are WRITE-ONLY — nothing in the system sets `resolved` or
+`dismissed`, and issues carry no `mapping_version`, so a fix PREVENTS new warnings without
+retracting stored ones (`story_13_3_data_quality_issues_are_write_only`)
+**When** the sweep runs
+**Then** every row this epic raised is resolved or explicitly accepted with a reason, never left
+open and unexamined — with particular attention to any `ambiguous_selection` on a consolidated
+concept, which would mean Story 13.1's contamination guard did not hold
+**And** whether a retraction mechanism is needed at all is decided here and recorded, rather than
+left as the standing gap it is today
