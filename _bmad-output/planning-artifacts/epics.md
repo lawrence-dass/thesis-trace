@@ -1541,6 +1541,9 @@ inferred later from which table a row sits in
 never an assumed "no impairment" (AD-16)
 **And** Stories 13.7b and 13.8a must be able to say plainly that ZTS and QSR have no per-brand
 impairment, rather than implying a link the filings do not support
+**And** it is materialized on the WRITE path under Story 13.4c's spec and idempotency key, never
+solved on read (AD-1, NFR-8) — the requirement lived in the old undivided 13.4 and applies to every
+figure this epic stores, not only to carrying value
 
 ### Story 13.4e: The 10%-or-less disclosure, as the filer's own statement
 
@@ -1558,6 +1561,8 @@ number and is labelled as such, and any presentation guard of ours is explicitly
 the Cameco rule — a caveat may annotate a figure, never alter one
 **And** it is stored as the AGGREGATE it is, never attributed to a named brand, since it shares its
 source concept with per-brand carrying value and is told apart only by its member
+**And** it too is materialized on the write path under Story 13.4c's spec and idempotency key
+(AD-1, NFR-8)
 
 ### Story 13.5a: CPB's segment concepts, mapped
 
@@ -1645,6 +1650,11 @@ So that SM-1 holds for this capability instead of lapsing silently.
 **When** entries are written
 **Then** each expected value is hand-computed independently, without importing the code that
 produces it — the independence that caught the IFRS golden dataset's own averaging error
+**And** EVERY entry — not only 13.6a's proof entry — is written only after its fixture is confirmed
+to carry the dimensioned contexts that entry exercises; where it cannot, the fixture is rebuilt from
+the dev store's own `raw_facts` or the entry says so explicitly. An entry a fixture cannot reproduce
+pins an outcome while asserting nothing, and the trimmed fixtures have caught every new capability
+so far (Story 6.7, and the OTEX `no_profile` entry before it)
 **And** the three filers where the feature does not resolve (OTEX, SHOP, CP) carry explicit
 `insufficient_data` entries with the *verified reason* recorded, so a future change that makes one
 resolve fails loudly rather than passing unnoticed
@@ -1708,6 +1718,10 @@ not a defect to fix
 recorded in `engineering-findings.yaml` with its reachability assessed, and fixed here only if it is
 user-facing and caused by this epic's changes. Anything else is logged for its own story — the
 2026-09-02 sessions each found two or three unrelated live defects while verifying one thing
+**And** EVERY defect found is dispositioned — fixed, recorded with its reachability, or logged as
+its own story — BEFORE the epic closes. None may be left merely noticed; the routing rule above
+decides where each goes, and this clause is what makes the epic's closure conditional on all of
+them having gone somewhere
 
 ### Story 13.8b: Every data-quality row this epic raised, dispositioned
 
