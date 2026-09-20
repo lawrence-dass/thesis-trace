@@ -25,9 +25,14 @@ jobs:
 
     env:
       # Alembic's env.py reads DATABASE_URL (not TEST_DATABASE_URL) to build the
-      # migration engine; both point at the same service-container DB in CI,
-      # unlike local dev's separate dev/test databases.
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/thesistrace_test
+      # migration engine. These two addressed the SAME database until 2026-09-20,
+      # which is the configuration `backend/tests/conftest.py` now refuses: the DB
+      # fixtures drop every table, so a run where both variables point at one
+      # database is the shape that destroys a dev store locally. CI has nothing to
+      # lose, but exempting it would leave the guard untested on every push and let
+      # the two environments disagree — so CI mirrors local instead: migrations
+      # target their own database, tests own theirs.
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/thesistrace_migrations
       TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/thesistrace_test
       EDGAR_CONTACT: "ThesisTrace CI ci@example.com"
 
@@ -45,6 +50,10 @@ jobs:
       - name: Install backend deps
         working-directory: backend
         run: uv sync --locked --all-groups
+
+      - name: Create the migration-target database
+        # The service container creates POSTGRES_DB (thesistrace_test) only.
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -c 'CREATE DATABASE thesistrace_migrations'
 
       - name: Run migrations
         # alembic.ini lives at repo root (script_location = db/migrations,
