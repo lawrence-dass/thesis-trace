@@ -170,10 +170,23 @@
 #                 holds concepts_v16 rows, and a spec is frozen the moment any
 #                 database stamps its version.
 
-mapping_version: concepts_v17
+#   concepts_v18  us-gaap_v17 + ifrs-full_v4 + derivations_v5. Story 13.4a, and the
+#                 first version in this history that CHANGES NO FIGURE. It adds
+#                 read-time brand identity: QSR's four segment brands (its 30 rows
+#                 all share member_key `trade_names`, and the brand is the segment
+#                 member inside context_key), and a `kind` on every brand member so
+#                 an aggregate, a residual and the filer's own disclosure can be
+#                 told from a named brand without pattern-matching a label.
+#                 Bumped rather than amended because the dev database already holds
+#                 concepts_v17 rows — a spec is frozen the moment any database
+#                 stamps its version. Re-canonicalizing under this version must
+#                 reproduce the same rows with the same values; that it does is the
+#                 story's own acceptance check, not an assumption.
+
+mapping_version: concepts_v18
 
 taxonomies:
-  us-gaap: us-gaap_v16
+  us-gaap: us-gaap_v17
   ifrs-full: ifrs-full_v4
 
 derivations: derivations_v5
