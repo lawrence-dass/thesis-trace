@@ -43,9 +43,12 @@ grep -n "pattern" bigdoc.md                    # locate a section before reading
 3. **Explain in plain language.** After each major task, give an easy-to-read recap of what was done and how to review it, so Lawrence can step away and come back without digging.
 4. **Ask for all permissions in one go.** Before starting research or any multi-fetch task, list every web domain, live API fetch, or approval the whole task will need and ask **once**. Never drip-feed one approval at a time — it turns a single task into a chain of interruptions for no added safety, since the activity itself is already approved. Applies equally to the standing "ask before live EDGAR fetch" rule: name all the tickers/CIKs in a single request.
 
-   **The mechanical half of this is now pre-granted** in `.claude/settings.json`: local
-   commands (uv/pytest/ruff/alembic, the `thesistrace-pg` container, npm/next, lsof, curl to
-   localhost) and the `data.sec.gov` / `www.sec.gov` domains no longer prompt. That file
+   **The mechanical half of this is now pre-granted** in `.claude/settings.json`: `make`
+   targets, the narrow `uv run pytest/ruff/alembic` forms, `docker exec thesistrace-pg psql`,
+   npm/next, lsof, curl to localhost, and the `data.sec.gov` / `www.sec.gov` domains. A
+   2026-09-20 review cut the patterns that only LOOKED narrow — `TEST_DATABASE_URL=* *`,
+   `env -u * *` and `uv run *` each authorize any command that follows, and `make` now covers
+   what they were added for. That file
    replaced 201 accumulated one-off entries — 38 separate `curl -s` strings, 7 variants of
    the same pytest command — which is why prompts kept firing despite a long allowlist.
    **The editorial obligation is unchanged:** name every ticker and CIK you are about to

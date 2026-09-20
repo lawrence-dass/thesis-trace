@@ -15,16 +15,11 @@
     "allow": [
       "Bash(make)",
       "Bash(make *)",
-      "Bash(uv run *)",
       "Bash(uv sync*)",
       "Bash(uv add *)",
-      "Bash(TEST_DATABASE_URL=* *)",
-      "Bash(DATABASE_URL=* *)",
-      "Bash(env -u * *)",
       "Bash(pytest *)",
       "Bash(ruff *)",
       "Bash(alembic *)",
-      "Bash(docker exec thesistrace-pg *)",
       "Bash(docker ps*)",
       "Bash(docker start thesistrace-pg)",
       "Bash(docker stop thesistrace-pg)",
@@ -35,7 +30,6 @@
       "Bash(npx tsc*)",
       "Bash(npx eslint*)",
       "Bash(npx playwright*)",
-      "Bash(NEXT_PUBLIC_API_BASE_URL=* *)",
       "Bash(curl -s http://localhost:*)",
       "Bash(curl -sS http://localhost:*)",
       "Bash(curl -sf http://localhost:*)",
@@ -54,7 +48,6 @@
       "Bash(git stash*)",
       "Bash(gh pr *)",
       "Bash(gh run view*)",
-      "Bash(gh api repos/*)",
       "WebFetch(domain:data.sec.gov)",
       "WebFetch(domain:www.sec.gov)",
       "Bash(curl -s https://data.sec.gov/*)",
@@ -62,7 +55,12 @@
       "Bash(curl -s -H * https://data.sec.gov/*)",
       "Bash(curl -s https://www.sec.gov/cgi-bin/browse-edgar*)",
       "WebFetch(domain:api.tiingo.com)",
-      "WebFetch(domain:www.bankofcanada.ca)"
+      "WebFetch(domain:www.bankofcanada.ca)",
+      "Bash(uv run pytest*)",
+      "Bash(uv run ruff*)",
+      "Bash(uv run alembic*)",
+      "Bash(uv run --project backend alembic*)",
+      "Bash(docker exec thesistrace-pg psql*)"
     ]
   }
 }

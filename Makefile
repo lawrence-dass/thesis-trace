@@ -21,15 +21,21 @@ help:  ## List targets
 
 # --- backend ---------------------------------------------------------------
 
+# The authoritative guard lives in backend/tests/conftest.py, which compares what the
+# two URLs POINT AT (host, port, database) rather than their text and refuses beside the
+# drop_all itself — a direct `pytest` never reaches a make target. This is the cheap
+# early check; both are needed.
 test:  ## Backend tests (refuses to run against the dev database)
+	@$(call safe,$(ARGS))
 	@cd backend && $(LOADENV) && \
-	if [ -z "$$TEST_DATABASE_URL" ] || [ "$$TEST_DATABASE_URL" = "$$DATABASE_URL" ]; then \
-	  echo "refusing: TEST_DATABASE_URL must be set and DISTINCT from DATABASE_URL."; \
-	  echo "the test teardown drops every table — see .env.example."; exit 1; \
+	if [ -z "$$TEST_DATABASE_URL" ]; then \
+	  echo "refusing: TEST_DATABASE_URL is not set — the teardown drops every table."; \
+	  exit 1; \
 	fi; \
 	uv run pytest -q $(ARGS)
 
 test-one:  ## One test file or node: make test-one T=tests/test_foo.py::test_bar
+	@if [ -z "$(T)" ]; then echo "usage: make test-one T=tests/test_x.py::test_y"; exit 1; fi
 	@$(MAKE) test ARGS="$(T)"
 
 lint:  ## ruff check (matches CI)
@@ -45,7 +51,9 @@ pipeline:  ## Full batch pipeline (LIVE EDGAR fetches — name every CIK first)
 	@cd backend && $(LOADENV) && uv run python -m pipeline.run
 
 py:  ## Run a script with the backend env: make py F=scripts/recanonicalize.py
-	@cd backend && $(LOADENV) && uv run python $(ROOT)/$(F) $(ARGS)
+	@$(call safe,$(F) $(ARGS))
+	@if [ ! -f "$(ROOT)/$(F)" ]; then echo "no such script: $(F)"; exit 1; fi
+	@cd backend && $(LOADENV) && uv run python "$(ROOT)/$(F)" $(ARGS)
 
 # --- database --------------------------------------------------------------
 
@@ -59,10 +67,22 @@ db-down:  ## Stop the Postgres container (data survives)
 psql:  ## Query the dev database: make psql Q="select 1"
 	@docker exec $(DC) psql -U postgres -d thesistrace -c "$(Q)"
 
+# Variables interpolate into a shell line, so `make py F='x; rm -rf .'` would otherwise
+# run whatever follows the semicolon — and `Bash(make *)` pre-approves the lot, so it
+# would run WITHOUT a prompt. Metacharacters are rejected rather than escaped: every
+# legitimate value here is a path, a pytest node id or a flag.
+define safe
+	case '$(1)' in \
+	  *[\;\&\|\`\$$\(\)\<\>\!]*) \
+	    echo "refusing: '$(1)' contains shell metacharacters"; exit 1;; \
+	esac
+endef
+
 migrate:  ## alembic upgrade head (run from the repo root, as CI does)
 	@$(LOADENV) && uv run --project backend alembic upgrade head
 
 migration:  ## New revision: make migration M="add widgets table"
+	@if [ -z "$(M)" ]; then echo 'usage: make migration M="what it does"'; exit 1; fi
 	@$(LOADENV) && uv run --project backend alembic revision -m "$(M)"
 
 # --- frontend --------------------------------------------------------------
