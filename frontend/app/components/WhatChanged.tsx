@@ -20,6 +20,7 @@ import { Badge, bandTone } from "./ui/Badge";
 import { Card } from "./ui/Card";
 import { CitationChip } from "./ui/CitationChip";
 import { AlertIcon } from "./ui/icons";
+import { issueLabel } from "./issueLabels";
 
 export type ChangeProvenance = {
   accession_number: string | null;
@@ -115,11 +116,6 @@ const KIND_LABEL: Record<string, string> = {
   scored_year_added: "New fiscal year scored",
 };
 
-const ISSUE_LABEL: Record<string, string> = {
-  identity_violation: "Accounting identity check",
-  ambiguous_selection: "Ambiguous source selection",
-  source_conflict: "Conflicting sources",
-};
 
 // Rendered in UTC deliberately. The pivot is a stored UTC instant, and
 // formatting it in the viewer's zone shifts a midnight timestamp to the
@@ -355,7 +351,7 @@ export function WhatChanged({ changes, cik }: { changes: Changes; cik: string })
                   <Badge variant={d.kind === "data_quality_opened" ? "caveat" : "pass"} icon={false}>
                     {d.kind === "data_quality_opened" ? "Opened" : "Closed"}
                   </Badge>
-                  <span>{ISSUE_LABEL[d.issue_type] ?? d.issue_type}</span>
+                  <span>{issueLabel(d.issue_type)}</span>
                   <span className="text-caption text-[var(--color-ink-faint)]">raised by {d.raised_by}</span>
                 </li>
               ))}

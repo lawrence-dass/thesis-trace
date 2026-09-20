@@ -195,3 +195,36 @@
 - **Decomposing an epic is an AUDIT of the existing system, not paperwork.** Writing Story 13.1's acceptance criteria honestly — asking "where do these new rows actually land?" rather than "what will we build?" — is what found that `canonicalize.py`'s candidate grouping keys on `(canonical_concept, period_end.year)` and never reads `rf.dimensions`, while `us-gaap:Revenues`, `CostOfGoodsAndServicesSold`, `OperatingIncomeLoss` and `PaymentsToAcquirePropertyPlantAndEquipment` are all mapped canonical sources **and** all tagged per-segment by CPB. A spike would not have found it: a spike asks whether the new data is *reachable*, never what happens to the *existing* data once it arrives. Same shape as "drawing the system found a real dead-code gap" (`run_validation`, 2026-07-29) — the artifact is a byproduct; tracing the system to produce it is the value. **Budget decomposition time as verification time, and read the code the new stories will touch rather than planning from the findings alone.** [Source: `engineering-findings.yaml#dimensioned_facts_would_contaminate_consolidated_canonical_facts`]
 - **A HALF-ANTICIPATED architecture is more dangerous than an unanticipated one, because it reads as finished.** `raw_facts.dimensions` (JSONB) and `source = 'inline_xbrl'` exist in the schema, AD-4 declares the Inline XBRL path, and AD-3 rule (2) says "least-dimensioned/most-specific member" — every surface says dimensions are handled, and nothing populates, reads or implements any of it. **Before building on a declared mechanism, check whether anything *executes* it.** Instance 6 of the conformance rule (2026-08-13), which it extends from prose to unexercised code.
 - **`ARCHITECTURE-SPINE.md` is the thing to grep when a new capability touches ingestion or canonicalization** — it holds AD-1…AD-21 with the actual rule text, and the ADs are load-bearing on seams that no live data currently exercises. `epics.md`'s "Additional Requirements" section paraphrases them and is NOT the source of truth; the paraphrase of AD-4 there omits nothing important, but the paraphrase is what a planning session naturally reads first.
+
+## Learnings — 2026-09-11 (Story 13.3 — member-aware mapping)
+
+- **A month/day fiscal-year-end tolerance is the wrong instrument for an INSTANT fact.** `_matches_fiscal_year_end`'s ±10-day window is correct for durations and silently wrong for balances: a 52/53-week filer's OPENING balance is dated one day after the prior close, so it falls in the prior calendar-year bucket and competes with that year's real annual figure. Member balances must match an EXACT fiscal-year-end date drawn from an original annual filing (`_issuer_fye_dates`); event-dated facts such as an acquisition opt out through the spec's `period_policy`, never by inferring the distinction from a tag name. Same family as the quarterly-footnote and opening-balance traps already recorded for the undimensioned path — a third shape of "two facts that look annual and are not". [Source: `canonicalize.py`, commit `b121f88`]
+- **Where a guard and a lookup share a loop, their ORDER is load-bearing.** AD-3 rule 0 sat AFTER the `SOURCE_TO_CANONICAL` lookup, so a concept mapped ONLY as a dimensioned rule was discarded on the undimensioned miss before the guard could collect it: the mapping resolved perfectly in unit tests and wrote ZERO rows. A unit test over a lookup structurally cannot catch this; only a test asserting rows LAND can. Whenever a new selection path is added beside an old one, write the end-to-end assertion first. [Source: `test_member_canonicalization.py`, commit `a30d0bf`]
+
+## Learnings — 2026-09-17 (Story 13.3 close-out: live run, two Codex rounds, history rewrite)
+
+- **A spec is frozen the moment ANY database stamps its mapping_version, merged or not.** An in-place amendment of an unmerged `us-gaap_v13` was argued safe because "v14 never shipped". Once Codex restored the original, the local dev DB held six `concepts_v14` rows that no spec could reproduce. Always bump. [Source: `engineering-findings.yaml#story_13_3_multi_axis_member_identity_verified`]
+- **A dedup is not a retraction.** Every data-quality writer is idempotent, but none can ever resolve or delete an issue, and issues carry no `mapping_version`. A fix that removes a warning's cause therefore stops NEW copies without clearing stored ones. Decide "what unsays this" when a diagnostic writer is built. [Source: `engineering-findings.yaml#story_13_3_data_quality_issues_are_write_only`]
+- **Read the metadata that states a mechanism before inferring it from the numbers' shape.** 22 ZTS share-count conflicts were written up as an as-of-date mismatch because 501,900,000 "didn't look rounded". Their XBRL `decimals="-5"` said otherwise.
+- **An unmapped-X guard needs three states, not two:** mapped, unknown, and known-and-deliberately-excluded. Without the third, a recorded mapping decision becomes a permanent nightly warning.
+- **A history rewrite invalidates every commit id cited anywhere,** in messages and in files. Remap them in the same pass (`git filter-branch`'s `map`), keep both dates (`filter-branch` preserves committer dates; a plain rebase does not), and pin the force-push lease to the exact remote id.
+- **A concept name is a CLAIM about every row in it, and the axis does not enforce it.**
+  `IndefiniteLivedIntangibleAssetsByMajorClassAxis` carries every indefinite-lived
+  class, so `brand_intangible_carrying_value` quietly collected ZTS's in-process R&D
+  and product rights (8 rows each) while the SAME spec excluded customer and lease
+  intangibles as "a different asset class". Two exclusions and three inclusions could
+  not both be right. When a mapping admits members by axis, check what else that axis
+  carries for each filer — and when two entries in one spec imply different readings
+  of a concept, that is the finding.
+  [Source: `engineering-findings.yaml#story_13_3_zts_non_brand_intangibles_land_as_brand_value`]
+- **Deleting a mapping turns a decision into a nightly warning — exclusions need to be
+  DATA.** An unmapped-X guard needs three states (mapped / unknown / known-and-excluded);
+  without the third, removing a member makes it unknown and the guard flags it forever.
+  `us-gaap_v15`'s `excluded_members` is that third state: it never resolves, never
+  flags, is rejected at load if it carries no reason or is also mapped, and is scoped
+  per filer so the same member at an unverified filer is still flagged.
+- **The latent instance is worth the same grep as the live one.** ZTS's leak was live;
+  QSR's franchise rights and agreements were the identical defect one filing from
+  landing (both tagged finite-lived only today). The `compactAmount` lesson in reverse —
+  there the documented case was safe and its undocumented sibling was live.
+- **"Backend unreachable" can mean another app owns the port.** Before assuming this project's server died, check `lsof -iTCP:<port>` and that process's working directory. Port 8000 is often Lawrence's riskpulse dev server; render ThesisTrace on a spare port via `NEXT_PUBLIC_API_BASE_URL`.

@@ -28,6 +28,7 @@ import { RewardsRisks, type RewardRiskItem } from "../../components/RewardsRisks
 import { FundamentalsCard, type Fundamentals } from "../../components/Fundamentals";
 import { ProvenanceFooter, type ReportFooter } from "../../components/ProvenanceFooter";
 import { AlertIcon, ChevronIcon } from "../../components/ui/icons";
+import { issueLabel } from "../../components/issueLabels";
 
 // Report sections (Story 10.1, D12). Order is the reading order AND the nav
 // order — Overview first (the Verdict, and from Story 10.2 the four-model
@@ -513,7 +514,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                 <ul className="space-y-0.5 text-[var(--color-ink-muted)]">
                   {data.data_quality.map((dq, i) => (
                     <li key={i}>
-                      {dq.issue_type}{" "}
+                      {issueLabel(dq.issue_type)}{" "}
                       <span className="text-caption text-[var(--color-ink-muted)]">
                         ({dq.status}, raised by {dq.raised_by})
                       </span>

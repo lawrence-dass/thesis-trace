@@ -1442,6 +1442,14 @@ member's *values* in its overlap years, never inferring from its name plus a red
 13.1 establishes only the contract; splitting the mapping across two stories would leave the YAML
 spec and the DB projection able to disagree, which is the shape of the `piotroski_v1.yaml`
 declared-vs-read defect
+**And** "end to end" INCLUDES the member-aware store those facts land in — the table, its
+member-carrying unique key, its supersession behaviour following `canonical_facts`'
+partial-unique-index pattern, and the provenance columns AD-19 needs down to the member. Moved here
+from Story 13.4 on 2026-09-11 (Lawrence's call) for a reason this story would otherwise hit head-on:
+AD-3 rule 0 discards every dimensioned fact, and `uq_canonical_facts_key` cannot represent two
+members in one `(issuer, concept, year, mapping_version)` — CPB impaired three brands in FY2025
+alone. Without the store in the same story, this mapping would be declared and never executed,
+which is instance 6 of the conformance rule arriving one story after the session that named it
 **And** `ImpairmentOfIntangibleAssetsIndefinitelivedExcludingGoodwill` is mapped as a distinct
 concept from carrying value, and CPB's
 `TradeNamesCarryingValueWithTenPercentOrLessExcessFairValueCoverageMember` is mapped as a first-class

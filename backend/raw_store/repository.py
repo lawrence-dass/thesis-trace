@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import DataQualityIssue, Filing, Issuer, RawFact
-from ingestion.company_facts import ParsedCompanyFacts, ParsedFact
+from ingestion.company_facts import ParsedCompanyFacts, ParsedFact, precision_tolerance
 
 
 def _to_date(iso: str | None) -> date | None:
@@ -208,7 +208,30 @@ async def persist_inline_facts(
             if key in primary:
                 primary_values = primary[key]
                 inline_value = Decimal(str(fact.value))
-                if inline_value not in primary_values:
+                # AD-4 compares at the Inline fact's declared precision, not
+                # exactly. A filer tags the same measurement twice at two
+                # precisions: ZTS carries Assets at both decimals="-6" and
+                # decimals="-8", and CommonStockSharesIssued at both
+                # decimals="0" (501,891,243) and decimals="-5" (501,900,000).
+                # Each pair agrees within half the coarser fact's last declared
+                # place. Comparing exactly raised all 34 of ZTS's
+                # source_conflict rows for nothing a reader could act on.
+                #
+                # Only the Inline fact's precision is available: Company Facts
+                # never declares one (`RawFact.decimals` is NULL on every row —
+                # ad3_decimals_tiebreak_has_never_had_data). That is the right
+                # asymmetry here rather than a gap, because the Inline fact is
+                # the one being tested for admission and AD-4 keeps the Company
+                # Facts value either way. A genuine divergence still
+                # conflicts, because the tolerance comes from what the fact
+                # DECLARES and not from how round it looks: two different values
+                # that both declare decimals="0" are 0.5 apart at most and so
+                # still disagree.
+                tolerance = precision_tolerance(fact.decimals)
+                if not any(
+                    abs(inline_value - candidate) <= tolerance
+                    for candidate in primary_values
+                ):
                     counts["company_facts_preferred"] += 1
                     dedup = (
                         fact.taxonomy,

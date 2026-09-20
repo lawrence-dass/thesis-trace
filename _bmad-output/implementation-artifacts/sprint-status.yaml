@@ -214,7 +214,7 @@ development_status:
   epic-13: in-progress
   13-1-dimensional-fact-contract: done
   13-2-inline-xbrl-instance-ingestion-for-dimensional-facts: done
-  13-3-brand-intangible-concept-mapping-across-the-us-gaap-filers: backlog
+  13-3-brand-intangible-concept-mapping-across-the-us-gaap-filers: review
   13-4a-every-member-row-resolves-to-exactly-one-brand: backlog
   13-4b-an-exclusion-says-which-axis-it-speaks-for: backlog
   13-4c-per-brand-carrying-value-computed-and-materialized: backlog

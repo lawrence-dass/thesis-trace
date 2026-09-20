@@ -21,7 +21,13 @@ from app.models import (
     ScoreResult,
     ScoreRun,
 )
-from pipeline.run import _payload_reporting_currency, run_issuer, scoreable_years
+from pipeline.run import (
+    _inline_facts_for,
+    _payload_reporting_currency,
+    _persisted_inline_accessions,
+    run_issuer,
+    scoreable_years,
+)
 from pipeline.universe import PHASE1_UNIVERSE
 from tests.conftest import requires_db
 
@@ -66,6 +72,134 @@ def test_reporting_currency_is_deterministic_when_both_taxonomies_are_present() 
         }
     }
     assert len({_payload_reporting_currency(payload) for _ in range(20)}) == 1
+
+
+async def test_inline_facts_for_fetches_each_original_annual_instance(monkeypatch) -> None:
+    """Historical member aliases require historical Inline XBRL instances."""
+    payload = json.loads(FIXTURE.read_text())
+    fetched: list[str] = []
+
+    async def fake_fetch_instance(cik: str, accession_number: str) -> str:
+        fetched.append(accession_number)
+        return "<instance/>"
+
+    def fake_parse_instance(document: str, *, accession_number: str, fiscal_year: int):
+        return [accession_number, fiscal_year]
+
+    monkeypatch.setattr("ingestion.edgar.fetch_instance_document", fake_fetch_instance)
+    monkeypatch.setattr("pipeline.run.parse_instance", fake_parse_instance)
+
+    inline_filings = await _inline_facts_for(payload, "0001594805")
+
+    assert fetched == ["0001594805-24-000010", "0001594805-25-000010"]
+    assert inline_filings == [
+        ("0001594805-24-000010", ["0001594805-24-000010", 2023]),
+        ("0001594805-25-000010", ["0001594805-25-000010", 2024]),
+    ]
+
+
+async def test_inline_facts_for_keeps_other_eras_when_one_instance_fails(monkeypatch) -> None:
+    """A transient or malformed old filing must not erase usable eras."""
+    payload = json.loads(FIXTURE.read_text())
+
+    async def fake_fetch_instance(cik: str, accession_number: str) -> str:
+        if accession_number == "0001594805-24-000010":
+            raise RuntimeError("temporary EDGAR failure")
+        return "<instance/>"
+
+    def fake_parse_instance(document: str, *, accession_number: str, fiscal_year: int):
+        return [accession_number, fiscal_year]
+
+    monkeypatch.setattr("ingestion.edgar.fetch_instance_document", fake_fetch_instance)
+    monkeypatch.setattr("pipeline.run.parse_instance", fake_parse_instance)
+
+    inline_filings = await _inline_facts_for(payload, "0001594805")
+
+    assert inline_filings == [("0001594805-25-000010", ["0001594805-25-000010", 2024])]
+
+
+async def test_inline_facts_for_skips_already_ingested_accessions(monkeypatch) -> None:
+    """The daily cron must not re-download instances this database already holds.
+
+    An original filing's instance document is immutable and
+    `persist_inline_facts` is idempotent on `content_hash`, so a re-fetch writes
+    zero rows. Without the skip, every historical instance is downloaded every
+    night for nothing — 72 multi-MB documents across the current universe,
+    growing by one permanent nightly fetch per filing year.
+    """
+    payload = json.loads(FIXTURE.read_text())
+    fetched: list[str] = []
+
+    async def fake_fetch_instance(cik: str, accession_number: str) -> str:
+        fetched.append(accession_number)
+        return "<instance/>"
+
+    def fake_parse_instance(document: str, *, accession_number: str, fiscal_year: int):
+        return [accession_number, fiscal_year]
+
+    monkeypatch.setattr("ingestion.edgar.fetch_instance_document", fake_fetch_instance)
+    monkeypatch.setattr("pipeline.run.parse_instance", fake_parse_instance)
+
+    inline_filings = await _inline_facts_for(
+        payload,
+        "0001594805",
+        already_ingested=frozenset({"0001594805-24-000010"}),
+    )
+
+    # The known era is not re-fetched, and the unknown one still is.
+    assert fetched == ["0001594805-25-000010"]
+    assert inline_filings == [("0001594805-25-000010", ["0001594805-25-000010", 2024])]
+
+
+@requires_db
+async def test_persisted_inline_accessions_reports_only_inline_sourced_filings(
+    db_session,
+) -> None:
+    """The skip-set must key on `source`, not on a filing merely existing.
+
+    Every filing has Company Facts rows, so a query that forgot the `source`
+    filter would return every accession and the Inline XBRL path would silently
+    never run again — a failure that writes nothing and raises nothing.
+    """
+    from ingestion.company_facts import ParsedFact, _content_hash
+
+    payload = json.loads(FIXTURE.read_text())
+    inline_accession = "0001594805-25-000010"
+    dimensions = {"us-gaap:StatementBusinessSegmentsAxis": "shop:MerchantSolutionsMember"}
+    fact = ParsedFact(
+        accession_number=inline_accession,
+        taxonomy="us-gaap",
+        concept="Revenues",
+        unit="USD",
+        period_start="2024-01-01",
+        period_end="2024-12-31",
+        value=123.0,
+        fiscal_year=2024,
+        source="inline_xbrl",
+        content_hash=_content_hash(
+            "us-gaap", "Revenues", "USD", "2024-01-01", "2024-12-31", 123.0, dimensions
+        ),
+        dimensions=dimensions,
+    )
+    summary = await run_issuer(
+        db_session,
+        payload,
+        ticker="SHOP",
+        inline_facts=[fact],
+        inline_accession_number=inline_accession,
+    )
+
+    accessions = await _persisted_inline_accessions(db_session, summary["cik"])
+
+    assert accessions == {inline_accession}
+    # The fixture carries a second filing; it has Company Facts rows only, so it
+    # must remain fetchable rather than being skipped as already ingested.
+    all_filings = (
+        await db_session.execute(
+            select(Filing.accession_number).where(Filing.issuer_cik == summary["cik"])
+        )
+    ).scalars().all()
+    assert len(all_filings) > 1
 
 
 def test_universe_covers_both_reporting_regimes() -> None:
