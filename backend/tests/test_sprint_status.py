@@ -124,6 +124,7 @@ CURATED_SECTIONS = (
     "story_13_3_zts_non_brand_intangibles_land_as_brand_value",
     "story_13_3_multi_axis_member_identity_verified",
     "story_13_3_member_exclusions_are_not_axis_scoped",
+    "story_13_4a_brand_identity_resolves_for_every_stored_row",
 )
 
 pytestmark = pytest.mark.skipif(

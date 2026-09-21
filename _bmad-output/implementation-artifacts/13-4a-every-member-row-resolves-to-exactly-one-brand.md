@@ -1,6 +1,6 @@
 # Story 13.4a: Every member row resolves to exactly one brand
 
-Status: ready-for-dev
+Status: review — implemented 2026-09-21, awaiting Codex review. Not merged.
 
 ## Story
 
@@ -89,49 +89,49 @@ through it.
 
 - [x] **1. Confirm the versioning decision** (AC: 9) — **done 2026-09-20: bump.** `us-gaap_v17` +
       `concepts_v18`. See Dev Notes "Decision".
-- [ ] **2. Declare the identities in the spec** (AC: 3, 4, 6, 8, 9)
-  - [ ] Copy `us-gaap_v16.yaml` → `us-gaap_v17.yaml`; never edit v16.
-  - [ ] Add QSR's four segment brands under a new per-filer block keyed on
+- [x] **2. Declare the identities in the spec** (AC: 3, 4, 6, 8, 9)
+  - [x] Copy `us-gaap_v16.yaml` → `us-gaap_v17.yaml`; never edit v16.
+  - [x] Add QSR's four segment brands under a new per-filer block keyed on
         `us-gaap:StatementBusinessSegmentsAxis`, each with stable key, label, aliases (as filed),
         `kind: named_brand`, and a `note` naming the years observed.
-  - [ ] Add `kind` to every existing `brand_members` entry. ZTS's `brands` is `aggregate`;
+  - [x] Add `kind` to every existing `brand_members` entry. ZTS's `brands` is `aggregate`;
         `all_trademarks` is `aggregate`; `other_trade_names` is `residual`;
         `within_ten_percent_coverage` is `disclosure`; everything else is `named_brand`.
-  - [ ] Bump `registry.yaml` to the next `mapping_version` with a HISTORY entry stating that no
+  - [x] Bump `registry.yaml` to the next `mapping_version` with a HISTORY entry stating that no
         stored figure changes.
-- [ ] **3. Load and validate the declarations** (AC: 3, 6, 8)
-  - [ ] Extend the loader in `mappings/engine.py`: a `SegmentBrandMember` (or equivalent) dataclass
+- [x] **3. Load and validate the declarations** (AC: 3, 6, 8)
+  - [x] Extend the loader in `mappings/engine.py`: a `SegmentBrandMember` (or equivalent) dataclass
         and its `_load_*`, following `_load_brand_members`.
-  - [ ] Reject at load: a declaration with no aliases, no label, or an unknown `kind`; an alias
+  - [x] Reject at load: a declaration with no aliases, no label, or an unknown `kind`; an alias
         claimed by two brands within one filer.
-  - [ ] Re-key `MEMBER_LABELS` on `(issuer_cik, member_key)` and update its callers.
-- [ ] **4. Write the resolver** (AC: 1, 2, 5, 7)
-  - [ ] New module `backend/canonicalization/mappings/brand_identity.py`, exported from
+  - [x] Re-key `MEMBER_LABELS` on `(issuer_cik, member_key)` and update its callers.
+- [x] **4. Write the resolver** (AC: 1, 2, 5, 7)
+  - [x] New module `backend/canonicalization/mappings/brand_identity.py`, exported from
         `canonicalization/mappings/__init__.py`.
-  - [ ] Resolution order: the filer's declared segment axis inside `context_key` first (QSR), then
+  - [x] Resolution order: the filer's declared segment axis inside `context_key` first (QSR), then
         `member_key` (CPB, ZTS). Unknown on both → unresolved.
-  - [ ] Return type makes the unresolved case impossible to read as a label (AC 5).
-  - [ ] Ignore every axis that is not the mapped axis or a declared brand-bearing axis (AC 7).
-- [ ] **5. Tests** (AC: 10) — new `backend/tests/test_brand_identity.py`
-  - [ ] QSR's rows resolve to four distinct brands (AC 2).
-  - [ ] ZTS's `brands` resolves `kind: aggregate`, not `named_brand` (AC 4).
-  - [ ] CPB's residual, total and 10%-disclosure members resolve to their own kinds (AC 4).
-  - [ ] An undeclared segment member resolves unresolved, and no code path yields `"trade_names"`
+  - [x] Return type makes the unresolved case impossible to read as a label (AC 5).
+  - [x] Ignore every axis that is not the mapped axis or a declared brand-bearing axis (AC 7).
+- [x] **5. Tests** (AC: 10) — new `backend/tests/test_brand_identity.py`
+  - [x] QSR's rows resolve to four distinct brands (AC 2).
+  - [x] ZTS's `brands` resolves `kind: aggregate`, not `named_brand` (AC 4).
+  - [x] CPB's residual, total and 10%-disclosure members resolve to their own kinds (AC 4).
+  - [x] An undeclared segment member resolves unresolved, and no code path yields `"trade_names"`
         as a label (AC 5).
-  - [ ] Two filers declaring the same member key keep distinct labels (AC 6).
-  - [ ] The two fair-value-qualified CPB rows resolve to the same brand as their siblings (AC 7).
-  - [ ] A DB test over the seeded store: every current-version row resolves, or is an
+  - [x] Two filers declaring the same member key keep distinct labels (AC 6).
+  - [x] The two fair-value-qualified CPB rows resolve to the same brand as their siblings (AC 7).
+  - [x] A DB test over the seeded store: every current-version row resolves, or is an
         explicitly-declared non-brand kind — no silent gap.
-  - [ ] Record, in the commit message or the story's Completion Notes, that each test was seen red
+  - [x] Record, in the commit message or the story's Completion Notes, that each test was seen red
         first.
-- [ ] **6. Re-run canonicalization under the new version** (AC: 9)
-  - [ ] `make py F=...` against the dev DB; confirm the new-version row count and per-brand shape
+- [x] **6. Re-run canonicalization under the new version** (AC: 9)
+  - [x] `make py F=...` against the dev DB; confirm the new-version row count and per-brand shape
         match `concepts_v17` exactly (22 groups / 96 rows — see Dev Notes), i.e. the bump moved no
         figure.
-- [ ] **7. Close out**
-  - [ ] `make test` green, `make lint` clean.
-  - [ ] Record the identity verification in `engineering-findings.yaml`.
-  - [ ] Commit, push, open the PR, and hand over a Codex review prompt (do not merge).
+- [x] **7. Close out**
+  - [x] `make test` green, `make lint` clean.
+  - [x] Record the identity verification in `engineering-findings.yaml`.
+  - [x] Commit, push, open the PR, and hand over a Codex review prompt (do not merge).
 
 ## Dev Notes
 
@@ -288,8 +288,74 @@ name every ticker and CIK in one request first (CPB 0000016732, ZTS 0001555280, 
 
 ### Agent Model Used
 
+Claude Opus 5, 2026-09-20/21.
+
 ### Debug Log References
+
+- `make py F=scripts/recanonicalize.py` — concepts_v17 vs concepts_v18, 96 rows each, IDENTICAL.
+- `make py F=scripts/verify_brand_identity.py` — 96/96 rows resolve, 73 on a named brand, 0
+  unresolved.
+- `make test` — 550 passed. `make lint` — clean (backend and `scripts/`).
 
 ### Completion Notes List
 
+**All 10 ACs met.** Two refinements to what the ACs anticipated, both deliberate:
+
+1. **A fifth `kind`: `segment_scoped`.** AC 4 listed four. QSR's `trade_names` member is none of
+   them — it does not name a brand, it *defers* identity to another axis. Marking it
+   `named_brand` would have made the resolver return "Trade names" as a brand, which is the exact
+   failure AC 2 forbids. The member declares `kind: segment_scoped` plus the `brand_axis` it
+   defers to, and the loader rejects a `segment_scoped` member with no axis, an axis nothing
+   declares members on, and a `brand_axis` on any other kind.
+
+2. **`BrandUnresolved` is a separate type, not a `None`.** AC 5 asked that a caller "cannot
+   accidentally get a truthy label". A `None` still permits `identity.label if identity else
+   member_key`. A distinct type means reading `.label` off an unresolved result raises at the
+   point of the mistake, and it carries a `reason` for the developer.
+
+**AC 10 (tests red first) was verified by mutation, and it found a defect in the tests.** The
+tests were written after the implementation, so running them against the parent commit would only
+have proved that an import fails. Each guarantee was instead removed from the shipped code one at
+a time, requiring the paired test to go red. Five of six did. The sixth did not: all six
+loader-rejection tests call `_check_brand_identity` directly, so deleting the call from
+`load_mapping_spec` left every one of them green — the validation could have shipped entirely
+unwired. That is the conformance rule inside the mechanism added to satisfy the conformance rule,
+for the second time in this epic. Fixed by `test_the_validation_is_wired_into_the_loader`, which
+drives the real loader over a real spec directory; the mutation is caught now.
+
+**Two findings deferred, neither blocking this story's ACs** (recorded in
+`engineering-findings.yaml#story_13_4a_brand_identity_resolves_for_every_stored_row`):
+
+- **The pre-acquisition comparative zero.** QSR's Firehouse Subs at FY2020 and CPB's Rao's at
+  FY2023 are both filed ZEROs — the comparative column of the filing that first reports the
+  brand, for a year before the acquisition closed. The value is the filer's own, so AD-16 is not
+  violated by storing it, but rendering "Firehouse Subs: $0 in FY2020" would state something the
+  filing does not. Identity resolves correctly for both. → **13.4c**, which materializes the
+  figure.
+- **The segment-rename exposure**, as scoped out above. Read side is right today via `aliases`;
+  the write-path fix needs a migration. → its own story.
+
+**Not done, and why:** no golden entries (13.6a/b own the harness, and an entry a fixture cannot
+reproduce asserts nothing); no rendering (13.8a); DoD item 5 has no subject here.
+
 ### File List
+
+**New**
+- `backend/canonicalization/mappings/brand_identity.py`
+- `backend/canonicalization/mappings/specs/us-gaap_v17.yaml`
+- `backend/tests/test_brand_identity.py` (31 tests)
+- `scripts/recanonicalize.py`, `scripts/verify_brand_identity.py`
+
+**Modified**
+- `backend/canonicalization/mappings/engine.py` — `kind`/`brand_axis` on `BrandMember`,
+  `SegmentBrandMember` + loader, `_check_brand_identity`, `MEMBER_LABELS` re-keyed,
+  `SEGMENT_BRAND_MEMBERS`/`MEMBER_KINDS` exported
+- `backend/canonicalization/mappings/__init__.py` — exports
+- `backend/canonicalization/mappings/specs/registry.yaml` — `concepts_v18`
+- `backend/tests/test_brand_member_mapping.py` — `MEMBER_LABELS` call site
+- `backend/tests/test_free_cash_flow_concepts.py` — version pin, superseded-spec list, and a
+  docstring that claimed the list was derived when it never was
+- `backend/tests/test_sprint_status.py` — curated-sections registration
+- `_bmad-output/implementation-artifacts/engineering-findings.yaml`, `sprint-status.yaml`
+
+**No migration**, by design — no table, column or stored value changed.
