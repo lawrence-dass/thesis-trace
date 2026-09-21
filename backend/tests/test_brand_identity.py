@@ -15,6 +15,8 @@ the brand is the SEGMENT member inside the same context
 
 from __future__ import annotations
 
+import shutil
+
 import pytest
 import yaml
 from sqlalchemy import select
@@ -32,6 +34,7 @@ from canonicalization.mappings.engine import (
     BrandMember,
     SegmentBrandMember,
     _check_brand_identity,
+    load_mapping_spec,
 )
 from tests.conftest import requires_db
 
@@ -306,6 +309,48 @@ def test_two_segment_brands_cannot_claim_one_alias() -> None:
             (_member(kind="segment_scoped", brand_axis=SEGMENT_AXIS),),
             (_segment(), _segment(brand_key="tim_hortons", label="Tim Hortons")),
         )
+
+
+def test_the_validation_is_wired_into_the_loader(tmp_path, monkeypatch) -> None:
+    """The checks above call `_check_brand_identity` directly, which proves the
+    function works and NOT that anything calls it.
+
+    That gap is this project's recurring defect, not a hypothetical: AD-3's
+    least-dimensioned clause and `raw_facts.dimensions` both sat declared and
+    unexecuted for a year, and 13.3 shipped a mapping that resolved perfectly in
+    unit tests and wrote zero rows because the guard sat after the lookup. A
+    mutation run on 2026-09-20 confirmed it here too — deleting the call from
+    `load_mapping_spec` left all six checks above green.
+
+    So this one goes through the real loader, against a real spec directory.
+    """
+    specs = tmp_path / "specs"
+    shutil.copytree(SPECS_DIR, specs)
+    monkeypatch.setattr("canonicalization.mappings.engine.SPECS_DIR", specs)
+
+    registry = yaml.safe_load((specs / "registry.yaml").read_text())
+    spec_file = specs / f"{registry['taxonomies']['us-gaap']}.yaml"
+    spec = spec_file.read_text()
+
+    # Point QSR's segment_scoped member at an axis nothing declares. Every QSR row
+    # would then resolve to no brand at all, silently.
+    broken = spec.replace(
+        "      brand_axis: us-gaap:StatementBusinessSegmentsAxis",
+        "      brand_axis: us-gaap:AnAxisNobodyDeclares",
+        1,
+    )
+    assert broken != spec, "the brand_axis anchor moved — update this test"
+    spec_file.write_text(broken)
+
+    # load_mapping_spec is lru_cached and the module already warmed it at import.
+    # Clear it on the way in, and again on the way out so the broken spec cannot
+    # leak into a later test through the cache.
+    load_mapping_spec.cache_clear()
+    try:
+        with pytest.raises(ValueError, match="declares no segment_brand_members"):
+            load_mapping_spec()
+    finally:
+        load_mapping_spec.cache_clear()
 
 
 def test_every_declared_member_states_a_kind() -> None:
