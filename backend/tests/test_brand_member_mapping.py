@@ -154,7 +154,7 @@ def test_raos_is_mapped_even_though_it_has_never_been_impaired() -> None:
         "brand_intangible_impairment",
         "raos",
     )
-    assert MEMBER_LABELS["raos"] == "Rao's"
+    assert MEMBER_LABELS[(CPB, "raos")] == "Rao's"
 
 
 # --- loader guards actually fire --------------------------------------------

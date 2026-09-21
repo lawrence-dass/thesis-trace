@@ -5,6 +5,11 @@ is the seam the pipeline, scoring and the tests already depend on. Whether the
 rules live in Python or YAML is an implementation detail behind this name.
 """
 
+from canonicalization.mappings.brand_identity import (
+    BrandIdentity,
+    BrandUnresolved,
+    resolve_brand_identity,
+)
 from canonicalization.mappings.engine import (
     BRAND_MEMBERS,
     DERIVATION_RULES,
@@ -12,11 +17,13 @@ from canonicalization.mappings.engine import (
     EXCLUDED_MEMBERS,
     MAPPING_RULES,
     MAPPING_VERSION,
+    MEMBER_KINDS,
     MEMBER_LABELS,
     MEMBER_PERIOD_POLICIES,
     MEMBER_RESOLUTION,
     MEMBER_SOURCE_PRIORITY,
     NON_NEGATIVE_CONCEPTS,
+    SEGMENT_BRAND_MEMBERS,
     SOURCE_EXCLUDED_ACCESSIONS,
     SOURCE_EXCLUDED_ISSUERS,
     SOURCE_MISMATCH,
@@ -28,6 +35,7 @@ from canonicalization.mappings.engine import (
     ExcludedMember,
     MappingRule,
     MappingSpec,
+    SegmentBrandMember,
     load_mapping_spec,
     seed_concept_mappings,
 )
@@ -39,22 +47,28 @@ __all__ = [
     "EXCLUDED_MEMBERS",
     "MAPPING_RULES",
     "MAPPING_VERSION",
+    "MEMBER_KINDS",
     "MEMBER_LABELS",
     "MEMBER_PERIOD_POLICIES",
     "MEMBER_RESOLUTION",
     "MEMBER_SOURCE_PRIORITY",
     "NON_NEGATIVE_CONCEPTS",
+    "SEGMENT_BRAND_MEMBERS",
     "SOURCE_EXCLUDED_ACCESSIONS",
     "SOURCE_EXCLUDED_ISSUERS",
     "SOURCE_MISMATCH",
     "SOURCE_PRIORITY",
     "SOURCE_TO_CANONICAL",
+    "BrandIdentity",
     "BrandMember",
+    "BrandUnresolved",
     "DerivationRule",
     "DimensionedRule",
     "ExcludedMember",
     "MappingRule",
     "MappingSpec",
+    "SegmentBrandMember",
     "load_mapping_spec",
+    "resolve_brand_identity",
     "seed_concept_mappings",
 ]
