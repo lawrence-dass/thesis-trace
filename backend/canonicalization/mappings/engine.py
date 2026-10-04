@@ -139,14 +139,51 @@ class BrandMember:
     disclosure shares its source concept with per-brand carrying value).
     `canonical_concepts` is an explicit allow-list for residual or aggregate
     members that should resolve only to selected concepts.
+
+    `kind` says what the member IS, so a reader never has to infer it from the
+    label. ZTS's `brands` is a case in point: its note called it "one aggregate
+    Brands member rather than naming individual acquired brands" while the mapping
+    filed it as a named brand, and the only thing standing between that note and a
+    consumer was a word-blacklist over the label, which "Brands" passes.
+    `segment_scoped` means THIS member does not name the brand at all — the brand
+    is on `brand_axis`, declared under `segment_brand_members` (Story 13.4a).
     """
 
     issuer_cik: str
     member_key: str
     label: str
     aliases: tuple[str, ...]
+    kind: str = "named_brand"
+    brand_axis: str | None = None
     maps_to: str | None = None
     canonical_concepts: tuple[str, ...] = ()
+    note: str | None = None
+
+
+@dataclass(frozen=True)
+class SegmentBrandMember:
+    """A brand carried on a SECOND axis of the same fact (Story 13.4a).
+
+    QSR is why this exists: all 30 of its stored rows share member_key
+    `trade_names`, and each one's brand is the segment member inside the same
+    context (story_13_3_multi_axis_member_identity_verified). Read-time identity
+    only — nothing here changes which canonical concept a fact resolves to, or
+    what canonicalization writes.
+
+    `aliases` is a per-era list for the same reason it is one on BrandMember. Note
+    the asymmetry this does NOT fix: `_dimension_identity` normalizes the MAPPED
+    axis into context_key at write time, and this axis is left verbatim, so a
+    rename here resolves to one brand on READ while still writing a second current
+    row. Closing that needs a migration and a backfill, and is deliberately not
+    this story's.
+    """
+
+    issuer_cik: str
+    axis: str
+    brand_key: str
+    label: str
+    aliases: tuple[str, ...]
+    kind: str = "named_brand"
     note: str | None = None
 
 
@@ -219,6 +256,7 @@ class MappingSpec:
     # Dimensioned rules, and the members they resolve through.
     dimensioned_rules: tuple[DimensionedRule, ...]
     brand_members: tuple[BrandMember, ...]
+    segment_brand_members: tuple[SegmentBrandMember, ...]
     excluded_members: tuple[ExcludedMember, ...]
     # (issuer_cik, taxonomy, source concept, axis, member AS FILED) -> (canonical
     # concept, member_key). Keyed by issuer because a generic member such as
@@ -371,8 +409,41 @@ def _load_brand_members(spec_version: str) -> tuple[BrandMember, ...]:
                     member_key=member_key,
                     label=body["label"],
                     aliases=aliases,
+                    kind=body.get("kind", "named_brand"),
+                    brand_axis=body.get("brand_axis"),
                     maps_to=body.get("maps_to"),
                     canonical_concepts=tuple(body.get("canonical_concepts") or ()),
+                    note=body.get("note"),
+                )
+            )
+    return tuple(members)
+
+
+def _load_segment_brand_members(spec_version: str) -> tuple[SegmentBrandMember, ...]:
+    """Load `segment_brand_members` — brands carried on a second axis (Story 13.4a)."""
+    data = yaml.safe_load((SPECS_DIR / f"{spec_version}.yaml").read_text())
+    members: list[SegmentBrandMember] = []
+    for issuer_cik, block in (data.get("segment_brand_members") or {}).items():
+        axis = block.get("axis")
+        if not axis:
+            raise ValueError(
+                f"{spec_version}: segment_brand_members for issuer {issuer_cik} declares no "
+                "axis — without one there is no way to tell which dimension carries the brand"
+            )
+        for brand_key, body in (block.get("members") or {}).items():
+            aliases = tuple(body.get("aliases") or ())
+            if not aliases:
+                raise ValueError(
+                    f"{spec_version}: segment brand {brand_key!r} declares no aliases"
+                )
+            members.append(
+                SegmentBrandMember(
+                    issuer_cik=str(issuer_cik),
+                    axis=axis,
+                    brand_key=brand_key,
+                    label=body["label"],
+                    aliases=aliases,
+                    kind=body.get("kind", "named_brand"),
                     note=body.get("note"),
                 )
             )
@@ -418,6 +489,87 @@ def _check_exclusions(
                     f"{alias!r} is both mapped (as {owner!r}) and excluded (as "
                     f"{entry.member_key!r}) for issuer {entry.issuer_cik}"
                 )
+
+
+MEMBER_KINDS = frozenset(
+    {"named_brand", "aggregate", "residual", "disclosure", "segment_scoped"}
+)
+
+
+def _check_brand_identity(
+    members: tuple[BrandMember, ...], segment_members: tuple[SegmentBrandMember, ...]
+) -> None:
+    """Every identity declaration must be reachable and unambiguous (Story 13.4a).
+
+    An inert declaration reads exactly like an enforced one, which is this
+    project's recurring failure shape — `excluded_members` was itself added to
+    satisfy the conformance rule and then shipped three exclusions no rule could
+    reach. So each check below rejects at LOAD rather than resolving to nothing at
+    read time.
+    """
+    for member in members:
+        if member.kind not in MEMBER_KINDS:
+            raise ValueError(
+                f"member {member.member_key!r} declares unknown kind {member.kind!r}; "
+                f"expected one of {sorted(MEMBER_KINDS)}"
+            )
+        # A segment_scoped member promises the brand is somewhere else. If that
+        # somewhere does not exist, every row through this member resolves to no
+        # brand at all, silently.
+        if member.kind == "segment_scoped":
+            if not member.brand_axis:
+                raise ValueError(
+                    f"member {member.member_key!r} is segment_scoped but names no brand_axis — "
+                    "it claims the brand is on another axis without saying which"
+                )
+            reachable = any(
+                s.issuer_cik == member.issuer_cik and s.axis == member.brand_axis
+                for s in segment_members
+            )
+            if not reachable:
+                raise ValueError(
+                    f"member {member.member_key!r} points at brand_axis "
+                    f"{member.brand_axis!r} for issuer {member.issuer_cik}, which declares no "
+                    "segment_brand_members on that axis — every row through it would resolve "
+                    "to no brand"
+                )
+        elif member.brand_axis:
+            raise ValueError(
+                f"member {member.member_key!r} names a brand_axis but its kind is "
+                f"{member.kind!r} — only a segment_scoped member defers its identity"
+            )
+
+    # An alias claimed twice within one filer makes the winner load-order-dependent,
+    # which is the same defect the source_to_canonical check above guards against.
+    claimed: dict[tuple[str, str, str], str] = {}
+    for segment in segment_members:
+        if segment.kind not in MEMBER_KINDS:
+            raise ValueError(
+                f"segment brand {segment.brand_key!r} declares unknown kind "
+                f"{segment.kind!r}; expected one of {sorted(MEMBER_KINDS)}"
+            )
+        for alias in segment.aliases:
+            key = (segment.issuer_cik, segment.axis, alias)
+            owner = claimed.get(key)
+            if owner is not None and owner != segment.brand_key:
+                raise ValueError(
+                    f"{alias!r} is claimed by both {owner!r} and {segment.brand_key!r} "
+                    f"on {segment.axis} for issuer {segment.issuer_cik}"
+                )
+            claimed[key] = segment.brand_key
+
+    # A segment axis nobody defers to is decoration: it resolves nothing, and
+    # reads like a working declaration.
+    deferred = {
+        (m.issuer_cik, m.brand_axis) for m in members if m.kind == "segment_scoped"
+    }
+    for segment in segment_members:
+        if (segment.issuer_cik, segment.axis) not in deferred:
+            raise ValueError(
+                f"segment_brand_members declares {segment.axis} for issuer "
+                f"{segment.issuer_cik}, but no member of that filer is segment_scoped onto "
+                "it — nothing would ever read these declarations"
+            )
 
 
 def _resolve_members(
@@ -537,13 +689,16 @@ def load_mapping_spec() -> MappingSpec:
     rules: tuple[MappingRule, ...] = ()
     dimensioned: tuple[DimensionedRule, ...] = ()
     members: tuple[BrandMember, ...] = ()
+    segment_members: tuple[SegmentBrandMember, ...] = ()
     excluded: tuple[ExcludedMember, ...] = ()
     for spec_version in registry["taxonomies"].values():
         rules += _load_taxonomy_rules(spec_version)
         dimensioned += _load_dimensioned_rules(spec_version)
         members += _load_brand_members(spec_version)
+        segment_members += _load_segment_brand_members(spec_version)
         excluded += _load_excluded_members(spec_version)
     _check_exclusions(members, excluded)
+    _check_brand_identity(members, segment_members)
 
     # One source tag must not map to two canonical concepts: canonicalization looks
     # up (taxonomy, concept) and a duplicate would make the winner load-order-dependent.
@@ -595,6 +750,7 @@ def load_mapping_spec() -> MappingSpec:
         non_negative_concepts=frozenset(r.canonical_concept for r in rules if r.non_negative),
         dimensioned_rules=dimensioned,
         brand_members=members,
+        segment_brand_members=segment_members,
         excluded_members=excluded,
         member_resolution=member_resolution,
         member_source_priority=member_source_priority,
@@ -662,9 +818,22 @@ MEMBER_RESOLUTION: dict[tuple[str, str, str, str, str], tuple[str, str]] = _SPEC
 MEMBER_SOURCE_PRIORITY: dict[tuple[str, str, str, str, str], int] = _SPEC.member_source_priority
 MEMBER_PERIOD_POLICIES: dict[tuple[str, str, str, str, str], str] = _SPEC.member_period_policy
 
-# member_key -> human label, for presentation only. Never used for selection:
-# labels are the spec's words, keys are the identity.
-MEMBER_LABELS: dict[str, str] = {m.member_key: m.label for m in _SPEC.brand_members}
+# Brands carried on a second axis of the same fact (Story 13.4a). Read-time
+# identity; canonicalize.py neither reads nor writes these.
+SEGMENT_BRAND_MEMBERS: tuple[SegmentBrandMember, ...] = _SPEC.segment_brand_members
+
+# (issuer_cik, member_key) -> human label, for presentation only. Never used for
+# selection: labels are the spec's words, keys are the identity.
+#
+# Keyed by ISSUER as well as member, because a member key is only unique within
+# its filer — `us-gaap:TradeNamesMember` is already used by QSR and the spec's own
+# comment warns it "can be used by two filers for different assets". Keyed on
+# member_key alone (as this was until 13.4a), the second filer to use a generic
+# key would silently overwrite the first one's label, and the collision would
+# surface as a wrong brand name on a page rather than as an error.
+MEMBER_LABELS: dict[tuple[str, str], str] = {
+    (m.issuer_cik, m.member_key): m.label for m in _SPEC.brand_members
+}
 
 
 async def seed_concept_mappings(session: AsyncSession, *, version: str = MAPPING_VERSION) -> int:

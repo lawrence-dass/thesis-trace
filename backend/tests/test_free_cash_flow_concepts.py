@@ -138,15 +138,20 @@ def test_mapping_version_bumped_for_a_real_mapping_change() -> None:
     stored facts under earlier versions must stay addressable by their own specs.
 
     The version is pinned by name on purpose — a bump should be a deliberate edit
-    here, not something that rides along with a spec change. Last moved 2026-09-18
-    for concepts_v17 (CPB's residual trade-name bucket routed out of the brands
-    concept, completing what concepts_v16 did for ZTS). The superseded-spec check is
-    deliberately NOT pinned: it derives the list from the registry's own
-    history, so adding a version cannot quietly leave an older spec unprotected.
+    here, not something that rides along with a spec change. Last moved 2026-09-20
+    for concepts_v18 (Story 13.4a: QSR's segment brands and a `kind` per member).
+    That one is the first bump in this history that changes NO figure, which is not
+    a reason to skip it: us-gaap_v16 is already stamped on rows in a real database,
+    and a spec is frozen the moment any database stamps its version.
+
+    The superseded-spec list below is pinned too, and has to grow with each bump —
+    an earlier version of this docstring claimed it was derived from the registry's
+    history, which it never was. Add the outgoing spec to it when moving the pin
+    above; a spec silently deleted is an AD-2 failure this test exists to catch.
     """
     registry = yaml.safe_load((SPECS / "registry.yaml").read_text())
-    assert registry["mapping_version"] == "concepts_v17"
-    assert registry["taxonomies"]["us-gaap"] == "us-gaap_v16"
+    assert registry["mapping_version"] == "concepts_v18"
+    assert registry["taxonomies"]["us-gaap"] == "us-gaap_v17"
     assert registry["taxonomies"]["ifrs-full"] == "ifrs-full_v4"
     assert registry["derivations"] == "derivations_v5"
 
@@ -169,6 +174,7 @@ def test_mapping_version_bumped_for_a_real_mapping_change() -> None:
         "us-gaap_v13.yaml",
         "us-gaap_v14.yaml",
         "us-gaap_v15.yaml",
+        "us-gaap_v16.yaml",
         "ifrs-full_v1.yaml",
         "ifrs-full_v2.yaml",
         "ifrs-full_v3.yaml",

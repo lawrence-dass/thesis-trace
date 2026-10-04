@@ -5599,3 +5599,83 @@ story_13_3_member_exclusions_are_not_axis_scoped:
     exclusion that no dimensioned rule could ever reach — with tests for the
     wrong-axis and unreachable-exclusion cases. Belongs to the Epic 13 re-cut as its
     own story, beside the brand-identity work.
+
+
+story_13_4a_brand_identity_resolves_for_every_stored_row:
+  status: done
+  found: 2026-09-21
+  found_by: >
+    Story 13.4a, building the read-time resolution 13.4c/13.7 will consume.
+    Grounded against the dev store's current rows rather than against the spec
+    file, per the rule that a test reading the spec and asserting the spec is a
+    tautology.
+  question: >
+    Given a stored canonical_member_facts row, which brand is it about — for
+    every filer, including the one where the member does not name the brand?
+  finding: >
+    ALL 96 CURRENT ROWS RESOLVE, AND NONE OF THEM NEEDED A TAG NAME PARSED.
+    19 distinct identities across three filers: 73 rows on a named brand, 14 on
+    CPB's aggregate/residual/disclosure members, 8 on ZTS's aggregate, and 1 on
+    CPB's acquisition row. QSR's 30 rows, which all share member_key
+    `trade_names`, resolve to four distinct brands through the segment member in
+    context_key — Burger King, Tim Hortons and Popeyes FY2018-FY2025, Firehouse
+    Subs FY2020-FY2025. Verified with scripts/verify_brand_identity.py against the
+    dev store under concepts_v18.
+  the_spec_had_no_source_for_qsrs_brands: >
+    QSR's four segment members (qsr:BurgerKingMember and the rest) were declared
+    NOWHERE in us-gaap_v16 — no label, no stable key, no note. The acceptance
+    criterion asks for a label "from the spec's own words", and the spec had no
+    words. Found by grepping the spec for the member names that the dev store's
+    own rows carry; reading epics.md would not have surfaced it, because the epic
+    prose describes the finding without noticing the spec cannot express it.
+  member_labels_were_one_filer_from_a_collision: >
+    MEMBER_LABELS was keyed on member_key ALONE while the same spec's comment
+    warned that us-gaap:TradeNamesMember "can be used by two filers for different
+    assets" — and QSR already uses it. No collision existed, so nothing was wrong
+    today; the second filer to use a generic key would have silently overwritten
+    the first one's label, and it would have surfaced as a wrong brand name on a
+    page rather than as an error. Now keyed on (issuer_cik, member_key).
+  a_kind_had_to_become_data: >
+    ZTS's `brands` member describes itself in its own note as "one aggregate
+    Brands member rather than naming individual acquired brands" while the mapping
+    filed it as a named brand. The only guard was a word-blacklist over the label
+    (test_every_brand_member_is_a_brand_or_an_explicit_aggregate), and "Brands"
+    passes every blacklist. The conformance rule in its usual shape: the note is
+    true, and nothing executes it. `kind` is now declared per member and read by
+    the resolver — named_brand / aggregate / residual / disclosure /
+    segment_scoped.
+  the_bump_moved_no_figure: >
+    concepts_v18 re-canonicalized from the same raw facts produces the same 96
+    current rows with the same values as concepts_v17 — compared key by key, not
+    counted. Bumped anyway rather than amending us-gaap_v16 in place: that spec is
+    already stamped on rows in a real database, and "it changes nothing, so
+    amending is safe" is the argument that left six unreproducible concepts_v14
+    rows in the dev store during 13.3.
+  the_tests_were_verified_by_mutation: >
+    The tests were written after the implementation, so running them against the
+    parent commit would only have proved an import fails. Instead each guarantee
+    was removed from the shipped code one at a time and the paired test had to go
+    red. Five of six did. The sixth did not, and that was a real defect in the
+    tests: all six loader-rejection checks call _check_brand_identity directly, so
+    the validation could have been entirely unwired and every one would still have
+    passed — the exact failure the mechanism exists to prevent. Fixed by a test
+    that drives the real loader over a real spec directory with a brand_axis
+    nothing declares.
+  deferred_the_pre_acquisition_comparative_zero: >
+    Two stored rows carry a filed ZERO: QSR's Firehouse Subs at FY2020 and CPB's
+    Rao's at FY2023. Both are the comparative prior-year column of the filing that
+    first reports the brand, for a year before the acquisition closed (Firehouse
+    December 2021, Sovos/Rao's March 2024). The value is the FILER'S, not a
+    ThesisTrace default, so AD-16 is not violated by storing it — but a consumer
+    rendering "Firehouse Subs: $0 in FY2020" would state something the filing does
+    not. Identity resolves correctly for both. Whether to SHOW them is a figure
+    question and belongs to the story that materializes carrying value (13.4c).
+  deferred_the_segment_rename_exposure: >
+    `_dimension_identity` normalizes the MAPPED axis into context_key so a filer's
+    rename does not split one brand's series — CPB renamed Kettle's member three
+    times in four filings. The segment axis gets no such normalization. If QSR
+    renames qsr:BurgerKingMember, context_key changes and the new row will not
+    supersede the old one: two current rows for one brand-year. The `aliases` list
+    on each segment brand makes both spellings resolve to one brand on READ, which
+    is all 13.4a claims. Closing it on the write path needs a migration and a
+    backfill, so it is a figure-moving change and is NOT this story's.
