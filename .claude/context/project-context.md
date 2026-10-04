@@ -228,3 +228,30 @@
   landing (both tagged finite-lived only today). The `compactAmount` lesson in reverse —
   there the documented case was safe and its undocumented sibling was live.
 - **"Backend unreachable" can mean another app owns the port.** Before assuming this project's server died, check `lsof -iTCP:<port>` and that process's working directory. Port 8000 is often Lawrence's riskpulse dev server; render ThesisTrace on a spare port via `NEXT_PUBLIC_API_BASE_URL`.
+
+## Learnings — 2026-09-20 (Story 13.3 merge; the workflow and permission fixes)
+
+- **A safety check belongs beside the destructive operation, not in the runner that usually
+  calls it.** `make test`'s guard compared the two DSNs as TEXT, so
+  `.../thesistrace?sslmode=disable` beside `DATABASE_URL=.../thesistrace` passed and started a
+  full run against the dev store — it survived only because asyncpg rejects that parameter.
+  Two faults, one shape: the check was at the wrong ALTITUDE (a direct `pytest` never reaches a
+  make target) and compared the wrong THING (a query string, a spelled-out default port, other
+  credentials or another driver prefix all change the text and address one database). It now
+  lives in `backend/tests/conftest.py` beside the `drop_all` and compares (host, port,
+  database). Generalise: a guard protects the callers it sits in front of, and `drop_all` does
+  not tolerate an approximate comparison. [Source: `tests/test_conftest_guard.py`]
+- **Exempting CI from a guard means the guard never runs where it runs most.** That check
+  failed CI immediately, correctly: `ci.yml` pointed `DATABASE_URL` and `TEST_DATABASE_URL` at
+  one database. A `CI=true` branch or an `ALLOW_SHARED_TEST_DB` opt-out was the smaller change
+  and was rejected — it leaves the guard unexercised on every push and lets the two
+  environments disagree about what a legal configuration is (the ambient-environment trap
+  already recorded for `Settings`). CI got its own migration database instead: one step, and
+  the invariant has no bypass to misuse.
+- **Splitting a story drops the constraints its parent stated once.** Three of five review
+  findings on the Epic 13 re-cut were exactly this: AD-1's write-path requirement, the
+  "confirm the fixture can exercise it BEFORE writing an entry" rule, and the defect-closure
+  gate each appeared once in the old 13.4/13.6/13.8 and were inherited by none of the
+  children. The new stories were individually sound and collectively weaker. **When splitting,
+  diff the old ACs against the UNION of the new ones** — the split triggers in `CLAUDE.md` say
+  when to cut, not what must survive the cut.
