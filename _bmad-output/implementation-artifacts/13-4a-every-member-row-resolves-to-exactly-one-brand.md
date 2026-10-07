@@ -1,8 +1,17 @@
 # Story 13.4a: Every member row resolves to exactly one brand
 
-Status: in-progress — round 1 merged as `ff1e1d1` (PR #144) on 2026-10-04; the Codex round
-on it found four of this story's own ACs unmet, and round 2 is fixing them. See **Round 2**
-below. Do not call this story done until round 2 merges.
+Status: done — round 1 `ff1e1d1` (#144), round 2 `3167858` (#145). The Codex round on round 1
+found four of this story's own ACs unmet; round 2 fixed them and is merged. See **Round 2**.
+
+**Closing verification, 2026-10-07, against a live database and the dev store:**
+- `make test` — **563 passed, 0 failed, 0 skipped.** The two rewritten DB tests ran for the
+  first time locally (Docker had been down when round 2 was written; CI was the judge then).
+- `scripts/verify_brand_identity.py` — **96/96 stored rows resolve**, 73 on a named brand,
+  0 unresolved, *under the stricter declared-axis rule*. The fix tightened identity without
+  losing a single real row.
+- `scripts/recanonicalize.py` — `concepts_v17` vs `concepts_v18` **IDENTICAL** under the now-sound
+  comparison (Decimal, plus accession, period end, unit, member/axis as filed, dimensions).
+  Canonicalization reported "no change" for all nine issuers, so the path is idempotent too.
 
 ## Story
 
