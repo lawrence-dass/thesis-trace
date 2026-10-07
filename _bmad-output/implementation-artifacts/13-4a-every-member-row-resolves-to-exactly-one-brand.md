@@ -1,6 +1,8 @@
 # Story 13.4a: Every member row resolves to exactly one brand
 
-Status: review — implemented 2026-09-21, awaiting Codex review. Not merged.
+Status: in-progress — round 1 merged as `ff1e1d1` (PR #144) on 2026-10-04; the Codex round
+on it found four of this story's own ACs unmet, and round 2 is fixing them. See **Round 2**
+below. Do not call this story done until round 2 merges.
 
 ## Story
 
@@ -131,7 +133,9 @@ through it.
 - [x] **7. Close out**
   - [x] `make test` green, `make lint` clean.
   - [x] Record the identity verification in `engineering-findings.yaml`.
-  - [x] Commit, push, open the PR, and hand over a Codex review prompt (do not merge).
+  - [x] Commit, push, open the PR, and hand over a Codex review prompt. Round 1 was merged
+        before that review ran (Lawrence, 2026-10-04); the review then ran against `ff1e1d1`
+        on main and its findings became Round 2 above.
 
 ## Dev Notes
 
@@ -297,9 +301,52 @@ Claude Opus 5, 2026-09-20/21.
   unresolved.
 - `make test` — 550 passed. `make lint` — clean (backend and `scripts/`).
 
+### Round 2 — the Codex round on `ff1e1d1` (2026-10-06)
+
+**Round 1's claim of "all 10 ACs met" was wrong.** Codex returned 11 findings; all 11 were
+verified against the code before any fix, 9 by execution and 2 by reading. Four contradicted
+this story's own ACs, which under `CLAUDE.md` story-workflow rule 3 makes them this story's
+work rather than a new story — hence round 2 here instead of a `13.4a-1`.
+
+| # | What was claimed | What was true |
+|---|---|---|
+| 1 | Task 5: "a DB test over the seeded store: every current-version row resolves" | The test queried the table **without seeding it**. Empty result → empty failure list → pass. It could not fail, and its own docstring said that was acceptable. It also never filtered on `MAPPING_VERSION`. |
+| 2 | AC 7: a qualifier axis "is ignored by identity" | `_axis_carrying` matched **any** axis whose value equalled the member key. `{custom:QualifierAxis: "kettle"}` returned Kettle Brand with `source_axis="custom:QualifierAxis"` — right label by accident, false AD-19 citation. Two matching axes resolved by **dict insertion order**. |
+| 3 | AC 5: "the caller cannot accidentally get a truthy label" | `BrandUnresolved` was **truthy** (dataclass default), so `if identity:` passed for an unresolved row. |
+| 4 | AC 6: "resolution and labels key on `(issuer_cik, brand_key)`" | `MEMBER_LABELS` held every `brand_members` entry and **no segment brand**, so `(QSR,"trade_names")` → `"Trade names"` and `(QSR,"burger_king")` → `KeyError`. The "four brands, one name" failure, through the exported table. |
+
+Also fixed, found by the same round:
+
+- **The reachability check only compared declarations to each other.** One typo repeated in
+  both `brand_axis` and `segment_brand_members.axis` satisfied every check while every row
+  resolved to `insufficient_data` — an inert declaration *inside the mechanism added to
+  prevent inert declarations*. The loader now rejects a `brand_axis` that is a MAPPED axis
+  for that filer, which is the first check here that tests a declaration against something
+  real.
+- **Loader gaps:** a duplicate stable `brand_key`; an alias shared with a `brand_members` or
+  `excluded_members` entry; `aliases: qsr:Foo` as a scalar (it became seven single-character
+  aliases matching nothing); `label: ""`; an omitted segment `kind` defaulting to
+  `named_brand`.
+- **A segment row no longer resolves without its own member** — `{SEGMENT_AXIS: "…"}` alone
+  used to return Burger King, a context `canonicalize_issuer` cannot produce.
+- **A non-string context value is no longer `str()`-coerced** into matching an alias.
+- **`recanonicalize.py`'s "IDENTICAL" verdict is now sound:** `Decimal` not `float`, and the
+  compared payload includes `accession_number`, `period_end`, `unit`, `member_as_filed`,
+  `axis_as_filed` and `dimensions`. Versions pair by version identity, not `created_at`.
+
+**One finding pushed back on.** Codex rated version-blind resolution High and called it an
+AD-2 violation. The fact is right — `resolve_brand_identity` takes no `mapping_version` — but
+AD-2 governs *stored facts staying reproducible from their spec*, and identity is computed at
+read time and stored nowhere. For a QSR `concepts_v17` row the old answer was *nothing* and
+the new one is correct, which is an improvement. It maps to no AC here, so it is **deferred
+to 13.4c** as a design question, recorded in `engineering-findings.yaml`.
+
+**Mutation-verified again:** 10 mutations, one per new guarantee, all caught.
+
 ### Completion Notes List
 
-**All 10 ACs met.** Two refinements to what the ACs anticipated, both deliberate:
+**Round 1 (merged as `ff1e1d1`) — superseded in part by Round 2 above.** Its claim of "all 10
+ACs met" did not hold; see the table. Two deliberate refinements from that round still stand:
 
 1. **A fifth `kind`: `segment_scoped`.** AC 4 listed four. QSR's `trade_names` member is none of
    them — it does not name a brand, it *defers* identity to another axis. Marking it

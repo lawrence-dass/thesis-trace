@@ -125,6 +125,7 @@ CURATED_SECTIONS = (
     "story_13_3_multi_axis_member_identity_verified",
     "story_13_3_member_exclusions_are_not_axis_scoped",
     "story_13_4a_brand_identity_resolves_for_every_stored_row",
+    "story_13_4a_codex_round_found_four_acs_unmet",
 )
 
 pytestmark = pytest.mark.skipif(
