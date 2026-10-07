@@ -20,7 +20,9 @@ from __future__ import annotations
 import asyncio
 import sys
 
-from sqlalchemy import func, select
+from decimal import Decimal
+
+from sqlalchemy import select
 
 from app.db import get_sessionmaker
 from app.models import CanonicalMemberFact, Issuer
@@ -28,8 +30,27 @@ from canonicalization.canonicalize import canonicalize_issuer
 from canonicalization.mappings import MAPPING_VERSION, seed_concept_mappings
 
 
-async def _current_rows(session, version: str) -> dict[tuple, float]:
-    """(issuer, concept, member, context, year) -> value, for one version."""
+def _version_sort_key(version: str) -> tuple[int, str]:
+    """`concepts_v9` sorts before `concepts_v18`, which a string sort gets wrong."""
+    head, _, tail = version.rpartition("_v")
+    return (int(tail), head) if tail.isdigit() else (-1, version)
+
+
+async def _current_rows(session, version: str) -> dict[tuple, tuple]:
+    """(issuer, concept, member, context, year) -> the row's value AND provenance.
+
+    The compared payload carries everything a reader of the row would rely on,
+    not just the figure. An earlier version compared `float(row.value)` alone and
+    reported IDENTICAL, which was a weaker claim than it sounded:
+
+    * `float()` on a NUMERIC(28,6) loses precision past ~15 significant digits,
+      so two genuinely different Decimals could compare equal (AD-15 exists to
+      keep these out of binary floats in the first place).
+    * Omitting accession_number, period_end, unit, member_as_filed, axis_as_filed
+      and dimensions meant a row whose FIGURE was unchanged but whose provenance
+      had moved — a different filing selected, a different member spelling
+      recorded — read as identical. AD-19 makes provenance part of the fact.
+    """
     rows = (
         await session.execute(
             select(CanonicalMemberFact).where(
@@ -45,7 +66,15 @@ async def _current_rows(session, version: str) -> dict[tuple, float]:
             row.member_key,
             tuple(sorted((row.context_key or {}).items())),
             row.fiscal_year,
-        ): float(row.value)
+        ): (
+            Decimal(str(row.value)),
+            row.accession_number,
+            row.period_end,
+            row.unit,
+            row.member_as_filed,
+            row.axis_as_filed,
+            tuple(sorted((row.dimensions or {}).items())),
+        )
         for row in rows
     }
 
@@ -67,12 +96,16 @@ async def _compare(session, previous: str, current: str) -> None:
             for key in keys[:20]:
                 print(f"  {key}")
     if changed:
-        print(f"\nVALUE CHANGED ({len(changed)}):")
+        print(f"\nCHANGED ({len(changed)}):")
         for key in changed[:20]:
-            print(f"  {key}: {before[key]} -> {after[key]}")
+            print(f"  {key}:\n    {previous}: {before[key]}\n    {current}: {after[key]}")
 
     if not (added or dropped or changed):
-        print("\nIDENTICAL — same rows, same values. The bump moved no figure.")
+        print(
+            "\nIDENTICAL — same rows, same values, same provenance "
+            "(value as Decimal, plus accession, period end, unit, member/axis as filed, "
+            "dimensions). The bump moved no figure."
+        )
 
 
 async def main() -> None:
@@ -98,18 +131,28 @@ async def main() -> None:
             print(f"  {cik}: {interesting or 'no change'}")
         await session.commit()
 
-        versions = list(
+        # Ordered by VERSION IDENTITY, not by created_at. Re-running an older
+        # version writes rows with a fresh created_at, which used to make it sort
+        # as "latest" and compare the wrong pair — silently answering a different
+        # question than the one asked.
+        versions = sorted(
             (
                 await session.execute(
                     select(CanonicalMemberFact.mapping_version)
                     .where(CanonicalMemberFact.superseded.is_(False))
                     .group_by(CanonicalMemberFact.mapping_version)
-                    .order_by(func.max(CanonicalMemberFact.created_at))
                 )
-            ).scalars()
+            )
+            .scalars()
+            .all(),
+            key=_version_sort_key,
         )
-        if len(versions) >= 2:
-            await _compare(session, versions[-2], versions[-1])
+        if MAPPING_VERSION not in versions:
+            print(f"\n{MAPPING_VERSION} wrote no current rows — nothing to compare.")
+        elif len(versions) >= 2:
+            current = MAPPING_VERSION
+            previous = versions[versions.index(current) - 1]
+            await _compare(session, previous, current)
 
 
 if __name__ == "__main__":

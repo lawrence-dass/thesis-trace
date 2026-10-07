@@ -5679,3 +5679,77 @@ story_13_4a_brand_identity_resolves_for_every_stored_row:
     on each segment brand makes both spellings resolve to one brand on READ, which
     is all 13.4a claims. Closing it on the write path needs a migration and a
     backfill, so it is a figure-moving change and is NOT this story's.
+
+
+story_13_4a_codex_round_found_four_acs_unmet:
+  status: done
+  found: 2026-10-06
+  found_by: >
+    The Codex round on ff1e1d1 (Story 13.4a round 1), run AFTER that commit merged
+    to main rather than before — Lawrence merged PR #143 then #144 on 2026-10-04,
+    and the review ran against the squashed commit. Eleven findings; all eleven
+    verified against the code before any fix, nine by execution and two by reading.
+  question: >
+    Round 1 claimed "all 10 ACs met" and was mutation-verified. Were the
+    guarantees its acceptance criteria asserted actually provided by the code?
+  finding: >
+    NO — FOUR OF ITS OWN ACs WERE UNMET, and the story's own verification missed
+    every one. AC 7 (a qualifier axis is ignored by identity): _axis_carrying
+    matched ANY axis whose value equalled the member key, so a context carrying
+    {custom:QualifierAxis: kettle} returned Kettle Brand with
+    source_axis=custom:QualifierAxis — the right label by accident and a false
+    AD-19 citation — and two matching axes resolved by dict insertion order.
+    AC 5 (a caller cannot accidentally get a truthy label): BrandUnresolved was
+    truthy, so `if identity:` passed for an unresolved row. AC 6 (labels key on
+    issuer + brand key): MEMBER_LABELS held every brand member and NO segment
+    brand, so (QSR, trade_names) returned the generic "Trade names" and
+    (QSR, burger_king) raised KeyError — the "four brands, one name" failure
+    reachable through the exported table. Task 5's integration test: queried
+    canonical_member_facts without seeding it, so an empty result passed.
+    Under CLAUDE.md story-workflow rule 3 these belong to 13.4a, not to a new
+    story, because they contradict its own ACs; fixed as round 2 on branch
+    claude/13-4a-identity-guarantees-2026-10-06.
+  a_vacuous_test_can_pass_a_mutation_audit: >
+    The decisive lesson. Round 1's unit tests were mutation-verified and sound,
+    and the ONE test meant to prove the resolver reachable against real stored
+    data asserted nothing — it queried an empty table. The mutation run could not
+    catch it, because mutating the resolver changes nothing about a loop that
+    never executes. A test whose assertion is `assert not <empty list>` is
+    vacuous no matter how rigorous the harness around it, and the fix that round 1
+    DID apply after its mutation run (the wiring test) addressed a different hole,
+    which made the suite feel thoroughly audited. GENERALISE: a mutation audit
+    proves a test discriminates only if the test's assertion actually runs. Assert
+    the ROW COUNT before asserting anything about the rows, so an empty fixture
+    fails instead of passing.
+  validated_against_a_declaration_is_not_validated: >
+    _check_brand_identity's five load-time rejections all compared declarations
+    against OTHER declarations. One typo repeated in both `brand_axis` and
+    `segment_brand_members.axis` satisfied every one of them while every row
+    resolved to insufficient_data — an inert declaration inside the mechanism
+    added to prevent inert declarations, which is instance 4 of the conformance
+    rule in this epic alone. The check that bites compares a declaration against
+    something REAL: the loader now rejects a brand_axis that is a mapped axis for
+    that filer, derived from DIMENSIONED_RULES. When adding a validator, ask what
+    it compares against; if the answer is "another thing in the same file", it
+    cannot detect a consistent mistake.
+  never_run_a_mutation_harness_on_uncommitted_work: >
+    Self-inflicted, during round 2. The mutation script restores each file with
+    `git checkout -- backend/canonicalization/mappings/` after every mutation. In
+    round 1 that was safe because the code was committed first. In round 2 it ran
+    against UNCOMMITTED fixes and discarded all of them on the first restore — the
+    remaining nine mutations then reported "anchor not found", which is what
+    surfaced the loss. Nothing was unrecoverable (the edits were re-applied and
+    the fixes are identical), but the harness is a destructive tool wearing the
+    clothes of a test runner. Commit before mutating, always; a harness that
+    reverts files cannot tell your work from the mutation it injected.
+  deferred_version_blind_resolution: >
+    Codex rated this High and an AD-2 violation. PUSHED BACK, and deferred to
+    13.4c rather than fixed. The fact is right: resolve_brand_identity takes no
+    mapping_version, so a stored concepts_v17 row is read through v18
+    declarations. But AD-2 governs stored FACTS staying reproducible from their
+    spec, and identity is computed at read time and stored nowhere; for a QSR
+    concepts_v17 row the old answer was *nothing* and the new one is correct,
+    which is an improvement rather than a corruption. It maps to no 13.4a AC. The
+    real question — should a consumer rendering a historical row see the identity
+    its own spec version would have given? — belongs to the story that
+    materializes per-brand figures.
