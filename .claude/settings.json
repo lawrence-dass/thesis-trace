@@ -60,6 +60,9 @@
       "Bash(uv run ruff*)",
       "Bash(uv run alembic*)",
       "Bash(uv run --project backend alembic*)",
+      "Bash(uv run /Users/lawrence/Documents/projects/ThesisTrace/_bmad/scripts/resolve_customization.py *)",
+      "Bash(uv run /Users/lawrence/Documents/projects/ThesisTrace/_bmad/scripts/resolve_config.py *)",
+      "Bash(uv run /Users/lawrence/Documents/projects/ThesisTrace/_bmad/scripts/memlog.py *)",
       "Bash(docker exec thesistrace-pg psql*)"
     ]
   }
