@@ -13,6 +13,7 @@ from sqlalchemy import select
 
 from app.db import get_sessionmaker
 from app.models import Issuer
+from brands.impairment import materialize_brand_impairments
 from brands.store import materialize_brand_carrying_values
 
 
@@ -25,7 +26,11 @@ async def main() -> None:
         for issuer in issuers:
             summary = await materialize_brand_carrying_values(session, issuer.cik)
             if any(summary.values()):
-                print(f"{issuer.ticker}: {summary}")
+                print(f"{issuer.ticker} carrying value: {summary}")
+            # After carrying value: impairment's row set is what that just wrote.
+            impairments = await materialize_brand_impairments(session, issuer.cik)
+            if any(impairments.values()):
+                print(f"{issuer.ticker} impairment: {impairments}")
         await session.commit()
 
 

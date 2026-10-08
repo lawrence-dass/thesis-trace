@@ -531,6 +531,10 @@ class BrandFigure(Base):
             "(status = 'insufficient_data' AND value IS NULL AND reason IS NOT NULL)",
             name="ck_brand_figures_status",
         ),
+        CheckConstraint(
+            "level IS NULL OR level IN ('brand', 'filer_only', 'none')",
+            name="ck_brand_figures_level",
+        ),
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
@@ -547,6 +551,10 @@ class BrandFigure(Base):
     source_axis: Mapped[str] = mapped_column(String(256))
 
     basis: Mapped[str | None] = mapped_column(String(32))
+    # The level the FILING supports this figure at (Story 13.4d): `brand`,
+    # `filer_only` or `none`. Stored, never inferred from the figure or table.
+    # NULL where level is not a question (carrying value).
+    level: Mapped[str | None] = mapped_column(String(16))
     period_end: Mapped[date | None] = mapped_column(Date)
     value: Mapped[float | None] = mapped_column(Numeric(28, 6))  # NUMERIC (AD-15)
     unit: Mapped[str | None] = mapped_column(String(32))

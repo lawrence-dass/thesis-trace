@@ -15,21 +15,39 @@ from tests.conftest import requires_db
 from tests.test_brand_figures import CARRYING, CLASS_AXIS, CPB, _cpb, _figures, _row
 
 
-async def _recreate_with_alembic(db_session):
-    path = Path(__file__).resolve().parents[2] / "db/migrations/versions/f3a8c2d61b47_add_brand_figures.py"
-    spec = importlib.util.spec_from_file_location("brand_figure_migration", path)
+# Every revision that shapes brand_figures, oldest first. The round-trip replays
+# the WHOLE chain, so a later revision (13.4d's `level`) is checked against the
+# model too rather than leaving this test comparing a stale schema.
+CHAIN = (
+    ("f3a8c2d61b47_add_brand_figures.py", "d4f61a2b9c30"),
+    ("a9d3e7f25c18_brand_figures_level.py", "f3a8c2d61b47"),
+)
+
+
+def _load(filename: str, down_revision: str):
+    path = Path(__file__).resolve().parents[2] / "db/migrations/versions" / filename
+    spec = importlib.util.spec_from_file_location(filename.removesuffix(".py"), path)
     migration = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(migration)
-    assert migration.down_revision == "d4f61a2b9c30"
+    assert migration.down_revision == down_revision
+    return migration
+
+
+async def _recreate_with_alembic(db_session):
+    migrations = [_load(name, down) for name, down in CHAIN]
     connection = await db_session.connection()
 
     def roundtrip(sync_connection):
-        migration.op = Operations(MigrationContext.configure(sync_connection))
-        migration.downgrade()
+        op = Operations(MigrationContext.configure(sync_connection))
+        for migration in migrations:
+            migration.op = op
+        for migration in reversed(migrations):
+            migration.downgrade()
         tables = inspect(sync_connection).get_table_names()
         assert "brand_figures" not in tables
         assert "canonical_member_facts" in tables
-        migration.upgrade()
+        for migration in migrations:
+            migration.upgrade()
         inspector = inspect(sync_connection)
         columns = inspector.get_columns("brand_figures")
         assert len(columns) == len(BrandFigure.__table__.columns)
@@ -40,7 +58,12 @@ async def _recreate_with_alembic(db_session):
                 model.type.compile(dialect=sync_connection.dialect)
             )
         checks = inspector.get_check_constraints("brand_figures")
-        assert len(checks) == 1 and checks[0]["name"] == "ck_brand_figures_status"
+        model_checks = {
+            c.name for c in BrandFigure.__table__.constraints if c.__class__.__name__ == "CheckConstraint"
+        }
+        assert {c["name"] for c in checks} == model_checks == {
+            "ck_brand_figures_status", "ck_brand_figures_level",
+        }
 
     await connection.run_sync(roundtrip)
 
