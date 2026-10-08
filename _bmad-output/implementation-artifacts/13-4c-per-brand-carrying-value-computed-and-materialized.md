@@ -4,7 +4,7 @@ baseline_commit: d4a9021
 
 # Story 13.4c: Per-brand carrying value, computed and materialized
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -135,20 +135,20 @@ Task 1 amends `epics.md` to say so, in the same change.
 
 ## Tasks / Subtasks
 
-- [ ] **1. Amend the epic AC (overtaken by events).** In `epics.md` Story 13.4c, replace "WRITES INTO
+- [x] **1. Amend the epic AC (overtaken by events).** In `epics.md` Story 13.4c, replace "WRITES INTO
       it and must not redefine its table…" with the D-a wording (derived `brand_figures` table; the
       member store stays canonical-only and unchanged). Keep the `### Story 13.4c` heading byte-for-byte
       (story keys are derived from it). (AC 1)
-- [ ] **2. Migration + model.** Alembic revision on `d4f61a2b9c30` creating `brand_figures` with the
+- [x] **2. Migration + model.** Alembic revision on `d4f61a2b9c30` creating `brand_figures` with the
       UNIQUE constraint `uq_brand_figures_key` and indexes on `issuer_cik`, `brand_key`; `BrandFigure`
       in `app/models.py`. Downgrade drops the table (derived and fully recomputable — unlike the
       canonical stores, it holds no append-only history). Run `make migrate` against dev. (AC 1)
-- [ ] **3. Spec.** `brand_carrying_value_v1.yaml`: `model`, `formula_version`, `inputs`,
+- [x] **3. Spec.** `brand_carrying_value_v1.yaml`: `model`, `formula_version`, `inputs`,
       `missing_data_policy`, `rounding`, `basis_qualifiers` + `basis_precedence`, `pre_acquisition`
       rule, each with `note` and `rationale`. A load-time check rejects a spec whose `inputs` is
       empty, or whose basis table names a qualifier axis no dimensioned rule context can carry. Do
       NOT add it to `MODEL_TO_SPEC` (no methodology publication in this story). (AC 4, 5, 6, 8)
-- [ ] **4. Materializer.** New module `backend/brands/store.py` (sibling of `valuation/store.py`):
+- [x] **4. Materializer.** New module `backend/brands/store.py` (sibling of `valuation/store.py`):
       `materialize_brand_carrying_values(session, issuer_cik) -> dict` reading current-version rows
       for the spec's `inputs`, resolving identity, assigning basis, applying precedence and the
       pre-acquisition rule, upserting on `uq_brand_figures_key` (refresh every non-key column, as
@@ -156,62 +156,62 @@ Task 1 amends `epics.md` to say so, in the same change.
       that tonight's run did not produce. Values pass through `formulas.engine` (`to_decimal`,
       quantize per spec). Returns `{"written", "removed", "unresolved", "insufficient"}`.
       (AC 2, 3, 5-9)
-- [ ] **5. Wire it.** Call it in `run_issuer` after `materialize_reverse_dcf`, before `commit`; add
+- [x] **5. Wire it.** Call it in `run_issuer` after `materialize_reverse_dcf`, before `commit`; add
       the summary to the return dict and to `main()`'s `OK` line. Add a `make` target
       (`make brands`, `##` comment) that materializes every issuer from stored facts with no network
       fetch, for the dev store and post-deploy. (AC 2)
-- [ ] **6. Tests** (`backend/tests/test_brand_figures.py`, DB-backed with `requires_db`; seed real
+- [x] **6. Tests** (`backend/tests/test_brand_figures.py`, DB-backed with `requires_db`; seed real
       `canonical_member_facts` rows; **assert the row COUNT before asserting anything about rows**):
-  - [ ] idempotency: run twice → same count/values; a source row superseded without replacement →
+  - [x] idempotency: run twice → same count/values; a source row superseded without replacement →
         its brand-year removed on rerun; a row under another version pair untouched. (AC 3)
-  - [ ] inputs enforced: a seeded row under an undeclared concept is not read; removing a concept
+  - [x] inputs enforced: a seeded row under an undeclared concept is not read; removing a concept
         from a temp copy of the spec stops it being read (the code follows the spec). (AC 4)
-  - [ ] rounding is the identity on a filed value with 6 decimals. (AC 4)
-  - [ ] basis: unqualified → `carrying_value`; nonrecurring FV → `nonrecurring_fair_value`; unknown
+  - [x] rounding is the identity on a filed value with 6 decimals. (AC 4)
+  - [x] basis: unqualified → `carrying_value`; nonrecurring FV → `nonrecurring_fair_value`; unknown
         qualifier → `insufficient_data` naming it. (AC 5)
-  - [ ] precedence: carrying beats FV for one brand-year; two disagreeing carrying rows →
+  - [x] precedence: carrying beats FV for one brand-year; two disagreeing carrying rows →
         `insufficient_data`, NULL value, both ids in reason. (AC 6)
-  - [ ] identity: QSR segment rows land under `burger_king`/`tim_hortons`/… not `trade_names`; an
+  - [x] identity: QSR segment rows land under `burger_king`/`tim_hortons`/… not `trade_names`; an
         unresolvable row writes nothing and counts 1 unresolved; a row stamped with an older
         `mapping_version` is not read. (AC 7)
-  - [ ] pre-acquisition: 0-then-positive → caveat; a 0 in a later year → no caveat; 0 with no later
+  - [x] pre-acquisition: 0-then-positive → caveat; a 0 in a later year → no caveat; 0 with no later
         positive → no caveat. (AC 8)
-  - [ ] no summing: CPB FY2021 total stored as 2,549m while brands + residual = 2,867m. (AC 9)
-  - [ ] wiring: `run_issuer` over a fixture with member facts writes `brand_figures` rows (asserts a
+  - [x] no summing: CPB FY2021 total stored as 2,549m while brands + residual = 2,867m. (AC 9)
+  - [x] wiring: `run_issuer` over a fixture with member facts writes `brand_figures` rows (asserts a
         nonzero count — the 13.4a vacuous-test lesson). (AC 2)
-- [ ] **7. Mutation audit.** COMMIT FIRST (`never_run_a_mutation_harness_on_uncommitted_work`), then
+- [x] **7. Mutation audit.** COMMIT FIRST (`never_run_a_mutation_harness_on_uncommitted_work`), then
       break each guarantee in memory and confirm the paired test fails ON AN ASSERTION, not an import:
       precedence, basis-from-spec, inputs-from-spec, stale-row deletion, pre-acquisition rule,
       version filter. Record results in Completion Notes; reuse the shape of
       `scripts/verify_exclusion_guards.py` (PR #154) if a script is warranted.
-- [ ] **8. Dev-store run.** `make migrate`, then `make brands`; check AC 10's exact counts with a query
+- [x] **8. Dev-store run.** `make migrate`, then `make brands`; check AC 10's exact counts with a query
       saved under `scripts/` or the scratchpad, run by `make py F=`. Run it twice and confirm the
       second run writes the same 86 rows and removes 0. (AC 3, 10)
-- [ ] **9. Record.** `engineering-findings.yaml`: a `story_13_4c_brand_carrying_value_materialized`
+- [x] **9. Record.** `engineering-findings.yaml`: a `story_13_4c_brand_carrying_value_materialized`
       entry (counts, the two basis rows, the two caveats, the spot-check result); mark
       `deferred_version_blind_resolution` closed-for-materialized-figures; record
       `deferred_the_segment_rename_exposure` as open with its new home (a new story).
-- [ ] **10. Live-data DoD.**
-  - [ ] (1) Check `engineering-findings.yaml` first: `story_13_3_brand_member_live_verification`
+- [x] **10. Live-data DoD.**
+  - [x] (1) Check `engineering-findings.yaml` first: `story_13_3_brand_member_live_verification`
         and `story_13_3_multi_axis_member_identity_verified` already live-verified every member and
         year these rows come from. Do not re-fetch what they answered.
-  - [ ] (2) Per-year coverage: company-facts carries no dimensions, so verify against the stored
+  - [x] (2) Per-year coverage: company-facts carries no dimensions, so verify against the stored
         Inline-XBRL `raw_facts` (AC 10's counts, bucketed on `period_end`, not `fy`), plus a live
         spot-check of **two** instance documents, named here and asked for in ONE request before
         fetching: **CPB** (CIK `0000016732`) accession `0000016732-24-000130` — Rao's FY2024 = 1,470m
         and Pop Secret FY2024 = 28m nonrecurring FV; **QSR** (CIK `0001618756`) accession
         `0001618756-22-000018` — Firehouse Subs FY2021 = 768m and FY2020 = 0.
-  - [ ] (3) Before calling any gap a defect, grep `us-gaap_v18.yaml` for the concept and read its
+  - [x] (3) Before calling any gap a defect, grep `us-gaap_v18.yaml` for the concept and read its
         `note` (e.g. Noosa/Late July having no carrying rows is the filing's shape).
-  - [ ] (4) Golden fixture: N/A this story — the harness cannot express a member
+  - [x] (4) Golden fixture: N/A this story — the harness cannot express a member
         (`golden_harness_cannot_reach_dimensioned_member_facts`); entries → 13.6a/13.6b. Say so.
-  - [ ] (5) Browser render: N/A — this story renders nothing; no API or page reads `brand_figures`
+  - [x] (5) Browser render: N/A — this story renders nothing; no API or page reads `brand_figures`
         yet. State it in Completion Notes; 13.7b/13.8a carry the render.
-  - [ ] (6) Record the verification (Task 9).
-  - [ ] (7) Triage every finding: BLOCKING only if it contradicts an AC above or a wrong figure is
+  - [x] (6) Record the verification (Task 9).
+  - [x] (7) Triage every finding: BLOCKING only if it contradicts an AC above or a wrong figure is
         user-visible (none can be — nothing renders). Everything else → a new story, and this one
         merges.
-- [ ] **11. Close.** `make test` green, `make lint` clean; story → `review`, sprint-status
+- [x] **11. Close.** `make test` green, `make lint` clean; story → `review`, sprint-status
       `13-4c-…: review`; commit, push, open the PR, hand over a Codex review prompt. Do not merge.
 
 ## Dev Notes
@@ -312,12 +312,81 @@ feature absent until the pipeline runs; NUMERIC scale vs algorithm), the conform
 
 ### Agent Model Used
 
+Claude Opus 5.5 (`claude-opus-5-5`), via `bmad-dev-story` (BMad 6.12.1 shim).
+
 ### Debug Log References
+
+- `make brands` (dev store, `concepts_v19`), run twice: CPB 48 / QSR 30 / ZTS 8 written, 0 removed,
+  0 unresolved, 0 insufficient — identical both runs.
+- `make py F=scripts/verify_brand_figure_guards.py`: all 9 mutations killed, 12 call-phase
+  `AssertionError`s, 0 skips, 0 collection/setup errors.
+- `make py F=scripts/spot_check_brand_figures.py`: 4/4 live values match, each matched by exactly
+  one filed fact.
 
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created.
+- **AC 1-3.** `brand_figures` (migration `f3a8c2d61b47`, model `BrandFigure`) with UNIQUE
+  `uq_brand_figures_key` and a CHECK that a row is either `ok` with a value or `insufficient_data`
+  with no value and a reason. `materialize_brand_carrying_values` upserts on the key, then deletes
+  this issuer's rows under the same version pair that the run did not write. Wired into
+  `run_issuer` after the reverse DCF; summary in the return dict and `main()`'s `OK` line;
+  `make brands` materializes from stored facts with no fetch. Feature is absent until it runs.
+- **AC 4.** `brand_carrying_value_v1.yaml`; the query's concept filter IS `spec.inputs`. Rounding
+  through `formulas.engine.round_ratio` at 6 places, asserted to be the identity on filed amounts.
+- **AC 5-6.** Basis from the context's non-identity axes; an undeclared qualifier makes that row
+  basis-less (alone → `insufficient_data` naming it; beside a declared row → the declared row wins).
+  Precedence from the spec; two disagreeing rows of the winning basis → `insufficient_data`, NULL
+  value, both ids in `reason`; equal values collapse to one figure.
+- **AC 7.** Identity via `resolve_brand_identity`; only `NOT superseded` rows at the running
+  `MAPPING_VERSION` are read. Unresolved rows write nothing and are counted (dev store: 0).
+- **AC 8-9.** Pre-acquisition rule as specified; residual/total materialized as their own series.
+- **AC 10.** Exact: 86 rows (67 named, 14 aggregate, 5 residual), 2 `nonrecurring_fair_value`, 2
+  `pre_acquisition_comparative`, 0 insufficient, 0 unresolved, 0 value mismatches vs source rows,
+  0 rows without `source_member_fact_id`.
+- **Deviation 1 (Task 3).** The planned loader check "a qualifier axis no dimensioned rule context
+  can carry" has nothing executed to compare against — `DIMENSIONED_RULES` declare mapped axes
+  only. Implemented the checks that do compare against executed declarations instead: a basis
+  qualifier must NOT be an identity axis (from `DIMENSIONED_RULES`, segment and brand axes), and
+  every input must be a concept some dimensioned rule produces. Also rejected: empty inputs, a
+  precedence list that does not order every declared basis once, a caveat no code applies.
+- **Deviation 2 (Task 6, wiring).** The only `run_issuer` fixture is SHOP, which declares no
+  brands, so the wiring test spies on the stage call and asserts its summary surfaces; the
+  DB-backed store tests are what prove rows land (each asserts a nonzero count first).
+- **The mutation audit found a real test defect**: the "other version pair untouched" test seeded
+  its foreign-version row at the same brand-year the run writes, so it passed with the version
+  scope removed. Fixed (`76f0d0c`); recorded in `engineering-findings.yaml`.
+- **Live-data DoD.** (1) checked findings first — the 13.3 live verifications cover every member
+  and year; (2) coverage verified against the stored Inline-XBRL facts (AC 10) plus the live spot
+  check of CPB `0000016732-24-000130` and QSR `0001618756-22-000018`; (3) the gaps seen (Noosa and
+  Late July have no carrying rows) are the filing's shape per the spec notes; (4) golden fixtures:
+  N/A, the harness cannot express a member (→ 13.6a/b); (5) browser render: N/A — nothing reads
+  `brand_figures` yet, no API or page changed (→ 13.7b/13.8a); (6) recorded as
+  `story_13_4c_brand_carrying_value_materialized`; (7) triage: no finding contradicts an AC and
+  nothing is user-visible, so nothing blocks. Deferred: the segment-rename exposure → a new story.
+- `make test`: 595 passed. `make lint`: clean.
 
 ### Change Log
 
+- 2026-10-08 — Story file created; decisions D-a..D-d taken with Lawrence before drafting.
+- 2026-10-08 — Implemented: `brand_figures` store, `brand_carrying_value_v1` spec, write-path stage,
+  `make brands`, tests, mutation audit, live spot-check; epic AC corrected. No existing figure changed.
+
 ### File List
+
+- `db/migrations/versions/f3a8c2d61b47_add_brand_figures.py` (new)
+- `backend/app/models.py`
+- `backend/brands/__init__.py` (new)
+- `backend/brands/__main__.py` (new)
+- `backend/brands/store.py` (new)
+- `backend/formulas/specs/brand_carrying_value_v1.yaml` (new)
+- `backend/pipeline/run.py`
+- `backend/tests/test_brand_figures.py` (new)
+- `backend/tests/test_sprint_status.py`
+- `scripts/verify_brand_figure_guards.py` (new)
+- `scripts/spot_check_brand_figures.py` (new)
+- `Makefile`
+- `_bmad-output/planning-artifacts/epics.md`
+- `_bmad-output/implementation-artifacts/engineering-findings.yaml`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/13-4c-per-brand-carrying-value-computed-and-materialized.md`

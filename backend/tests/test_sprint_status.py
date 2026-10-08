@@ -127,6 +127,7 @@ CURATED_SECTIONS = (
     "story_13_4a_brand_identity_resolves_for_every_stored_row",
     "story_13_4a_codex_round_found_four_acs_unmet",
     "golden_harness_cannot_reach_dimensioned_member_facts",
+    "story_13_4c_brand_carrying_value_materialized",
 )
 
 pytestmark = pytest.mark.skipif(
