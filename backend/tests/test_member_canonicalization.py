@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
+import pytest
 from sqlalchemy import select
 
 from app.models import (
@@ -35,9 +36,11 @@ from app.models import (
 )
 from canonicalization.canonicalize import canonicalize_issuer
 from canonicalization.mappings import (
+    DIMENSIONED_RULES,
     MEMBER_PERIOD_POLICIES,
     MEMBER_RESOLUTION,
     MEMBER_SOURCE_PRIORITY,
+    DimensionedRule,
     seed_concept_mappings,
 )
 from tests.conftest import requires_db
@@ -591,6 +594,70 @@ async def test_an_exclusion_is_scoped_to_its_own_filer(db_session) -> None:
     counts = await canonicalize_issuer(db_session, CPB)
 
     assert counts["member_unmapped_flagged"] == 1
+
+
+@requires_db
+@pytest.mark.parametrize(
+    "axis, concept",
+    [
+        ("us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis", CARRYING),
+        (AXIS, IMPAIRMENT),
+    ],
+    ids=["wrong_axis", "wrong_concept"],
+)
+async def test_canonicalization_flags_an_excluded_member_outside_its_verified_scope(
+    db_session, monkeypatch, axis, concept
+) -> None:
+    """Exercise the caller: a helper-only test cannot detect axis-blind wiring."""
+    monkeypatch.setattr(
+        "canonicalization.canonicalize.DIMENSIONED_RULES",
+        (*DIMENSIONED_RULES, DimensionedRule(
+            canonical_concept="exclusion_scope_probe",
+            source_taxonomy="us-gaap",
+            source_concept=concept,
+            axis=axis,
+            issuers=(ZTS,),
+        )),
+    )
+    accn = "0001555280-26-000011"
+    member = "us-gaap:InProcessResearchAndDevelopmentMember"
+    fye = date(2025, 12, 31)
+    await _issuer(db_session, ZTS, "ZTS")
+    await _filing(db_session, ZTS, accn, 2025, fye)
+    db_session.add_all([
+        _fact(accn, CARRYING, "zts:BrandsMember", fye, 900_000_000, "scoped-brand"),
+        _fact(accn, CARRYING, member, fye, 400_000_000, "verified-exclusion"),
+        _fact(accn, concept, member, fye, 100_000_000, "unverified-exclusion",
+              dimensions={axis: member}),
+    ])
+    await db_session.flush()
+    await seed_concept_mappings(db_session)
+
+    counts = await canonicalize_issuer(db_session, ZTS)
+    assert counts["member_unmapped_flagged"] == 1, counts
+    assert counts["member_facts_added"] == 1, counts
+    issue = (await db_session.execute(
+        select(DataQualityIssue).where(DataQualityIssue.issue_type == "unmapped_member")
+    )).scalar_one()
+    assert issue.detail == {
+        "taxonomy": "us-gaap",
+        "source_concept": concept,
+        "axis": axis,
+        "member_as_filed": member,
+        "fiscal_year": 2025,
+        "period_end": fye.isoformat(),
+    }
+    rows = (await db_session.execute(
+        select(CanonicalMemberFact).where(CanonicalMemberFact.superseded.is_(False))
+    )).scalars().all()
+    assert [(row.member_key, row.value) for row in rows] == [("brands", 900_000_000)]
+
+    # The new warning follows the existing idempotency contract.
+    again = await canonicalize_issuer(db_session, ZTS)
+    assert again["member_unmapped_flagged"] == 0, again
+    assert (await db_session.execute(
+        select(DataQualityIssue).where(DataQualityIssue.issue_type == "unmapped_member")
+    )).scalar_one().id == issue.id
 
 
 @requires_db

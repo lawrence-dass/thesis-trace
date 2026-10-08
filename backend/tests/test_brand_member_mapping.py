@@ -14,10 +14,13 @@ instances each, FY2022-FY2025), not to the shape of the spec file.
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 
 import pytest
+import yaml
 
 from app.models import CanonicalMemberFact
+import canonicalization.mappings.engine as mapping_engine
 from canonicalization.mappings.engine import (
     BRAND_MEMBERS,
     DIMENSIONED_RULES,
@@ -477,6 +480,109 @@ def test_an_exclusion_with_scalar_source_concepts_is_rejected_at_load() -> None:
     }}}}
     with pytest.raises(ValueError, match="in_process_rnd.*source_concepts"):
         _parse_excluded_members("us-gaap_vX", data)
+
+
+@pytest.fixture
+def registered_exclusion_spec(tmp_path, monkeypatch):
+    """Use the full loader while keeping shipped specs and its cache isolated."""
+    specs = tmp_path / "specs"
+    shutil.copytree(mapping_engine.SPECS_DIR, specs)
+    monkeypatch.setattr(mapping_engine, "SPECS_DIR", specs)
+    registry = yaml.safe_load((specs / "registry.yaml").read_text())
+    spec_file = specs / f"{registry['taxonomies']['us-gaap']}.yaml"
+    data = yaml.safe_load(spec_file.read_text())
+    mapping_engine.load_mapping_spec.cache_clear()
+    try:
+        yield spec_file, data
+    finally:
+        mapping_engine.load_mapping_spec.cache_clear()
+
+
+@pytest.mark.parametrize(
+    "invalid_scope, message",
+    [
+        ("axis", "in_process_rnd.*unreachable"),
+        ("issuer", "in_process_rnd.*unreachable"),
+        ("concept", "in_process_rnd.*unreachable"),
+        ("missing_axis", "in_process_rnd.*axis"),
+        ("scalar_concepts", "in_process_rnd.*source_concepts"),
+    ],
+)
+def test_the_loader_rejects_an_invalid_exclusion(
+    registered_exclusion_spec, invalid_scope, message
+) -> None:
+    spec_file, data = registered_exclusion_spec
+    exclusion = data["excluded_members"][ZTS]["in_process_rnd"]
+    if invalid_scope in {"axis", "issuer"}:
+        exclusion["axis"] = FINITE_AXIS
+        if invalid_scope == "issuer":
+            # This axis IS read, but only for CPB. All other declarations remain
+            # valid so skipping the exclusion validator would accept this spec.
+            data["dimensioned_concepts"]["exclusion_scope_probe"] = {
+                "axis": FINITE_AXIS,
+                "issuers": [CPB],
+                "sources": [{"concept": CARRYING}],
+            }
+    elif invalid_scope == "concept":
+        exclusion["source_concepts"] = ["AnUnreadSourceConcept"]
+    elif invalid_scope == "missing_axis":
+        del exclusion["axis"]
+    else:
+        exclusion["source_concepts"] = CARRYING
+    spec_file.write_text(yaml.safe_dump(data, sort_keys=False))
+
+    with pytest.raises(ValueError, match=message):
+        mapping_engine.load_mapping_spec()
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_the_exclusion_index_rejects_colliding_concept_scopes(reverse) -> None:
+    first = _excluded(source_concepts=(CARRYING,))
+    second = _excluded(member_key="duplicate_in_process_rnd", source_concepts=(IMPAIRMENT,))
+    entries = (second, first) if reverse else (first, second)
+
+    with pytest.raises(ValueError, match="exclusion.*claimed by both") as error:
+        build_exclusion_index(entries)
+    assert first.member_key in str(error.value)
+    assert second.member_key in str(error.value)
+    assert ZTS in str(error.value)
+    assert AXIS in str(error.value)
+    assert IPRD in str(error.value)
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize("scoped", [False, True], ids=["wildcard", "concept_scoped"])
+def test_the_loader_rejects_colliding_exclusions(registered_exclusion_spec, reverse, scoped) -> None:
+    spec_file, data = registered_exclusion_spec
+    entries = data["excluded_members"][ZTS]
+    original = entries["in_process_rnd"]
+    duplicate = dict(original)
+    if scoped:
+        duplicate["source_concepts"] = [IMPAIRMENT]
+        data["dimensioned_concepts"]["brand_intangible_impairment"]["issuers"].append(ZTS)
+    else:
+        del duplicate["source_concepts"]
+    entries["duplicate_in_process_rnd"] = duplicate
+    if reverse:
+        data["excluded_members"][ZTS] = dict(reversed(list(entries.items())))
+    spec_file.write_text(yaml.safe_dump(data, sort_keys=False))
+
+    with pytest.raises(ValueError, match="exclusion.*claimed by both"):
+        mapping_engine.load_mapping_spec()
+
+
+def test_exclusion_aliases_can_repeat_for_different_issuers_or_axes() -> None:
+    entries = (
+        _excluded(source_concepts=(CARRYING,)),
+        _excluded(issuer_cik=CPB, source_concepts=(IMPAIRMENT,)),
+        _excluded(axis=FINITE_AXIS, source_concepts=(IMPAIRMENT,)),
+    )
+    index = build_exclusion_index(entries)
+    assert len(index) == 3
+    assert is_excluded(ZTS, CARRYING, AXIS, IPRD, index=index)
+    assert not is_excluded(ZTS, IMPAIRMENT, AXIS, IPRD, index=index)
+    assert is_excluded(CPB, IMPAIRMENT, AXIS, IPRD, index=index)
+    assert is_excluded(ZTS, IMPAIRMENT, FINITE_AXIS, IPRD, index=index)
 
 
 # --- the residual bucket is not a brand either (Codex round, PR #138) --------
