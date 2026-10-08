@@ -41,6 +41,8 @@ from formulas.engine import load_spec, round_ratio, to_decimal
 
 FORMULA_VERSION = "brand_impairment_v1"
 LEVELS = ("brand", "filer_only", "none")
+IMPAIRMENT_CONCEPT = "brand_intangible_impairment"
+CARRYING_MODEL = "brand_carrying_value"
 
 # What an absent charge means at each level. The code applies exactly these; the
 # spec must declare exactly these (one place says what, the other says why).
@@ -66,10 +68,27 @@ def parse_impairment_spec(formula) -> ImpairmentSpec:
     raw = formula.raw
     version = formula.formula_version
 
+    # The level check below is only meaningful for the IMPAIRMENT concept. Validating
+    # whichever concepts `inputs` named let `brand_intangible_acquired` through, and
+    # Rao's 2.8bn purchase value was stored as a write-down (Codex round, F1).
+    if common.inputs != (IMPAIRMENT_CONCEPT,):
+        raise ValueError(
+            f"{version}: inputs must be exactly [{IMPAIRMENT_CONCEPT!r}], got "
+            f"{list(common.inputs)} — any other concept would be stored as a charge"
+        )
+
     row_set_from = raw.get("row_set_from")
     if not row_set_from:
         raise ValueError(f"{version}: declares no row_set_from")
-    load_carrying_value_spec(row_set_from)  # must be a real, loadable carrying spec
+    # "Loadable" is not enough: this spec loads too, and naming itself made last
+    # night's impairment rows tonight's row set, so a vanished brand-year could never
+    # be removed (Codex round, F2). The source must be a carrying-value model.
+    source = load_carrying_value_spec(row_set_from)
+    if row_set_from == version or source.formula.model != CARRYING_MODEL:
+        raise ValueError(
+            f"{version}: row_set_from {row_set_from!r} is model "
+            f"{source.formula.model!r}; it must be a {CARRYING_MODEL!r} carrying-value spec"
+        )
 
     levels = {cik: body["level"] for cik, body in (raw.get("levels") or {}).items()}
     bad = sorted({lvl for lvl in levels.values() if lvl not in LEVELS})
