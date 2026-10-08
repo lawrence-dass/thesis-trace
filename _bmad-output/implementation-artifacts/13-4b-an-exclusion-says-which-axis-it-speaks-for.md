@@ -4,7 +4,7 @@ baseline_commit: b882f658d2f82bf4a95c93680b6ac75f9ff50575
 
 # Story 13.4b: An exclusion says which axis it speaks for
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -85,68 +85,68 @@ row is written, never which value lands in `canonical_member_facts`.
 ## Tasks / Subtasks
 
 - [x] **1. Decide the seven inert exclusions** (AC: 4) — **done 2026-10-08: A, remove.** See Dev Notes "Decision".
-- [ ] **2. Make suppression a pure, testable predicate** (AC: 2)
-  - [ ] Add `axis: str` and `source_concepts: tuple[str, ...] = ()` to `ExcludedMember`
+- [x] **2. Make suppression a pure, testable predicate** (AC: 2)
+  - [x] Add `axis: str` and `source_concepts: tuple[str, ...] = ()` to `ExcludedMember`
         (`mappings/engine.py:191`); `_load_excluded_members` reads both and rejects a missing
         `axis` (AC 1).
-  - [ ] Add one lookup built at load — e.g. `EXCLUSION_RESOLUTION` keyed
+  - [x] Add one lookup built at load — e.g. `EXCLUSION_RESOLUTION` keyed
         `(issuer_cik, axis, member_as_filed)` → the exclusion — and a function
         `is_excluded(issuer_cik, taxonomy, source_concept, axis, member) -> bool` beside it.
-  - [ ] Replace `excluded_member_aliases` in `canonicalize.py:677-681` and its use at `:727` with
+  - [x] Replace `excluded_member_aliases` in `canonicalize.py:677-681` and its use at `:727` with
         that function. No other change to `_canonicalize_member_facts`.
-- [ ] **3. Reject unreachable exclusions at load** (AC: 3)
-  - [ ] Extend `_check_exclusions` (`engine.py:487`) to take `dimensioned` and apply AC 3, deriving
+- [x] **3. Reject unreachable exclusions at load** (AC: 3)
+  - [x] Extend `_check_exclusions` (`engine.py:487`) to take `dimensioned` and apply AC 3, deriving
         the readable `(issuer, axis, source_concept)` set from `DimensionedRule.issuers`/`axis`/
         `source_concept` the same way `_check_brand_identity` derives `rule_axes` (`:638-660`).
-  - [ ] Keep the existing reason / aliases / mapped-and-excluded checks as they are.
-  - [ ] Update the call in `load_mapping_spec` (`:788`).
-- [ ] **4. New spec version** (AC: 4, 5)
-  - [ ] Copy `us-gaap_v17.yaml` → `us-gaap_v18.yaml`; never edit v17.
-  - [ ] Add `axis: us-gaap:IndefiniteLivedIntangibleAssetsByMajorClassAxis` and
+  - [x] Keep the existing reason / aliases / mapped-and-excluded checks as they are.
+  - [x] Update the call in `load_mapping_spec` (`:788`).
+- [x] **4. New spec version** (AC: 4, 5)
+  - [x] Copy `us-gaap_v17.yaml` → `us-gaap_v18.yaml`; never edit v17.
+  - [x] Add `axis: us-gaap:IndefiniteLivedIntangibleAssetsByMajorClassAxis` and
         `source_concepts: [IndefiniteLivedIntangibleAssetsExcludingGoodwill]` to ZTS
         `in_process_rnd` and `product_rights`; extend each `reason` with the axis, concept and
         years observed (14 rows each, FY2018-FY2025).
-  - [ ] Apply the Task 1 decision to the other seven.
-  - [ ] Point `registry.yaml` at `us-gaap_v18` under `mapping_version: concepts_v19`, HISTORY entry
+  - [x] Apply the Task 1 decision to the other seven.
+  - [x] Point `registry.yaml` at `us-gaap_v18` under `mapping_version: concepts_v19`, HISTORY entry
         stating no figure changes.
-- [ ] **5. Tests** (AC: 6)
-  - [ ] Unit tests in `backend/tests/test_brand_member_mapping.py`, beside
+- [x] **5. Tests** (AC: 6)
+  - [x] Unit tests in `backend/tests/test_brand_member_mapping.py`, beside
         `test_a_member_cannot_be_both_mapped_and_excluded`: wrong axis, wrong concept, unreachable
         (both shapes), missing axis. Construct `ExcludedMember` / `DimensionedRule` values
         directly; do not read the spec to assert the spec.
-  - [ ] Update `test_every_exclusion_states_why_and_is_not_also_mapped` (`test_brand_member_mapping.py:344`) so it
+  - [x] Update `test_every_exclusion_states_why_and_is_not_also_mapped` (`test_brand_member_mapping.py:344`) so it
         also asserts every shipped exclusion's axis is read by a rule for its issuer — and **assert
         the count (2) before the loop**, so an emptied list fails instead of passing.
-  - [ ] Run each new test against the pre-change code first and record that it was red.
-- [ ] **6. Re-canonicalize under `concepts_v19`** (AC: 5)
-  - [ ] `make py F=scripts/recanonicalize.py` against the dev DB; confirm `concepts_v18` vs
+  - [x] Run each new test against the pre-change code first and record that it was red.
+- [x] **6. Re-canonicalize under `concepts_v19`** (AC: 5)
+  - [x] `make py F=scripts/recanonicalize.py` against the dev DB; confirm `concepts_v18` vs
         `concepts_v19` IDENTICAL (96 rows) and 0 `unmapped_member` rows written.
-- [ ] **7. Live-data DoD**
-  - [ ] (1) Check `engineering-findings.yaml` for an existing answer — done at story creation:
+- [x] **7. Live-data DoD**
+  - [x] (1) Check `engineering-findings.yaml` for an existing answer — done at story creation:
         `story_13_3_member_exclusions_are_not_axis_scoped` (the finding this story closes) and
         `story_13_3_zts_non_brand_intangibles_land_as_brand_value` (why the ZTS two exist).
-  - [ ] (2) Verify per-year coverage — for dimensioned facts this means the dev store's
+  - [x] (2) Verify per-year coverage — for dimensioned facts this means the dev store's
         Inline-XBRL `raw_facts`, not `data.sec.gov` company-facts (which carries no dimensions).
         Re-run the Dev Notes query for CPB 0000016732, ZTS 0001555280, QSR 0001618756 and confirm
         it still matches the table; bucket on `period_end`, not EDGAR `fy`. No live fetch is
         expected; if one becomes necessary, ask for all three CIKs in one message first.
-  - [ ] (3) Grep each removed or rescoped exclusion's `reason` before changing it (done in Dev
+  - [x] (3) Grep each removed or rescoped exclusion's `reason` before changing it (done in Dev
         Notes; re-check if the spec moved).
-  - [ ] (4) Golden fixtures: confirm none is needed — 13.6a/13.6b own dimensioned golden entries.
-  - [ ] (5) Render `/company/ZTS`, `/company/QSR` and `/company/CPB` (`make api` :8001 +
+  - [x] (4) Golden fixtures: confirm none is needed — 13.6a/13.6b own dimensioned golden entries.
+  - [x] (5) Render `/company/ZTS`, `/company/QSR` and `/company/CPB` (`make api` :8001 +
         `make web` :3001) after the re-canonicalize and confirm the data-quality section shows **no**
         `unmapped_member` warning. Subjects by code path: ZTS exercises a SURVIVING exclusion (if
         axis-scoping broke suppression, its 28 IPR&D/product-rights rows would surface as
         warnings); QSR exercises REMOVED exclusions on an unread axis; CPB exercises a removed
         exclusion beside a fully mapped filer.
-  - [ ] (6) Record the verification in `engineering-findings.yaml`: set
+  - [x] (6) Record the verification in `engineering-findings.yaml`: set
         `story_13_3_member_exclusions_are_not_axis_scoped` to `done` with the evidence, and note
         that the finding undercounted (3 inert named, 7 actual).
-  - [ ] (7) Triage anything the verification finds as blocking vs deferred (CLAUDE.md story
+  - [x] (7) Triage anything the verification finds as blocking vs deferred (CLAUDE.md story
         workflow rule 3).
-- [ ] **8. Close out**
-  - [ ] `make test` green, `make lint` clean.
-  - [ ] Commit, push, open the PR, hand over a Codex review prompt. Do not merge.
+- [x] **8. Close out**
+  - [x] `make test` green, `make lint` clean.
+  - [x] Commit, push, open the PR, hand over a Codex review prompt. Do not merge.
 
 ## Dev Notes
 
@@ -268,10 +268,66 @@ the company page — and is not optional.
 
 ### Agent Model Used
 
+Claude Opus 5.5 (`claude-opus-5-5`), via `bmad-dev-story` (BMad 6.12.1 shim).
+
 ### Debug Log References
+
+- Red run (old engine, before any implementation): ZTS's IPR&D exclusion suppressed on the
+  indefinite-lived, finite-lived and an invented axis alike; `_check_exclusions` accepted an
+  exclusion on an axis no rule reads; the spec shipped 9 exclusions. The new test module failed at
+  import (API absent).
+- First run after implementing: 2 failures, both from a test-helper name collision (`_rule` already
+  existed in the file); renamed to `_axis_rule`. No production change.
+- First API check of DoD item 5 hit `/companies/...` without the `/api` prefix, returned 404, and
+  read as "0 issues". Caught because the zero was suspicious; re-checked on the correct route with
+  the key asserted present, plus SHOP (18 open issues) as a positive control.
 
 ### Completion Notes List
 
 - Story context created 2026-10-08 under BMad 6.12.1 with the #149 overrides active.
+- **Decision A (Lawrence, 2026-10-08):** the seven unreachable exclusions are removed, not
+  re-declared on an axis they were never observed on.
+- **AC 1** — `ExcludedMember.axis` is required (no dataclass default); `_parse_excluded_members`
+  rejects a missing `axis` and a scalar `source_concepts`, naming the member.
+- **AC 2** — `is_excluded(issuer, source_concept, axis, member)` over `EXCLUSION_INDEX`
+  `(issuer, axis, member as filed)`; `canonicalize.py` uses it in place of the axis-blind
+  `(issuer, member)` set. Unmapped-member dedup key unchanged.
+- **AC 3** — `_check_exclusions(members, excluded, dimensioned)`: `dimensioned` is required, and an
+  exclusion is rejected when no applicable rule (issuer-scoped) reads its axis, or any declared
+  source concept on it.
+- **AC 4** — `us-gaap_v18` keeps ZTS `in_process_rnd` and `product_rights`, each scoped to the
+  indefinite-lived axis and `IndefiniteLivedIntangibleAssetsExcludingGoodwill`, reasons citing
+  14 facts FY2018-FY2025. The other seven are gone; the header says why.
+- **AC 5** — `concepts_v19`. `scripts/recanonicalize.py`: concepts_v18 vs concepts_v19
+  **IDENTICAL**, 96 rows; 0 `unmapped_member` rows before and after.
+- **AC 6** — new tests: wrong axis, wrong concept, no-`source_concepts` covers the axis,
+  unreachable axis, unreachable via another issuer's rule, unreachable concept, reachable loads,
+  missing axis, scalar `source_concepts`; the shipped-spec test asserts exactly 2 exclusions and
+  each one's axis/concept before looping. Existing DB tests
+  `test_an_excluded_member_is_withheld_without_a_warning` and
+  `test_an_exclusion_is_scoped_to_its_own_filer` green and unchanged.
+- **Live-data DoD:** (1) findings checked; (2) dev-store tagging re-run after re-canonicalizing,
+  matches the Dev Notes table exactly; (3) reasons read before removal; (4) no golden entry needed
+  (13.6a/b); (5) ZTS/QSR/CPB rendered on :3001 — no data-quality box, footer `concepts_v19`,
+  SHOP control shows its box; (6) `story_13_3_member_exclusions_are_not_axis_scoped` → `done`
+  with evidence and the undercount; (7) nothing new to triage.
+- `make test`: 572 passed. `make lint`: clean.
+
+### Change Log
+
+- 2026-10-08 — Implemented axis-scoped exclusions and load-time reachability; `us-gaap_v18` /
+  `concepts_v19`; seven unreachable exclusions removed. No figure changed.
 
 ### File List
+
+- `backend/canonicalization/mappings/engine.py`
+- `backend/canonicalization/mappings/__init__.py`
+- `backend/canonicalization/canonicalize.py`
+- `backend/canonicalization/mappings/specs/us-gaap_v18.yaml` (new)
+- `backend/canonicalization/mappings/specs/registry.yaml`
+- `backend/tests/test_brand_member_mapping.py`
+- `backend/tests/test_brand_identity.py`
+- `backend/tests/test_free_cash_flow_concepts.py`
+- `_bmad-output/implementation-artifacts/engineering-findings.yaml`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/13-4b-an-exclusion-says-which-axis-it-speaks-for.md`

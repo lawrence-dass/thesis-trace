@@ -5568,7 +5568,7 @@ story_13_3_multi_axis_member_identity_verified:
 
 
 story_13_3_member_exclusions_are_not_axis_scoped:
-  status: open
+  status: done
   found: 2026-09-18
   found_by: >
     The Codex round on PR #138, third finding. Deferred deliberately under
@@ -5599,6 +5599,34 @@ story_13_3_member_exclusions_are_not_axis_scoped:
     exclusion that no dimensioned rule could ever reach — with tests for the
     wrong-axis and unreachable-exclusion cases. Belongs to the Epic 13 re-cut as its
     own story, beside the brand-identity work.
+  resolved: >
+    Story 13.4b, 2026-10-08 (us-gaap_v18 / concepts_v19). ExcludedMember carries a
+    required `axis` and optional `source_concepts`; canonicalization stays silent
+    only through `is_excluded(issuer, source_concept, axis, member)`; and
+    `_check_exclusions` rejects an exclusion no applicable rule in
+    DIMENSIONED_RULES reads. Tests in test_brand_member_mapping.py, each seen red
+    against the old engine first.
+  the_finding_undercounted: >
+    It named THREE inert exclusions (QSR's). The dev store's Inline-XBRL raw_facts
+    showed SEVEN of us-gaap_v17's nine were unreachable — tagged only on
+    us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis, which no dimensioned rule
+    reads, or not tagged at all: CPB customer_relationships (48 facts, FY2019-2025);
+    ZTS developed_technology (43, FY2018-2025), other_intangibles (43,
+    FY2018-2025), customer_relationships (0); QSR franchise_rights (45,
+    FY2017-2025), franchise_agreements (12, FY2023-2025), favorable_leases (31,
+    FY2017-2025). Only ZTS's in_process_rnd and product_rights (14 facts each,
+    FY2018-2025, IndefiniteLivedIntangibleAssetsExcludingGoodwill) were ever live.
+    Removed rather than re-declared on an axis nobody observed them on (Lawrence,
+    decision A); if a filer tags one on a read axis, unmapped_member fires and a
+    human decides. Nobody had counted — a finding's own scope is a claim too.
+  verified: >
+    Re-canonicalized the dev store under concepts_v19: IDENTICAL to concepts_v18
+    (96 current member rows, same values and provenance); 0 unmapped_member rows
+    before and after. Rendered ZTS, QSR and CPB on :3001 — no data-quality box,
+    footer shows concepts_v19 — with SHOP (18 open issues) as the positive control
+    that the box does render. The first API check hit a 404 (missing /api prefix)
+    and read as "0 issues"; caught only because the zero was suspicious. Check the
+    key exists before trusting an empty value.
 
 
 story_13_4a_brand_identity_resolves_for_every_stored_row:
