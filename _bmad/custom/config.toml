@@ -5,3 +5,9 @@
 #
 # [agents.bmad-agent-pm]
 # description = "Prefers short, bulleted PRDs over narrative drafts."
+
+# Pinned 2026-10-08: the 6.12.1 upgrade's `-y` defaults flipped this to true, and the
+# installer's `--set` writes it as the STRING "false" (truthy). ThesisTrace has no
+# consumer-driven contract tests; keep Pact helpers off regardless of installer defaults.
+[modules.tea]
+tea_use_pactjs_utils = false
