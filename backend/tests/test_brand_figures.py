@@ -234,9 +234,12 @@ async def test_a_brand_year_that_stops_resolving_is_removed(db_session) -> None:
 async def test_rows_under_another_version_pair_are_never_touched(db_session) -> None:
     accns = await _cpb(db_session)
     db_session.add(_row(CPB, accns[2021], CARRYING, "kettle", 2021, 318 * M))
+    # A brand-year tonight's run does NOT produce — otherwise the "not in what was
+    # written" half of the delete would spare it whatever its version, and this test
+    # would pass with the version scope removed (caught by the mutation audit).
     db_session.add(
         BrandFigure(
-            issuer_cik=CPB, brand_key="kettle", figure="carrying_value", fiscal_year=2021,
+            issuer_cik=CPB, brand_key="lance", figure="carrying_value", fiscal_year=2019,
             formula_version="brand_carrying_value_v1", mapping_version="concepts_v1",
             kind="named_brand", source_axis=CLASS_AXIS, basis="carrying_value",
             value=1 * M, status="ok", caveats=[],
@@ -248,8 +251,8 @@ async def test_rows_under_another_version_pair_are_never_touched(db_session) -> 
     assert counts["removed"] == 0, counts
     rows = await _figures(db_session)
     assert len(rows) == 2
-    assert {(r.mapping_version, r.value) for r in rows} == {
-        ("concepts_v1", 1 * M), (MAPPING_VERSION, 318 * M),
+    assert {(r.brand_key, r.mapping_version, r.value) for r in rows} == {
+        ("lance", "concepts_v1", 1 * M), ("kettle", MAPPING_VERSION, 318 * M),
     }
 
 
