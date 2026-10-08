@@ -217,7 +217,7 @@ development_status:
   13-3-brand-intangible-concept-mapping-across-the-us-gaap-filers: done
   13-4a-every-member-row-resolves-to-exactly-one-brand: done
   13-4b-an-exclusion-says-which-axis-it-speaks-for: review
-  13-4c-per-brand-carrying-value-computed-and-materialized: ready-for-dev
+  13-4c-per-brand-carrying-value-computed-and-materialized: in-progress
   13-4d-impairment-stored-at-the-level-the-filing-supports: backlog
   13-4e-the-10-or-less-disclosure-as-the-filer-s-own-statement: backlog
   13-5a-cpb-s-segment-concepts-mapped: backlog

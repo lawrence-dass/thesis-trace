@@ -1516,9 +1516,11 @@ So that every figure obeys the deterministic boundary and AD-1's CQRS discipline
 
 **Acceptance Criteria:**
 
-**Given** the member store Story 13.3 defined and migrated (moved there on 2026-09-11; this story
-WRITES INTO it and must not redefine its table, its member-carrying unique key or its supersession
-behaviour)
+**Given** the member store Story 13.3 defined and migrated, into which canonicalization already
+writes every FILED per-member value (moved there on 2026-09-11; this story READS it and must not
+redefine its table, its member-carrying unique key or its supersession behaviour — corrected
+2026-10-08: the derived per-brand series lands in its own `brand_figures` table, so the canonical
+store keeps holding filed facts only, and 13.4d/13.4e reuse that table and key)
 **When** the batch pipeline runs
 **Then** each brand's carrying value per fiscal year is materialized in `pipeline/run.py`, never
 solved on the read path (AD-1, NFR-8) — with the standing consequence stated up front: the feature

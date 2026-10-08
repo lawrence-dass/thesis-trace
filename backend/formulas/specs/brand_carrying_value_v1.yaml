@@ -1,0 +1,79 @@
+# Per-brand carrying value (Story 13.4c).
+#
+# NOT a model of anyone's: the figure is the filer's own reported carrying value of
+# an acquired brand, read from the dimensioned facts canonicalization stores in
+# canonical_member_facts. Nothing here computes a new number. What this spec
+# governs is the SELECTION — which filed row becomes the one figure for a
+# brand-year — and the annotations stored beside it. Every rule below is
+# ThesisTrace's, and its `rationale` says so.
+#
+# Every key here is READ by backend/brands/store.py or rejected by its loader; a
+# declaration nothing executes reads exactly like an enforced one (the conformance
+# rule, project-context 2026-08-13).
+
+model: brand_carrying_value
+formula_version: brand_carrying_value_v1
+figure: carrying_value
+
+# The ONLY canonical concepts the materializer reads. The query's concept filter is
+# this list itself, so the two cannot disagree (the piotroski_v1.yaml defect, where
+# a declared inputs list and the code silently differed).
+inputs:
+  - brand_intangible_carrying_value
+  - brand_intangible_carrying_value_residual
+  - brand_intangible_carrying_value_total
+
+missing_data_policy: insufficient_data
+
+# Values are filed amounts copied through the shared decimal engine (AD-5, AD-15).
+# Quantizing to the storage scale must be the identity on any stored value; a test
+# asserts it. Declared anyway, because a rounding mode chosen per-module is the
+# divergence AD-15 exists to prevent.
+rounding:
+  mode: ROUND_HALF_UP
+  ratio_places: 6
+
+# A context qualifier (an axis that is NOT the identity axis) decides the BASIS of
+# the value. No qualifier at all is a plain carrying value. Any qualifier not
+# listed here makes the brand-year insufficient_data, naming the qualifier —
+# never a basis assigned by guess.
+basis:
+  unqualified: carrying_value
+  qualifiers:
+    - axis: us-gaap:FairValueByMeasurementFrequencyAxis
+      member: us-gaap:FairValueMeasurementsNonrecurringMember
+      basis: nonrecurring_fair_value
+  # When several rows resolve to one brand-year, the first basis present wins. Two
+  # rows of the winning basis with different values are insufficient_data.
+  precedence:
+    - carrying_value
+    - nonrecurring_fair_value
+  note: >
+    Live 2026-10-08: CPB filed Allied Brands (43m) and Pop Secret (28m) for FY2024
+    ONLY in the FairValueMeasurementsNonrecurring context of its fair-value table —
+    the post-impairment remeasurement (impairments 53m / 76m that year) — and in no
+    plain carrying-value context. Decision D-b (Lawrence, 2026-10-08): store them,
+    with the basis recorded. No brand-year carries both bases today; precedence is
+    a guard, not a live choice.
+  rationale: >
+    Where a company reports a brand's value only as a fair-value measurement taken
+    when the brand was written down, ThesisTrace shows that figure and labels it as
+    a fair-value measurement rather than a year-end carrying value. Where both
+    exist for the same year, the carrying value is shown. This is ThesisTrace's
+    presentation rule, not an accounting standard.
+
+caveats:
+  pre_acquisition_comparative:
+    rule: >
+      A filed value of exactly zero in a brand's earliest stored fiscal year, when a
+      later year of the same brand is greater than zero.
+    note: >
+      Live 2026-10-08: CPB Rao's FY2023 = 0 (prior-year column of 0000016732-24-000130;
+      Sovos closed March 2024) and QSR Firehouse Subs FY2020 = 0 (prior-year column of
+      0001618756-22-000018; closed December 2021). Decision D-c: keep the filer's zero,
+      annotate it. A zero anywhere else is NOT caught by this rule.
+    rationale: >
+      When a company first reports an acquired brand, its filing also shows the year
+      before, when the company did not yet own it, as zero. ThesisTrace keeps that
+      zero exactly as filed and marks it as a year before the acquisition, so it is
+      not read as the brand having been worth nothing. This label is ThesisTrace's.
