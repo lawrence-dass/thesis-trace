@@ -128,6 +128,7 @@ CURATED_SECTIONS = (
     "story_13_4a_codex_round_found_four_acs_unmet",
     "golden_harness_cannot_reach_dimensioned_member_facts",
     "story_13_4c_brand_carrying_value_materialized",
+    "story_13_4d_impairment_level_materialized",
 )
 
 pytestmark = pytest.mark.skipif(
