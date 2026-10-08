@@ -5963,3 +5963,37 @@ story_13_4d_impairment_level_materialized:
       26/27/39/35/15/5m) stays unmapped and unstored (D-f): it covers every
       intangible, and mapping it needs a new mapping version. Its own story, only if
       13.7b needs a company-level figure.
+
+
+story_13_4e_ten_percent_disclosure_materialized:
+  status: done
+  found: 2026-10-08
+  found_by: >
+    Story 13.4e's live-data DoD: `make brands` run twice against the dev store at
+    concepts_v19. No new live fetch: both member spellings and all four values were
+    live-verified in story_13_3_brand_member_live_verification.
+  question: >
+    Is CPB's 10%-or-less disclosure stored as the filer's own aggregate statement —
+    one series across the member rename, never a brand, with no threshold of ours?
+  finding: >
+    YES. 4 rows under brand_key within_ten_percent_coverage, kind `disclosure`, each
+    `ok`, each equal to its source and FK'd to the member AS FILED:
+    FY2022 434m and FY2023 434m (cpb:...With10OrLess...), FY2024 1,293m and FY2025
+    2,587m (cpb:...WithTenPercentOrLess...). Every row carries
+    filer_defined_threshold. Nothing in backend/brands encodes a 10% band (a test
+    asserts it). Carrying value (86) and impairment (88) unchanged; a second run
+    removed 0 rows at every stage.
+  mechanism: >
+    No new stage: brand_ten_percent_disclosure_v1.yaml runs through 13.4c's
+    materialize_brand_carrying_values under its own formula_version and figure, so it
+    inherits identity, basis, tie and stale-delete rules. New spec field
+    `allowed_kinds`, checked at load against the mapping spec's MEMBER_KINDS: a row
+    resolving to any other kind is insufficient_data, never a brand-level figure.
+  deferred:
+    impairment_loader_accepts_unapplied_caveats: >
+      parse_impairment_spec reuses 13.4c's parse_spec, which accepts the caveats
+      pre_acquisition_comparative and filer_defined_threshold — but the impairment
+      stage applies no caveat at all. A spec declaring one would load and the caveat
+      would silently never appear (the conformance rule). The shipped
+      brand_impairment_v1.yaml declares none, so nothing is wrong today. One-line fix
+      (reject any caveat in parse_impairment_spec) — a small follow-up, not 13.4e's AC.
