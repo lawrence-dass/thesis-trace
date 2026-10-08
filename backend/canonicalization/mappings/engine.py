@@ -550,6 +550,10 @@ def _check_exclusions(
                     f"{entry.member_key!r}) for issuer {entry.issuer_cik}"
                 )
 
+    # The lookup has one decision per identity. Validate that before publishing
+    # a spec, so a later declaration cannot silently discard a verified scope.
+    build_exclusion_index(excluded)
+
     for entry in excluded:
         read_on_axis = {
             rule.source_concept
@@ -575,12 +579,20 @@ def _check_exclusions(
 def build_exclusion_index(
     excluded: tuple[ExcludedMember, ...],
 ) -> dict[tuple[str, str, str], ExcludedMember]:
-    """(issuer_cik, axis, member AS FILED) -> the exclusion that rules on it."""
-    return {
-        (entry.issuer_cik, entry.axis, alias): entry
-        for entry in excluded
-        for alias in entry.aliases
-    }
+    """One unambiguous decision per (issuer_cik, axis, member AS FILED)."""
+    index: dict[tuple[str, str, str], ExcludedMember] = {}
+    for entry in excluded:
+        for alias in entry.aliases:
+            key = (entry.issuer_cik, entry.axis, alias)
+            owner = index.get(key)
+            if owner is not None:
+                raise ValueError(
+                    f"exclusion alias {alias!r} is claimed by both {owner.member_key!r} "
+                    f"and {entry.member_key!r} on {entry.axis} for issuer {entry.issuer_cik} "
+                    "— combine the verified source concepts in one declaration"
+                )
+            index[key] = entry
+    return index
 
 
 MEMBER_KINDS = frozenset(
