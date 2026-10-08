@@ -5914,3 +5914,52 @@ story_13_4c_brand_carrying_value_materialized:
     pre_acquisition_display: >
       The two caveated zeros are stored as filed. Whether to SHOW them is 13.7b's
       call (deferred_the_pre_acquisition_comparative_zero), now answerable from data.
+
+
+story_13_4d_impairment_level_materialized:
+  status: done
+  found: 2026-10-08
+  found_by: >
+    Story 13.4d's live-data DoD: `make brands` run twice against the dev store at
+    concepts_v19. No new live fetch: every impairment value is a stored canonical
+    member fact that story_13_3_brand_member_live_verification already verified
+    against the filings, and 13.4c's spot-check confirmed the stored values match.
+  question: >
+    Does every brand-year carry an impairment row whose level matches what each
+    filer's filings support, with values only where a filing charges the brand?
+  finding: >
+    YES. 88 impairment rows — CPB 50 at level `brand`, QSR 30 at `none`, ZTS 8 at
+    `filer_only`. Exactly 5 carry a value, each equal to its source member fact:
+    Allied Brands FY2024 53m and FY2025 15m, Pop Secret FY2024 76m, Late July
+    FY2025 11m, Snyder's of Hanover FY2025 150m. The other 83 are insufficient_data
+    with their level's reason code (CPB 45 no_impairment_disclosed_for_brand, QSR 30
+    filer_tags_no_impairment, ZTS 8 impairment_reported_only_at_filer_level). Two
+    rows (Allied FY2025, Late July FY2025) are charges on brand-years with no
+    carrying value. Carrying-value rows unchanged: 86, none with a level. A second
+    run wrote the same rows and removed 0.
+  no_derived_zero: >
+    Decision D-e (Lawrence, 2026-10-08): CPB's per-brand charges sum exactly to its
+    consolidated figure, so "Kettle FY2024 = 0" is arithmetically supportable — and
+    still not stored. It would be ThesisTrace's number, not the filer's (the Cameco
+    rule). 13.7b can render "no write-down disclosed" from the reason code.
+  an_equivalent_mutant_recorded_not_tested: >
+    Dropping the `figure` filter from the impairment stage's stale delete cannot be
+    killed by any test: the delete also filters on the impairment formula_version,
+    which no carrying-value row carries, and the impairment row set is a superset
+    of the carrying-value brand-years. Isolation between the two stages holds by
+    construction; scripts/verify_brand_impairment_guards.py says so in its header
+    rather than listing a mutation that could only "survive".
+  a_harness_can_test_the_original_by_accident: >
+    The first audit run reported the pipeline test as surviving `level_not_stored`.
+    The test was fine: pipeline/run.py imports materialize_brand_impairments BY
+    NAME, so replacing the function in its module left run.py calling the
+    original. Any mutation harness that rebinds a module attribute must also rebind
+    every `from x import f` that captured it — otherwise a surviving mutant reads as
+    a test gap when it is a harness gap, and a "killed" one can be killed for the
+    wrong reason.
+  still_open:
+    zts_company_level_figure: >
+      ZTS's ImpairmentOfIntangibleAssetsExcludingGoodwill (FY2020-25:
+      26/27/39/35/15/5m) stays unmapped and unstored (D-f): it covers every
+      intangible, and mapping it needs a new mapping version. Its own story, only if
+      13.7b needs a company-level figure.

@@ -4,7 +4,7 @@ baseline_commit: d4a9021
 
 # Story 13.4c: Per-brand carrying value, computed and materialized
 
-Status: review
+Status: done
 
 ## Story
 

@@ -1,0 +1,82 @@
+# Per-brand impairment, at the level the filing supports (Story 13.4d).
+#
+# Like brand_carrying_value_v1, this computes nothing: a charge is the filer's own
+# number. What it governs is WHICH LEVEL each filer's filings support, and what an
+# absence means. Every key is read by backend/brands/impairment.py or rejected by
+# its loader (the conformance rule).
+
+model: brand_impairment
+formula_version: brand_impairment_v1
+figure: impairment
+
+# The query filter for filed charges, used as-is.
+inputs:
+  - brand_intangible_impairment
+
+# Every brand-year with a current carrying-value figure under this formula version
+# gets an impairment row, so absence explains itself (AD-16; decision D-g).
+row_set_from: brand_carrying_value_v1
+
+missing_data_policy: insufficient_data
+
+rounding:
+  mode: ROUND_HALF_UP
+  ratio_places: 6
+
+# Filed charges carry no qualifier today (CPB's five are all unqualified). Any
+# qualifier makes the brand-year insufficient_data, naming it — 13.4c's rule.
+basis:
+  unqualified: impairment_charge
+  qualifiers: []
+  precedence:
+    - impairment_charge
+
+# The level each filer's filings support. Checked at load against the dimensioned
+# rule that maps brand_intangible_impairment: a filer is `brand` exactly when that
+# rule maps it. A filer with carrying values and no entry here is
+# impairment_level_undeclared, never a guessed level.
+levels:
+  "0000016732":  # CPB
+    level: brand
+    note: >
+      Live-verified 2026-09-11 (story_13_3_brand_member_live_verification): CPB tags
+      ImpairmentOfIntangibleAssetsIndefinitelivedExcludingGoodwill per trademark
+      member, and each year's per-brand charges sum exactly to its consolidated and
+      Corporate & Other figure (FY2024 129m, FY2025 176m), so the per-brand set is
+      complete.
+    rationale: >
+      Campbell's reports each write-down against the named brand it applies to, so
+      ThesisTrace shows impairment per brand.
+  "0001555280":  # ZTS
+    level: filer_only
+    note: >
+      ZTS tags ImpairmentOfIntangibleAssetsExcludingGoodwill company-wide only
+      (FY2020-25: 26/27/39/35/15/5m), never with a member, and the concept covers
+      all intangibles, not brands. Decision D-f (2026-10-08): not mapped, not stored.
+    rationale: >
+      Zoetis reports intangible write-downs only for the company as a whole, and
+      not only for brands, so ThesisTrace cannot say which brand, if any, was
+      written down.
+  "0001618756":  # QSR
+    level: none
+    note: >
+      QSR tags no impairment concept in any of four filings
+      (story_13_3_brand_member_live_verification).
+    rationale: >
+      Restaurant Brands International's filings carry no impairment figure for its
+      brands, so ThesisTrace shows none.
+
+# Reason codes written on insufficient_data rows. Each is applied by code; the
+# loader rejects one that is not.
+reasons:
+  no_impairment_disclosed_for_brand: >
+    The filer reports impairment per brand and charged none to this brand this
+    year. Not stored as zero (decision D-e): a derived zero would be ThesisTrace's
+    number, not the filer's.
+  impairment_reported_only_at_filer_level: >
+    The filer reports impairment only company-wide
+    (ImpairmentOfIntangibleAssetsExcludingGoodwill), never per brand.
+  filer_tags_no_impairment: >
+    The filer's filings carry no impairment concept.
+  impairment_level_undeclared: >
+    No level is declared for this filer in the spec; nothing is guessed.

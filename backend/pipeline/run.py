@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.models import Filing, RawFact
+from brands.impairment import materialize_brand_impairments
 from brands.store import materialize_brand_carrying_values
 from canonicalization.canonicalize import canonicalize_issuer
 from canonicalization.mappings import MAPPING_VERSION, seed_concept_mappings
@@ -173,6 +174,9 @@ async def run_issuer(
     # Per-brand carrying value (Story 13.4c, AD-1). Reads only the member store
     # canonicalization just wrote; a filer with no brand members writes nothing.
     brands = await materialize_brand_carrying_values(session, parsed.cik)
+    # Impairment at the level the filing supports (Story 13.4d). AFTER carrying
+    # value: its row set is the brand-years that stage just wrote.
+    brand_impairments = await materialize_brand_impairments(session, parsed.cik)
 
     await session.commit()
     return {
@@ -183,6 +187,7 @@ async def run_issuer(
         "validation": validation,
         "reverse_dcf_year": reverse_dcf_year,
         "brands": brands,
+        "brand_impairments": brand_impairments,
     }
 
 
@@ -448,9 +453,16 @@ async def main() -> None:  # pragma: no cover — live path, gated
             if any(b.values())
             else ""
         )
+        i = summary["brand_impairments"]
+        impaired = (
+            f", impairment: {i['written']} written / {i['removed']} removed"
+            f" / {i['unresolved']} unresolved / {i['insufficient']} insufficient"
+            if any(i.values())
+            else ""
+        )
         print(
             f"OK {entry.ticker}: scored {summary['scored_years']} "
-            f"(altman: {summary['scored']['altman']}){flagged}{branded}"
+            f"(altman: {summary['scored']['altman']}){flagged}{branded}{impaired}"
         )
 
 

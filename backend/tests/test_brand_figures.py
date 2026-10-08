@@ -683,7 +683,9 @@ async def test_run_issuer_materializes_filed_brand_rows_before_commit(db_session
     # A second connection must see the rows: reading through the writer would
     # also pass if the stage moved AFTER commit and left its figures uncommitted.
     async with AsyncSession(bind=db_session.bind) as committed:
-        rows = await _figures(committed, CPB)
+        # Carrying value only: since 13.4d the same run also writes impairment rows,
+        # which tests/test_brand_impairments.py asserts on their own.
+        rows = [r for r in await _figures(committed, CPB) if r.figure == "carrying_value"]
         assert len(rows) == 18
         assert summary["brands"] == {"written": 18, "removed": 0, "unresolved": 0, "insufficient": 0}
         for row in rows:
