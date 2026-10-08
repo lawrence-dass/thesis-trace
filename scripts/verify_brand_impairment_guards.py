@@ -104,6 +104,10 @@ def mutate(case: str) -> None:
     exec(compile(source, f"<mutation {case}>", "exec"), namespace)
     if target == "parse":
         impairment.load_impairment_spec.cache_clear()
+    if target == "materialize":
+        # run.py imported the function BY NAME before this mutation; without the
+        # rebind the pipeline test would exercise the original, not the mutant.
+        run.materialize_brand_impairments = impairment.materialize_brand_impairments
 
 
 class Reports:
@@ -117,8 +121,16 @@ class Reports:
         outcome = yield
         report = outcome.get_result()
         if report.when == "call" and report.failed:
-            if call.excinfo is None or not call.excinfo.errisinstance(AssertionError):
-                self.errors.append(f"{item.nodeid}: non-AssertionError failure: {call.excinfo}")
+            excinfo = call.excinfo
+            # pytest.raises' "DID NOT RAISE" is a behavioral failure (the guard did not
+            # fire), raised as pytest's Failed outcome rather than AssertionError.
+            did_not_raise = (
+                excinfo is not None
+                and excinfo.errisinstance(pytest.fail.Exception)
+                and "DID NOT RAISE" in str(excinfo.value)
+            )
+            if excinfo is None or not (excinfo.errisinstance(AssertionError) or did_not_raise):
+                self.errors.append(f"{item.nodeid}: non-AssertionError failure: {excinfo}")
 
     def pytest_runtest_logreport(self, report):
         if report.skipped:
