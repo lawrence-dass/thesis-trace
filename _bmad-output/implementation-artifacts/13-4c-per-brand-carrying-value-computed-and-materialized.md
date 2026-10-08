@@ -334,8 +334,9 @@ Claude Opus 5.5 (`claude-opus-5-5`), via `bmad-dev-story` (BMad 6.12.1 shim).
   `make brands` materializes from stored facts with no fetch. Feature is absent until it runs.
 - **AC 4.** `brand_carrying_value_v1.yaml`; the query's concept filter IS `spec.inputs`. Rounding
   through `formulas.engine.round_ratio` at 6 places, asserted to be the identity on filed amounts.
-- **AC 5-6.** Basis from the context's non-identity axes; an undeclared qualifier makes that row
-  basis-less (alone → `insufficient_data` naming it; beside a declared row → the declared row wins).
+- **AC 5-6.** Basis from the context's non-identity axes. An undeclared qualifier makes the WHOLE
+  brand-year `insufficient_data`, naming it — even beside a declared row (changed in the Codex
+  round, F1; round 1 let the declared row win).
   Precedence from the spec; two disagreeing rows of the winning basis → `insufficient_data`, NULL
   value, both ids in `reason`; equal values collapse to one figure.
 - **AC 7.** Identity via `resolve_brand_identity`; only `NOT superseded` rows at the running
@@ -366,11 +367,34 @@ Claude Opus 5.5 (`claude-opus-5-5`), via `bmad-dev-story` (BMad 6.12.1 shim).
   nothing is user-visible, so nothing blocks. Deferred: the segment-rename exposure → a new story.
 - `make test`: 595 passed. `make lint`: clean.
 
+#### Codex review round (2026-10-08, commits `21667e0` tests, `5f2a40d` fix)
+
+Five findings, each reproduced by a test committed BEFORE the fix and seen red. Verified
+independently afterwards: `make test` 621 passed, lint clean, audit 9/9 required + 9/9
+supplemental mutations killed on `AssertionError`, and `make brands` on the dev store still
+writes the same 86 rows (2 fair-value, 2 caveats, 0 insufficient, 0 removed).
+- **F1 (AC 5, rule change).** An undeclared qualifier now vetoes the whole brand-year instead of
+  being dropped beside a declared sibling. Round 1's behaviour was a deliberate choice, not an
+  oversight, but it read AC 5 at row level; brand-year level is the stricter AD-16 reading — an
+  unexplained measurement of the same brand-year is not hidden behind the winner. No live row
+  changes (0 such contexts in the dev store).
+- **F2 (AC 8, bug).** Round 1 counted only RESOLVED years when finding a brand's earliest year,
+  so an insufficient first year moved the pre-acquisition caveat onto a later zero. Fixed:
+  every materialized year establishes the series start.
+- **F3.** `computed_at` was not refreshed on upsert. **F4.** The loader accepted a
+  `missing_data_policy` no code implements. **F5.** The wiring test was a spy; it is now a real
+  offline CPB pipeline run asserting 18 committed figures, plus fractional-amount and
+  scoped-deletion tests and nine supplemental mutations.
+- New: `backend/tests/test_brand_figure_migration.py` — Alembic round-trip of the real migration
+  on the guarded test DB; filed member facts survive; model and migration enforce the same CHECK.
+
 ### Change Log
 
 - 2026-10-08 — Story file created; decisions D-a..D-d taken with Lawrence before drafting.
 - 2026-10-08 — Implemented: `brand_figures` store, `brand_carrying_value_v1` spec, write-path stage,
   `make brands`, tests, mutation audit, live spot-check; epic AC corrected. No existing figure changed.
+- 2026-10-08 — Codex review round: F1-F5 fixed (unknown-qualifier veto, caveat start year,
+  `computed_at` refresh, policy check, real pipeline/migration tests). Dev-store output unchanged.
 
 ### File List
 
@@ -382,6 +406,7 @@ Claude Opus 5.5 (`claude-opus-5-5`), via `bmad-dev-story` (BMad 6.12.1 shim).
 - `backend/formulas/specs/brand_carrying_value_v1.yaml` (new)
 - `backend/pipeline/run.py`
 - `backend/tests/test_brand_figures.py` (new)
+- `backend/tests/test_brand_figure_migration.py` (new, Codex round)
 - `backend/tests/test_sprint_status.py`
 - `scripts/verify_brand_figure_guards.py` (new)
 - `scripts/spot_check_brand_figures.py` (new)
