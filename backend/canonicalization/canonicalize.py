@@ -43,7 +43,6 @@ from app.models import (
     RawFact,
 )
 from canonicalization.mappings import (
-    EXCLUDED_MEMBERS,
     DERIVATION_RULES,
     DIMENSIONED_RULES,
     MAPPING_VERSION,
@@ -55,6 +54,7 @@ from canonicalization.mappings import (
     SOURCE_EXCLUDED_ISSUERS,
     SOURCE_PRIORITY,
     SOURCE_TO_CANONICAL,
+    is_excluded,
 )
 from canonicalization.taxonomies import ORIGINAL_ANNUAL_FORM_TYPES, is_amendment
 
@@ -668,17 +668,14 @@ async def _canonicalize_members(
         ).scalars()
     }
 
-    # A member the spec excludes WHOLESALE — no concept on any axis means it.
-    # Mapped members are NOT in here. A mapped member turning up on an applicable
+    # Silence is reserved for a member the spec EXCLUDES on the axis (and, where
+    # declared, the concept) it was verified on — `is_excluded`, Story 13.4b. The
+    # same member anywhere else has been ruled on by nobody and is flagged.
+    # Mapped members are NOT excluded. A mapped member turning up on an applicable
     # concept its routing does not map is still FLAGGED: `maps_to` answers "where
     # does this member's carrying value go", not "this member can never be impaired",
     # and the first impairment a filer tags against an aggregate or residual bucket
     # is a question for a human, not a fact to drop.
-    excluded_member_aliases = {
-        (member.issuer_cik, alias)
-        for member in EXCLUDED_MEMBERS
-        for alias in member.aliases
-    }
     applicable_rule_sources = {
         (rule.source_taxonomy, rule.source_concept, rule.axis)
         for rule in DIMENSIONED_RULES
@@ -724,7 +721,7 @@ async def _canonicalize_members(
                     rf.period_end.year,
                 )
                 if (
-                    (issuer_cik, member) not in excluded_member_aliases
+                    not is_excluded(issuer_cik, rf.concept, axis, member)
                     and (rf.taxonomy, rf.concept, axis) in applicable_rule_sources
                     and unmapped_key not in existing_unmapped_members
                 ):

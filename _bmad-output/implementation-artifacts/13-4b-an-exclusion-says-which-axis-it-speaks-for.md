@@ -1,3 +1,7 @@
+---
+baseline_commit: b882f658d2f82bf4a95c93680b6ac75f9ff50575
+---
+
 # Story 13.4b: An exclusion says which axis it speaks for
 
 Status: ready-for-dev

@@ -36,6 +36,7 @@ from canonicalization.mappings.engine import (
     MappingRule,
     MappingSpec,
     SegmentBrandMember,
+    is_excluded,
     load_mapping_spec,
     seed_concept_mappings,
 )
@@ -68,6 +69,7 @@ __all__ = [
     "MappingRule",
     "MappingSpec",
     "SegmentBrandMember",
+    "is_excluded",
     "load_mapping_spec",
     "resolve_brand_identity",
     "seed_concept_mappings",

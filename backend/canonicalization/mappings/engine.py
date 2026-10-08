@@ -198,12 +198,22 @@ class ExcludedMember:
     night (story_13_3_zts_non_brand_intangibles_land_as_brand_value). Scoped per
     filer like BrandMember, because an exclusion is a claim about that filer's
     own tagging.
+
+    Scoped per AXIS too (Story 13.4b), because an exclusion is a claim about where
+    the member was actually observed: ZTS's in-process R&D was verified on the
+    indefinite-lived axis and says nothing about the same standard member on any
+    other. `source_concepts`, when declared, narrows it further to the concepts it
+    was observed on; empty means every concept a rule reads on that axis. `axis`
+    has no default on purpose — a default would let a constructed exclusion claim
+    an axis nobody checked.
     """
 
     issuer_cik: str
     member_key: str
     aliases: tuple[str, ...]
     reason: str
+    axis: str
+    source_concepts: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -472,26 +482,56 @@ def _load_segment_brand_members(spec_version: str) -> tuple[SegmentBrandMember, 
 
 def _load_excluded_members(spec_version: str) -> tuple[ExcludedMember, ...]:
     data = yaml.safe_load((SPECS_DIR / f"{spec_version}.yaml").read_text())
-    return tuple(
-        ExcludedMember(
-            issuer_cik=str(issuer_cik),
-            member_key=member_key,
-            aliases=tuple(body["aliases"]),
-            reason=body.get("reason") or "",
-        )
-        for issuer_cik, entries in (data.get("excluded_members") or {}).items()
-        for member_key, body in entries.items()
-    )
+    return _parse_excluded_members(spec_version, data)
+
+
+def _parse_excluded_members(spec_version: str, data: dict) -> tuple[ExcludedMember, ...]:
+    excluded: list[ExcludedMember] = []
+    for issuer_cik, entries in (data.get("excluded_members") or {}).items():
+        for member_key, body in entries.items():
+            if not body.get("axis"):
+                raise ValueError(
+                    f"{spec_version}: excluded member {member_key!r} declares no axis — an "
+                    "exclusion speaks only for the axis it was verified on"
+                )
+            raw_concepts = body.get("source_concepts")
+            if raw_concepts is not None and not isinstance(raw_concepts, list):
+                raise ValueError(
+                    f"{spec_version}: excluded member {member_key!r} declares source_concepts "
+                    f"as {type(raw_concepts).__name__}, not a list — a scalar would be read "
+                    "character by character and match nothing"
+                )
+            excluded.append(
+                ExcludedMember(
+                    issuer_cik=str(issuer_cik),
+                    member_key=member_key,
+                    aliases=tuple(body["aliases"]),
+                    reason=body.get("reason") or "",
+                    axis=body["axis"],
+                    source_concepts=tuple(raw_concepts or ()),
+                )
+            )
+    return tuple(excluded)
 
 
 def _check_exclusions(
-    members: tuple[BrandMember, ...], excluded: tuple[ExcludedMember, ...]
+    members: tuple[BrandMember, ...],
+    excluded: tuple[ExcludedMember, ...],
+    dimensioned: tuple[DimensionedRule, ...],
 ) -> None:
-    """An exclusion must say why, and must not contradict a mapping.
+    """An exclusion must say why, must not contradict a mapping, and must be able
+    to fire.
 
     A member both mapped and excluded would be silently resolved (the lookup
     wins) while the spec claims it is kept out, which is the conformance rule's
     failure shape: the claim false and nothing failing.
+
+    Reachability (Story 13.4b) is checked against the rules the pipeline actually
+    runs, never against another declaration: canonicalization only ever looks at
+    a fact on an axis some applicable rule reads, so an exclusion on any other
+    axis suppresses nothing. us-gaap_v17 shipped seven such exclusions out of
+    nine. `dimensioned` is required rather than defaulted, so no caller can skip
+    the check by omission.
     """
     mapped = {(m.issuer_cik, alias): m.member_key for m in members for alias in m.aliases}
     for entry in excluded:
@@ -509,6 +549,38 @@ def _check_exclusions(
                     f"{alias!r} is both mapped (as {owner!r}) and excluded (as "
                     f"{entry.member_key!r}) for issuer {entry.issuer_cik}"
                 )
+
+    for entry in excluded:
+        read_on_axis = {
+            rule.source_concept
+            for rule in dimensioned
+            if rule.axis == entry.axis
+            and (not rule.issuers or entry.issuer_cik in rule.issuers)
+        }
+        if not read_on_axis:
+            raise ValueError(
+                f"excluded member {entry.member_key!r} is unreachable: no dimensioned rule "
+                f"reads {entry.axis} for issuer {entry.issuer_cik}, so it could never suppress "
+                "anything — an inert exclusion reads exactly like an enforced one"
+            )
+        unread = sorted(set(entry.source_concepts) - read_on_axis)
+        if unread:
+            raise ValueError(
+                f"excluded member {entry.member_key!r} is unreachable for {unread}: no "
+                f"dimensioned rule reads those concepts on {entry.axis} for issuer "
+                f"{entry.issuer_cik}"
+            )
+
+
+def build_exclusion_index(
+    excluded: tuple[ExcludedMember, ...],
+) -> dict[tuple[str, str, str], ExcludedMember]:
+    """(issuer_cik, axis, member AS FILED) -> the exclusion that rules on it."""
+    return {
+        (entry.issuer_cik, entry.axis, alias): entry
+        for entry in excluded
+        for alias in entry.aliases
+    }
 
 
 MEMBER_KINDS = frozenset(
@@ -785,7 +857,7 @@ def load_mapping_spec() -> MappingSpec:
         members += _load_brand_members(spec_version)
         segment_members += _load_segment_brand_members(spec_version)
         excluded += _load_excluded_members(spec_version)
-    _check_exclusions(members, excluded)
+    _check_exclusions(members, excluded, dimensioned)
     _check_brand_identity(members, segment_members, excluded, dimensioned)
 
     # One source tag must not map to two canonical concepts: canonicalization looks
@@ -893,6 +965,29 @@ BRAND_MEMBERS: tuple[BrandMember, ...] = _SPEC.brand_members
 # Known members deliberately kept out of every dimensioned concept. Consulted by
 # canonicalize.py only to stay silent about them; they never resolve anything.
 EXCLUDED_MEMBERS: tuple[ExcludedMember, ...] = _SPEC.excluded_members
+EXCLUSION_INDEX: dict[tuple[str, str, str], ExcludedMember] = build_exclusion_index(
+    EXCLUDED_MEMBERS
+)
+
+
+def is_excluded(
+    issuer_cik: str,
+    source_concept: str,
+    axis: str,
+    member: str,
+    *,
+    index: dict[tuple[str, str, str], ExcludedMember] = EXCLUSION_INDEX,
+) -> bool:
+    """Whether a recorded decision rules on this unresolved dimensioned fact.
+
+    Matches the issuer, the axis and the member as filed — and the source
+    concept, when the exclusion declares the concepts it was observed on. The
+    same member anywhere else is a fact nobody has ruled on, and is flagged.
+    """
+    entry = index.get((issuer_cik, axis, member))
+    if entry is None:
+        return False
+    return not entry.source_concepts or source_concept in entry.source_concepts
 
 # (issuer_cik, taxonomy, source concept, axis, member as filed) -> (canonical
 # concept, stable member_key). The member goes IN as the filer wrote it that

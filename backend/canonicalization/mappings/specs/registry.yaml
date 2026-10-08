@@ -182,11 +182,19 @@
 #                 stamps its version. Re-canonicalizing under this version must
 #                 reproduce the same rows with the same values; that it does is the
 #                 story's own acceptance check, not an assumption.
+#
+#   concepts_v19  us-gaap_v18 + ifrs-full_v4 + derivations_v5. Story 13.4b. CHANGES
+#                 NO FIGURE: every excluded member declares the axis (and source
+#                 concepts) it was observed on, suppression is scoped to exactly
+#                 that, and an exclusion no dimensioned rule can reach is rejected
+#                 at load — which removed seven of v17's nine. Exclusions decide
+#                 only whether an unmapped_member row is written, so
+#                 re-canonicalizing must reproduce concepts_v18's rows exactly.
 
-mapping_version: concepts_v18
+mapping_version: concepts_v19
 
 taxonomies:
-  us-gaap: us-gaap_v17
+  us-gaap: us-gaap_v18
   ifrs-full: ifrs-full_v4
 
 derivations: derivations_v5

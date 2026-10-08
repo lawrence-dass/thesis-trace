@@ -449,7 +449,7 @@ def test_a_segment_alias_cannot_also_be_a_member_or_an_exclusion() -> None:
 
     excluded = ExcludedMember(
         issuer_cik=QSR, member_key="franchise_rights",
-        aliases=("us-gaap:FranchiseRightsMember",), reason="not a brand",
+        aliases=("us-gaap:FranchiseRightsMember",), reason="not a brand", axis=CLASS_AXIS,
     )
     overlap = _segment(brand_key="overlap", label="Overlap",
                        aliases=("us-gaap:FranchiseRightsMember",))
@@ -504,7 +504,7 @@ def test_every_declared_member_states_a_kind() -> None:
     """Read off the spec file rather than the loaded objects: the dataclass has a
     default, so a member that forgot to declare one would load as a named brand.
     """
-    spec = yaml.safe_load((SPECS_DIR / "us-gaap_v17.yaml").read_text())
+    spec = yaml.safe_load((SPECS_DIR / "us-gaap_v18.yaml").read_text())
     missing = [
         f"{cik}/{key}"
         for cik, members in spec["brand_members"].items()
