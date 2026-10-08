@@ -37,6 +37,7 @@ from canonicalization.mappings import (
     BRAND_MEMBERS,
     DIMENSIONED_RULES,
     MAPPING_VERSION,
+    MEMBER_KINDS,
     SEGMENT_BRAND_MEMBERS,
     resolve_brand_identity,
 )
@@ -46,6 +47,10 @@ FORMULA_VERSION = "brand_carrying_value_v1"
 OK = "ok"
 INSUFFICIENT = "insufficient_data"
 PRE_ACQUISITION = "pre_acquisition_comparative"
+# Story 13.4e: marks every row of a figure whose threshold is the FILER's (CPB's
+# 10%-or-less disclosure). ThesisTrace encodes no threshold; this says whose it is.
+FILER_THRESHOLD = "filer_defined_threshold"
+DISCLOSURE_FORMULA_VERSION = "brand_ten_percent_disclosure_v1"
 
 
 @dataclass(frozen=True)
@@ -62,6 +67,9 @@ class CarryingValueSpec:
     inputs: tuple[str, ...]
     basis: BasisRules
     caveats: frozenset[str]
+    # None = any kind the resolver returns (carrying value). A set = the ONLY kinds
+    # this figure may be stored as; anything else is insufficient_data (13.4e).
+    allowed_kinds: frozenset[str] | None = None
 
 
 def _identity_axes(issuer_cik: str | None = None) -> frozenset[str]:
@@ -130,9 +138,21 @@ def parse_spec(formula: FormulaSpec) -> CarryingValueSpec:
         )
 
     caveats = frozenset((raw.get("caveats") or {}).keys())
-    unknown = caveats - {PRE_ACQUISITION}
+    unknown = caveats - {PRE_ACQUISITION, FILER_THRESHOLD}
     if unknown:
         raise ValueError(f"{version}: caveats {sorted(unknown)} are applied by no code")
+
+    # Checked against the kinds the MAPPING spec declares (what the resolver can
+    # return), not against another line of this file.
+    allowed_kinds = None
+    if "allowed_kinds" in raw:
+        allowed_kinds = frozenset(raw["allowed_kinds"] or ())
+        undeclared = sorted(allowed_kinds - MEMBER_KINDS)
+        if not allowed_kinds or undeclared:
+            raise ValueError(
+                f"{version}: allowed_kinds {sorted(allowed_kinds)} must be a non-empty subset "
+                f"of the mapping spec's kinds {sorted(MEMBER_KINDS)}; undeclared {undeclared}"
+            )
 
     return CarryingValueSpec(
         formula=formula,
@@ -140,6 +160,7 @@ def parse_spec(formula: FormulaSpec) -> CarryingValueSpec:
         inputs=inputs,
         basis=BasisRules(unqualified=unqualified, qualifiers=qualifiers, precedence=precedence),
         caveats=caveats,
+        allowed_kinds=allowed_kinds,
     )
 
 
@@ -251,6 +272,13 @@ async def materialize_brand_carrying_values(
     insufficient = 0
     for key, figure in sorted(figures.items()):
         winner, reason = chosen[key]
+        if spec.allowed_kinds is not None and figure.kind not in spec.allowed_kinds:
+            # Never stored as a kind the spec does not allow — an aggregate
+            # disclosure must not become a named brand's figure (13.4e).
+            winner, reason = None, (
+                f"resolved kind {figure.kind!r} is not one this figure may be stored as "
+                f"{sorted(spec.allowed_kinds)}"
+            )
         values = {
             "issuer_cik": issuer_cik,
             "brand_key": figure.brand_key,
@@ -279,7 +307,10 @@ async def materialize_brand_carrying_values(
                 unit=winner.row.unit,
                 status=OK,
                 reason=None,
-                caveats=[PRE_ACQUISITION] if key in pre_acquisition else [],
+                caveats=(
+                    ([PRE_ACQUISITION] if key in pre_acquisition else [])
+                    + ([FILER_THRESHOLD] if FILER_THRESHOLD in spec.caveats else [])
+                ),
                 source_member_fact_id=winner.row.id,
             )
         statement = pg_insert(BrandFigure).values(**values)
