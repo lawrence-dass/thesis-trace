@@ -23,7 +23,7 @@ TESTS = "tests/test_brand_figures.py"
 CASES = {
     # (anchor, replacement) in brands/store.py source, the tests that must fail.
     "precedence_reversed": (
-        "materialize", ("for basis in rules.precedence:", "for basis in reversed(rules.precedence):"),
+        "choose", ("for basis in rules.precedence:", "for basis in reversed(rules.precedence):"),
         ["test_carrying_value_beats_fair_value_for_one_brand_year"],
     ),
     "basis_ignores_context": (
