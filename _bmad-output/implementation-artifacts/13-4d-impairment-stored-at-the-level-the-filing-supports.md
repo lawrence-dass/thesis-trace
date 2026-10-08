@@ -187,11 +187,31 @@ Claude Opus 5.5 (`claude-opus-5-5`), via `bmad-dev-story` (BMad 6.12.1 shim).
   (7) triage: nothing contradicts an AC, nothing user-visible. Deferred: ZTS company-level figure.
 - `make test`: 639 passed. `make lint`: clean.
 
+#### Codex review round (2026-10-08; tests `73b0148` red, fix `a76dd73`)
+
+Two BLOCKING findings, both loader gaps that let an accepted spec VARIANT produce a wrong figure
+(the shipped spec was correct). Both contradict this story's own ACs, so they were fixed here as
+round 2, not deferred. Regression cases were committed first and seen red (3 failing), then fixed.
+- **F1 (AC 2, 4).** The level check validated whichever concepts `inputs` named, so
+  `inputs: [brand_intangible_acquired]` stored Rao's 2.8bn acquisition value as a write-down.
+  The loader now requires `inputs` to be exactly `[brand_intangible_impairment]`.
+- **F2 (AC 3, 6).** `row_set_from` was checked only for being loadable, and the impairment spec
+  loads too: pointed at itself, last night's impairment rows became tonight's row set and a
+  vanished brand-year could never be removed. It must now name a `brand_carrying_value` model and
+  never this spec.
+- Both guards added to the audit (`loader_accepts_any_input_concept`,
+  `loader_accepts_any_row_set_source`): 12/12 killed. 13.4c audit 18/18. `make test` 642 passed,
+  lint clean. `make brands` on the dev store: same 88 impairment rows, 0 removed.
+- Codex's other probes (1-7) found nothing; it confirmed the `figure`-filter delete mutant is
+  equivalent for the shipped stages, which the audit header already records.
+
 ### Change Log
 
 - 2026-10-08 — Story file; decisions D-e..D-g with Lawrence before drafting.
 - 2026-10-08 — Implemented: `level` column, `brand_impairment_v1` spec, impairment stage, wiring,
   18 tests, 10-case mutation audit; dev store verified. No existing figure changed.
+- 2026-10-08 — Codex round: F1/F2 loader guards (impairment concept only; carrying-value row
+  set only), 3 regression cases, 2 audit cases. Dev-store output unchanged.
 
 ### File List
 
