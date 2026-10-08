@@ -148,6 +148,16 @@ row is written, never which value lands in `canonical_member_facts`.
   - [x] `make test` green, `make lint` clean.
   - [x] Commit, push, open the PR, hand over a Codex review prompt. Do not merge.
 
+- [x] **9. PR #151 review follow-up** (2026-10-08)
+  - [x] Reject duplicate `(issuer, axis, alias)` exclusion identities during full
+        spec loading and direct index construction, naming both declarations.
+  - [x] Add seeded `canonicalize_issuer` tests for wrong mapped axis and concept,
+        checking persisted warning identity, withheld facts and warning idempotency.
+  - [x] Add full-loader invalid-exclusion and collision tests using isolated spec
+        copies and cache cleanup; test both declaration orders and concept scopes.
+  - [x] Record individual behavioral red results, run the full suite and lint,
+        independently review the fix, and keep the story/sprint entry at `review`.
+
 ## Dev Notes
 
 ### Current state — what exists
@@ -313,10 +323,60 @@ Claude Opus 5.5 (`claude-opus-5-5`), via `bmad-dev-story` (BMad 6.12.1 shim).
   with evidence and the undercount; (7) nothing new to triage.
 - `make test`: 572 passed. `make lint`: clean.
 
+### PR #151 review follow-up — behavioral verification (2026-10-08)
+
+The review found one index defect and two test gaps. Two reachable exclusions with
+the same `(issuer, axis, alias)` silently overwrote one another when their concept
+scopes differed. The index now rejects every repeated identity, naming the issuer,
+axis, alias and both member keys. The loader executes the same guard before publishing
+the spec. Different issuers or axes remain independent. Both shipped exclusions are
+unchanged and distinct, so this needs no new mapping version.
+
+The new integration tests exercise the real boundaries: `canonicalize_issuer` writes
+one warning for an excluded alias on a second applicable axis or concept, retains its
+known brand fact, withholds both excluded facts and deduplicates the warning on rerun.
+`load_mapping_spec` rejects unread axes, axes read only for another issuer, unread
+concepts, missing axes, scalar concepts and colliding identities. Fixtures keep the
+other declarations valid; bypassing exclusion validation accepts the reachability and
+collision fixtures rather than failing through an unrelated guard.
+
+The original red-run record above was an import failure, not proof that each assertion
+executed. The following **new behavioral red runs** close that evidence gap; they do
+not retroactively claim individual test executions before the original implementation.
+Six collision cases first failed with `DID NOT RAISE` against the unfixed PR #151 code.
+All six then passed after duplicate validation was added.
+
+Reproduce the counterfactual runs with
+`make py F=scripts/verify_exclusion_guards.py`. Each mutation runs in a separate process,
+leaves tracked source files untouched and requires the exact expected call-phase
+failures. Collection, import, setup/teardown errors or skipped tests fail the audit.
+
+| Mutation | Individually failing cases | Behavioral failure |
+|---|---|---|
+| Restore alias-only canonicalizer condition | wrong mapped axis; wrong mapped concept (2) | Expected 1 persisted warning, got 0 |
+| Restore alias-only exclusion predicate | wrong axis; wrong concept (2) | Unverified scope returned `True` |
+| Actual checker from `b882f658d2f82bf4a95c93680b6ac75f9ff50575`, with signature adapter | unread axis; other issuer's rule; unread concept (3) | `DID NOT RAISE` |
+| Remove the loader's exclusion-check call | full-loader unread axis; other issuer's rule; unread concept (3) | `DID NOT RAISE` |
+| Remove missing-axis guard, adapting the required constructor field to `None` | missing axis (1) | `DID NOT RAISE` |
+| Restore overwriting index comprehension | direct index in both orders; full-loader wildcard/scoped collision in both orders (6) | `DID NOT RAISE` |
+
+All six mutations were killed: **17 individual behavioral failures, 0 skips and 0
+collection/setup errors**. Green run: **586 tests passed**, including both unchanged
+exclusion DB tests; `make lint` and the audit script's ruff check passed. Independent
+reviews of the production/test change and audit script found no remaining issues.
+
+Read-only dev-store verification still finds **96 current rows under each of
+`concepts_v18` and `concepts_v19`, identical values and provenance**, 0 added/dropped/
+changed rows and **0 `unmapped_member` issues**. Each surviving exclusion is tagged on
+its declared axis and carrying-value concept in 14 raw facts, FY2018–FY2025. No frozen
+mapping spec or registry pin changed. Story and sprint status remain **review**.
+
 ### Change Log
 
 - 2026-10-08 — Implemented axis-scoped exclusions and load-time reachability; `us-gaap_v18` /
   `concepts_v19`; seven unreachable exclusions removed. No figure changed.
+- 2026-10-08 — PR #151 review follow-up: reject exclusion identity collisions,
+  cover canonicalizer/loader wiring, and record behavioral mutation evidence. No figure changed.
 
 ### File List
 
@@ -326,6 +386,8 @@ Claude Opus 5.5 (`claude-opus-5-5`), via `bmad-dev-story` (BMad 6.12.1 shim).
 - `backend/canonicalization/mappings/specs/us-gaap_v18.yaml` (new)
 - `backend/canonicalization/mappings/specs/registry.yaml`
 - `backend/tests/test_brand_member_mapping.py`
+- `backend/tests/test_member_canonicalization.py` (review follow-up)
+- `scripts/verify_exclusion_guards.py` (review follow-up)
 - `backend/tests/test_brand_identity.py`
 - `backend/tests/test_free_cash_flow_concepts.py`
 - `_bmad-output/implementation-artifacts/engineering-findings.yaml`
