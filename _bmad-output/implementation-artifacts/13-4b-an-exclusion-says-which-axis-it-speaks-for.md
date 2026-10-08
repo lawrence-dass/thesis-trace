@@ -80,8 +80,7 @@ row is written, never which value lands in `canonical_member_facts`.
 
 ## Tasks / Subtasks
 
-- [ ] **1. Decide the seven inert exclusions** (AC: 4) — see Dev Notes "Decision". Do not start
-      Task 3 until it is recorded there.
+- [x] **1. Decide the seven inert exclusions** (AC: 4) — **done 2026-10-08: A, remove.** See Dev Notes "Decision".
 - [ ] **2. Make suppression a pure, testable predicate** (AC: 2)
   - [ ] Add `axis: str` and `source_concepts: tuple[str, ...] = ()` to `ExcludedMember`
         (`mappings/engine.py:191`); `_load_excluded_members` reads both and rejects a missing
@@ -190,7 +189,7 @@ finding — AC 3 already requires rejecting all of them; the count was simply ne
 Baseline: **0** `unmapped_member` rows in `data_quality_issues`; current `canonical_member_facts`
 under `concepts_v18`: **96**.
 
-### Decision — the seven inert exclusions (ask Lawrence before Task 3)
+### Decision — the seven inert exclusions (Lawrence, 2026-10-08: **A, remove them**)
 
 AC 3 rejects all seven at load, so the spec must change. Options:
 
