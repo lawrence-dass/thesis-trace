@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from functools import lru_cache
 
-from sqlalchemy import delete, select, tuple_
+from sqlalchemy import delete, func, select, tuple_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -93,6 +93,10 @@ def parse_spec(formula: FormulaSpec) -> CarryingValueSpec:
     """
     raw = formula.raw
     version = formula.formula_version
+    # Absence is always explicit here (AD-16). Validate the declaration against
+    # the branch below that actually writes it, not merely another YAML field.
+    if raw.get("missing_data_policy") != INSUFFICIENT or formula.missing_data_policy != INSUFFICIENT:
+        raise ValueError(f"{version}: missing_data_policy must be {INSUFFICIENT!r}")
     inputs = tuple(raw.get("inputs") or ())
     if not inputs:
         raise ValueError(f"{version}: declares no inputs")
@@ -176,9 +180,12 @@ def _basis(row: CanonicalMemberFact, identity_axes: frozenset[str], rules: Basis
 
 def _choose(figure: _Figure, rules: BasisRules) -> tuple[_Candidate | None, str | None]:
     """The one winning candidate, or (None, reason). Never a pick, never a sum."""
-    declared = [c for c in figure.candidates if c.basis is not None]
-    if not declared:
-        return None, "; ".join(c.reason for c in figure.candidates if c.reason)
+    # AC 5 applies to the whole brand-year. Precedence can choose between known
+    # bases, but must never hide an unexplained measurement beside the winner.
+    unknown = [c for c in figure.candidates if c.basis is None]
+    if unknown:
+        return None, "; ".join(sorted({c.reason for c in unknown if c.reason}))
+    declared = figure.candidates
     for basis in rules.precedence:
         tier = [c for c in declared if c.basis == basis]
         if not tier:
@@ -253,6 +260,7 @@ async def materialize_brand_carrying_values(
             "mapping_version": MAPPING_VERSION,
             "kind": figure.kind,
             "source_axis": figure.source_axis,
+            "computed_at": func.now(),
         }
         if winner is None:
             insufficient += 1
@@ -316,18 +324,18 @@ async def materialize_brand_carrying_values(
 def _pre_acquisition_years(chosen) -> set[tuple[str, int]]:
     """Brand-years matching the spec's pre_acquisition_comparative rule.
 
-    A filed zero in the brand's EARLIEST stored year, with a later year > 0. Only
-    figures that resolved count: an insufficient year neither starts a series nor
-    proves a later positive.
+    A resolved filed zero in the brand's EARLIEST materialized year, with a later
+    resolved value > 0. Insufficient years still establish the series start, but
+    cannot supply a numeric baseline or prove a later positive.
     """
-    by_brand: dict[str, list[tuple[int, Decimal]]] = defaultdict(list)
+    by_brand: dict[str, list[tuple[int, Decimal | None]]] = defaultdict(list)
     for (brand_key, year), (winner, _) in chosen.items():
-        if winner is not None:
-            by_brand[brand_key].append((year, Decimal(str(winner.row.value))))
+        value = Decimal(str(winner.row.value)) if winner is not None else None
+        by_brand[brand_key].append((year, value))
     flagged: set[tuple[str, int]] = set()
     for brand_key, series in by_brand.items():
-        series.sort()
+        series.sort(key=lambda item: item[0])
         first_year, first_value = series[0]
-        if first_value == 0 and any(value > 0 for _, value in series[1:]):
+        if first_value == 0 and any(value is not None and value > 0 for _, value in series[1:]):
             flagged.add((brand_key, first_year))
     return flagged

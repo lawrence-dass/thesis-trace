@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 import brands.store as store
 from app.models import BrandFigure, CanonicalMemberFact, Filing, Issuer
@@ -679,17 +680,19 @@ async def test_run_issuer_materializes_filed_brand_rows_before_commit(db_session
         db_session, json.loads((fixtures / "cpb_company_facts.json").read_text()),
         ticker="CPB", inline_facts=inline_facts, inline_accession_number=accn,
     )
-    db_session.expire_all()
-    rows = await _figures(db_session, CPB)
-    assert len(rows) == 18
-    assert summary["brands"] == {"written": 18, "removed": 0, "unresolved": 0, "insufficient": 0}
-    for row in rows:
-        source = await db_session.get(CanonicalMemberFact, row.source_member_fact_id)
-        assert source is not None
-        assert row.status == "ok" and row.value == source.value
-        assert source.accession_number == accn
-        assert source.dimensions[source.axis_as_filed] == source.member_as_filed
-        assert any(
-            fact.dimensions == source.dimensions and Decimal(str(fact.value)) == source.value
-            and fact.period_end == source.period_end.isoformat() for fact in inline_facts
-        )
+    # A second connection must see the rows: reading through the writer would
+    # also pass if the stage moved AFTER commit and left its figures uncommitted.
+    async with AsyncSession(bind=db_session.bind) as committed:
+        rows = await _figures(committed, CPB)
+        assert len(rows) == 18
+        assert summary["brands"] == {"written": 18, "removed": 0, "unresolved": 0, "insufficient": 0}
+        for row in rows:
+            source = await committed.get(CanonicalMemberFact, row.source_member_fact_id)
+            assert source is not None
+            assert row.status == "ok" and row.value == source.value
+            assert source.accession_number == accn
+            assert source.dimensions[source.axis_as_filed] == source.member_as_filed
+            assert any(
+                fact.dimensions == source.dimensions and Decimal(str(fact.value)) == source.value
+                and fact.period_end == source.period_end.isoformat() for fact in inline_facts
+            )
