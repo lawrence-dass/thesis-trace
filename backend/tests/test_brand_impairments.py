@@ -91,6 +91,15 @@ def _variant(mutate):
         (lambda raw: raw["reasons"].update(invented_reason="x"), "unapplied"),
         (lambda raw: raw.update(missing_data_policy="impute_zero"), "missing_data_policy"),
         (lambda raw: raw.pop("row_set_from"), "row_set_from"),
+        # Codex round, F1: a non-impairment concept passed every check and stored
+        # Rao's 2.8bn ACQUISITION value as a write-down.
+        (lambda raw: raw.update(inputs=["brand_intangible_acquired"]), "brand_intangible_impairment"),
+        (lambda raw: raw.update(inputs=["brand_intangible_impairment", "brand_intangible_acquired"]),
+         "brand_intangible_impairment"),
+        # Codex round, F2: the impairment spec is "loadable" too, so pointing the row
+        # set at itself made last night's output tonight's input — a stale row could
+        # never be removed.
+        (lambda raw: raw.update(row_set_from="brand_impairment_v1"), "carrying-value"),
     ],
 )
 def test_the_loader_rejects_a_level_or_reason_the_pipeline_contradicts(mutate, message) -> None:
