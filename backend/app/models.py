@@ -21,6 +21,7 @@ import uuid
 from datetime import date, datetime
 
 from sqlalchemy import (
+    CheckConstraint,
     Date,
     DateTime,
     Enum,
@@ -493,6 +494,79 @@ class ReverseDcfCell(Base):
     reason: Mapped[str | None] = mapped_column(String(512))
 
     run: Mapped["ReverseDcfRun"] = relationship(back_populates="cells")
+
+
+class BrandFigure(Base):
+    """One derived figure for one brand in one fiscal year (Story 13.4c).
+
+    DERIVED, not filed. `canonical_member_facts` holds what the filings say, one row
+    per (member, context); this holds ThesisTrace's per-BRAND series built from those
+    rows on the write path (AD-1). Two tables because the two answer different
+    questions and have different owners: canonicalization alone writes and
+    supersedes the canonical store, and QSR's brand is a segment member rather than
+    the row's `member_key`, so a per-brand row needs a key the canonical store does
+    not have. Being derived, the whole table is recomputable from that store.
+
+    The key carries both versions (AD-2): a spec bump writes new rows beside the old
+    ones rather than rewriting them. 13.4d (impairment) and 13.4e (the 10%-or-less
+    disclosure) add rows under their own `figure`, on the same key.
+
+    `basis` and `caveats` are DATA beside the figure, never inferred later: CPB filed
+    Allied Brands' and Pop Secret's FY2024 value only as a nonrecurring fair-value
+    measurement, and a reader must be able to tell that from a year-end carrying
+    value without reading a context string.
+    """
+
+    __tablename__ = "brand_figures"
+    __table_args__ = (
+        UniqueConstraint(
+            "issuer_cik", "brand_key", "figure", "fiscal_year",
+            "formula_version", "mapping_version",
+            name="uq_brand_figures_key",
+        ),
+        # A figure is either a value or an explained absence (AD-16), never neither.
+        # Mirrored from the migration because the test schema is built by create_all.
+        CheckConstraint(
+            "(status = 'ok' AND value IS NOT NULL) OR "
+            "(status = 'insufficient_data' AND value IS NULL AND reason IS NOT NULL)",
+            name="ck_brand_figures_status",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    issuer_cik: Mapped[str] = mapped_column(ForeignKey("issuers.cik"), index=True)
+    brand_key: Mapped[str] = mapped_column(String(64), index=True)
+    figure: Mapped[str] = mapped_column(String(64))
+    fiscal_year: Mapped[int] = mapped_column()
+    formula_version: Mapped[str] = mapped_column(String(32))
+    mapping_version: Mapped[str] = mapped_column(String(32))
+
+    # From the resolved identity (13.4a), so a consumer filters on what the spec
+    # declared — `named_brand` vs `aggregate` / `residual` — never on a label.
+    kind: Mapped[str] = mapped_column(String(32))
+    source_axis: Mapped[str] = mapped_column(String(256))
+
+    basis: Mapped[str | None] = mapped_column(String(32))
+    period_end: Mapped[date | None] = mapped_column(Date)
+    value: Mapped[float | None] = mapped_column(Numeric(28, 6))  # NUMERIC (AD-15)
+    unit: Mapped[str | None] = mapped_column(String(32))
+    # Tri-state per AD-16, collapsed to two here because a brand-year is either a
+    # figure or an explained absence: `ok` or `insufficient_data`.
+    status: Mapped[str] = mapped_column(String(24))
+    reason: Mapped[str | None] = mapped_column(String(512))
+    caveats: Mapped[list] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb")
+    )
+
+    # AD-19: the filed fact this figure came from, and through it the filing and
+    # the member as filed. NULL only when no single source row won (status
+    # insufficient_data because two disagreeing rows tied).
+    source_member_fact_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("canonical_member_facts.id")
+    )
+    computed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
 
 # --- Data-quality tracking (AD-3, AD-17) ------------------------------------

@@ -14,7 +14,7 @@ DC := thesistrace-pg
 
 .DEFAULT_GOAL := help
 .PHONY: help test test-one lint api web web-lint web-test web-build web-types \
-        migrate migration db-up db-down psql pipeline py fmt
+        migrate migration db-up db-down psql pipeline brands py fmt
 
 help:  ## List targets
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -49,6 +49,9 @@ api:  ## Backend on :8001 — NOT :8000, which is the riskpulse dev server
 
 pipeline:  ## Full batch pipeline (LIVE EDGAR fetches — name every CIK first)
 	@cd backend && $(LOADENV) && uv run python -m pipeline.run
+
+brands:  ## Materialize per-brand figures from stored facts (no network fetch)
+	@cd backend && $(LOADENV) && uv run python -m brands
 
 py:  ## Run a script with the backend env: make py F=scripts/recanonicalize.py
 	@$(call safe,$(F) $(ARGS))
