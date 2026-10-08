@@ -23,3 +23,7 @@ out/
 # IDE
 .vscode/
 .idea/
+
+# Per-session git worktrees (CLAUDE.md Git rule 5) — inside the project root so auto mode
+# does not prompt on every command that touches them
+.worktrees/

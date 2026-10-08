@@ -55,6 +55,10 @@ py:  ## Run a script with the backend env: make py F=scripts/recanonicalize.py
 	@if [ ! -f "$(ROOT)/$(F)" ]; then echo "no such script: $(F)"; exit 1; fi
 	@cd backend && $(LOADENV) && uv run python "$(ROOT)/$(F)" $(ARGS)
 
+permissions-audit:  ## Manual approvals in the newest session, by command shape (ARGS="--list")
+	@$(call safe,$(ARGS))
+	@python3 $(ROOT)/scripts/permission_audit.py $(ARGS)
+
 # --- database --------------------------------------------------------------
 
 db-up:  ## Start the Postgres container

@@ -85,6 +85,28 @@ segments, 13% were `python3 - <<'PY'` heredocs, and 8% opened with `set -a && so
 - Adding a workflow? Add a target with a `##` comment. A command typed twice is a
   missing target.
 
+### Command shapes that defeat auto mode (measured 2026-10-08)
+
+Auto mode's classifier approves most shell calls silently, but some SHAPES escalate to a
+manual prompt every time. One session's transcript recorded **63 manual approvals**, and
+they tracked shape, not risk (`make permissions-audit` re-measures this):
+
+| Shape | Share of manual prompts | Share of auto-approved | Do instead |
+|---|---|---|---|
+| `cd <dir> && …` prefix | 55% | 1% | absolute paths, `git -C <dir>`, `make` targets |
+| a path outside the project root | 36% | 7% | stay in the repo; worktrees go in `.worktrees/` (Git rule 5) |
+| editing files from the shell (`sed -i`, `>>`, heredoc, `cp`) | 28% | 3% | the Edit / Write tools |
+| inline code (`python3 -c`, `\| python3 -c`, heredoc) | 22% | 0% | a file run with `make py F=`; `gh --jq` for JSON |
+| 3+ chained segments | 92% | 49% | one purpose per call; parallel calls instead of `;` chains |
+
+A chain is not escalated by itself — half the auto-approved calls were chains too — but
+nearly every prompt was one, so a chain is where the other four shapes hide. (A first,
+hand-rolled pass truncated commands to 150 characters and concluded chain length did not
+matter; the full-text measurement above reverses that.) The `cd` case is a known CLI
+regression since 2.1.258: read-only compounds starting with `cd DIR` lost static
+auto-approval. A `cd` prefix also defeats every prefix rule above it — `Bash(make *)` does
+not match `cd backend && make test`.
+
 ## Story workflow (read before starting a story)
 
 > **Operative copy lives in the BMad skills now** (2026-10-08): `_bmad/custom/bmad-create-story.toml`
@@ -181,10 +203,17 @@ Lawrence runs multiple sessions on this repo (desktop and cloud, sometimes overl
 5. **Two local sessions must never share one checkout — give each its own `git worktree`.** Rule 1 is not sufficient on its own. A branch is per-repository but the *working directory* is shared, so a second session running `git checkout` switches the files underneath the first one, mid-task, with no warning to either.
 
    ```bash
-   git worktree add ../ThesisTrace-<task> -b claude/<short-task>-<date> origin/main
+   git worktree add .worktrees/<task> -b claude/<short-task>-<date> origin/main
    git worktree list                      # who currently holds what
-   git worktree remove ../ThesisTrace-<task>   # once its PR has merged
+   git worktree remove .worktrees/<task>  # once its PR has merged
    ```
+
+   **Inside the repo, not beside it** (changed 2026-10-08). A sibling `../ThesisTrace-<task>`
+   is outside the project root, so every command touching it prompts in auto mode and the
+   Read tool refuses it outright (`blockReadsOutsideWorkingDirectories`) — the BMad upgrade's
+   sibling worktree cost ~20 manual approvals in one session. `.worktrees/` is gitignored;
+   a worktree there still needs its own `.env` (gitignored too): link the main one with
+   `ln -s ../../.env .worktrees/<task>/.env` before `make test`.
 
    **This has happened, on 2026-08-15.** Session A committed session B's handover, switched the shared checkout to a new branch and opened PR #76. Session B — still believing it was on its own branch — found five files whose contents were *older* than `HEAD`: committing them would have silently reverted two already-merged PRs (#74's `compactAmount` fix, and #76's own `Badge.test.ts`, which showed as a deletion) inside a commit labelled "session handover". This is the same class of divergence as the 2026-07-29 incident above, reached by a different route.
 
