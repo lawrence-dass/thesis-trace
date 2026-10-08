@@ -218,7 +218,7 @@ development_status:
   13-4a-every-member-row-resolves-to-exactly-one-brand: done
   13-4b-an-exclusion-says-which-axis-it-speaks-for: done
   13-4c-per-brand-carrying-value-computed-and-materialized: done
-  13-4d-impairment-stored-at-the-level-the-filing-supports: backlog
+  13-4d-impairment-stored-at-the-level-the-filing-supports: in-progress
   13-4e-the-10-or-less-disclosure-as-the-filer-s-own-statement: backlog
   13-5a-cpb-s-segment-concepts-mapped: backlog
   13-5b-segment-figures-materialized-into-their-own-store: backlog
