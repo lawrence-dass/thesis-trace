@@ -9,11 +9,14 @@ rows — a query over an empty table passes every per-row assertion
 from __future__ import annotations
 
 import copy
-from datetime import date
+import json
+from dataclasses import replace
+from datetime import date, datetime, timezone
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 import brands.store as store
 from app.models import BrandFigure, CanonicalMemberFact, Filing, Issuer
@@ -25,6 +28,7 @@ from brands.store import (
     parse_spec,
 )
 from canonicalization.mappings import MAPPING_VERSION
+from canonicalization.canonicalize import _supersede_member
 from formulas.engine import load_spec, round_ratio
 from tests.conftest import requires_db
 
@@ -66,7 +70,7 @@ def _row(
     concept: str,
     member_key: str,
     year: int,
-    value: float,
+    value: float | Decimal,
     *,
     as_filed: str = "cpb:SomeMember",
     extra: dict[str, str] | None = None,
@@ -156,11 +160,32 @@ def _spec_variant(**changes):
         ),
         ({"basis.precedence": ["carrying_value"]}, "must order every declared basis"),
         ({"caveats": {"invented_caveat": {}}}, "applied by no code"),
+        ({"missing_data_policy": "impute_zero"}, "missing_data_policy"),
+        ({"missing_data_policy": None}, "missing_data_policy"),
     ],
 )
 def test_the_spec_loader_rejects_what_the_code_would_not_execute(changes, message) -> None:
     with pytest.raises(ValueError, match=message):
         parse_spec(_spec_variant(**changes))
+
+
+def test_the_spec_loader_rejects_a_policy_that_disagrees_with_the_loaded_formula() -> None:
+    formula = replace(load_spec("brand_carrying_value_v1"), missing_data_policy="impute_zero")
+    with pytest.raises(ValueError, match="missing_data_policy"):
+        parse_spec(formula)
+
+
+@requires_db
+async def test_materialization_preserves_a_filed_fractional_amount(db_session) -> None:
+    accns = await _cpb(db_session, years=(2024,))
+    filed = _row(CPB, accns[2024], CARRYING, "pace", 2024, Decimal("28000000.123456"))
+    db_session.add(filed)
+    await db_session.flush()
+    await materialize_brand_carrying_values(db_session, CPB)
+    db_session.expire_all()
+    rows = await _figures(db_session)
+    assert len(rows) == 1
+    assert rows[0].value == Decimal("28000000.123456")
 
 
 @requires_db
@@ -187,7 +212,9 @@ async def test_only_declared_inputs_are_read(db_session, monkeypatch) -> None:
     monkeypatch.setattr(store, "load_carrying_value_spec", lambda *_: parse_spec(narrowed))
     counts = await materialize_brand_carrying_values(db_session, CPB)
     assert counts == {"written": 1, "removed": 1, "unresolved": 0, "insufficient": 0}
-    assert [r.brand_key for r in await _figures(db_session)] == ["kettle"]
+    rows = await _figures(db_session)
+    assert len(rows) == 1
+    assert rows[0].brand_key == "kettle"
 
 
 # --- idempotency and stale rows (AC 3) ---------------------------------------
@@ -204,7 +231,9 @@ async def test_a_second_run_writes_the_same_rows(db_session) -> None:
     await db_session.flush()
 
     first = await materialize_brand_carrying_values(db_session, CPB)
-    before = [(r.id, r.brand_key, r.fiscal_year, r.value) for r in await _figures(db_session)]
+    rows = await _figures(db_session)
+    assert len(rows) == 3
+    before = [(r.id, r.brand_key, r.fiscal_year, r.value) for r in rows]
     second = await materialize_brand_carrying_values(db_session, CPB)
     db_session.expire_all()
     after = [(r.id, r.brand_key, r.fiscal_year, r.value) for r in await _figures(db_session)]
@@ -227,7 +256,81 @@ async def test_a_brand_year_that_stops_resolving_is_removed(db_session) -> None:
     await db_session.flush()
     counts = await materialize_brand_carrying_values(db_session, CPB)
     assert counts["removed"] == 1, counts
-    assert [r.brand_key for r in await _figures(db_session)] == ["kettle"]
+    rows = await _figures(db_session)
+    assert len(rows) == 1
+    assert rows[0].brand_key == "kettle"
+
+
+@requires_db
+async def test_recomputation_refreshes_value_source_and_computed_at(db_session) -> None:
+    accns = await _cpb(db_session, years=(2024,))
+    old = _row(CPB, accns[2024], CARRYING, "pace", 2024, 100)
+    db_session.add(old)
+    await db_session.flush()
+    await materialize_brand_carrying_values(db_session, CPB)
+    rows = await _figures(db_session)
+    assert len(rows) == 1
+    figure_id = rows[0].id
+    sentinel = datetime(2000, 1, 1, tzinfo=timezone.utc)
+    await db_session.execute(update(BrandFigure).where(BrandFigure.id == figure_id).values(computed_at=sentinel))
+
+    new = _row(CPB, accns[2024], CARRYING, "pace", 2024, 200)
+    await _supersede_member(db_session, old, new)
+    await db_session.flush()
+    new_id = new.id
+    await materialize_brand_carrying_values(db_session, CPB)
+    db_session.expire_all()
+    rows = await _figures(db_session)
+    assert len(rows) == 1
+    assert rows[0].id == figure_id
+    assert rows[0].value == 200 and rows[0].source_member_fact_id == new_id
+    assert rows[0].computed_at > sentinel
+
+
+@requires_db
+@pytest.mark.parametrize("has_current_input", [True, False])
+async def test_stale_deletion_preserves_other_figures_formulas_and_issuers(
+    db_session, has_current_input
+) -> None:
+    accns = await _cpb(db_session, years=(2019, 2024))
+    current = _row(CPB, accns[2024], CARRYING, "pace", 2024, 100)
+    historical = _row(CPB, accns[2019], CARRYING, "lance", 2019, M, superseded=True)
+    impairment = _row(CPB, accns[2019], "brand_intangible_impairment", "lance", 2019, M)
+    await _issuer(db_session, ZTS, "ZTS")
+    zts_accn = "0001555280-19-000100"
+    await _filing(db_session, ZTS, zts_accn, 2019)
+    zts = _row(ZTS, zts_accn, CARRYING, "brands", 2019, M, as_filed="zts:BrandsMember")
+    db_session.add_all([current, historical, impairment, zts])
+    await db_session.flush()
+    await materialize_brand_carrying_values(db_session, CPB)
+    await materialize_brand_carrying_values(db_session, ZTS)
+    for source, figure, formula_version in (
+        (historical, "carrying_value", "future_v2"),
+        (impairment, "impairment", "brand_carrying_value_v1"),
+    ):
+        db_session.add(BrandFigure(
+            issuer_cik=CPB, brand_key="lance", figure=figure, fiscal_year=2019,
+            formula_version=formula_version, mapping_version=MAPPING_VERSION,
+            kind="named_brand", source_axis=CLASS_AXIS, basis="carrying_value",
+            period_end=source.period_end, value=source.value, unit=source.unit,
+            status="ok", caveats=[], source_member_fact_id=source.id,
+        ))
+    await db_session.flush()
+    before = await _figures(db_session)
+    assert len(before) == 4
+    retained = {r.id for r in before if r.issuer_cik != CPB or r.brand_key == "lance"}
+    if not has_current_input:
+        current.superseded = True
+        await db_session.flush()
+    counts = await materialize_brand_carrying_values(db_session, CPB)
+    db_session.expire_all()
+    rows = await _figures(db_session)
+    assert len(rows) == (4 if has_current_input else 3)
+    assert retained <= {r.id for r in rows}
+    assert counts == {
+        "written": int(has_current_input), "removed": int(not has_current_input),
+        "unresolved": 0, "insufficient": 0,
+    }
 
 
 @requires_db
@@ -304,8 +407,8 @@ async def test_carrying_value_beats_fair_value_for_one_brand_year(db_session) ->
 
 
 @requires_db
-async def test_an_undeclared_qualifier_does_not_block_a_declared_row(db_session) -> None:
-    """A row whose basis is unknown never wins, and never vetoes a row whose is."""
+async def test_an_undeclared_qualifier_blocks_a_declared_row(db_session) -> None:
+    """AC 5: an unknown qualifier makes the whole brand-year insufficient."""
     accns = await _cpb(db_session, years=(2024,))
     declared = _row(CPB, accns[2024], CARRYING, "pace", 2024, 292 * M)
     db_session.add_all([
@@ -316,12 +419,14 @@ async def test_an_undeclared_qualifier_does_not_block_a_declared_row(db_session)
     await db_session.flush()
 
     counts = await materialize_brand_carrying_values(db_session, CPB)
-    assert counts == {"written": 1, "removed": 0, "unresolved": 0, "insufficient": 0}
+    assert counts == {"written": 1, "removed": 0, "unresolved": 0, "insufficient": 1}
     rows = await _figures(db_session)
     assert len(rows) == 1
     assert (rows[0].status, rows[0].value, rows[0].source_member_fact_id) == (
-        "ok", 292 * M, declared.id,
+        INSUFFICIENT, None, None,
     )
+    assert "us-gaap:RangeAxis" in rows[0].reason
+    assert "us-gaap:MaximumMember" in rows[0].reason
 
 
 @requires_db
@@ -449,6 +554,71 @@ async def test_pre_acquisition_zero_is_annotated_and_never_altered(db_session) -
     assert rows[("lance", 2025)].caveats == []
 
 
+@requires_db
+async def test_an_insufficient_earliest_year_does_not_shift_the_caveat(db_session) -> None:
+    accns = await _cpb(db_session, years=(2022, 2023, 2024))
+    db_session.add_all([
+        _row(CPB, accns[2022], CARRYING, "pace", 2022, 292 * M,
+             extra={"us-gaap:RangeAxis": "us-gaap:MaximumMember"}),
+        _row(CPB, accns[2023], CARRYING, "pace", 2023, 0),
+        _row(CPB, accns[2024], CARRYING, "pace", 2024, 292 * M),
+    ])
+    await db_session.flush()
+    await materialize_brand_carrying_values(db_session, CPB)
+    rows = await _figures(db_session)
+    assert len(rows) == 3
+    assert rows[0].fiscal_year == 2022 and rows[0].status == INSUFFICIENT
+    assert rows[1].value == 0
+    assert all(r.caveats == [] for r in rows)
+
+
+@requires_db
+async def test_status_transitions_clear_and_restore_all_source_fields(db_session) -> None:
+    accns = await _cpb(db_session, years=(2023, 2024))
+    old = _row(CPB, accns[2023], CARRYING, "raos", 2023, 0)
+    db_session.add_all([old, _row(CPB, accns[2024], CARRYING, "raos", 2024, 1470 * M)])
+    await db_session.flush()
+    await materialize_brand_carrying_values(db_session, CPB)
+    rows = await _figures(db_session)
+    assert len(rows) == 2
+    figure_id = rows[0].id
+    assert rows[0].caveats == [PRE_ACQUISITION]
+
+    unknown = _row(CPB, accns[2023], CARRYING, "raos", 2023, 0,
+                   extra={"us-gaap:RangeAxis": "us-gaap:MaximumMember"})
+    old.superseded = True
+    await db_session.flush()
+    db_session.add(unknown)
+    await db_session.flush()
+    unknown_id = unknown.id
+    await materialize_brand_carrying_values(db_session, CPB)
+    db_session.expire_all()
+    rows = await _figures(db_session)
+    assert len(rows) == 2
+    insufficient = rows[0]
+    assert insufficient.id == figure_id and insufficient.status == INSUFFICIENT
+    assert (insufficient.basis, insufficient.period_end, insufficient.value,
+            insufficient.unit, insufficient.source_member_fact_id) == (None,) * 5
+    assert insufficient.caveats == [] and "RangeAxis" in insufficient.reason
+
+    unknown = await db_session.get(CanonicalMemberFact, unknown_id)
+    new = _row(CPB, accns[2023], CARRYING, "raos", 2023, 5)
+    unknown.superseded = True
+    await db_session.flush()
+    db_session.add(new)
+    await db_session.flush()
+    new_id = new.id
+    await materialize_brand_carrying_values(db_session, CPB)
+    db_session.expire_all()
+    rows = await _figures(db_session)
+    assert len(rows) == 2
+    restored = rows[0]
+    assert restored.id == figure_id and restored.status == "ok"
+    assert (restored.basis, restored.period_end, restored.value, restored.unit,
+            restored.source_member_fact_id) == ("carrying_value", date(2023, 7, 31), 5, "USD", new_id)
+    assert restored.reason is None and restored.caveats == []
+
+
 # --- residual and total stay separate (AC 9) ---------------------------------
 
 
@@ -495,21 +665,31 @@ async def test_zts_brands_is_an_aggregate_not_a_brand(db_session) -> None:
 
 
 @requires_db
-async def test_run_issuer_calls_the_stage_and_reports_it(db_session, monkeypatch) -> None:
-    """The stage runs inside the write-path pipeline, and its summary surfaces."""
-    import json
-
+async def test_run_issuer_materializes_filed_brand_rows_before_commit(db_session) -> None:
+    """Exercise the real stage, its source facts, and its committed summary offline."""
     from pipeline import run
-    from tests.test_pipeline import FIXTURE
+    from ingestion.inline_xbrl import parse_instance
 
-    calls: list[str] = []
-
-    async def spy(session, issuer_cik):
-        calls.append(issuer_cik)
-        return {"written": 7, "removed": 0, "unresolved": 0, "insufficient": 0}
-
-    monkeypatch.setattr(run, "materialize_brand_carrying_values", spy)
-    summary = await run.run_issuer(db_session, json.loads(FIXTURE.read_text()), ticker="SHOP")
-
-    assert calls == [summary["cik"]]
-    assert summary["brands"]["written"] == 7
+    fixtures = Path(__file__).parent / "fixtures"
+    accn = "0000016732-25-000112"
+    inline_facts = parse_instance(
+        (fixtures / "cpb_instance.xml").read_text(), accession_number=accn, fiscal_year=2025,
+    )
+    summary = await run.run_issuer(
+        db_session, json.loads((fixtures / "cpb_company_facts.json").read_text()),
+        ticker="CPB", inline_facts=inline_facts, inline_accession_number=accn,
+    )
+    db_session.expire_all()
+    rows = await _figures(db_session, CPB)
+    assert len(rows) == 18
+    assert summary["brands"] == {"written": 18, "removed": 0, "unresolved": 0, "insufficient": 0}
+    for row in rows:
+        source = await db_session.get(CanonicalMemberFact, row.source_member_fact_id)
+        assert source is not None
+        assert row.status == "ok" and row.value == source.value
+        assert source.accession_number == accn
+        assert source.dimensions[source.axis_as_filed] == source.member_as_filed
+        assert any(
+            fact.dimensions == source.dimensions and Decimal(str(fact.value)) == source.value
+            and fact.period_end == source.period_end.isoformat() for fact in inline_facts
+        )
