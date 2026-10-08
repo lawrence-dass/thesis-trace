@@ -73,6 +73,15 @@ CASES = {
         "parse", [("    if reasons != applied:", "    if False:")],
         ["test_the_loader_rejects_a_level_or_reason_the_pipeline_contradicts"],
     ),
+    "loader_accepts_any_input_concept": (
+        "parse", [("    if common.inputs != (IMPAIRMENT_CONCEPT,):", "    if False:")],
+        ["test_the_loader_rejects_a_level_or_reason_the_pipeline_contradicts"],
+    ),
+    "loader_accepts_any_row_set_source": (
+        "parse", [("    if row_set_from == version or source.formula.model != CARRYING_MODEL:",
+                   "    if False:")],
+        ["test_the_loader_rejects_a_level_or_reason_the_pipeline_contradicts"],
+    ),
     "impairment_runs_before_carrying_value": (
         "pipeline", [
             ("    brand_impairments = await materialize_brand_impairments(session, parsed.cik)\n", ""),
