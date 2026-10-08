@@ -4,7 +4,7 @@ baseline_commit: db3cfb4
 
 # Story 13.4d: Impairment stored at the level the filing supports
 
-Status: review
+Status: done
 
 ## Story
 
