@@ -1,0 +1,16 @@
+# Team override for bmad-dev-story. Operative copy of CLAUDE.md's Story workflow rules
+# 1, 3-4 and the live-data Definition of Done; CLAUDE.md keeps the incident rationale.
+# The base skill says "execute continuously" and its HALT list does not include a split
+# trigger or a blocking decision — the first fact below closes that gap.
+
+[workflow]
+
+persistent_facts = [
+  # Explicit path: the default `**/project-context.md` glob does not reliably reach a hidden directory.
+  "file:{project-root}/.claude/context/project-context.md",
+  "ADDITIONAL HALT CONDITIONS — these take precedence over 'execute continuously'. HALT and ask Lawrence immediately, batched with any other open question and with the recommended option marked, when: (a) a split trigger fires — the work needs a second spec/mapping version, or opens a finding the story's ACs do not require; (b) a decision blocks progress and is not answered by the story, the spec, or the code. Never park such a decision in a handover.",
+  "SHIP THE FIX, DEFER THE FINDING. A discovery is blocking only if it contradicts THIS story's ACs or a wrong figure is already user-visible. Otherwise record it in engineering-findings.yaml and the story's deferred list, propose a follow-up story, and continue without adding tasks. A defect that contradicts this story's own ACs reopens this story as round N; it is not a new story.",
+  "For live-data stories a green test suite is not completion: do not set status `review` until every 'Live-data DoD' subtask is done, browser render included. Name every ticker, CIK and domain in ONE message before fetching.",
+]
+
+on_complete = "Do not merge. Commit, push and open a PR, then stop and hand Lawrence a Codex review prompt (story file path, ACs, PR/diff range, and the specific risks worth probing). Finish with a plain-language recap of what was done and how to review it, and recommend the next task."

@@ -1,0 +1,13 @@
+# Team override for bmad-create-story. Operative copy of CLAUDE.md's Story workflow
+# rules 1-2 and the live-data Definition of Done; CLAUDE.md keeps the incident rationale.
+
+[workflow]
+
+persistent_facts = [
+  # Explicit path: the default `**/project-context.md` glob does not reliably reach a hidden directory.
+  "file:{project-root}/.claude/context/project-context.md",
+  "ONE OUTCOME PER STORY. The title names a single outcome. If drafting shows the story needs a second spec/mapping version, or opens a finding its ACs do not require, STOP and propose a split before writing the file. When splitting, list every AC of the parent and show which child inherits it: the union of the children's ACs must cover the parent's (constraints stated once in a parent are otherwise silently dropped).",
+  "THE TASK CHECKLIST IS THE EXIT CONDITION. Write it so that when every box is ticked the story is over. Every AC maps to at least one task; no open-ended task ('investigate', 'verify all filers') without a named stopping point (which filers, which fiscal years).",
+  "LIVE-DATA STORIES carry the Definition of Done AS TASKS. If the story touches SEC EDGAR / Tiingo / Bank-of-Canada ingestion, concept mapping, a formula spec, or a figure rendered to a user, end the checklist with a 'Live-data DoD' task whose subtasks are: (1) check engineering-findings.yaml for an existing answer; (2) verify per-year coverage against live data.sec.gov company-facts, re-bucketed on `end` not `fy`, naming the tickers/CIKs; (3) grep the mapping spec `note` before treating a coverage gap as a defect; (4) confirm the golden fixture can exercise the concept before writing golden entries; (5) render the affected pages in a browser, naming subjects chosen by code path exercised; (6) record the verification in engineering-findings.yaml; (7) triage findings as blocking vs deferred.",
+  "Dev Notes must include an 'Out of scope / deferred' list: known adjacent findings this story will NOT fix, and where each is deferred to.",
+]

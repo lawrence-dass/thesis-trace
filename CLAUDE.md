@@ -87,6 +87,12 @@ segments, 13% were `python3 - <<'PY'` heredocs, and 8% opened with `set -a && so
 
 ## Story workflow (read before starting a story)
 
+> **Operative copy lives in the BMad skills now** (2026-10-08): `_bmad/custom/bmad-create-story.toml`
+> and `_bmad/custom/bmad-dev-story.toml` inject these rules and the live-data DoD into the
+> workflows themselves — `bmad-dev-story`'s base text says "execute continuously" and its HALT
+> list omitted split triggers and blocking decisions, which outranked this prose mid-story.
+> This section keeps the rationale. **Change a rule in both places**, or the two will drift.
+
 Measured 2026-09-18 against `reslint`, the sibling BMad project: reslint averages **1.15
 commits per story** and clears 4-8 stories a day; ThesisTrace's Story 13.3 took **19
 commits over 8 days**, shipped three mapping versions, and was declared "complete" seven
