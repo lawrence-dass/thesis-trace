@@ -28,7 +28,10 @@ from canonicalization.mappings.engine import (
     DimensionedRule,
     ExcludedMember,
     _check_exclusions,
+    _parse_excluded_members,
     _resolve_members,
+    build_exclusion_index,
+    is_excluded,
 )
 
 CPB, ZTS, QSR = "0000016732", "0001555280", "0001618756"
@@ -342,29 +345,138 @@ def test_every_brand_member_is_a_brand_or_an_explicit_aggregate() -> None:
 
 
 def test_every_exclusion_states_why_and_is_not_also_mapped() -> None:
-    assert EXCLUDED_MEMBERS, "the recorded exclusions must be executable data"
+    """Story 13.4b: and every one is REACHABLE. us-gaap_v17 shipped nine exclusions
+    of which seven were tagged only on the finite-lived axis (or not at all), so
+    they suppressed nothing while reading exactly like enforced decisions. The two
+    that survive are the ZTS members tagged on the indefinite-lived axis beside
+    zts:BrandsMember, 14 rows each FY2018-FY2025 in the dev store's Inline XBRL."""
+    assert len(EXCLUDED_MEMBERS) == 2, [e.member_key for e in EXCLUDED_MEMBERS]
+    assert {(e.issuer_cik, e.member_key) for e in EXCLUDED_MEMBERS} == {
+        (ZTS, "in_process_rnd"),
+        (ZTS, "product_rights"),
+    }
     mapped = {(m.issuer_cik, alias) for m in BRAND_MEMBERS for alias in m.aliases}
     for excluded in EXCLUDED_MEMBERS:
         assert excluded.reason.strip(), f"{excluded.member_key} has no reason"
+        assert excluded.axis == AXIS
+        assert excluded.source_concepts == (CARRYING,)
         for alias in excluded.aliases:
             assert (excluded.issuer_cik, alias) not in mapped
+            assert is_excluded(ZTS, CARRYING, AXIS, alias)
+
+
+def _excluded(**overrides) -> ExcludedMember:
+    fields = dict(
+        issuer_cik=ZTS,
+        member_key="in_process_rnd",
+        aliases=("us-gaap:InProcessResearchAndDevelopmentMember",),
+        reason="not a brand",
+        axis=AXIS,
+    )
+    fields.update(overrides)
+    return ExcludedMember(**fields)
+
+
+def _axis_rule(**overrides) -> DimensionedRule:
+    fields = dict(
+        canonical_concept="brand_intangible_carrying_value",
+        source_taxonomy="us-gaap",
+        source_concept=CARRYING,
+        axis=AXIS,
+    )
+    fields.update(overrides)
+    return DimensionedRule(**fields)
 
 
 def test_a_member_cannot_be_both_mapped_and_excluded() -> None:
     brand = BrandMember(issuer_cik=ZTS, member_key="x", label="X", aliases=("zts:XMember",))
-    excluded = ExcludedMember(
-        issuer_cik=ZTS, member_key="x_excluded", aliases=("zts:XMember",), reason="not a brand"
-    )
+    excluded = _excluded(member_key="x_excluded", aliases=("zts:XMember",))
     with pytest.raises(ValueError, match="both mapped .* and excluded"):
-        _check_exclusions((brand,), (excluded,))
+        _check_exclusions((brand,), (excluded,), (_axis_rule(),))
 
 
 def test_an_exclusion_without_a_reason_is_rejected() -> None:
-    excluded = ExcludedMember(
-        issuer_cik=ZTS, member_key="x", aliases=("zts:XMember",), reason="  "
-    )
     with pytest.raises(ValueError, match="reason"):
-        _check_exclusions((), (excluded,))
+        _check_exclusions((), (_excluded(reason="  "),), (_axis_rule(),))
+
+
+# --- an exclusion speaks only for the axis it was verified on (Story 13.4b) ---
+
+FINITE_AXIS = "us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis"
+IPRD = "us-gaap:InProcessResearchAndDevelopmentMember"
+
+
+def test_an_exclusion_does_not_suppress_its_member_on_another_axis() -> None:
+    """ZTS's in-process R&D was verified on the indefinite-lived axis. The same
+    standard member on a second mapped axis is a fact nobody has looked at, so it
+    must be flagged like any unknown member — until 13.4b, suppression keyed on
+    (issuer, member) alone and would have stayed silent."""
+    index = build_exclusion_index((_excluded(),))
+    assert is_excluded(ZTS, CARRYING, AXIS, IPRD, index=index)
+    assert not is_excluded(ZTS, CARRYING, FINITE_AXIS, IPRD, index=index)
+    assert not is_excluded(CPB, CARRYING, AXIS, IPRD, index=index)
+
+
+def test_an_exclusion_with_source_concepts_does_not_suppress_another_concept() -> None:
+    """Verified on carrying value is not verified on impairment: an IPR&D
+    write-down tagged on the same axis is a new question for a human."""
+    index = build_exclusion_index((_excluded(source_concepts=(CARRYING,)),))
+    assert is_excluded(ZTS, CARRYING, AXIS, IPRD, index=index)
+    assert not is_excluded(ZTS, IMPAIRMENT, AXIS, IPRD, index=index)
+
+
+def test_an_exclusion_without_source_concepts_covers_every_concept_on_its_axis() -> None:
+    index = build_exclusion_index((_excluded(),))
+    assert is_excluded(ZTS, IMPAIRMENT, AXIS, IPRD, index=index)
+
+
+def test_an_exclusion_on_an_axis_no_rule_reads_is_rejected() -> None:
+    """QSR's franchise rights were the finding's example: tagged only on the
+    finite-lived axis, which no dimensioned rule reads, so the exclusion could
+    never fire. Inert, and indistinguishable from an enforced decision."""
+    franchise = _excluded(
+        issuer_cik=QSR, member_key="franchise_rights",
+        aliases=("us-gaap:FranchiseRightsMember",), axis=FINITE_AXIS,
+    )
+    with pytest.raises(ValueError, match="franchise_rights.*unreachable"):
+        _check_exclusions((), (franchise,), (_axis_rule(),))
+
+
+def test_an_exclusion_is_unreachable_when_only_another_filers_rule_reads_its_axis() -> None:
+    """Reachability is per issuer: a rule scoped to CPB does not read ZTS's facts."""
+    with pytest.raises(ValueError, match="in_process_rnd.*unreachable"):
+        _check_exclusions((), (_excluded(),), (_axis_rule(issuers=(CPB,)),))
+
+
+def test_an_exclusion_naming_a_concept_no_rule_reads_is_rejected() -> None:
+    with pytest.raises(ValueError, match="in_process_rnd.*unreachable"):
+        _check_exclusions(
+            (), (_excluded(source_concepts=(IMPAIRMENT,)),), (_axis_rule(),)
+        )
+
+
+def test_a_reachable_exclusion_loads() -> None:
+    _check_exclusions((), (_excluded(source_concepts=(CARRYING,)),), (_axis_rule(),))
+    _check_exclusions((), (_excluded(),), (_axis_rule(issuers=(ZTS,)),))
+
+
+def test_an_exclusion_without_an_axis_is_rejected_at_load() -> None:
+    data = {"excluded_members": {ZTS: {"in_process_rnd": {
+        "reason": "not a brand", "aliases": [IPRD],
+    }}}}
+    with pytest.raises(ValueError, match="in_process_rnd.*axis"):
+        _parse_excluded_members("us-gaap_vX", data)
+
+
+def test_an_exclusion_with_scalar_source_concepts_is_rejected_at_load() -> None:
+    """A scalar would be read character by character and match nothing — the
+    same inert-declaration trap 13.4a closed for segment aliases."""
+    data = {"excluded_members": {ZTS: {"in_process_rnd": {
+        "reason": "not a brand", "aliases": [IPRD], "axis": AXIS,
+        "source_concepts": CARRYING,
+    }}}}
+    with pytest.raises(ValueError, match="in_process_rnd.*source_concepts"):
+        _parse_excluded_members("us-gaap_vX", data)
 
 
 # --- the residual bucket is not a brand either (Codex round, PR #138) --------

@@ -139,8 +139,9 @@ def test_mapping_version_bumped_for_a_real_mapping_change() -> None:
 
     The version is pinned by name on purpose — a bump should be a deliberate edit
     here, not something that rides along with a spec change. Last moved 2026-09-20
-    for concepts_v18 (Story 13.4a: QSR's segment brands and a `kind` per member).
-    That one is the first bump in this history that changes NO figure, which is not
+    for concepts_v18 (Story 13.4a: QSR's segment brands and a `kind` per member),
+    then 2026-10-08 for concepts_v19 (Story 13.4b: axis-scoped exclusions, also no
+    figure). concepts_v18 was the first bump in this history that changes NO figure, which is not
     a reason to skip it: us-gaap_v16 is already stamped on rows in a real database,
     and a spec is frozen the moment any database stamps its version.
 
@@ -150,8 +151,8 @@ def test_mapping_version_bumped_for_a_real_mapping_change() -> None:
     above; a spec silently deleted is an AD-2 failure this test exists to catch.
     """
     registry = yaml.safe_load((SPECS / "registry.yaml").read_text())
-    assert registry["mapping_version"] == "concepts_v18"
-    assert registry["taxonomies"]["us-gaap"] == "us-gaap_v17"
+    assert registry["mapping_version"] == "concepts_v19"
+    assert registry["taxonomies"]["us-gaap"] == "us-gaap_v18"
     assert registry["taxonomies"]["ifrs-full"] == "ifrs-full_v4"
     assert registry["derivations"] == "derivations_v5"
 
@@ -175,6 +176,7 @@ def test_mapping_version_bumped_for_a_real_mapping_change() -> None:
         "us-gaap_v14.yaml",
         "us-gaap_v15.yaml",
         "us-gaap_v16.yaml",
+        "us-gaap_v17.yaml",
         "ifrs-full_v1.yaml",
         "ifrs-full_v2.yaml",
         "ifrs-full_v3.yaml",
