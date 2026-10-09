@@ -144,6 +144,45 @@ async def test_a_row_resolving_to_another_kind_is_never_stored_as_a_brand(
     assert "'named_brand'" in rows[0].reason
 
 
+@requires_db
+@pytest.mark.parametrize("shape", ["qualified", "named_brand"])
+async def test_every_stored_row_carries_the_filer_attribution(db_session, shape) -> None:
+    """Codex round, F1: AC 1 says EVERY stored row — insufficient ones included."""
+    accns = await _cpb(db_session, years=(2024,))
+    if shape == "qualified":
+        db_session.add(_row(CPB, accns[2024], DISCLOSURE, "within_ten_percent_coverage", 2024,
+                            1293 * M, as_filed=NEW,
+                            extra={"us-gaap:RangeAxis": "us-gaap:MaximumMember"}))
+    else:
+        db_session.add(_row(CPB, accns[2024], DISCLOSURE, "kettle", 2024, 318 * M))
+    await db_session.flush()
+
+    counts = await _disclose(db_session)
+    assert counts["insufficient"] == 1, counts
+    rows = await _rows(db_session)
+    assert len(rows) == 1
+    assert rows[0].status == "insufficient_data"
+    assert rows[0].caveats == [FILER_THRESHOLD]
+
+
+@requires_db
+async def test_make_brands_writes_the_disclosure_rows(db_session, monkeypatch) -> None:
+    """Codex round, F3: the CLI stage is covered, on the guarded TEST database only."""
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    import brands.__main__ as cli
+
+    await _seed_four_years(db_session)
+    await db_session.commit()
+    monkeypatch.setattr(cli, "get_sessionmaker", lambda: async_sessionmaker(bind=db_session.bind))
+
+    await cli.main()
+    async with AsyncSession(bind=db_session.bind) as committed:
+        rows = await _rows(committed)
+        assert len(rows) == 4
+        assert {r.status for r in rows} == {"ok"}
+
+
 # --- isolation and idempotency (AC 4) ----------------------------------------
 
 
