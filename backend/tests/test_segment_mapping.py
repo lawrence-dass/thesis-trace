@@ -68,6 +68,13 @@ def test_a_custom_tag_resolves_only_under_its_own_taxonomy() -> None:
     assert (CPB, "us-gaap", "SegmentOperatingEarnings", SEG, MEALS) not in MEMBER_RESOLUTION
 
 
+def test_a_segment_resolves_only_on_its_own_axis() -> None:
+    segment_aliases = {MEALS, SNACKS}
+    keys = [k for k in MEMBER_RESOLUTION if k[0] == CPB and k[4] in segment_aliases]
+    assert len(keys) == 10  # 5 source concepts x 2 segments
+    assert {k[3] for k in keys} == {SEG}
+
+
 def test_no_brand_member_resolves_on_cpbs_segment_axis() -> None:
     on_segment_axis = {v for k, v in MEMBER_RESOLUTION.items() if k[0] == CPB and k[3] == SEG}
     assert len(on_segment_axis) == 6  # 3 concepts x 2 segments
