@@ -61,7 +61,8 @@ def test_cpb_segments_are_declared_as_segments_never_as_brands() -> None:
     ],
 )
 def test_both_eras_of_each_switch_resolve_to_one_concept(taxonomy, concept, member, expected) -> None:
-    assert MEMBER_RESOLUTION[(CPB, taxonomy, concept, SEG, member)] == expected
+    # .get, not [...]: a missing resolution is a FAILED assertion, not a crash.
+    assert MEMBER_RESOLUTION.get((CPB, taxonomy, concept, SEG, member)) == expected
 
 
 def test_a_custom_tag_resolves_only_under_its_own_taxonomy() -> None:
