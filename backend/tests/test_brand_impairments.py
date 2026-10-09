@@ -100,6 +100,11 @@ def _variant(mutate):
         # set at itself made last night's output tonight's input — a stale row could
         # never be removed.
         (lambda raw: raw.update(row_set_from="brand_impairment_v1"), "carrying-value"),
+        # Codex round on 13.4e, F2 (+ the deferred caveat finding): the shared parser
+        # accepts `allowed_kinds` and caveats, and the impairment stage applies neither.
+        (lambda raw: raw.update(allowed_kinds=["disclosure"]), "applies no"),
+        (lambda raw: raw.update(caveats={"filer_defined_threshold": {}}), "applies no"),
+        (lambda raw: raw.update(caveats={"pre_acquisition_comparative": {}}), "applies no"),
     ],
 )
 def test_the_loader_rejects_a_level_or_reason_the_pipeline_contradicts(mutate, message) -> None:

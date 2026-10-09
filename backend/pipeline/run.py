@@ -18,7 +18,7 @@ from sqlalchemy import select
 
 from app.models import Filing, RawFact
 from brands.impairment import materialize_brand_impairments
-from brands.store import materialize_brand_carrying_values
+from brands.store import DISCLOSURE_FORMULA_VERSION, materialize_brand_carrying_values
 from canonicalization.canonicalize import canonicalize_issuer
 from canonicalization.mappings import MAPPING_VERSION, seed_concept_mappings
 from canonicalization.taxonomies import FINANCIAL_TAXONOMIES, supersedes
@@ -177,6 +177,11 @@ async def run_issuer(
     # Impairment at the level the filing supports (Story 13.4d). AFTER carrying
     # value: its row set is the brand-years that stage just wrote.
     brand_impairments = await materialize_brand_impairments(session, parsed.cik)
+    # CPB's 10%-or-less disclosure, as the filer's own statement (Story 13.4e): the
+    # same stage under its own spec, figure and stale-delete scope.
+    brand_disclosures = await materialize_brand_carrying_values(
+        session, parsed.cik, formula_version=DISCLOSURE_FORMULA_VERSION
+    )
 
     await session.commit()
     return {
@@ -188,6 +193,7 @@ async def run_issuer(
         "reverse_dcf_year": reverse_dcf_year,
         "brands": brands,
         "brand_impairments": brand_impairments,
+        "brand_disclosures": brand_disclosures,
     }
 
 

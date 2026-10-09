@@ -14,7 +14,7 @@ from sqlalchemy import select
 from app.db import get_sessionmaker
 from app.models import Issuer
 from brands.impairment import materialize_brand_impairments
-from brands.store import materialize_brand_carrying_values
+from brands.store import DISCLOSURE_FORMULA_VERSION, materialize_brand_carrying_values
 
 
 async def main() -> None:
@@ -31,6 +31,11 @@ async def main() -> None:
             impairments = await materialize_brand_impairments(session, issuer.cik)
             if any(impairments.values()):
                 print(f"{issuer.ticker} impairment: {impairments}")
+            disclosures = await materialize_brand_carrying_values(
+                session, issuer.cik, formula_version=DISCLOSURE_FORMULA_VERSION
+            )
+            if any(disclosures.values()):
+                print(f"{issuer.ticker} 10%-or-less disclosure: {disclosures}")
         await session.commit()
 
 

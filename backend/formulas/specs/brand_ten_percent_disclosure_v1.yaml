@@ -1,0 +1,46 @@
+# CPB's "trade names within 10% of impairment" disclosure (Story 13.4e).
+#
+# The filer's OWN early-warning statement: the carrying value of whichever trade
+# names have a fair value no more than 10% above carrying value that year. It is
+# run through 13.4c's stage (backend/brands/store.py) under this formula version.
+# Nothing here computes, compares against or encodes a 10% threshold — the band is
+# CPB's, and every stored row says so.
+
+model: brand_ten_percent_disclosure
+formula_version: brand_ten_percent_disclosure_v1
+figure: ten_percent_or_less_disclosure
+
+inputs:
+  - trade_names_within_ten_percent_of_impairment
+
+missing_data_policy: insufficient_data
+
+rounding:
+  mode: ROUND_HALF_UP
+  ratio_places: 6
+
+basis:
+  unqualified: carrying_value
+  qualifiers: []
+  precedence:
+    - carrying_value
+
+# The ONLY kind this figure may be stored as. The disclosure is an aggregate over
+# unnamed trade names, so a row resolving to a named brand (or anything else) is
+# insufficient_data naming the kind — never a brand-level figure.
+allowed_kinds:
+  - disclosure
+
+caveats:
+  filer_defined_threshold:
+    rule: Applied to every stored row of this figure.
+    note: >
+      Live-verified both member spellings (story_13_3_brand_member_live_verification):
+      cpb:TradeNamesCarryingValueWith10OrLessExcessFairValueCoverageMember FY2022-23,
+      ...WithTenPercentOrLess... FY2024-25, one stable member_key. Values 434m, 434m,
+      1,293m, 2,587m.
+    rationale: >
+      This is Campbell's own disclosure: the total carrying value of the trade names
+      whose fair value exceeds their carrying value by 10% or less, as Campbell
+      measured it. The 10% threshold is Campbell's, not ThesisTrace's, and Campbell
+      does not say which brands are included.

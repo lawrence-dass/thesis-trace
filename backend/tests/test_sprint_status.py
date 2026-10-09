@@ -129,6 +129,7 @@ CURATED_SECTIONS = (
     "golden_harness_cannot_reach_dimensioned_member_facts",
     "story_13_4c_brand_carrying_value_materialized",
     "story_13_4d_impairment_level_materialized",
+    "story_13_4e_ten_percent_disclosure_materialized",
 )
 
 pytestmark = pytest.mark.skipif(
