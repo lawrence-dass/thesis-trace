@@ -4,7 +4,7 @@ baseline_commit: c9c897a
 
 # Story 13.4e: The 10%-or-less disclosure, as the filer's own statement
 
-Status: review
+Status: done
 
 ## Story
 
