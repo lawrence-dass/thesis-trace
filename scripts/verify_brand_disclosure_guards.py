@@ -38,6 +38,25 @@ CASES = {
         "parse", [("        if not allowed_kinds or undeclared:", "        if False:")],
         ["test_the_loader_rejects_a_kind_the_mapping_spec_does_not_declare"],
     ),
+    "attribution_dropped_on_insufficient_rows": (
+        "materialize",
+        [("                caveats=[FILER_THRESHOLD] if FILER_THRESHOLD in spec.caveats else [],",
+          "                caveats=[],")],
+        ["test_every_stored_row_carries_the_filer_attribution"],
+    ),
+    "impairment_accepts_unapplied_declarations": (
+        "impairment_parse",
+        [("    if common.caveats or common.allowed_kinds is not None:", "    if False:")],
+        [],  # asserted in tests/test_brand_impairments.py, run below for this case
+    ),
+    "cli_disclosure_stage_removed": (
+        "cli",
+        [("            disclosures = await materialize_brand_carrying_values(\n"
+          "                session, issuer.cik, formula_version=DISCLOSURE_FORMULA_VERSION\n"
+          "            )\n",
+          "            disclosures = {}\n")],
+        ["test_make_brands_writes_the_disclosure_rows"],
+    ),
     "disclosure_stage_not_wired": (
         "pipeline",
         [("    brand_disclosures = await materialize_brand_carrying_values(\n"
@@ -50,22 +69,27 @@ CASES = {
 
 
 def mutate(case: str) -> None:
+    import brands.__main__ as cli
+    import brands.impairment as impairment
     import brands.store as store
     from pipeline import run
 
     target, replacements, _ = CASES[case]
-    function = {
-        "materialize": store.materialize_brand_carrying_values,
-        "parse": store.parse_spec,
-        "pipeline": run.run_issuer,
+    function, namespace = {
+        "materialize": (store.materialize_brand_carrying_values, store.__dict__),
+        "parse": (store.parse_spec, store.__dict__),
+        "pipeline": (run.run_issuer, run.__dict__),
+        "impairment_parse": (impairment.parse_impairment_spec, impairment.__dict__),
+        "cli": (cli.main, cli.__dict__),
     }[target]
     source = inspect.getsource(function)
     for old, new in replacements:
         if source.count(old) != 1:
             raise RuntimeError(f"mutation anchor changed for {case}: {old!r}")
         source = source.replace(old, new)
-    namespace = run.__dict__ if target == "pipeline" else store.__dict__
     exec(compile(source, f"<mutation {case}>", "exec"), namespace)
+    if target == "impairment_parse":
+        impairment.load_impairment_spec.cache_clear()
     if target == "parse":
         store.load_carrying_value_spec.cache_clear()
     if target == "materialize":
@@ -107,12 +131,20 @@ class Reports:
             self.errors.append(report.longreprtext)
 
 
+IMPAIRMENT_TESTS = "tests/test_brand_impairments.py"
+LOADER_TEST = "test_the_loader_rejects_a_level_or_reason_the_pipeline_contradicts"
+
+
 def run_case(case: str) -> int:
     mutate(case)
     expected = set(CASES[case][2])
+    tests = TESTS
+    if CASES[case][0] == "impairment_parse":
+        # The guard lives in the impairment loader; its tests are in that file.
+        tests, expected = IMPAIRMENT_TESTS, {LOADER_TEST}
     reports, output = Reports(), io.StringIO()
     with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
-        result = pytest.main(["-q", "--tb=short", TESTS], plugins=[reports])
+        result = pytest.main(["-q", "--tb=short", tests], plugins=[reports])
     failed = {nodeid.split("::")[-1].split("[")[0] for nodeid in reports.failures}
     if (result != pytest.ExitCode.TESTS_FAILED or reports.errors or reports.skipped
             or not expected <= failed):
