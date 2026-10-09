@@ -123,6 +123,16 @@ def parse_impairment_spec(formula) -> ImpairmentSpec:
             f"{version}: reasons must be exactly those the code applies; "
             f"undeclared {sorted(applied - reasons)}, unapplied {sorted(reasons - applied)}"
         )
+    # The shared parser accepts declarations this stage never executes: it writes no
+    # caveat and does not filter on kind. Accepting them would make each an inert
+    # declaration (the conformance rule) — 13.4e's deferred finding and Codex F2.
+    if common.caveats or common.allowed_kinds is not None:
+        raise ValueError(
+            f"{version}: the impairment stage applies no caveats and no allowed_kinds; "
+            f"declared caveats {sorted(common.caveats)}, allowed_kinds "
+            f"{sorted(common.allowed_kinds or ())}"
+        )
+
     return ImpairmentSpec(common=common, row_set_from=row_set_from, levels=levels, reasons=reasons)
 
 

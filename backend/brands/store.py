@@ -294,7 +294,10 @@ async def materialize_brand_carrying_values(
             insufficient += 1
             values.update(
                 basis=None, period_end=None, value=None, unit=None, status=INSUFFICIENT,
-                reason=(reason or "unresolved")[:512], caveats=[],
+                reason=(reason or "unresolved")[:512],
+                # Attribution is about WHOSE statement the row is, not whether it
+                # resolved, so it rides on insufficient rows too (Codex round, F1).
+                caveats=[FILER_THRESHOLD] if FILER_THRESHOLD in spec.caveats else [],
                 source_member_fact_id=None,
             )
         else:
