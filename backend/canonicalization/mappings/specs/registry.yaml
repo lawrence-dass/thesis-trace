@@ -190,11 +190,19 @@
 #                 at load — which removed seven of v17's nine. Exclusions decide
 #                 only whether an unmapped_member row is written, so
 #                 re-canonicalizing must reproduce concepts_v18's rows exactly.
+#
+#   concepts_v20  us-gaap_v19 + ifrs-full_v4 + derivations_v5. Story 13.5a. ADDS
+#                 CPB's segment revenue, operating earnings and capex on the segment
+#                 axis (both tag switches as per-era sources, cpb: custom tags via a
+#                 per-source `taxonomy`), the new `segment_members` declaration, and
+#                 three CPB exclusions for the axis's non-segment members. Changes NO
+#                 existing figure: re-canonicalizing must reproduce every
+#                 concepts_v19 row identically and add only segment rows.
 
-mapping_version: concepts_v19
+mapping_version: concepts_v20
 
 taxonomies:
-  us-gaap: us-gaap_v18
+  us-gaap: us-gaap_v19
   ifrs-full: ifrs-full_v4
 
 derivations: derivations_v5

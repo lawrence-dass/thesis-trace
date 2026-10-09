@@ -352,14 +352,19 @@ def test_every_exclusion_states_why_and_is_not_also_mapped() -> None:
     of which seven were tagged only on the finite-lived axis (or not at all), so
     they suppressed nothing while reading exactly like enforced decisions. The two
     that survive are the ZTS members tagged on the indefinite-lived axis beside
-    zts:BrandsMember, 14 rows each FY2018-FY2025 in the dev store's Inline XBRL."""
-    assert len(EXCLUDED_MEMBERS) == 2, [e.member_key for e in EXCLUDED_MEMBERS]
+    zts:BrandsMember, 14 rows each FY2018-FY2025 in the dev store's Inline XBRL.
+    Story 13.5a added three CPB exclusions on the SEGMENT axis (its Corporate and
+    reconciling members), asserted in tests/test_segment_mapping.py."""
+    assert len(EXCLUDED_MEMBERS) == 5, [e.member_key for e in EXCLUDED_MEMBERS]
     assert {(e.issuer_cik, e.member_key) for e in EXCLUDED_MEMBERS} == {
         (ZTS, "in_process_rnd"),
         (ZTS, "product_rights"),
+        ("0000016732", "corporate_and_other"),
+        ("0000016732", "corporate_non_segment"),
+        ("0000016732", "restructuring_charges"),
     }
     mapped = {(m.issuer_cik, alias) for m in BRAND_MEMBERS for alias in m.aliases}
-    for excluded in EXCLUDED_MEMBERS:
+    for excluded in (e for e in EXCLUDED_MEMBERS if e.issuer_cik == ZTS):
         assert excluded.reason.strip(), f"{excluded.member_key} has no reason"
         assert excluded.axis == AXIS
         assert excluded.source_concepts == (CARRYING,)

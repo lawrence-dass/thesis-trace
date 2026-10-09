@@ -1589,7 +1589,9 @@ by NO story, an ownership gap found while re-cutting this epic on 2026-09-18
 `us-gaap:OperatingIncomeLoss` (FY2022–FY2024) → `cpb:SegmentOperatingEarnings` (FY2025), and segment
 capex `us-gaap:PaymentsToAcquirePropertyPlantAndEquipment` (FY2022–FY2023) →
 `cpb:SegmentExpenditureAdditionToPPE` (FY2024–FY2025)
-**And** per-year coverage is verified against live `data.sec.gov` company-facts, never tag existence
+**And** per-year coverage is verified against the stored Inline-XBRL facts plus a live instance
+spot-check, never tag existence (corrected 2026-10-09: company-facts carries no dimensions —
+`company_facts_api_carries_no_segment_dimensions` — so it cannot verify a segment figure)
 **And** the recorded but **unconfirmed** hypothesis — that FY2025's additions reflect the new
 segment-reporting standard and are therefore systematic across filers at roughly one date — is
 either confirmed against a second filer or left explicitly unconfirmed in the spec `note`, never
@@ -1607,7 +1609,10 @@ So that per-segment figures cannot collide in a table whose key carries no segme
 **When** segment figures are computed
 **Then** they are stored in a named `segment_payloads` relation whose active uniqueness/supersession
 key carries issuer, axis, member, canonical concept, fiscal year and mapping version, plus
-member-level provenance — never the one-row-per-concept/year `canonical_facts` key
+member-level provenance — never the one-row-per-concept/year `canonical_facts` key (corrected
+2026-10-09, decision D-h in Story 13.5a: the FILED segment facts already land in
+`canonical_member_facts`, whose key carries all of that; `segment_payloads` is therefore a DERIVED
+store over it, the same pattern as 13.4c's `brand_figures`)
 **And** its writer is idempotent under the daily cron, proven by a second pass that adds,
 supersedes and flags nothing
 **And** this story is complete when the figures are correct and materialized, whether or not
