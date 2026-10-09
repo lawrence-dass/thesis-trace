@@ -4891,6 +4891,17 @@ cpb_segment_members_stable_but_tags_switch:
     PASSES with a cost adjustment. Segments are stable and segment revenue is
     reliably tagged, so the feature is buildable; per-filer custom-tag mapping
     becomes a known line item rather than a mid-epic surprise.
+  corrected_2026_10_09: >
+    Story 13.5a re-measured on PERIOD end, not filing. The "exact boundaries" above
+    are per FILING (which 10-K first carries a tag). Per PERIOD the tags OVERLAP,
+    because a new tag arrives with restated comparatives: operating earnings
+    OperatingIncomeLoss periods FY2018-24 vs SegmentOperatingEarnings FY2023-25;
+    capex PaymentsToAcquirePPE FY2018-23 vs SegmentExpenditureAdditionToPPE
+    FY2022-25. The overlap values are IDENTICAL (4/4, 6/6), proving relabels. And
+    "members stable in all four years" holds for the two segments only — the
+    Corporate member is named differently by era and is not a segment. The
+    unverified_hypothesis above is now TESTED: see
+    story_13_5a_cpb_segment_concepts_mapped.
 
 segment_and_brand_intangible_tagging_across_filers:
   status: done
@@ -6005,3 +6016,50 @@ story_13_4e_ten_percent_disclosure_materialized:
       Codex F3: nothing failed if `make brands` stopped materializing the disclosure.
       A test now drives brands.__main__.main against the guarded TEST database (its
       sessionmaker monkeypatched; never DATABASE_URL), and the audit mutates the CLI.
+
+
+story_13_5a_cpb_segment_concepts_mapped:
+  status: done
+  found: 2026-10-09
+  found_by: >
+    Story 13.5a: stored Inline XBRL in the dev store (scripts/segment_axis_coverage.py,
+    scripts/segment_switch_evidence.py), a full re-canonicalization under
+    concepts_v20, and a live spot-check of two CPB instances (www.sec.gov, named
+    before fetching): 0000016732-25-000112 and 0000016732-23-000109.
+  question: >
+    Do CPB's segment revenue, operating earnings and capex land once per segment-year
+    across both tag switches, without moving any existing figure?
+  finding: >
+    YES. concepts_v20 reproduces all 96 concepts_v19 member rows identically (0
+    dropped, 0 changed) and adds exactly 48 segment rows: 3 concepts x 2 segments
+    (meals_beverages, snacks) x FY2018-FY2025, no gap. 0 new data-quality issues; a
+    second run added nothing. Brand figures under concepts_v20 equal concepts_v19 on
+    all 178 pairs. Live: 5/5 values match the filings (new tags FY2025, old tags
+    FY2023), and each FY2023 row is sourced from the FY2023 10-K itself — the
+    originally-filed fact wins the overlap, as AD-3 ranks it.
+  the_switches_are_relabels: >
+    Per PERIOD the old and new tags overlap (operating earnings FY2023-24, capex
+    FY2022-23) and carry identical values for both segments in every overlap year
+    (4/4, 6/6). That equality is what licenses one concept across both tags.
+  asu_2023_07_hypothesis_tested: >
+    CONFIRMED for the significant-expense additions: CPB (Aug FYE) first tags
+    segment COGS, SegmentOperatingEarnings and SegmentReportingOtherItemAmount in
+    its FY2025 10-K; QSR (calendar) first tags segment COGS and
+    SegmentExpenditureAdditionToLongLivedAssets in its FY2024 10-K — each the first
+    fiscal year beginning after 2023-12-15, each with restated comparatives. REFUTED
+    for CPB's capex switch, first filed in FY2024, a year before CPB adopted. ZTS
+    tagged segment COGS from FY2019 and never switched. Two filers, not the universe.
+  mechanism: >
+    New `segment_members` spec section (kind `segment`, own axis) kept out of
+    BRAND_MEMBERS so 13.4a's brand resolver never sees a segment; brand members never
+    resolve on a filer's segment axis. A dimensioned source may name its taxonomy
+    (cpb: custom tags are stored under taxonomy `cpb` — a rule taking the file's
+    `us-gaap` would never have matched its own facts). CPB's Corporate and
+    reconciling members on the axis are axis-scoped exclusions.
+  a_mutation_harness_must_reach_import_time_code: >
+    Most of the guarantees execute when engine.py is IMPORTED (it loads the spec into
+    module constants). scripts/verify_segment_mapping_guards.py therefore compiles a
+    mutated copy of the module in memory and installs it before the package loads;
+    its first run failed all six cases at IMPORT (the parent package was never
+    imported) and the strict kill contract refused to count them — the harness
+    reporting its own defect instead of a false clean sweep.

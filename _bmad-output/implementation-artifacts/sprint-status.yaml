@@ -220,7 +220,7 @@ development_status:
   13-4c-per-brand-carrying-value-computed-and-materialized: done
   13-4d-impairment-stored-at-the-level-the-filing-supports: done
   13-4e-the-10-or-less-disclosure-as-the-filer-s-own-statement: done
-  13-5a-cpb-s-segment-concepts-mapped: in-progress
+  13-5a-cpb-s-segment-concepts-mapped: review
   13-5b-segment-figures-materialized-into-their-own-store: backlog
   13-5c-each-filer-s-segment-kind-recorded-as-data: backlog
   13-6a-the-golden-harness-can-express-a-dimensioned-fact: backlog
