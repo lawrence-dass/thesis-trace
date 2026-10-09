@@ -74,6 +74,12 @@ def install_mutated_engine(case: str) -> None:
     module.__package__ = "canonicalization.mappings"
     sys.modules[module.__name__] = module
     exec(compile(source, f"<mutated engine: {case}>", "exec"), module.__dict__)
+    # Now load the package: its __init__ imports `...mappings.engine`, which
+    # resolves to the mutant already in sys.modules. Bind the attribute too, so
+    # `import canonicalization.mappings.engine as x` returns the same object.
+    package = importlib.import_module("canonicalization.mappings")
+    package.engine = module
+    assert package.MEMBER_RESOLUTION is module.MEMBER_RESOLUTION, "mutant not installed"
 
 
 class Reports:
