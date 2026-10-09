@@ -105,10 +105,26 @@ Claude Opus 5.5 (`claude-opus-5-5`), via the dev-story workflow.
   loader accepts caveats its stage never applies (none shipped) — a one-line follow-up.
 - `make test`: 650 passed. `make lint`: clean.
 
+#### Codex review round (2026-10-09; tests `1c46a31` red, fix `b02ae4f`)
+
+5 regression cases committed first and seen red, then fixed.
+- **F1 (BLOCKING, AC 1).** `filer_defined_threshold` was applied only to `ok` rows; an
+  insufficient disclosure row (unknown qualifier, or a disallowed kind) carried `caveats=[]`. Now
+  on every row of the figure.
+- **F2 (deferrable, fixed).** The impairment loader accepted this story's `allowed_kinds` and never
+  enforced it — the same shape as the caveat finding this story had deferred. One guard closes
+  both: `parse_impairment_spec` rejects any caveat or `allowed_kinds`. No figure changed.
+- **F3 (deferrable, fixed).** `make brands`' disclosure call had no test; one now drives
+  `brands.__main__.main` against the guarded test DB.
+- Audits: disclosure 7/7 (3 new cases), impairment 12/12, carrying value 18/18. `make test` 656
+  passed, lint clean. Dev store unchanged (86 / 88 / 4; only disclosure rows carry the caveat).
+
 ### Change Log
 
 - 2026-10-08 — Story file and implementation: disclosure spec, `allowed_kinds` guard, filer-threshold
   caveat, wiring, 8 tests, 4-case audit; dev store verified. No existing figure changed.
+- 2026-10-09 — Codex round: caveat on every disclosure row; impairment loader rejects unapplied
+  caveats/allowed_kinds (closing the deferred finding); CLI wiring test; 3 audit cases.
 
 ### File List
 
