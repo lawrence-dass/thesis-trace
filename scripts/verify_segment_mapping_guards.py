@@ -27,8 +27,13 @@ import pytest
 BACKEND = Path(__file__).resolve().parents[1] / "backend"
 sys.path.insert(0, str(BACKEND))
 ENGINE = BACKEND / "canonicalization" / "mappings" / "engine.py"
-TESTS = "tests/test_segment_mapping.py"
+CANONICALIZE = BACKEND / "canonicalization" / "canonicalize.py"
+# Brand figures too: a segment axis must stay a QUALIFIER on a brand row (F1).
+TESTS = ["tests/test_segment_mapping.py", "tests/test_brand_figures.py"]
 
+# case -> (replacements, tests that must fail[, module]). The module defaults to
+# engine.py; canonicalize.py cases mutate member selection, which runs per call
+# but is installed the same way so every case shares one kill contract.
 CASES = {
     "segments_leak_into_brand_members": (
         [("        brand_members=members,\n", "        brand_members=members + segments,\n")],
@@ -50,30 +55,84 @@ CASES = {
          "test_canonicalization_lands_each_segment_year_once_across_the_switch"],
     ),
     "segment_checks_skipped": (
-        [("    _check_segment_members(segments, members, dimensioned)\n", "")],
+        [("    _check_segment_members(segments, members, segment_members, dimensioned)\n", "")],
         ["test_the_loader_rejects_a_segment_that_is_also_a_brand",
-         "test_the_loader_rejects_a_segment_on_an_axis_no_rule_reads"],
+         "test_the_loader_rejects_a_segment_on_an_axis_no_rule_reads",
+         "test_the_loader_rejects_a_segment_axis_that_brands_resolve_on"],
     ),
     "exclusions_blind_to_segments": (
         [("    _check_exclusions(members + segments, excluded, dimensioned)",
           "    _check_exclusions(members, excluded, dimensioned)")],
         ["test_the_loader_rejects_an_alias_both_segment_and_excluded"],
     ),
+    # --- Codex review of #158 ---
+    "segment_axis_counts_as_brand_identity": (  # F1
+        [("    (m.issuer_cik, m.axis) for m in SEGMENT_MEMBERS if m.axis\n",
+          "    (m.issuer_cik, m.axis) for m in SEGMENT_MEMBERS if False\n")],
+        ["test_cpbs_segment_axis_is_a_qualifier_on_a_brand_row"],
+    ),
+    "segment_axis_shared_with_brand_rules": (  # F2
+        [("        if shared or (segment.issuer_cik, segment.axis) in brand_axes:",
+          "        if False:")],
+        ["test_the_loader_rejects_a_segment_axis_that_brands_resolve_on"],
+    ),
+    "scalar_segment_aliases_accepted": (  # F3
+        # Two lines: 13.4a's segment-brand loader carries the same `if`.
+        [("            if raw_aliases is not None and not isinstance(raw_aliases, list):\n"
+          "                raise ValueError(\n"
+          "                    f\"{spec_version}: segment {member_key!r} declares aliases as \"",
+          "            if False:\n"
+          "                raise ValueError(\n"
+          "                    f\"{spec_version}: segment {member_key!r} declares aliases as \"")],
+        ["test_the_loader_rejects_scalar_segment_aliases"],
+    ),
+    "unread_segment_keys_accepted": (  # F4
+        [("            unread = sorted(set(body) - _SEGMENT_MEMBER_KEYS)",
+          "            unread = []")],
+        ["test_the_loader_rejects_segment_keys_no_code_reads"],
+    ),
+    "original_filing_not_preferred": (  # F5
+        [("                0 if originally_filed else 1,\n", "                0,\n")],
+        ["test_the_original_filing_wins_even_against_a_more_precise_comparative"],
+        CANONICALIZE,
+    ),
+    "segment_capex_read_as_an_event": (  # F6
+        [("        policies[key] = matching[0].period_policy\n",
+          "        policies[key] = 'event' if matching[0].canonical_concept == 'segment_capex'"
+          " else matching[0].period_policy\n")],
+        ["test_segment_capex_is_the_annual_flow_never_a_quarter"],
+    ),
 }
 
 
-def install_mutated_engine(case: str) -> None:
-    source = ENGINE.read_text()
+def _mutated(path: Path, case: str) -> str:
+    source = path.read_text()
     for old, new in CASES[case][0]:
         if source.count(old) != 1:
             raise RuntimeError(f"mutation anchor changed for {case}: {old!r}")
         source = source.replace(old, new)
+    return source
+
+
+def _install(name: str, path: Path, source: str, case: str) -> types.ModuleType:
+    module = types.ModuleType(name)
+    module.__file__ = str(path)  # SPECS_DIR is derived from it
+    module.__package__ = name.rpartition(".")[0]
+    sys.modules[name] = module
+    exec(compile(source, f"<mutated {path.name}: {case}>", "exec"), module.__dict__)
+    return module
+
+
+def install_mutant(case: str) -> None:
+    target = CASES[case][2] if len(CASES[case]) > 2 else ENGINE
     importlib.import_module("canonicalization")  # parent package only
-    module = types.ModuleType("canonicalization.mappings.engine")
-    module.__file__ = str(ENGINE)  # SPECS_DIR is derived from it
-    module.__package__ = "canonicalization.mappings"
-    sys.modules[module.__name__] = module
-    exec(compile(source, f"<mutated engine: {case}>", "exec"), module.__dict__)
+    if target == CANONICALIZE:
+        importlib.import_module("canonicalization.mappings")  # the real engine
+        module = _install("canonicalization.canonicalize", CANONICALIZE,
+                          _mutated(CANONICALIZE, case), case)
+        assert importlib.import_module("canonicalization.canonicalize") is module
+        return
+    module = _install("canonicalization.mappings.engine", ENGINE, _mutated(ENGINE, case), case)
     # Now load the package: its __init__ imports `...mappings.engine`, which
     # resolves to the mutant already in sys.modules. Bind the attribute too, so
     # `import canonicalization.mappings.engine as x` returns the same object.
@@ -117,11 +176,11 @@ class Reports:
 
 
 def run_case(case: str) -> int:
-    install_mutated_engine(case)
+    install_mutant(case)
     expected = set(CASES[case][1])
     reports, output = Reports(), io.StringIO()
     with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
-        result = pytest.main(["-q", "--tb=short", TESTS], plugins=[reports])
+        result = pytest.main(["-q", "--tb=short", *TESTS], plugins=[reports])
     failed = {nodeid.split("::")[-1].split("[")[0] for nodeid in reports.failures}
     if (result != pytest.ExitCode.TESTS_FAILED or reports.errors or reports.skipped
             or not expected <= failed):

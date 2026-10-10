@@ -38,6 +38,7 @@ from canonicalization.mappings import (
     DIMENSIONED_RULES,
     MAPPING_VERSION,
     MEMBER_KINDS,
+    SEGMENT_AXES,
     SEGMENT_BRAND_MEMBERS,
     resolve_brand_identity,
 )
@@ -77,10 +78,14 @@ def _identity_axes(issuer_cik: str | None = None) -> frozenset[str]:
 
     Derived from what the pipeline executes (`DIMENSIONED_RULES`) and from the
     identity declarations 13.4a's resolver reads, never from this spec. Anything
-    else in a stored context is a qualifier.
+    else in a stored context is a qualifier — including the filer's own SEGMENT
+    axis, which a rule reads but which names a segment, not a brand (13.5a
+    review F1: CPB's segment axis silently un-blocked a segment-qualified row).
     """
     axes: set[str] = set()
     for rule in DIMENSIONED_RULES:
+        if issuer_cik is not None and (issuer_cik, rule.axis) in SEGMENT_AXES:
+            continue
         if issuer_cik is None or not rule.issuers or issuer_cik in rule.issuers:
             axes.add(rule.axis)
     for segment in SEGMENT_BRAND_MEMBERS:

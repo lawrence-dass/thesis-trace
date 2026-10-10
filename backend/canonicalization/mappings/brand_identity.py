@@ -30,6 +30,7 @@ from dataclasses import dataclass
 from canonicalization.mappings.engine import (
     BRAND_MEMBERS,
     DIMENSIONED_RULES,
+    SEGMENT_AXES,
     SEGMENT_BRAND_MEMBERS,
     BrandMember,
     SegmentBrandMember,
@@ -115,7 +116,9 @@ def _declared_axes() -> dict[str, frozenset[str]]:
     for rule in DIMENSIONED_RULES:
         # An empty `issuers` means the rule applies to every filer.
         for cik in rule.issuers or filers:
-            axes.setdefault(cik, set()).add(rule.axis)
+            # A filer's segment axis names a segment, never a brand (13.5a).
+            if (cik, rule.axis) not in SEGMENT_AXES:
+                axes.setdefault(cik, set()).add(rule.axis)
     for segment in SEGMENT_BRAND_MEMBERS:
         axes.setdefault(segment.issuer_cik, set()).add(segment.axis)
     return {cik: frozenset(found) for cik, found in axes.items()}

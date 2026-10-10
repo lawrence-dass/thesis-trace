@@ -438,6 +438,10 @@ def _load_brand_members(spec_version: str) -> tuple[BrandMember, ...]:
 
 
 SEGMENT_KIND = "segment"
+# Every key the segment loader READS. Anything else (maps_to, canonical_concepts,
+# kind) would be accepted and silently dropped, so it is rejected instead.
+_SEGMENT_BLOCK_KEYS = frozenset({"axis", "members"})
+_SEGMENT_MEMBER_KEYS = frozenset({"label", "aliases", "note"})
 
 
 def _load_segment_members(spec_version: str) -> tuple[BrandMember, ...]:
@@ -450,15 +454,38 @@ def _load_segment_members(spec_version: str) -> tuple[BrandMember, ...]:
     data = yaml.safe_load((SPECS_DIR / f"{spec_version}.yaml").read_text())
     members: list[BrandMember] = []
     for issuer_cik, block in (data.get("segment_members") or {}).items():
+        unread = sorted(set(block) - _SEGMENT_BLOCK_KEYS)
+        if unread:
+            raise ValueError(
+                f"{spec_version}: segment_members for issuer {issuer_cik} declares "
+                f"{unread}, which no code reads"
+            )
         axis = block.get("axis")
         if not axis:
             raise ValueError(
                 f"{spec_version}: segment_members for issuer {issuer_cik} declares no axis"
             )
         for member_key, body in (block.get("members") or {}).items():
-            aliases = tuple(body.get("aliases") or ())
-            if not aliases:
-                raise ValueError(f"{spec_version}: segment {member_key!r} declares no aliases")
+            unread = sorted(set(body) - _SEGMENT_MEMBER_KEYS)
+            if unread:
+                # A segment's concepts are the rules on its axis; it cannot route.
+                raise ValueError(
+                    f"{spec_version}: segment {member_key!r} declares {unread}, which no "
+                    "code reads"
+                )
+            raw_aliases = body.get("aliases")
+            # The same trap 13.4a closed for segment brands: a scalar is iterable,
+            # so `aliases: cpb:Foo` would load as one-character aliases.
+            if raw_aliases is not None and not isinstance(raw_aliases, list):
+                raise ValueError(
+                    f"{spec_version}: segment {member_key!r} declares aliases as "
+                    f"{type(raw_aliases).__name__}, not a list"
+                )
+            aliases = tuple(raw_aliases or ())
+            if not aliases or not all(isinstance(a, str) and a for a in aliases):
+                raise ValueError(
+                    f"{spec_version}: segment {member_key!r} declares no usable aliases"
+                )
             members.append(
                 BrandMember(
                     issuer_cik=str(issuer_cik),
@@ -476,30 +503,55 @@ def _load_segment_members(spec_version: str) -> tuple[BrandMember, ...]:
 def _check_segment_members(
     segments: tuple[BrandMember, ...],
     brands: tuple[BrandMember, ...],
+    segment_brands: tuple[SegmentBrandMember, ...],
     dimensioned: tuple[DimensionedRule, ...],
 ) -> None:
-    """A segment must be reachable, and must never also be a brand.
+    """A segment must be reachable, must never also be a brand, and must sit on
+    an axis that ONLY segment rules read.
 
     Checked against the rules the pipeline executes: a segment on an axis no rule
     applicable to its filer reads would resolve nothing (an inert declaration).
+    The last condition is what makes `_resolve_members`' two axis guards safe:
+    declaring a segment axis hands every rule on it, for that filer, to segments.
+    On a rule brands also use, a segment would resolve BRAND concepts and the
+    filer's brands would stop resolving (13.5a review F2).
     """
     brand_keys = {(b.issuer_cik, b.member_key) for b in brands}
+    segment_axes = {(s.issuer_cik, s.axis) for s in segments}
+    brand_axes = {(b.issuer_cik, b.brand_axis) for b in brands if b.brand_axis} | {
+        (s.issuer_cik, s.axis) for s in segment_brands
+    }
     for segment in segments:
         if (segment.issuer_cik, segment.member_key) in brand_keys:
             raise ValueError(
                 f"segment {segment.member_key!r} for issuer {segment.issuer_cik} is also "
                 "declared a brand member — one key, two meanings"
             )
-        reachable = any(
-            rule.axis == segment.axis
-            and (not rule.issuers or segment.issuer_cik in rule.issuers)
+        reading = [
+            rule
             for rule in dimensioned
-        )
-        if not reachable:
+            if rule.axis == segment.axis
+            and (not rule.issuers or segment.issuer_cik in rule.issuers)
+        ]
+        if not reading:
             raise ValueError(
                 f"segment {segment.member_key!r} for issuer {segment.issuer_cik} is on "
                 f"{segment.axis}, which no dimensioned rule reads for that filer — it "
                 "could never resolve a fact"
+            )
+        # A segment rule is one scoped to filers that ALL declare segments on its
+        # axis; an unscoped rule, or one shared with a brand filer, is a brand rule.
+        shared = sorted(
+            rule.canonical_concept
+            for rule in reading
+            if not rule.issuers
+            or any((cik, rule.axis) not in segment_axes for cik in rule.issuers)
+        )
+        if shared or (segment.issuer_cik, segment.axis) in brand_axes:
+            raise ValueError(
+                f"segment {segment.member_key!r} for issuer {segment.issuer_cik} is on "
+                f"{segment.axis}, which must be read only by segment rules; it is also "
+                f"read by {shared or 'a brand identity declaration'}"
             )
 
 
@@ -953,7 +1005,7 @@ def load_mapping_spec() -> MappingSpec:
         segment_members += _load_segment_brand_members(spec_version)
         segments += _load_segment_members(spec_version)
         excluded += _load_excluded_members(spec_version)
-    _check_segment_members(segments, members, dimensioned)
+    _check_segment_members(segments, members, segment_members, dimensioned)
     # Exclusions and resolution see brands AND segments (an alias excluded and
     # mapped as a segment is the same contradiction); brand identity sees brands only.
     _check_exclusions(members + segments, excluded, dimensioned)
@@ -1065,6 +1117,11 @@ BRAND_MEMBERS: tuple[BrandMember, ...] = _SPEC.brand_members
 # A filer's reportable segments (Story 13.5a). Canonicalization resolves them;
 # 13.4a's brand resolver never sees them.
 SEGMENT_MEMBERS: tuple[BrandMember, ...] = _SPEC.segment_members
+# (issuer, axis) pairs that name a SEGMENT, never a brand. A brand row carrying
+# one of these axes is qualified by it, so it is never brand identity.
+SEGMENT_AXES: frozenset[tuple[str, str]] = frozenset(
+    (m.issuer_cik, m.axis) for m in SEGMENT_MEMBERS if m.axis
+)
 # Known members deliberately kept out of every dimensioned concept. Consulted by
 # canonicalize.py only to stay silent about them; they never resolve anything.
 EXCLUDED_MEMBERS: tuple[ExcludedMember, ...] = _SPEC.excluded_members

@@ -154,17 +154,36 @@ Claude Opus 5.5 (`claude-opus-5-5`), via the dev-story workflow.
   (per-filing vs per-period boundaries). Triage: nothing blocking, nothing deferred.
 - Test pins moved deliberately: mapping version (`test_free_cash_flow_concepts.py`) and the shipped
   exclusion count (`test_brand_member_mapping.py`).
+- **Codex review of #158 (2026-10-10)** — 4 blocking, 2 deferrable; all six reproduced, failing
+  tests committed first (`15bdf6d`), then fixed:
+  - F1: `_identity_axes` (brands/store.py) and `_declared_axes` (brand_identity.py) counted CPB's
+    segment axis as BRAND identity, so a segment-qualified brand row stopped blocking. Both now
+    skip the new `SEGMENT_AXES`. Dev store: the axis appears on the 48 segment rows only, on no
+    brand row — no stored figure changes.
+  - F2: a segment axis must be read ONLY by segment rules (scoped to filers that all declare
+    segments on it); the old reachability check passed the brand axis.
+  - F3: scalar `aliases` rejected (was 23 one-character aliases). F4: unread keys
+    (`maps_to`, `canonical_concepts`, `kind`, …) rejected instead of silently dropped.
+  - F5/F6: tests pinning original-filed precedence with source priority held equal, and annual
+    capex over a quarter. Audit grew 6 → 12 cases (now also mutates `canonicalize.py` and runs
+    `test_brand_figures.py`); all killed.
+  - Not changed: `_load_brand_members` (13.3) has the same scalar-alias trap; no shipped spec
+    triggers it, so it is deferred rather than widened into this story.
 
 ### Change Log
 
 - 2026-10-09 — Story file (D-h..D-j); implemented us-gaap_v19 / concepts_v20, `segment_members`,
   per-source taxonomy, Corporate exclusions; 15 tests; 6-case import-time audit; dev store
   re-canonicalized and verified; live spot-check. No existing figure changed.
+- 2026-10-10 — Codex review fixes F1–F6; 9 tests added (679 total); audit 12/12.
 
 ### File List
 
 - `backend/canonicalization/mappings/engine.py`
 - `backend/canonicalization/mappings/__init__.py`
+- `backend/canonicalization/mappings/brand_identity.py` (review F1)
+- `backend/brands/store.py` (review F1)
+- `backend/tests/test_brand_figures.py` (review F1)
 - `backend/canonicalization/mappings/specs/us-gaap_v19.yaml` (new)
 - `backend/canonicalization/mappings/specs/registry.yaml`
 - `backend/tests/test_segment_mapping.py` (new)
