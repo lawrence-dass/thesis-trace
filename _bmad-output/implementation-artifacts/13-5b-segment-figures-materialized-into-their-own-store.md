@@ -4,7 +4,7 @@ baseline_commit: 742b769
 
 # Story 13.5b: Segment figures materialized into their own store
 
-Status: in-progress
+Status: review
 
 ## Story
 
@@ -62,20 +62,20 @@ segment-axis members are BRANDS (`segment_brand_members`), never segment payload
 
 ## Tasks / Subtasks
 
-- [ ] **1. Migration + model.** `segment_payloads` per AC 1; migration test replays the chain and
+- [x] **1. Migration + model.** `segment_payloads` per AC 1; migration test replays the chain and
       compares constraints to the model.
-- [ ] **2. Materializer** `backend/segments/store.py` (`materialize_segment_payloads`) per AC 2-4:
+- [x] **2. Materializer** `backend/segments/store.py` (`materialize_segment_payloads`) per AC 2-4:
       upsert on the key refreshing every non-key column and `computed_at`; stale delete scoped to
       issuer + mapping version.
-- [ ] **3. Wiring.** `pipeline/run.py` stage; `backend/segments/__main__.py`; `make segments`.
-- [ ] **4. Tests** (counts first): AC 1-5, incl. a QSR segment-axis brand row ignored, a qualified
+- [x] **3. Wiring.** `pipeline/run.py` stage; `backend/segments/__main__.py`; `make segments`.
+- [x] **4. Tests** (counts first): AC 1-5, incl. a QSR segment-axis brand row ignored, a qualified
       row vetoing, other-version rows untouched, a second pass unchanged, the pipeline test.
-- [ ] **5. Mutation audit** `scripts/verify_segment_payload_guards.py` (commit tests first).
-- [ ] **6. Dev store + DoD.** AC 6 exact, by a query comparing payloads to source rows. Findings
+- [x] **5. Mutation audit** `scripts/verify_segment_payload_guards.py` (commit tests first).
+- [x] **6. Dev store + DoD.** AC 6 exact, by a query comparing payloads to source rows. Findings
       checked first; live fetch N/A (13.5a spot-checked these exact rows, values carried unchanged);
       golden N/A (→ 13.6a/b); browser N/A (nothing renders); record
       `story_13_5b_segment_payloads_materialized` (+ `CURATED_SECTIONS`).
-- [ ] **7. Close.** `make test`, `make lint`, all audits; status `review`; commit, push, PR, Codex
+- [x] **7. Close.** `make test`, `make lint`, all audits; status `review`; commit, push, PR, Codex
       prompt.
 
 ## Dev Notes
@@ -98,8 +98,37 @@ claude-opus-5-5
 
 ### Completion Notes List
 
+- AC 1-5: `segment_payloads` (migration `c4e8b1d93f27`, model `SegmentPayload`);
+  `segments/store.py` `materialize_segment_payloads` with inputs from `segment_inputs()`
+  (SEGMENT_AXES / SEGMENT_MEMBERS / rules on the axis); pipeline stage (summary key `segments`);
+  `make segments`. 12 tests (11 payload + 1 migration round-trip), counts asserted first.
+- The pipeline test runs the real CPB FY2025 instance fixture: 18 payloads (3 concepts × 2
+  segments × FY2023-25), each matched to a fact in the instance, independent of canonicalization.
+- Mutation audit `scripts/verify_segment_payload_guards.py`: 11/11 killed (installs the mutant
+  in sys.modules so `pipeline/run.py`'s by-name import binds it).
+- AC 6 (dev store): 48 `ok` payloads, 48/48 match their source rows on every provenance field,
+  0 source rows unmaterialized; second run wrote 48, removed 0.
+- DoD: findings checked (13.5a's entry); live fetch N/A (values carried unchanged from rows 13.5a
+  spot-checked live); golden N/A (→ 13.6a/b); browser N/A (nothing renders); recorded
+  `story_13_5b_segment_payloads_materialized`. Also recorded 13.5a's Codex-round learning
+  (`a_rule_axis_is_not_an_identity_axis`). Triage: nothing blocking, nothing deferred.
+
 ### Change Log
 
-- 2026-10-10 — Story file created.
+- 2026-10-10 — Story file created; D-k..D-m decided as recommended; implemented, verified on the
+  dev store, status → review.
 
 ### File List
+
+- `db/migrations/versions/c4e8b1d93f27_add_segment_payloads.py` (new)
+- `backend/app/models.py`
+- `backend/segments/__init__.py`, `store.py`, `__main__.py` (new)
+- `backend/pipeline/run.py`
+- `Makefile`
+- `backend/tests/test_segment_payloads.py`, `test_segment_payload_migration.py` (new)
+- `backend/tests/test_sprint_status.py`
+- `scripts/verify_segment_payload_guards.py` (new)
+- `_bmad-output/implementation-artifacts/engineering-findings.yaml`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/13-5a-cpb-s-segment-concepts-mapped.md` (status → done)
+- `_bmad-output/implementation-artifacts/13-5b-segment-figures-materialized-into-their-own-store.md`
