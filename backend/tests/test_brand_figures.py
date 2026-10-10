@@ -431,6 +431,27 @@ async def test_an_undeclared_qualifier_blocks_a_declared_row(db_session) -> None
 
 
 @requires_db
+async def test_cpbs_segment_axis_is_a_qualifier_on_a_brand_row(db_session) -> None:
+    """13.5a review F1: CPB's segment axis names a SEGMENT, never a brand.
+
+    Before the fix every axis a dimensioned rule reads counted as identity, so
+    adding CPB's segment rules silently stopped this qualifier from blocking.
+    """
+    accns = await _cpb(db_session, years=(2025,))
+    db_session.add(_row(CPB, accns[2025], CARRYING, "kettle", 2025, 1000,
+                        extra={SEGMENT_AXIS: "cpb:MealsBeveragesMember"}))
+    await db_session.flush()
+
+    await materialize_brand_carrying_values(db_session, CPB)
+    rows = await _figures(db_session)
+    assert len(rows) == 1
+    assert (rows[0].status, rows[0].value, rows[0].source_member_fact_id) == (
+        INSUFFICIENT, None, None,
+    )
+    assert SEGMENT_AXIS in rows[0].reason
+
+
+@requires_db
 async def test_two_unqualified_rows_with_different_values_are_insufficient(
     db_session, monkeypatch
 ) -> None:

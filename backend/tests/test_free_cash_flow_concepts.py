@@ -151,8 +151,10 @@ def test_mapping_version_bumped_for_a_real_mapping_change() -> None:
     above; a spec silently deleted is an AD-2 failure this test exists to catch.
     """
     registry = yaml.safe_load((SPECS / "registry.yaml").read_text())
-    assert registry["mapping_version"] == "concepts_v19"
-    assert registry["taxonomies"]["us-gaap"] == "us-gaap_v18"
+    # concepts_v20 (2026-10-09, Story 13.5a): CPB's segment concepts — new rows
+    # only; every concepts_v19 row reproduces identically.
+    assert registry["mapping_version"] == "concepts_v20"
+    assert registry["taxonomies"]["us-gaap"] == "us-gaap_v19"
     assert registry["taxonomies"]["ifrs-full"] == "ifrs-full_v4"
     assert registry["derivations"] == "derivations_v5"
 
@@ -177,6 +179,7 @@ def test_mapping_version_bumped_for_a_real_mapping_change() -> None:
         "us-gaap_v15.yaml",
         "us-gaap_v16.yaml",
         "us-gaap_v17.yaml",
+        "us-gaap_v18.yaml",
         "ifrs-full_v1.yaml",
         "ifrs-full_v2.yaml",
         "ifrs-full_v3.yaml",
