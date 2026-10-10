@@ -19,6 +19,7 @@ from sqlalchemy import select
 from app.models import Filing, RawFact
 from brands.impairment import materialize_brand_impairments
 from brands.store import DISCLOSURE_FORMULA_VERSION, materialize_brand_carrying_values
+from segments.store import materialize_segment_payloads
 from canonicalization.canonicalize import canonicalize_issuer
 from canonicalization.mappings import MAPPING_VERSION, seed_concept_mappings
 from canonicalization.taxonomies import FINANCIAL_TAXONOMIES, supersedes
@@ -182,6 +183,9 @@ async def run_issuer(
     brand_disclosures = await materialize_brand_carrying_values(
         session, parsed.cik, formula_version=DISCLOSURE_FORMULA_VERSION
     )
+    # Per-segment payloads (Story 13.5b): the filed segment rows canonicalization
+    # just wrote, keyed per segment. A filer with no declared segments writes nothing.
+    segments = await materialize_segment_payloads(session, parsed.cik)
 
     await session.commit()
     return {
@@ -194,6 +198,7 @@ async def run_issuer(
         "brands": brands,
         "brand_impairments": brand_impairments,
         "brand_disclosures": brand_disclosures,
+        "segments": segments,
     }
 
 
@@ -466,9 +471,16 @@ async def main() -> None:  # pragma: no cover — live path, gated
             if any(i.values())
             else ""
         )
+        s = summary["segments"]
+        segmented = (
+            f", segments: {s['written']} written / {s['removed']} removed"
+            f" / {s['insufficient']} insufficient"
+            if any(s.values())
+            else ""
+        )
         print(
             f"OK {entry.ticker}: scored {summary['scored_years']} "
-            f"(altman: {summary['scored']['altman']}){flagged}{branded}{impaired}"
+            f"(altman: {summary['scored']['altman']}){flagged}{branded}{impaired}{segmented}"
         )
 
 

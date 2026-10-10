@@ -4,7 +4,7 @@ baseline_commit: b47bd18
 
 # Story 13.5a: CPB's segment concepts, mapped
 
-Status: review
+Status: done
 
 ## Story
 

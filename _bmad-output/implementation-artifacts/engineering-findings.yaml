@@ -6063,3 +6063,31 @@ story_13_5a_cpb_segment_concepts_mapped:
     its first run failed all six cases at IMPORT (the parent package was never
     imported) and the strict kill contract refused to count them — the harness
     reporting its own defect instead of a false clean sweep.
+  a_rule_axis_is_not_an_identity_axis: >
+    Codex round on #158 (4 blocking, all fixed before merge). The brand side derived
+    "identity axes" as every axis a dimensioned rule reads, which held while only
+    brand rules existed. CPB's segment rules made the segment axis "identity" for CPB,
+    so a segment-qualified brand row silently stopped blocking. The split is now
+    stated, not inferred: SEGMENT_AXES, and a loader rule that a segment axis is read
+    ONLY by segment rules. The story's own Dev Notes had predicted the axis change
+    and judged it harmless because no stored row exercised it — true of the data,
+    not of the guarantee.
+
+story_13_5b_segment_payloads_materialized:
+  status: done
+  found: 2026-10-10
+  found_by: >
+    Story 13.5b: `make migrate` + `make segments` (twice) on the dev store, then a
+    join of every segment_payloads row against its source canonical_member_facts row.
+    No fetch: the values are carried unchanged from rows 13.5a spot-checked live.
+  question: >
+    Do CPB's 48 filed segment rows land in their own store, one per segment-year,
+    value-for-value, idempotently?
+  finding: >
+    YES. 48 payloads, all `ok`, 48 distinct (member, concept, year), FY2018-FY2025;
+    all 48 match their source row on value, accession, member as filed, period end,
+    unit and key; 0 concepts_v20 segment source rows without a payload. A second run
+    wrote the same 48 and removed 0. Inputs are read from SEGMENT_AXES /
+    SEGMENT_MEMBERS and the rules on that axis, so QSR's segment-axis BRANDS never
+    become payloads. Decisions D-k (no formula spec — nothing is computed), D-l (a
+    qualified row vetoes its segment-year), D-m (an unfiled year writes no row).

@@ -577,6 +577,62 @@ class BrandFigure(Base):
     )
 
 
+class SegmentPayload(Base):
+    """One filed segment figure for one segment-year (Story 13.5b).
+
+    DERIVED from `canonical_member_facts` on the write path (AD-1), the
+    `brand_figures` pattern. `canonical_facts` keys one row per concept-year, so a
+    per-segment value there would collide; this key carries the axis and member.
+    Nothing is computed — a payload is the filed value carried through — so there
+    is no formula spec and no formula_version (decision D-k): the mapping version
+    alone versions it (AD-2).
+    """
+
+    __tablename__ = "segment_payloads"
+    __table_args__ = (
+        UniqueConstraint(
+            "issuer_cik", "axis", "member_key", "canonical_concept", "fiscal_year",
+            "mapping_version",
+            name="uq_segment_payloads_key",
+        ),
+        # Mirrored from the migration because the test schema is built by create_all.
+        CheckConstraint(
+            "(status = 'ok' AND value IS NOT NULL) OR "
+            "(status = 'insufficient_data' AND value IS NULL AND reason IS NOT NULL)",
+            name="ck_segment_payloads_status",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    issuer_cik: Mapped[str] = mapped_column(ForeignKey("issuers.cik"), index=True)
+    axis: Mapped[str] = mapped_column(String(256))
+    member_key: Mapped[str] = mapped_column(String(64))
+    canonical_concept: Mapped[str] = mapped_column(String(128))
+    fiscal_year: Mapped[int] = mapped_column()
+    mapping_version: Mapped[str] = mapped_column(String(32))
+
+    period_end: Mapped[date | None] = mapped_column(Date)
+    value: Mapped[float | None] = mapped_column(Numeric(28, 6))  # NUMERIC (AD-15)
+    unit: Mapped[str | None] = mapped_column(String(32))
+    # `ok`, or `insufficient_data` when a qualified row vetoes the segment-year
+    # (D-l). A year nobody filed has no row at all (D-m, AD-16).
+    status: Mapped[str] = mapped_column(String(24))
+    reason: Mapped[str | None] = mapped_column(String(512))
+
+    # AD-19, member-level: the filed row, its filing, and the member as filed.
+    # NULL together, only on an insufficient segment-year.
+    source_member_fact_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("canonical_member_facts.id")
+    )
+    accession_number: Mapped[str | None] = mapped_column(
+        ForeignKey("filings.accession_number")
+    )
+    member_as_filed: Mapped[str | None] = mapped_column(String(256))
+    computed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 # --- Data-quality tracking (AD-3, AD-17) ------------------------------------
 
 
