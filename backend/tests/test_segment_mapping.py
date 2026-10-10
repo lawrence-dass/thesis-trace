@@ -123,6 +123,38 @@ def test_the_loader_rejects_an_alias_both_segment_and_excluded(registered_exclus
         mapping_engine.load_mapping_spec()
 
 
+def test_the_loader_rejects_a_segment_axis_that_brands_resolve_on(registered_exclusion_spec) -> None:  # noqa: F811
+    """13.5a review F2: on the brand axis, Snacks would resolve BRAND concepts and
+    every CPB brand would stop resolving — reachable, so the old check passed it."""
+    spec_file, data = registered_exclusion_spec
+    data["segment_members"][CPB]["axis"] = "us-gaap:IndefiniteLivedIntangibleAssetsByMajorClassAxis"
+    spec_file.write_text(yaml.safe_dump(data, sort_keys=False))
+    with pytest.raises(ValueError, match="only by segment rules"):
+        mapping_engine.load_mapping_spec()
+
+
+def test_the_loader_rejects_scalar_segment_aliases(registered_exclusion_spec) -> None:  # noqa: F811
+    """13.5a review F3: a scalar became 23 one-character aliases matching nothing."""
+    spec_file, data = registered_exclusion_spec
+    data["segment_members"][CPB]["members"]["meals_beverages"]["aliases"] = MEALS
+    spec_file.write_text(yaml.safe_dump(data, sort_keys=False))
+    with pytest.raises(ValueError, match="not a list"):
+        mapping_engine.load_mapping_spec()
+
+
+@pytest.mark.parametrize(
+    "declaration",
+    [{"maps_to": "segment_revenue"}, {"canonical_concepts": ["segment_revenue"]}, {"kind": "aggregate"}],
+)
+def test_the_loader_rejects_segment_keys_no_code_reads(registered_exclusion_spec, declaration) -> None:  # noqa: F811
+    """13.5a review F4: routing a segment was accepted and silently discarded."""
+    spec_file, data = registered_exclusion_spec
+    data["segment_members"][CPB]["members"]["meals_beverages"].update(declaration)
+    spec_file.write_text(yaml.safe_dump(data, sort_keys=False))
+    with pytest.raises(ValueError, match="no code reads"):
+        mapping_engine.load_mapping_spec()
+
+
 # --- canonicalization (AC 1, AC 3) -------------------------------------------
 
 
@@ -186,3 +218,56 @@ async def test_canonicalization_lands_each_segment_year_once_across_the_switch(d
     # ...and neither the equal pair nor Corporate raises any issue.
     issues = (await db_session.execute(select(DataQualityIssue))).scalars().all()
     assert [i.issue_type for i in issues] == []
+
+
+async def _cpb_filings(db_session) -> None:
+    db_session.add(Issuer(cik=CPB, ticker="CPB", name="CPB Inc", sector="Consumer"))
+    await db_session.flush()
+    for year in (2023, 2024, 2025):
+        db_session.add(Filing(accession_number=ACCN[year], issuer_cik=CPB, form_type="10-K",
+                              filing_date=date(year, 9, 20), fiscal_year=year,
+                              fiscal_year_end=FYE[year]))
+    await db_session.flush()
+    await seed_concept_mappings(db_session)
+
+
+@requires_db
+async def test_the_original_filing_wins_even_against_a_more_precise_comparative(db_session) -> None:
+    """13.5a review F5: same source, so only original-filed precedence decides.
+
+    The switch test above could not catch this: its old tag also has the better
+    source priority, so removing original-filed precedence left it green.
+    """
+    await _cpb_filings(db_session)
+    original = _raw(2023, "us-gaap", "OperatingIncomeLoss", MEALS, 2023, 1_000)
+    comparative = _raw(2024, "us-gaap", "OperatingIncomeLoss", MEALS, 2023, 1_000)
+    original.decimals, comparative.decimals = -6, -3
+    db_session.add_all([original, comparative])
+    await db_session.flush()
+
+    await canonicalize_issuer(db_session, CPB)
+    rows = (await db_session.execute(select(CanonicalMemberFact))).scalars().all()
+    assert len(rows) == 1
+    assert rows[0].accession_number == ACCN[2023]
+
+
+@requires_db
+@pytest.mark.parametrize(
+    "taxonomy, concept",
+    [("us-gaap", "PaymentsToAcquirePropertyPlantAndEquipment"), ("cpb", "SegmentExpenditureAdditionToPPE")],
+)
+async def test_segment_capex_is_the_annual_flow_never_a_quarter(db_session, taxonomy, concept) -> None:
+    """13.5a review F6: no other test seeded capex, so its period policy was unpinned."""
+    await _cpb_filings(db_session)
+    annual = _raw(2025, taxonomy, concept, MEALS, 2025, 100)
+    quarter = _raw(2025, taxonomy, concept, MEALS, 2025, 30)
+    quarter.period_start = date(2025, 5, 1)
+    quarter.content_hash += "-q"
+    db_session.add_all([annual, quarter])
+    await db_session.flush()
+
+    await canonicalize_issuer(db_session, CPB)
+    rows = (await db_session.execute(select(CanonicalMemberFact))).scalars().all()
+    assert len(rows) == 1
+    assert (rows[0].canonical_concept, rows[0].value) == ("segment_capex", 100)
+    assert (await db_session.execute(select(DataQualityIssue))).scalars().all() == []
