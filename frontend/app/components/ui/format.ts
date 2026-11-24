@@ -43,6 +43,15 @@ export function compactAmount(value: number): string {
   // than "1000M" sitting in a column beside "1.00B" — but rounded to the two
   // decimals this branch prints, so a value that only reaches 1.0B at ONE
   // decimal (975,000,000) stays in millions instead of printing as "0.97B".
+  // Trillions (Ops 4): no filer reached one until AAPL, MSFT and NVDA, whose
+  // market values rendered as "4956.52B". Same gate-equals-display rule as the
+  // two branches below: two decimals printed, so the gate counts hundredths of
+  // a trillion, and 994,999,999,999 stays "995.00B" rather than "0.99T".
+  const hundredthsOfTrillion = inRenderedUnits(abs, 1e10);
+  if (hundredthsOfTrillion >= 100) {
+    return `${((sign * hundredthsOfTrillion) / 100).toFixed(2)}T`;
+  }
+
   const hundredthsOfBillion = inRenderedUnits(abs, 1e7);
   if (hundredthsOfBillion >= 100) {
     return `${((sign * hundredthsOfBillion) / 100).toFixed(2)}B`;

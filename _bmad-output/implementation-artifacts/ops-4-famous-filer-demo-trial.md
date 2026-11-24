@@ -1,6 +1,6 @@
 # Ops 4: Famous-filer demo trial (AAPL, MSFT, NVDA, KO, NKE)
 
-Status: in-progress
+Status: review
 Date: 2026-11-24
 Scope: SEC EDGAR + Tiingo ingestion and figures rendered to a user, so the
 live-data definition of done applies
@@ -57,5 +57,17 @@ being researched. The amendment is recorded in `foundational-decisions.md`.
 | NKE | 2026 | 5 | insufficient (X3) | -2.19 | 0.006 | 23.5% | **no** |
 
 Found by rendering: market values of a trillion or more read "4956.52B" (AAPL),
-"2770.42B" (MSFT), "4561.13B" (NVDA). `compactAmount` has no trillions unit; no
-earlier filer reached one.
+"2770.42B" (MSFT), "4561.13B" (NVDA). `compactAmount` had no trillions unit; no
+earlier filer reached one. Lawrence chose (2026-11-24) to fix it in this story:
+
+- [x] `compactAmount` T branch, gated on hundredths of a trillion (the PR #74
+      gate-equals-display rule); tests pin the real AAPL figures, both sides of
+      the 1.00T boundary, a negative, and SHOP's 209B unchanged
+- [x] Frontend: 100 tests pass; tsc and eslint clean
+- [x] Re-rendered: AAPL 4.96T, MSFT 2.77T, NVDA 4.56T; no four-digit "B" left
+      on any of the four pages; KO and SHOP unchanged
+
+Deferred, not this story: display names come from EDGAR `entityName`, so casing
+is inconsistent ("NVIDIA CORP" beside "Apple Inc."). Already true of existing
+filers ("CANADIAN PACIFIC KANSAS CITY  LTD/CN"). NKE stays out by Lawrence's
+choice; no follow-up story is scheduled. NKE's trial rows remain in the dev store only.

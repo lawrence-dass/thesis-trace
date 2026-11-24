@@ -91,6 +91,19 @@ describe("compactAmount", () => {
     expect(compactAmount(-999_999_999)).toBe("-1.00B");
   });
 
+  it("formats trillions, gated on the same two decimals it prints", () => {
+    // Real FY2026 market values (Ops 4), which rendered "4956.52B" before this
+    // branch existed.
+    expect(compactAmount(4_956_517_577_130)).toBe("4.96T"); // AAPL market_cap
+    expect(compactAmount(4_998_326_577_130)).toBe("5.00T"); // AAPL enterprise_value
+    // The boundary, both sides: the 1.00T tie rounds up, just below stays B.
+    expect(compactAmount(995_000_000_000)).toBe("1.00T");
+    expect(compactAmount(994_999_999_999)).toBe("995.00B");
+    expect(compactAmount(-1_250_000_000_000)).toBe("-1.25T");
+    // The largest existing filer must not move (SHOP's ~209B).
+    expect(compactAmount(209_000_000_000)).toBe("209.00B");
+  });
+
   it("handles zero without a magnitude suffix", () => {
     expect(compactAmount(0)).toBe("0");
   });
