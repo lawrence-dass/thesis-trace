@@ -13,8 +13,16 @@ export function edgarFilingUrl(cik: string, accessionNumber: string): string {
 }
 
 // Human-readable description of a derivation rule, for the chip's tooltip.
+// Every canonicalization rule in the current derivations spec must appear here
+// (CitationChip.test.ts reads the spec): an unknown rule falls back to its raw
+// snake_case name, which five of the six did until Ops 5.
 export const DERIVATION_LABEL: Record<string, string> = {
   assets_minus_equity: "total assets − shareholders' equity",
+  total_debt_current_plus_noncurrent: "debt due within a year + long-term debt",
+  sga_general_plus_selling: "general & administrative + selling & marketing",
+  ebit_pbt_plus_interest: "pre-tax profit + interest expense",
+  revenue_minus_cost_of_sales: "revenue − cost of sales",
+  cash_plus_cash_equivalents: "cash + cash equivalents",
   "fundamentals_v1.gross_profit_from_revenue_minus_cogs": "revenue − cost of revenue",
   "fundamentals_v1.other_from_gross_profit_minus_earnings": "gross profit − net income",
   "fundamentals_v1.other_from_revenue_minus_earnings": "revenue − net income",

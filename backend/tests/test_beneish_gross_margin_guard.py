@@ -38,33 +38,47 @@ def _margin_caveats(runs: list[ScoreRun]) -> list[ScoreRun]:
 
 
 @requires_db
-async def test_qsr_beneish_is_flagged_for_an_unvalidated_gross_margin(db_session) -> None:
-    """The case that motivated the guard. QSR files no gross profit line at all, and
-    its CostOfGoodsAndServicesSold is 49% of total costs while `Revenues` also
-    carries royalty, property and advertising revenue (verified live 2026-08-02)."""
-    payload = json.loads((FIXTURES / "qsr_company_facts.json").read_text())
-    await run_issuer(db_session, payload, ticker="QSR")
+async def test_zts_beneish_is_flagged_for_an_unvalidated_gross_margin(db_session) -> None:
+    """ZTS never files a gross profit line (Story 12.1 finding 2), so its margin is
+    unvalidated. QSR was this test's subject until Ops 5: its fixture years now
+    resolve no SG&A (see the QSR test below), so it produces no M-score to flag."""
+    payload = json.loads((FIXTURES / "zts_company_facts.json").read_text())
+    await run_issuer(db_session, payload, ticker="ZTS")
 
-    runs = await _beneish_runs(db_session, "0001618756")
+    runs = await _beneish_runs(db_session, "0001555280")
     resolved = [r for r in runs if r.aggregate_value is not None]
-    assert resolved, "QSR should still produce an M-score"
+    assert resolved, "ZTS should produce an M-score"
 
     flagged = _margin_caveats(resolved)
-    assert flagged, "QSR's Beneish should be flagged for an unvalidated gross margin"
+    assert flagged, "ZTS's Beneish should be flagged for an unvalidated gross margin"
     assert all(r.applicability is Applicability.computed_with_caveat for r in flagged)
 
 
 @requires_db
 async def test_the_guard_annotates_without_altering_the_m_score(db_session) -> None:
     """The load-bearing property. A caveat may annotate a score; it must never alter
-    one. QSR's hand-verified golden M-score must survive the guard untouched."""
+    one. ZTS's hand-verified golden M-score must survive the guard untouched."""
+    payload = json.loads((FIXTURES / "zts_company_facts.json").read_text())
+    await run_issuer(db_session, payload, ticker="ZTS")
+
+    runs = await _beneish_runs(db_session, "0001555280")
+    fy2025 = [r for r in runs if r.fiscal_year == 2025 and r.aggregate_value is not None]
+    assert fy2025, "expected a resolved FY2025 M-score for ZTS"
+    assert _margin_caveats(fy2025), "the guard must have fired on the score it leaves unaltered"
+    assert float(fy2025[0].aggregate_value) == -2.447666, "golden M-score changed"
+
+
+@requires_db
+async def test_qsr_beneish_is_insufficient_without_a_whole_sga(db_session) -> None:
+    """Ops 5. QSR's fixture years resolve SG&A from nothing: from FY2021 QSR reports
+    G&A and advertising as separate lines, and G&A alone is not SG&A (us-gaap_v20).
+    Insufficient, never a partial figure (AD-16), until QSR's own story."""
     payload = json.loads((FIXTURES / "qsr_company_facts.json").read_text())
     await run_issuer(db_session, payload, ticker="QSR")
 
     runs = await _beneish_runs(db_session, "0001618756")
-    fy2023 = [r for r in runs if r.fiscal_year == 2023 and r.aggregate_value is not None]
-    assert fy2023, "expected a resolved FY2023 M-score for QSR"
-    assert float(fy2023[0].aggregate_value) == -2.219847, "golden M-score changed"
+    assert runs, "QSR's Beneish runs must exist, so their emptiness means something"
+    assert all(r.aggregate_value is None for r in runs)
 
 
 @requires_db

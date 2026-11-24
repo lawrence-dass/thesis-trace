@@ -199,10 +199,18 @@
 #                 existing figure: re-canonicalizing must reproduce every
 #                 concepts_v19 row identically and add only segment rows.
 
-mapping_version: concepts_v20
+#
+#   concepts_v21  us-gaap_v20 + ifrs-full_v4 + derivations_v6. Ops 5. CHANGES sga:
+#                 G&A alone no longer resolves it. CPB, OTEX, SHOP and MSFT now get
+#                 G&A + selling and marketing (sga_general_plus_selling, an identity
+#                 verified exact on AAPL); QSR FY2021-25 becomes insufficient_data.
+#                 Adds general_and_administrative and selling_and_marketing as
+#                 operand concepts. Re-canonicalizing must change no other concept.
+
+mapping_version: concepts_v21
 
 taxonomies:
-  us-gaap: us-gaap_v19
+  us-gaap: us-gaap_v20
   ifrs-full: ifrs-full_v4
 
-derivations: derivations_v5
+derivations: derivations_v6
