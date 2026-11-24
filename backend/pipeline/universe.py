@@ -87,4 +87,32 @@ PHASE1_UNIVERSE: tuple[UniverseEntry, ...] = (
     # exact same source rule — see us-gaap_v9.yaml's cash_and_equivalents note.
     # capital_intensive=False: FY2025 Altman Z=5.615320, Safe.
     UniverseEntry("ZTS", "Zoetis Inc.", "0001555280"),
+    # --- Ops 4 (D11 amendment, 2026-11-24): demonstration filers ---
+    # Added because they are the names a first-time visitor tries, NOT because
+    # they are being researched. Trialled on the dev store first; each ships only
+    # because its latest year resolves all four models plus the reverse DCF, from
+    # inputs a review found no defect in. CIKs
+    # confirmed against www.sec.gov/files/company_tickers.json the same day.
+    # Golden coverage is `pending_fixture` (SM-1 gap, declared, not silent).
+    # NKE was trialled and NOT added: Altman X3 is insufficient_data every year
+    # (net-interest tag only, plus a FY2021 pre-tax-income tag switch) — see
+    # engineering-findings.yaml#ops_4_famous_filer_trial.
+    # MSFT was trialled clean and then WITHHELD after review: the us-gaap sga
+    # fallback admits GeneralAndAdministrativeExpense alone, dropping MSFT's
+    # separately filed selling and marketing (26.7B vs 7.96B G&A, FY2026), so its
+    # Beneish SGAI is wrong. Re-admitted only once that mapping is fixed — see
+    # engineering-findings.yaml#sga_fallback_omits_selling_and_marketing.
+    # AAPL: FYE late September. Its 17 FY2007-08 conflicts are the 10-K/A of
+    # 2010-01-25 restating the original FY2009 10-K, correctly left needs_review.
+    UniverseEntry("AAPL", "Apple Inc.", "0000320193"),
+    # NVDA: FYE late January, and names the fiscal year by the year it ENDS in.
+    # FY2026 Beneish flags manipulation risk and is shown, never suppressed. Not
+    # growth alone: with SGI set to 1 the M-score is still -1.736, above the
+    # -1.78 cut-off; AQI (1.517) and accruals (TATA 0.084) contribute too.
+    UniverseEntry("NVDA", "NVIDIA Corporation", "0001045810"),
+    # KO: operating cash flow fell to 6.8B (FY2024: a $6.0B IRS tax deposit) and
+    # 7.4B (FY2025: the ~$6.1B fairlife contingent payment), from 11-12.6B before.
+    # Its reverse DCF solves from that one year's FCF, so it implies very high
+    # growth. The operands are as filed; the figure is honest about unusual years.
+    UniverseEntry("KO", "The Coca-Cola Company", "0000021344"),
 )

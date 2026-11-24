@@ -384,8 +384,12 @@ async def _fx_rates_for(payload: dict, reporting_currency: str | None) -> dict[i
     return fx_rates
 
 
-async def main() -> None:  # pragma: no cover — live path, gated
+async def main(entries=None) -> None:  # pragma: no cover — live path, gated
     """Live universe run for the Render Cron Job. Requires network + EDGAR_CONTACT.
+
+    `entries` defaults to the whole PHASE1_UNIVERSE. A trial passes candidates
+    that are not in the universe yet (`scripts/trial_filers.py`), so the filers
+    already in it are not re-fetched.
 
     Gated: performs live SEC EDGAR fetches. Only entries with a confirmed CIK run;
     others are reported as skipped so coverage gaps are explicit. Tiingo (AD-11)
@@ -402,7 +406,7 @@ async def main() -> None:  # pragma: no cover — live path, gated
         raise RuntimeError("DATABASE_URL is not configured.")
 
     failed: list[str] = []
-    for entry in PHASE1_UNIVERSE:
+    for entry in PHASE1_UNIVERSE if entries is None else entries:
         if entry.cik is None:
             print(f"SKIP {entry.ticker}: CIK not yet confirmed against EDGAR")
             continue

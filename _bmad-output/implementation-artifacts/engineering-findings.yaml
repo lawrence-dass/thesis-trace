@@ -6105,3 +6105,147 @@ changes_since_pivot_include_backfill_rescoring:
     need to attribute each run change to a filing (e.g. limit the diff to runs
     whose accession_number is the pivot filing's), which is a design decision
     for its own story.
+
+ops_4_famous_filer_trial:
+  status: verified
+  verified: 2026-11-24
+  method: >
+    CIKs confirmed against www.sec.gov/files/company_tickers.json (all five
+    MATCH). Full live pipeline run on the DEV store via scripts/trial_filers.py
+    (company facts, Inline XBRL for every original 10-K, Tiingo EOD). Judged from
+    GET /api/companies/{t}/overview, the payload the page renders, not from tables.
+  clean_criterion: >
+    Latest scoreable fiscal year resolves Piotroski, Altman, Beneish and Sloan
+    (none insufficient_data) AND the reverse DCF. AMENDED after review (Lawrence,
+    2026-11-24): data-quality issues touching the latest year must be explained;
+    historical ones must be inventoried exactly (filing, both values), with the
+    cause where verified and "cause not established" otherwise. The first
+    version said "every open issue explained" and the first write-up claimed it
+    while having verified the cause for only some.
+  results:
+    AAPL: "FY2026 (FYE Sep). F=9 Strong; Z=12.70 Safe; M=-2.52 no flag; Sloan -0.034 low. rDCF implied 27.6% vs hist CAGR 15.2%. SHIPPED."
+    MSFT: "FY2026 (FYE Jun). F=6; Z=7.04 Safe; M=-2.64; Sloan -0.071. rDCF 31.1% vs 9.9%. Trial-clean, then WITHHELD after review: SGAI built on G&A alone (sga_fallback_omits_selling_and_marketing)."
+    NVDA: "FY2026 (FYE Jan). F=4; Z=59.94 Safe; M=-1.15 FLAGGED; Sloan 0.109 high. rDCF 34.7% vs 24.6%. SHIPPED."
+    KO: "FY2025. F=7; Z=4.56 Safe; M=-2.35; Sloan 0.056. rDCF 43.3% vs 1.5%. SHIPPED."
+    NKE: "FY2026. Altman X3 (EBIT) insufficient_data in every year, so Z is null. NOT SHIPPED."
+  data_quality_issues_inventory:
+    # Every open issue on a shipped filer, by the FACT's fiscal year (the first
+    # write-up keyed some by the filing's year). None touches a latest year.
+    # Values in USD millions. AD-3 left each needs_review; no wrong figure shows,
+    # because an ambiguous concept-year resolves insufficient_data.
+    AAPL:
+      count: 17 ambiguous_selection, FY2007 (6) and FY2008 (11)
+      cause: >
+        VERIFIED: a restatement. The original FY2009 10-K (2009-10-27) carries
+        FY2008 revenue 32,479; the 10-K/A of 2010-01-25 (0001193125-10-012091)
+        carries 37,491, and the FY2010 10-K repeats it. Pairs: revenue 24,006 v
+        24,578 (FY07) and 32,479 v 37,491 (FY08); cogs 15,852 v 16,426 and
+        21,334 v 24,294; net income 3,495 v 3,496 and 4,834 v 6,119; plus
+        gross profit, ebit, equity, retained earnings, current assets and
+        liabilities, total assets and liabilities in FY2008.
+    NVDA:
+      count: 12 ambiguous_selection, all FY2014 (FYE 2014-01-26)
+      cause: >
+        11 of 12 VERIFIED as one value at two precisions: each pair agrees once
+        rounded to millions (cash 1,151.6 v 1,152; CFO 835.1 v 835; cogs
+        1,862.4 v 1,862; depreciation 239.1 v 239; ebit 496.2 v 496; gross
+        profit 2,267.8 v 2,268; interest 10.4 v 10; net income 440 v 440;
+        revenue 4,130.2 v 4,130; sga 435.7 v 436; shares 568 v 568). First live
+        instance of ad3_decimals_tiebreak_has_never_had_data. The 12th is NOT:
+        stockholders' equity 4,456.4 (10-Ks of 2014-03-13 and 2015-03-12) v
+        4,455.0 (comparatives in the 10-Ks of 2016-03-17 and 2017-03-01), a
+        1.4M recast. CAUSE NOT ESTABLISHED. The first write-up called all 12
+        precision differences after looking at two; the Ops 4 review caught it.
+    KO:
+      count: 3 ambiguous_selection
+      cause: >
+        CAUSE NOT ESTABLISHED for all three. FY2010 profit_before_tax 14,207 v
+        14,243. FY2017 revenue 35,410 (10-K of 2019-02-21) v 36,212 (10-K of
+        2020-02-24); FY2017 cogs 13,255 v 13,721, same two filings. The same
+        later filing moving both lines points to a recast, not yet read.
+  judgement_calls:
+    nvda_beneish_flag: >
+      Shown as computed, never suppressed. NOT explained by growth alone, as the
+      first write-up said: recomputed from the displayed indices M = -1.152, and
+      with SGI set to 1 it is still -1.736, above the -1.78 cut-off. Above-
+      neutral contributions: SGI +0.584, TATA +0.393, AQI +0.209. Neither
+      manipulation nor a data error is established; asset quality and accruals
+      are part of the reading. (Arithmetic from the Ops 4 review, re-derived.)
+    ko_reverse_dcf: >
+      CFO 12.63 / 11.02 / 11.60 / 6.81 / 7.41B for FY2021-25. Two different
+      events, verified from KO's own stored facts: FY2024 carries a $6.0B IRS
+      deposit (TotalDepositForThe2007Through2009TaxYears), and the fairlife
+      contingent liability was still $6.126B at 2024-12-31, paid in FY2025. The
+      first write-up blamed fairlife for both years. FCF0 = 5.296B against a
+      334.5B EV implies 43% growth: honest about unusual years, because the
+      model solves from ONE year's FCF.
+  nke_deferred: >
+    Nike has no OperatingIncomeLoss and never tags gross interest expense, only
+    InterestIncomeExpenseNonoperatingNet (expense NET of interest income, 18y).
+    ebit_pbt_plus_interest therefore cannot resolve, and adding back a NET
+    figure would be a different EBIT from every other filer's. Its pre-tax
+    income also switches tag in FY2021 (...MinorityInterestAndIncomeLossFrom
+    EquityMethodInvestments 2008-21 -> ...ExtraordinaryItemsNoncontrollingInterest
+    2020-26), so profit_before_tax resolves only FY2020-26 today. Both need a
+    new mapping version: split trigger, so a follow-up story, not this one.
+  checked_not_a_finding: >
+    NKE's Altman verdict reads applicability "computed" with aggregate_value
+    null. Not a defect: missing_signals carries ["x3_ebit"], the same shape SU
+    has served in production (missing x2_retained_earnings) since 2026-08.
+  review: >
+    Codex reviewed PR #163 (2026-11-24): MERGE AFTER FIXES. Every finding was
+    re-verified against the dev store before being acted on. Applied: MSFT
+    withheld; issue inventory and AC3 amended; KO and NVDA explanations
+    corrected; SPEC SM-1 and the golden header no longer claim full
+    hand-verification; the golden universe is bound to PHASE1_UNIVERSE (KO
+    removed from both YAML lists now fails); trial-script ordering tests,
+    mutation-checked. Deferred: the warnings list's missing year/concept
+    (data_quality_warnings_hide_year_and_concept).
+
+sga_fallback_omits_selling_and_marketing:
+  status: open
+  found: 2026-11-24
+  found_by: Codex review of PR #163 (MSFT); the scope below re-derived from the dev store.
+  finding: >
+    us-gaap_v19.yaml's sga sources are SellingGeneralAndAdministrativeExpense,
+    then GeneralAndAdministrativeExpense. A filer that reports selling and
+    marketing on a SEPARATE line resolves sga from G&A alone, so Beneish's
+    SGAI is computed on part of SG&A. MSFT FY2026: G&A 7.956B, selling and
+    marketing 26.710B; complete SG&A gives SGAI 0.895175 v the 0.935099 the
+    pipeline computes.
+  scope: >
+    Counted, not inferred (2026-11-24, concepts_v20): filers whose sga resolves
+    from GeneralAndAdministrativeExpense AND that file a selling/marketing tag
+    for the same periods: CPB (18 years), OTEX (20), SHOP (10), and MSFT (19,
+    withheld from the universe for this reason). QSR (FY2021-25) and CCJ
+    resolve from G&A or AdministrativeExpense but file no selling line, so they
+    need checking, not assuming either way.
+  live_impact: >
+    A wrong COMPONENT on live pages, not a wrong verdict. SGAI's coefficient is
+    -0.172 and SGAI is a positive ratio, so correcting it raises M by at most
+    0.172 x SGAI. The closest live case, SHOP FY2024 (M -1.981, SGAI 0.664),
+    can move at most +0.114, to -1.867, still below -1.78. Historical years
+    are not bounded here.
+  golden_encodes_it: >
+    CONFIRMED, not a risk: phase1_golden.yaml pins SHOP's SGAI 0.663882 (line
+    88) and CPB's 0.859487 (line 595), the G&A-only values. The hand
+    verification checked the arithmetic, not whether sga was the whole concept,
+    so the "verified" golden data carries the same mistake (the ZTS 12.3
+    pattern). Both entries, and OTEX's if it pins one, must be re-verified, not
+    just updated, when this is fixed.
+  next: >
+    Its own story, next: a versioned sga rule (sum of G&A and selling/marketing
+    where both are filed, as a derivation with a published rationale), re-
+    canonicalize, re-verify the three golden entries, then re-admit MSFT.
+
+data_quality_warnings_hide_year_and_concept:
+  status: open
+  found: 2026-11-24
+  found_by: Codex review of PR #163 (AAPL's page)
+  finding: >
+    The Integrity section renders each open issue as the same line ("Ambiguous
+    source selection (needs_review, raised by canonicalization)"), 17 times on
+    AAPL and 18 on SHOP. The API serves the fact year, concept and both values;
+    the page drops them, so a reader cannot tell 2008 history from a current
+    score. Pre-existing; the demonstration filers made it prominent.
+  disposition: Deferred to its own story (group by year and concept, show the values).
