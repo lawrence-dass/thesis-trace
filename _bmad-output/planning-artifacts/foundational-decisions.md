@@ -323,7 +323,10 @@ being researched, and no decision packet names them.
 2. **Same live-data bar.** Each was trialled on the dev store before entering the universe, and
    ships only because its latest fiscal year resolves all four models plus the reverse DCF. NKE
    was trialled and **not** added (Altman X3 insufficient every year; see
-   `engineering-findings.yaml#ops_4_famous_filer_trial`).
+   `engineering-findings.yaml#ops_4_famous_filer_trial`). **MSFT is named but withheld:** review
+   found its Beneish SGAI built on G&A alone, missing selling and marketing. It enters once the
+   SG&A mapping is fixed (`sga_fallback_omits_selling_and_marketing`), without a further
+   amendment.
 3. **Point 4 relaxed for these four only.** They enter `phase1_golden.yaml` as
    `pending_fixture` rather than hand-verified. The SM-1 gap is declared in the golden file and
    in the README, never implied away.

@@ -134,6 +134,8 @@ CURATED_SECTIONS = (
     "ops_2_latest_filing_pivot_followed_storage_time",
     "changes_since_pivot_include_backfill_rescoring",
     "ops_4_famous_filer_trial",
+    "sga_fallback_omits_selling_and_marketing",
+    "data_quality_warnings_hide_year_and_concept",
 )
 
 pytestmark = pytest.mark.skipif(

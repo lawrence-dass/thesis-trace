@@ -35,7 +35,15 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
 def test_universe_fully_partitioned() -> None:
-    """No company silently dropped: active + pending == the declared universe."""
+    """No company silently dropped: active + pending == the declared universe.
+
+    The declared universe must also BE the pipeline's. Comparing the YAML only to
+    itself let a filer drop out of both golden lists while still shipping nightly
+    (found in the Ops 4 review: removing KO from both lists passed).
+    """
+    from pipeline.universe import PHASE1_UNIVERSE
+
+    assert set(GOLDEN["universe"]) == {e.ticker for e in PHASE1_UNIVERSE}
     listed = {c["ticker"] for c in GOLDEN["companies"]}
     assert listed == set(GOLDEN["universe"])
     pending = [c["ticker"] for c in GOLDEN["companies"] if c["status"] == "pending_fixture"]
