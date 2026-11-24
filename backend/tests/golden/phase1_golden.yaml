@@ -9,7 +9,7 @@
 # components). Companies without a fixture yet are listed as
 # `pending_fixture` so coverage gaps are explicit, never silent. None
 # remained for the original nine; the three Ops 4 demonstration filers
-# (AAPL, NVDA, KO, 2026-11-24) are pending — see the end of this file.
+# (AAPL, NVDA, KO, 2026-11-24; MSFT, Ops 5) are pending — see the end of this file.
 #
 # SHOP uses shop_real_company_facts.json (real EDGAR data), NOT
 # shop_company_facts.json — the latter is an older, entirely SYNTHETIC
@@ -48,7 +48,7 @@
 # on/before its 2025-08-03 FYE) and ZTS's $125.82 (2025-12-31) are real Tiingo
 # EOD closes, live-fetched 2026-09-01.
 
-universe: [SHOP, CP, QSR, OTEX, CCJ, BCE, SU, CPB, ZTS, AAPL, NVDA, KO]
+universe: [SHOP, CP, QSR, OTEX, CCJ, BCE, SU, CPB, ZTS, AAPL, NVDA, KO, MSFT]
 
 companies:
   - ticker: SHOP
@@ -781,12 +781,14 @@ companies:
   # --- Ops 4 (2026-11-24): demonstration filers, D11 amendment ---------------
   # Live-trialled on the dev store and scored nightly, but NOT hand-verified:
   # no fixture exists yet, so nothing here pins a value. SM-1 does not hold for
-  # these three until each gets a real fixture and hand-computed expectations.
+  # these four until each gets a real fixture and hand-computed expectations.
   # Declared so the gap is explicit (test_universe_fully_partitioned warns).
-  # MSFT is withheld (sga mapping defect), so it is not listed.
+  # MSFT, withheld in Ops 4 for the sga mapping defect, re-admitted in Ops 5.
   - ticker: AAPL
     status: pending_fixture
   - ticker: NVDA
     status: pending_fixture
   - ticker: KO
+    status: pending_fixture
+  - ticker: MSFT
     status: pending_fixture

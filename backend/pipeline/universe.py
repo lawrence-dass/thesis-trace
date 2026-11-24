@@ -97,14 +97,16 @@ PHASE1_UNIVERSE: tuple[UniverseEntry, ...] = (
     # NKE was trialled and NOT added: Altman X3 is insufficient_data every year
     # (net-interest tag only, plus a FY2021 pre-tax-income tag switch) — see
     # engineering-findings.yaml#ops_4_famous_filer_trial.
-    # MSFT was trialled clean and then WITHHELD after review: the us-gaap sga
-    # fallback admits GeneralAndAdministrativeExpense alone, dropping MSFT's
-    # separately filed selling and marketing (26.7B vs 7.96B G&A, FY2026), so its
-    # Beneish SGAI is wrong. Re-admitted only once that mapping is fixed — see
-    # engineering-findings.yaml#sga_fallback_omits_selling_and_marketing.
     # AAPL: FYE late September. Its 17 FY2007-08 conflicts are the 10-K/A of
     # 2010-01-25 restating the original FY2009 10-K, correctly left needs_review.
     UniverseEntry("AAPL", "Apple Inc.", "0000320193"),
+    # MSFT: FYE June 30. Withheld in Ops 4 because sga fell back to G&A alone,
+    # dropping its separately filed selling and marketing (26.7B vs 7.96B G&A,
+    # FY2026). Re-admitted in Ops 5 under concepts_v21, where sga = G&A + S&M:
+    # FY2026 SGAI 0.895175 and M -2.638076, matching the Ops 4 review's
+    # independent figures exactly. Its FY2009 G&A conflict (3,700 vs 4,030) is
+    # open under general_and_administrative; cause not established.
+    UniverseEntry("MSFT", "Microsoft Corporation", "0000789019"),
     # NVDA: FYE late January, and names the fiscal year by the year it ENDS in.
     # FY2026 Beneish flags manipulation risk and is shown, never suppressed. Not
     # growth alone: with SGI set to 1 the M-score is still -1.736, above the

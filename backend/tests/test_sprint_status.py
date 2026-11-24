@@ -136,6 +136,9 @@ CURATED_SECTIONS = (
     "ops_4_famous_filer_trial",
     "sga_fallback_omits_selling_and_marketing",
     "data_quality_warnings_hide_year_and_concept",
+    "qsr_sga_split_into_ga_and_advertising_fy2021",
+    "beneish_sga_scope_rnd_question",
+    "ccj_administrative_expense_as_sga",
 )
 
 pytestmark = pytest.mark.skipif(

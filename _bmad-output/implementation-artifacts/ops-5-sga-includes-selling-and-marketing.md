@@ -1,6 +1,6 @@
 # Ops 5: SG&A includes selling and marketing
 
-Status: in-progress
+Status: review
 Date: 2026-11-24
 Scope: concept mapping and a figure rendered to a user, so the live-data
 definition of done applies
@@ -64,19 +64,45 @@ the finding); the wrong figure is the SGAI component and the exact M.
 
 ## Tasks
 
-- [ ] `us-gaap_v20.yaml`: `sga` loses G&A; new `general_and_administrative`
+- [x] `us-gaap_v20.yaml`: `sga` loses G&A; new `general_and_administrative`
       and `selling_and_marketing` concepts (AC 1)
-- [ ] `derivations_v6.yaml`: `sga_general_plus_selling` identity (AC 1)
-- [ ] `registry.yaml` → `concepts_v21` with a HISTORY entry (AC 3)
-- [ ] Identity test from AAPL's filed figures (AC 2)
-- [ ] Fixtures: add S&M facts from the dev store's raw_facts (AC 4)
-- [ ] Independent re-verification of SGAI/M; golden updated; QSR → insufficient (AC 4)
-- [ ] Display label map for the new concepts (AC 5)
-- [ ] Re-canonicalize the dev store; diff concepts_v20 vs v21 (AC 3)
-- [ ] MSFT re-admitted: universe, golden, README, SPEC, D11 note (AC 6)
-- [ ] `make test`, `make lint`, frontend checks
-- [ ] Render the five pages (AC 7)
-- [ ] Findings (AC 8)
+- [x] `derivations_v6.yaml`: `sga_general_plus_selling` identity (AC 1)
+- [x] `registry.yaml` → `concepts_v21` with a HISTORY entry (AC 3)
+- [x] `test_sga_derivation.py`: AAPL's filed figures through real
+      canonicalization: parts derive the total exactly; a filed total wins;
+      G&A alone derives nothing (positive control) (AC 2)
+- [x] Fixtures: `scripts/extend_fixture_concept.py` adds S&M facts from the same
+      filings as each fixture's G&A; refuses unless the file round-trips byte
+      for byte (+204 lines, additions only) (AC 4)
+- [x] `scripts/verify_sga_golden.py` (imports nothing from scoring) reproduces
+      the OLD golden SGAI and M exactly first, then: SHOP -2.011375, CPB
+      -2.704602, OTEX -2.880276. Pipeline agrees to six places. QSR → null (AC 4)
+- [x] Gross-margin guard tests moved from QSR to ZTS (a real subject still)
+- [x] `CitationChip` labels all six derivation rules (five fell back to raw
+      names); a test reads the live spec, mutation-checked (AC 5)
+- [x] Re-canonicalized: only `sga` changed (CPB, MSFT, OTEX, SHOP), QSR
+      FY2021-25 removed, operands added, no other concept moved (AC 3)
+- [x] Re-scored (`scripts/rescore_beneish.py`): 36 years moved, max 0.031,
+      no band flip either way
+- [x] Stale `sga` issues (G&A conflicts) dismissed on dev by rule:
+      `scripts/dismiss_stale_sga_issues.py` (MSFT FY2009, SHOP FY2022)
+- [x] MSFT re-admitted: universe, golden, README, SPEC, D11 note; FY2026 SGAI
+      0.895175, M -2.638076, as the Ops 4 review computed (AC 6)
+- [x] `make test` (692), `make lint`, frontend 118 tests
+- [x] Rendered QSR (FY2021-25 insufficient, verdict labelled FY2020) and SHOP,
+      CPB, OTEX, MSFT (new M present, old absent); no console errors (AC 7)
+- [x] Findings: this one resolved with evidence; QSR split, Beneish R&D scope
+      and CCJ recorded open (AC 8)
+
+## After merge (production)
+
+- The nightly pipeline re-canonicalizes and re-scores under concepts_v21 and
+  ingests MSFT. No migration, no Render deploy (pipeline-only).
+- **Needs Lawrence's OK:** run `scripts/dismiss_stale_sga_issues.py` against
+  production. SHOP's FY2022 `sga` issue is live and would otherwise show beside
+  its replacement.
+- "What changed" will list these Beneish moves for CPB, OTEX and SHOP: a
+  mapping fix, not a filing (`changes_since_pivot_include_backfill_rescoring`).
 
 ## Out of scope (split rule)
 
