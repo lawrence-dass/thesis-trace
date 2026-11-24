@@ -47,7 +47,7 @@
 # on/before its 2025-08-03 FYE) and ZTS's $125.82 (2025-12-31) are real Tiingo
 # EOD closes, live-fetched 2026-09-01.
 
-universe: [SHOP, CP, QSR, OTEX, CCJ, BCE, SU, CPB, ZTS]
+universe: [SHOP, CP, QSR, OTEX, CCJ, BCE, SU, CPB, ZTS, AAPL, MSFT, NVDA, KO]
 
 companies:
   - ticker: SHOP
@@ -755,3 +755,17 @@ companies:
         # enterprise_value=60,194,382,453.70, discount=0.10, terminal=0.025,
         # years=5.
         implied_growth: 0.18750233948230743
+
+  # --- Ops 4 (2026-11-24): demonstration filers, D11 amendment ---------------
+  # Live-trialled on the dev store and scored nightly, but NOT hand-verified:
+  # no fixture exists yet, so nothing here pins a value. SM-1 does not hold for
+  # these four until each gets a real fixture and hand-computed expectations.
+  # Declared so the gap is explicit (test_universe_fully_partitioned warns).
+  - ticker: AAPL
+    status: pending_fixture
+  - ticker: MSFT
+    status: pending_fixture
+  - ticker: NVDA
+    status: pending_fixture
+  - ticker: KO
+    status: pending_fixture

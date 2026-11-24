@@ -312,6 +312,22 @@ correct framing matters for how ThesisTrace is presented going forward: two-regi
 not a limitation tolerated because removing it was too costly. New filer growth still targets
 `us-gaap` per point 3 above.
 
+**Amendment (2026-11-24) — four demonstration filers (Ops 4).** Lawrence chose to add
+widely known US filers so that the live demo opens on a name an interviewer recognises. This is
+an exception to the selection criterion above, not a change to it: these filers are **not**
+being researched, and no decision packet names them.
+
+1. **Bounded.** The exception names AAPL, MSFT, NVDA and KO, and closes there. It is not a
+   precedent; "not a screener" and SM-C1 stand. A further demonstration filer needs its own
+   amendment.
+2. **Same live-data bar.** Each was trialled on the dev store before entering the universe, and
+   ships only because its latest fiscal year resolves all four models plus the reverse DCF. NKE
+   was trialled and **not** added (Altman X3 insufficient every year; see
+   `engineering-findings.yaml#ops_4_famous_filer_trial`).
+3. **Point 4 relaxed for these four only.** They enter `phase1_golden.yaml` as
+   `pending_fixture` rather than hand-verified. The SM-1 gap is declared in the golden file and
+   in the README, never implied away.
+
 ## D12 — Report-style presentation, and the visual-blend prohibition (2026-08-27)
 
 **Decision.** The company page is rebuilt as a **sectioned stock report** in the presentation

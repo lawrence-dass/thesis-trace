@@ -6105,3 +6105,63 @@ changes_since_pivot_include_backfill_rescoring:
     need to attribute each run change to a filing (e.g. limit the diff to runs
     whose accession_number is the pivot filing's), which is a design decision
     for its own story.
+
+ops_4_famous_filer_trial:
+  status: verified
+  verified: 2026-11-24
+  method: >
+    CIKs confirmed against www.sec.gov/files/company_tickers.json (all five
+    MATCH). Full live pipeline run on the DEV store via scripts/trial_filers.py
+    (company facts, Inline XBRL for every original 10-K, Tiingo EOD). Judged from
+    GET /api/companies/{t}/overview, the payload the page renders, not from tables.
+  clean_criterion: >
+    Latest scoreable fiscal year resolves Piotroski, Altman, Beneish and Sloan
+    (none insufficient_data) AND the reverse DCF; every open data-quality issue
+    explained.
+  results:
+    AAPL: "FY2026 (FYE Sep). F=9 Strong; Z=12.70 Safe; M=-2.52 no flag; Sloan -0.034 low. rDCF implied 27.6% vs hist CAGR 15.2%. SHIPPED."
+    MSFT: "FY2026 (FYE Jun). F=6; Z=7.04 Safe; M=-2.64; Sloan -0.071. rDCF 31.1% vs 9.9%. SHIPPED."
+    NVDA: "FY2026 (FYE Jan). F=4; Z=59.94 Safe; M=-1.15 FLAGGED; Sloan 0.109 high. rDCF 34.7% vs 24.6%. SHIPPED."
+    KO: "FY2025. F=7; Z=4.56 Safe; M=-2.35; Sloan 0.056. rDCF 43.3% vs 1.5%. SHIPPED."
+    NKE: "FY2026. Altman X3 (EBIT) insufficient_data in every year, so Z is null. NOT SHIPPED."
+  data_quality_issues_explained:
+    AAPL: >
+      17 ambiguous_selection, all from the FY2009 10-K, about FY2007-08. Real:
+      e.g. FY2008 revenue 32.479B as originally filed vs 37.491B as recast by
+      Apple's 2010 retrospective revenue-recognition adoption. Two genuinely
+      different filed figures; needs_review is the correct AD-3 outcome.
+    NVDA: >
+      12 ambiguous_selection, all FY2014, from the 10-K filed 2014-03-13. Same
+      value at two precisions (revenue 4,130,000,000 vs 4,130,162,000; net
+      income 439,990,000 vs 440,000,000). FIRST LIVE INSTANCE of
+      ad3_decimals_tiebreak_has_never_had_data: a populated `decimals` would
+      resolve these instead of flagging them. Historical year only; flagged,
+      not wrong. Evidence for that finding, not a new one.
+    MSFT: >
+      7 source_conflict on dei EntityListingParValuePerShare (FY2020-26), a
+      cover-page field no model reads; 1 ambiguous sga in FY2010.
+    KO: "3 ambiguous_selection, FY2011-2018 (cogs, profit_before_tax, revenue). Historical."
+  judgement_calls:
+    nvda_beneish_flag: >
+      Genuine, not a data error: SGI 1.655 (65% sales growth), AQI 1.517, TATA
+      0.084. Beneish treats growth as pressure to manipulate; hypergrowth firms
+      trip it. Shown as computed, never suppressed: a caveat may annotate a
+      score, never alter it.
+    ko_reverse_dcf: >
+      CFO 12.63 / 11.02 / 11.60 / 6.81 / 7.41B for FY2021-25. The FY2024-25 dip
+      (fairlife contingent payments) is as filed, so FCF0 = 5.296B against a
+      334.5B enterprise value implies 43% growth. Honest about an unusual year,
+      and a demo talking point: the model solves from ONE year's FCF.
+  nke_deferred: >
+    Nike has no OperatingIncomeLoss and never tags gross interest expense, only
+    InterestIncomeExpenseNonoperatingNet (expense NET of interest income, 18y).
+    ebit_pbt_plus_interest therefore cannot resolve, and adding back a NET
+    figure would be a different EBIT from every other filer's. Its pre-tax
+    income also switches tag in FY2021 (...MinorityInterestAndIncomeLossFrom
+    EquityMethodInvestments 2008-21 -> ...ExtraordinaryItemsNoncontrollingInterest
+    2020-26), so profit_before_tax resolves only FY2020-26 today. Both need a
+    new mapping version: split trigger, so a follow-up story, not this one.
+  checked_not_a_finding: >
+    NKE's Altman verdict reads applicability "computed" with aggregate_value
+    null. Not a defect: missing_signals carries ["x3_ebit"], the same shape SU
+    has served in production (missing x2_retained_earnings) since 2026-08.

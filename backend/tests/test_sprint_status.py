@@ -133,6 +133,7 @@ CURATED_SECTIONS = (
     "story_13_5a_cpb_segment_concepts_mapped",
     "ops_2_latest_filing_pivot_followed_storage_time",
     "changes_since_pivot_include_backfill_rescoring",
+    "ops_4_famous_filer_trial",
 )
 
 pytestmark = pytest.mark.skipif(

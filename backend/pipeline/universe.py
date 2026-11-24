@@ -87,4 +87,26 @@ PHASE1_UNIVERSE: tuple[UniverseEntry, ...] = (
     # exact same source rule — see us-gaap_v9.yaml's cash_and_equivalents note.
     # capital_intensive=False: FY2025 Altman Z=5.615320, Safe.
     UniverseEntry("ZTS", "Zoetis Inc.", "0001555280"),
+    # --- Ops 4 (D11 amendment, 2026-11-24): demonstration filers ---
+    # Added because they are the names a first-time visitor tries, NOT because
+    # they are being researched. Trialled on the dev store first; each ships only
+    # because its latest year resolves all four models plus the reverse DCF. CIKs
+    # confirmed against www.sec.gov/files/company_tickers.json the same day.
+    # Golden coverage is `pending_fixture` (SM-1 gap, declared, not silent).
+    # NKE was trialled and NOT added: Altman X3 is insufficient_data every year
+    # (net-interest tag only, plus a FY2021 pre-tax-income tag switch) — see
+    # engineering-findings.yaml#ops_4_famous_filer_trial.
+    # AAPL: FYE late September. FY2007-08 revenue/net-income conflicts are the
+    # real 2010 retrospective restatement, correctly left needs_review.
+    UniverseEntry("AAPL", "Apple Inc.", "0000320193"),
+    # MSFT: FYE June 30.
+    UniverseEntry("MSFT", "Microsoft Corporation", "0000789019"),
+    # NVDA: FYE late January, and names the fiscal year by the year it ENDS in.
+    # FY2026 Beneish flags manipulation risk; real (SGI 1.65, 65% sales growth —
+    # the model's known hypergrowth blind spot), so it is shown, never suppressed.
+    UniverseEntry("NVDA", "NVIDIA Corporation", "0001045810"),
+    # KO: FY2024-25 operating cash flow ~$7B vs ~$11-12B before (fairlife
+    # contingent payments), so its reverse DCF implies a very high growth rate.
+    # The operands are as filed; the figure is honest about an unusual year.
+    UniverseEntry("KO", "The Coca-Cola Company", "0000021344"),
 )
