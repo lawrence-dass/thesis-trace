@@ -10,6 +10,7 @@
 // the backend classification itself is derived from, so this can't drift out
 // of sync the way a hardcoded threshold could.
 import { bandTone } from "./Badge";
+import { formatScore } from "./scoreFormat";
 
 export type BandClass = { label: string; min?: number; max?: number; above?: number; below?: number };
 
@@ -86,7 +87,8 @@ export function Gauge({
 
   const valuePct = domainPct(model, value);
   const markerTone = bandTone(bandLabel);
-  const gaugeDescription = `${bandLabel ?? value} (${value} on this model's own scale)`;
+  const shown = formatScore(model, value, bands);
+  const gaugeDescription = `${bandLabel ?? shown} (${shown} on this model's own scale)`;
 
   return (
     <div className="pt-1" role="img" aria-label={gaugeDescription} title={gaugeDescription}>

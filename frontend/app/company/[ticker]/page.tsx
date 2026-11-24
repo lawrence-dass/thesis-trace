@@ -30,6 +30,7 @@ import { ProvenanceFooter, type ReportFooter } from "../../components/Provenance
 import { AlertIcon, ChevronIcon } from "../../components/ui/icons";
 import { issueLabel } from "../../components/issueLabels";
 import { apiGet, apiGetAtBuild } from "../../lib/api";
+import { exactScore, formatScore } from "../../components/ui/scoreFormat";
 
 // Report sections (Story 10.1, D12). Order is the reading order AND the nav
 // order — Overview first (the Verdict, and from Story 10.2 the four-model
@@ -203,8 +204,11 @@ export function CompactVerdictCard({ verdict, bands }: { verdict: VerdictItem; b
       <div className="text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
         {MODEL_LABEL[verdict.model] ?? verdict.model}
       </div>
-      <div className="font-mono text-2xl font-semibold tabular-nums text-[var(--color-ink)]">
-        {verdict.aggregate_value ?? "—"}
+      <div
+        className="font-mono text-2xl font-semibold tabular-nums text-[var(--color-ink)]"
+        title={verdict.aggregate_value !== null ? exactScore(verdict.aggregate_value) : undefined}
+      >
+        {verdict.aggregate_value !== null ? formatScore(verdict.model, verdict.aggregate_value, bands) : "—"}
       </div>
       {verdict.aggregate_value === null ? (
         <Badge variant="pending">Insufficient data</Badge>
@@ -324,8 +328,11 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                 <span className="font-medium text-[var(--color-ink)]">{MODEL_LABEL[lens.model] ?? lens.model}</span>
                 <span className="text-xs text-[var(--color-ink-faint)]">FY{lens.fiscal_year}</span>
                 {lens.aggregate_value !== null ? (
-                  <span className="font-mono text-sm tabular-nums text-[var(--color-ink-muted)]">
-                    {lens.aggregate_value}
+                  <span
+                    className="font-mono text-sm tabular-nums text-[var(--color-ink-muted)]"
+                    title={exactScore(lens.aggregate_value)}
+                  >
+                    {formatScore(lens.model, lens.aggregate_value, bandsByModel[lens.model] ?? [])}
                   </span>
                 ) : null}
                 {lens.aggregate_value === null ? (

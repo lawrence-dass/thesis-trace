@@ -366,12 +366,23 @@ async def latest_filing_pivot(session: AsyncSession, cik: str) -> tuple[datetime
     Deliberately NOT "the immediately superseded run" — the daily cron makes
     that last night, which is almost never what a reader means. See the module
     docstring.
+
+    "Most recent" means most recently FILED, not most recently stored. Ordering
+    on `created_at` alone let a backfill redefine the latest filing: Inline XBRL
+    ingestion (Story 13.2) inserted rows for years-old filings, and on
+    2026-11-24 seven of nine filers pivoted on one (SHOP on a 2017 10-K, CP on a
+    2013 one), so "what did the latest filing change?" described a filing a
+    decade old. The pivot instant is still that filing's `created_at`: when the
+    latest filing landed, and so the moment its effect began. `created_at`
+    breaks ties between filings submitted the same day. This also agrees with
+    the provenance footer, which already names the latest filing by
+    `filing_date`.
     """
     row = (
         await session.execute(
             select(Filing.created_at, Filing.accession_number)
             .where(Filing.issuer_cik == cik, Filing.created_at.is_not(None))
-            .order_by(Filing.created_at.desc())
+            .order_by(Filing.filing_date.desc(), Filing.created_at.desc())
             .limit(1)
         )
     ).first()

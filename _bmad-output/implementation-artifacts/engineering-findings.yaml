@@ -6063,3 +6063,45 @@ story_13_5a_cpb_segment_concepts_mapped:
     its first run failed all six cases at IMPORT (the parent package was never
     imported) and the strict kill contract refused to count them — the harness
     reporting its own defect instead of a false clean sweep.
+
+ops_2_latest_filing_pivot_followed_storage_time:
+  status: done
+  found: 2026-11-24
+  found_by: >
+    Reviewing the live SHOP report for the portfolio README: "What changed" read
+    "Compared against Aug 15, 2026 (before filing 0001594805-17-000007)", a 2017
+    10-K presented as the latest filing.
+  cause: >
+    diff.engine.latest_filing_pivot ordered filings by created_at alone, i.e. by
+    when a row was STORED. Story 13.2's Inline XBRL ingestion stored rows for
+    years-old filings, so a backfilled filing became "the latest". The provenance
+    footer, which orders by filing_date, already disagreed with it.
+  live_scope_before_fix: >
+    Production, 2026-11-24 — 7 of 9 filers pivoted on an old filing: CP 2013,
+    ZTS 2015, SHOP 2017, QSR 2021, CCJ 2022, SU 2022, BCE 2025 (latest is 2026).
+    CPB and OTEX were already correct.
+  fix: >
+    Order by filing_date desc, then created_at desc. The pivot instant stays that
+    filing's created_at. Regression test
+    test_a_backfilled_old_filing_does_not_become_the_latest fails on the old order.
+  verified: >
+    Local API on the dev store, all 9 filers: every pivot is the filer's 2025-26
+    filing. Rendered: SHOP, ZTS, CP now say "No earlier record to compare against
+    yet" (their full history was first loaded in one batch, so no state predates
+    the latest filing); OTEX compares against its FY2026 10-K.
+
+changes_since_pivot_include_backfill_rescoring:
+  status: open
+  found: 2026-11-24
+  found_by: Rendering OTEX's "What changed" while verifying ops_2.
+  question: >
+    OTEX's latest 10-K landed on 2026-08-15, the same day a backfill re-scored
+    its history, so the section lists FY2006-2009 "new fiscal year scored" and
+    "classification changed" rows that the filing did not cause. The diff counts
+    every run change since the pivot, whatever caused it.
+  disposition: >
+    Deferred, not blocking ops_2: the figures shown are real stored changes, and
+    ops_2's acceptance criteria concern which filing is the pivot. A fix would
+    need to attribute each run change to a filing (e.g. limit the diff to runs
+    whose accession_number is the pivot filing's), which is a design decision
+    for its own story.

@@ -33,7 +33,8 @@ describe("CompactVerdictCard", () => {
       />,
     );
 
-    expect(screen.getByText("-2.5")).toBeTruthy();
+    // Headline at two decimals; the exact stored value stays on hover.
+    expect(screen.getByText("-2.50").getAttribute("title")).toBe("-2.5");
     expect(screen.getByText(/Caveat:/)).toBeTruthy();
     expect(screen.getByText("The gross margin is an approximation rather than a reported figure.")).toBeTruthy();
   });
