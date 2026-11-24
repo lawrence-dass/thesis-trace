@@ -105,7 +105,7 @@ On this project a passing test suite has repeatedly *not* meant correct numbers,
 
 ## How it was built
 
-ThesisTrace was built **spec-first**: a PRD, then 21 recorded architecture decisions, then epics broken into stories with acceptance criteria. That work spans **9 completed epics, 69 stories and 155 merged pull requests** since July 2026. Development is AI-assisted with Claude Code, under rules in [`CLAUDE.md`](./CLAUDE.md): every change goes through a branch and a PR, and live-data stories have the stricter definition of done above.
+ThesisTrace was built **spec-first**: a PRD, then 21 recorded architecture decisions, then epics broken into stories with acceptance criteria. That work spans **9 completed epics, 69 stories and 155 merged pull requests** since July 2026. Every change goes through a branch and a PR, and live-data stories have the stricter definition of done above.
 
 **In progress:** acquisition performance (brand intangibles, impairments and segment figures from Inline XBRL dimensional facts). **Planned:** value and growth lenses, and filing-grounded Q&A.
 
