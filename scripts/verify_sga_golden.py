@@ -16,6 +16,7 @@ ROUND_HALF_EVEN. Coefficients are Beneish (1999)'s published ones.
 from __future__ import annotations
 
 import json
+from datetime import date
 from decimal import ROUND_HALF_EVEN, Decimal
 from pathlib import Path
 
@@ -33,18 +34,25 @@ def q(x: Decimal) -> Decimal:
 
 
 def annual(payload: dict, concept: str) -> dict[str, Decimal]:
-    """period end -> value AS ORIGINALLY FILED (earliest filing carrying it)."""
+    """period end -> value AS ORIGINALLY FILED (earliest filing carrying it).
+
+    Annual means a 350-380 day DURATION, measured on the dates. The first version
+    compared calendar years, which admits a Q4 fact (Oct-Dec) ending the same day
+    as the full year (Ops 5 review). Two different values from the same earliest
+    filing for one period end is a conflict this script refuses to settle."""
     facts = payload["facts"]["us-gaap"].get(concept, {}).get("units", {}).get("USD", [])
     best: dict[str, tuple[str, Decimal]] = {}
     for f in facts:
         if "start" not in f or f.get("form") != "10-K":
             continue
-        days = (Decimal(f["end"][:4]) - Decimal(f["start"][:4]))  # year span, coarse
-        if days not in (Decimal(0), Decimal(1)):
+        days = (date.fromisoformat(f["end"]) - date.fromisoformat(f["start"])).days
+        if not 350 <= days <= 380:
             continue
-        key = f["end"]
+        key, value = f["end"], Decimal(str(f["val"]))
+        if key in best and f["filed"] == best[key][0] and value != best[key][1]:
+            raise SystemExit(f"{concept} {key}: {best[key][1]} v {value} from filings of {f['filed']}; refusing to choose")
         if key not in best or f["filed"] < best[key][0]:
-            best[key] = (f["filed"], Decimal(str(f["val"])))
+            best[key] = (f["filed"], value)
     return {end: v for end, (_, v) in best.items()}
 
 
@@ -76,16 +84,24 @@ def main() -> None:
         ga = annual(payload, "GeneralAndAdministrativeExpense")
         sm = annual(payload, "SellingAndMarketingExpense")
         old = sgai(ga, rev, t, t1)
-        sga = {e: ga[e] + sm[e] for e in (t, t1)}
-        new = sgai(sga, rev, t, t1)
         print(f"{name}: G&A {ga[t1]:,} -> {ga[t]:,}; S&M {sm[t1]:,} -> {sm[t]:,}; revenue {rev[t1]:,} -> {rev[t]:,}")
-        print(f"  old SGAI (G&A only) {old}" + (f"  golden {idx['sgai']}  {'MATCH' if str(old) == idx['sgai'] else 'MISMATCH'}" if idx else ""))
-        print(f"  new SGAI (G&A + S&M) {new}")
+        print(f"  old SGAI (G&A only) {old}" + (f"  golden {idx['sgai']}" if idx else ""))
+        # THE GATE: the method must reproduce what the golden file already pins
+        # before any new value is trusted. It used to print MISMATCH and carry on
+        # (Ops 5 review); it now stops.
+        if idx and str(old) != idx["sgai"]:
+            raise SystemExit(f"{name}: old SGAI {old} does not reproduce golden {idx['sgai']}; method not trusted")
         if idx:
             m_check = q(Decimal("-4.84") + sum(COEF[k] * Decimal(v) for k, v in idx.items()))
+            print(f"  old M from golden indices {m_check}  golden {m_old}")
+            if str(m_check) != m_old:
+                raise SystemExit(f"{name}: old M {m_check} does not reproduce golden {m_old}; method not trusted")
+        sga = {e: ga[e] + sm[e] for e in (t, t1)}
+        new = sgai(sga, rev, t, t1)
+        print(f"  new SGAI (G&A + S&M) {new}")
+        if idx:
             new_idx = dict(idx, sgai=str(new))
             m_new = q(Decimal("-4.84") + sum(COEF[k] * Decimal(v) for k, v in new_idx.items()))
-            print(f"  old M from golden indices {m_check}  golden {m_old}  {'MATCH' if str(m_check) == m_old else 'MISMATCH'}")
             print(f"  NEW M {m_new}  band {'Manipulation risk flagged' if m_new > Decimal('-1.78') else 'No manipulation flag'}")
         else:
             delta = COEF["sgai"] * (new - old)

@@ -94,6 +94,31 @@ the finding); the wrong figure is the SGAI component and the exact M.
 - [x] Findings: this one resolved with evidence; QSR split, Beneish R&D scope
       and CCJ recorded open (AC 8)
 
+### Codex review (MERGE AFTER FIXES), every finding re-verified before acting
+
+The review text arrived truncated after finding 5's title; findings 1-5 handled.
+
+- [x] **Dismissal rule could hit a genuine conflict.** Value matching within +/-1
+      year is coincidence, not proof. Now proven: the issuer files NO SG&A total
+      that fiscal year (sga had exactly two sources, so every candidate was G&A),
+      and every value is an annual USD G&A fact ending in that exact year.
+      `test_dismiss_stale_sga_issues.py`: the review's counterexample, a same-year
+      coincidence, a neighbouring-year match, resolved and annotated issues, and a
+      positive control; each of the three conditions mutation-checked. On real data
+      the new rule still selects exactly MSFT FY2009 and SHOP FY2022.
+- [x] **It also rewrote resolved issues.** Now `needs_review` only, and never
+      overwrites an existing `resolution`.
+- [x] **Verifier's "annual" admitted quarters** (calendar-year subtraction). Now a
+      350-380 day duration; a same-filing conflict refuses to choose.
+- [x] **The "gate" did not stop anything.** It printed MISMATCH and carried on.
+      Now exits before computing new values; checked with a deliberately wrong
+      golden SGAI (0.663883), which it refused.
+- [x] **Backdated verdicts were unlabelled** on the overview cards and the compare
+      table. Each now states its FY, and "FY2020 · later years insufficient" when
+      it lags the company's newest verdict (`ui/verdictYear.ts`, tested). Rendered:
+      QSR FY2020 and SHOP FY2024 labelled, AAPL not; compare page likewise.
+      Pre-existing for SHOP; this story made it a five-year lag for QSR.
+
 ## After merge (production)
 
 - The nightly pipeline re-canonicalizes and re-scores under concepts_v21 and
