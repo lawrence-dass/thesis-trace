@@ -6,7 +6,12 @@ import { Term } from "../../components/ui/Term";
 import { TERM_DEFINITIONS, type TermId } from "../../components/ui/termDefinitions";
 import { BENEISH_COEFFICIENTS, BENEISH_CONSTANT, WHY_IT_WORKS, WORKED_EXAMPLE_TICKER } from "./narratives";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+import { apiGet } from "../../lib/api";
+
+// No generateStaticParams here, deliberately: it would mark the route static,
+// and the root layout reads the theme cookie, so every request would then fail
+// with DYNAMIC_SERVER_USAGE (found rendering this page, 2026-11-24). Its API
+// reads are served from the data cache instead — see app/lib/api.ts.
 
 // Every sub-signal key across all four models is wired to Term (Story 11.7) —
 // a runtime check because `signal_key` is a string off the wire, not the
@@ -46,8 +51,7 @@ async function getWorkedExample(model: string): Promise<WorkedExample | null> {
   if (!ticker) return null;
   const unavailable: WorkedExample = { status: "unavailable", ticker };
   try {
-    const res = await fetch(`${API_BASE_URL}/api/companies/${ticker}/overview`, { cache: "no-store" });
-    const overview = (await res.json()) as Overview;
+    const overview = await apiGet<Overview>(`/api/companies/${ticker}/overview`);
     if (overview.state !== "ok" || !overview.verdict || !overview.scores) return unavailable;
     const fiscalYear = overview.verdict.find((v) => v.model === model)?.fiscal_year;
     if (fiscalYear === undefined) return unavailable;
@@ -84,13 +88,10 @@ type Methodology = {
   derivations?: Derivation[];
 };
 
+// Primary data: throws when the API is unreachable (app/lib/api.ts); the worked
+// example above stays supplementary and still degrades to "unavailable".
 async function getMethodology(model: string): Promise<Methodology> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/methodology/${model}`, { cache: "no-store" });
-    return (await res.json()) as Methodology;
-  } catch {
-    return { state: "unreachable" };
-  }
+  return apiGet<Methodology>(`/api/methodology/${model}`);
 }
 
 export default async function MethodologyPage({ params }: { params: Promise<{ model: string }> }) {
@@ -103,7 +104,7 @@ export default async function MethodologyPage({ params }: { params: Promise<{ mo
         <h1 className="text-2xl font-semibold text-[var(--color-ink)]">{model}</h1>
         <Card>
           <p className="text-[var(--color-ink-muted)]">
-            {m.state === "not_available" ? "No methodology for this model." : "Backend unreachable."}
+            {m.state === "not_available" ? "No methodology for this model." : "No methodology data."}
           </p>
         </Card>
       </main>

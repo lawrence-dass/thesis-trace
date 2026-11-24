@@ -401,6 +401,7 @@ async def main() -> None:  # pragma: no cover — live path, gated
     if sessionmaker is None:
         raise RuntimeError("DATABASE_URL is not configured.")
 
+    failed: list[str] = []
     for entry in PHASE1_UNIVERSE:
         if entry.cik is None:
             print(f"SKIP {entry.ticker}: CIK not yet confirmed against EDGAR")
@@ -445,6 +446,7 @@ async def main() -> None:  # pragma: no cover — live path, gated
             # entry is isolated so one filer's bad data is visible without starving the
             # rest of the nightly run.
             print(f"FAIL {entry.ticker}: {exc}")
+            failed.append(entry.ticker)
             continue
         v = summary["validation"]
         flagged = (
@@ -470,6 +472,12 @@ async def main() -> None:  # pragma: no cover — live path, gated
             f"OK {entry.ticker}: scored {summary['scored_years']} "
             f"(altman: {summary['scored']['altman']}){flagged}{branded}{impaired}"
         )
+
+    # Every filer still ran (one failure never starves the rest), but the run as a
+    # whole must not report success: the scheduled GitHub Actions run is the only
+    # place anyone sees this output, and a zero exit would mark it green.
+    if failed:
+        raise SystemExit(f"Pipeline finished with failures: {', '.join(failed)}")
 
 
 if __name__ == "__main__":  # pragma: no cover

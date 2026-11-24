@@ -1,0 +1,65 @@
+name: Nightly pipeline
+
+# The scheduled write path (AD-1, AD-13). It runs here rather than as a Render
+# Cron Job because Render cron jobs are not on the free tier. The pipeline's raw
+# store lives in Postgres, so an ephemeral runner loses nothing between runs.
+#
+# Side effect that matters: the nightly write also keeps the free Supabase
+# project from auto-pausing after a week idle (the cause of the 2026-11 outage).
+#
+# Required repository secrets:
+#   DATABASE_URL       Supabase SESSION pooler DSN, postgresql+asyncpg://...:5432/postgres
+#                      (not the transaction pooler on :6543, which breaks asyncpg's
+#                      prepared statements; not the direct host, which is IPv6-only)
+#   EDGAR_CONTACT      SEC fair-access identity, "ThesisTrace <email>" (AD-9)
+#   TIINGO_API_KEY     optional; without it Altman degrades to insufficient_data
+
+on:
+  schedule:
+    # 10:00 UTC daily: after EDGAR's overnight batch, before North American mornings.
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+
+# Never two pipeline runs writing the same store at once.
+concurrency:
+  group: pipeline
+  cancel-in-progress: false
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      EDGAR_CONTACT: ${{ secrets.EDGAR_CONTACT }}
+      TIINGO_API_KEY: ${{ secrets.TIINGO_API_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.8.17"
+          python-version: "3.12"
+          enable-cache: true
+          cache-dependency-glob: "backend/uv.lock"
+
+      - name: Install backend deps
+        working-directory: backend
+        run: uv sync --locked --no-dev
+
+      # Production schema follows main: the code this run executes is main's, so
+      # its tables must be too. Run from the repo root, as CI does (alembic.ini).
+      - name: Migrate
+        run: uv run --project backend alembic upgrade head
+
+      - name: Run pipeline
+        working-directory: backend
+        run: uv run python -m pipeline.run
+
+      # Deliberately NO "refresh the site's cache" step. Next.js on-demand
+      # revalidation PURGES cached API responses; if the free-tier API is asleep
+      # or down when the next visitor arrives, every page then fails (verified
+      # 2026-11-24: all company pages 500). The site picks up new scores through
+      # its hourly stale-while-revalidate window instead, which never purges.
