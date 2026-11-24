@@ -131,6 +131,8 @@ CURATED_SECTIONS = (
     "story_13_4d_impairment_level_materialized",
     "story_13_4e_ten_percent_disclosure_materialized",
     "story_13_5a_cpb_segment_concepts_mapped",
+    "ops_2_latest_filing_pivot_followed_storage_time",
+    "changes_since_pivot_include_backfill_rescoring",
 )
 
 pytestmark = pytest.mark.skipif(

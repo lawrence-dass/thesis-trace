@@ -170,6 +170,30 @@ async def test_default_since_pivots_on_the_latest_filing(client_factory) -> None
 
 
 @requires_db
+async def test_a_backfilled_old_filing_does_not_become_the_latest(client_factory) -> None:
+    """The pivot is the most recently FILED filing, not the most recently stored.
+
+    Here the older filing (FY2024) is stored at T1, after the newer one (FY2025)
+    landed at SINCE, the shape an Inline XBRL backfill produces. Ordering on
+    storage time alone named the FY2024 filing "latest", which is how SHOP's
+    report came to compare against a 2017 10-K (2026-11-24).
+    """
+    client, _ = await client_factory(
+        [
+            dict(aggregate_value=Decimal("2.5"), band="Grey", computed_at=T0, superseded=True),
+            dict(aggregate_value=Decimal("1.1"), band="Distress", computed_at=T1,
+                 accession_number=ACC_NEW),
+        ],
+        filing_created={ACC_OLD: T1, ACC_NEW: SINCE},
+    )
+    async with client as c:
+        r = await c.get("/api/companies/TEST/changes")
+    body = r.json()
+    assert body["since_accession"] == ACC_NEW
+    assert body["since"] == SINCE.isoformat()
+
+
+@requires_db
 async def test_unknown_ticker_is_honest_coverage_not_an_error(client_factory) -> None:
     client, _ = await client_factory([dict(computed_at=T0)])
     async with client as c:
