@@ -100,4 +100,9 @@ jobs:
         working-directory: frontend
         env:
           NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+          # No API runs in this job, and the build renders every company page
+          # once to fill the data cache (frontend/app/lib/api.ts): let build-time
+          # fetches fall back to empty
+          # here so the build still proves the app compiles. Never set on Vercel.
+          ALLOW_OFFLINE_BUILD: "1"
         run: npm run build

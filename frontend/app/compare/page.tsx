@@ -8,7 +8,7 @@ import { Card } from "../components/ui/Card";
 import { caveatReasonText } from "../components/CaveatReason";
 import type { VerdictItem } from "../components/VerdictGlyph";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+import { apiGet } from "../lib/api";
 
 type Overview = { state: string; ticker?: string; name?: string; verdict?: VerdictItem[] };
 
@@ -32,10 +32,13 @@ const SIGNAL_LABEL: Record<string, string> = {
   accruals_ratio: "Accruals",
 };
 
+// The page itself stays dynamic (it reads searchParams), but each overview
+// fetch is served from the same hourly data cache the company pages fill, so a
+// comparison of covered tickers does not wait on the API either. Unlike the
+// ISR pages, nothing here is cached as a page, so degrading per column is safe.
 async function getOverview(ticker: string): Promise<Overview> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/companies/${ticker}/overview`, { cache: "no-store" });
-    return (await res.json()) as Overview;
+    return await apiGet<Overview>(`/api/companies/${ticker}/overview`);
   } catch {
     return { state: "unreachable", ticker };
   }

@@ -4,18 +4,14 @@
 import SearchBox from "./components/SearchBox";
 import { Card } from "./components/ui/Card";
 import { ArrowRightIcon } from "./components/ui/icons";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+import { apiGetAtBuild } from "./lib/api";
 
 type CompanyCard = { cik: string; ticker: string; name: string; last_updated: string | null };
 
+// Throws when the API is unreachable (app/lib/api.ts): an empty universe list
+// cached for an hour would look like ThesisTrace covers nothing.
 async function getCompanies(): Promise<CompanyCard[]> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/companies`, { cache: "no-store" });
-    return (await res.json()) as CompanyCard[];
-  } catch {
-    return [];
-  }
+  return apiGetAtBuild<CompanyCard[]>("/api/companies", []);
 }
 
 export default async function Home() {

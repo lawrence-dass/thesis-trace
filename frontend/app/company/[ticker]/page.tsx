@@ -29,6 +29,7 @@ import { FundamentalsCard, type Fundamentals } from "../../components/Fundamenta
 import { ProvenanceFooter, type ReportFooter } from "../../components/ProvenanceFooter";
 import { AlertIcon, ChevronIcon } from "../../components/ui/icons";
 import { issueLabel } from "../../components/issueLabels";
+import { apiGet, apiGetAtBuild } from "../../lib/api";
 
 // Report sections (Story 10.1, D12). Order is the reading order AND the nav
 // order — Overview first (the Verdict, and from Story 10.2 the four-model
@@ -43,7 +44,16 @@ const SECTIONS: ReportSection[] = [
   { id: "integrity-evidence", label: "Integrity & Evidence" },
 ];
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+// The page itself renders per request (the root layout reads the theme cookie),
+// so this does not make it static. What it does: the build renders every
+// covered ticker once, which fills the data cache with each company's API
+// responses before the first visitor arrives, so no visit ever waits on a cold
+// API (app/lib/api.ts). Verified 2026-11-24: with the API stopped, every company
+// page still served in full.
+export async function generateStaticParams(): Promise<{ ticker: string }[]> {
+  const companies = await apiGetAtBuild<{ ticker: string }[]>("/api/companies", []);
+  return companies.map((c) => ({ ticker: c.ticker }));
+}
 
 type Provenance = {
   accession_number: string;
@@ -228,8 +238,7 @@ export function CompactVerdictCard({ verdict, bands }: { verdict: VerdictItem; b
 
 async function getBands(model: string): Promise<BandClass[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/methodology/${model}`, { cache: "no-store" });
-    const body = (await res.json()) as { bands?: { classes?: BandClass[] } };
+    const body = await apiGet<{ bands?: { classes?: BandClass[] } }>(`/api/methodology/${model}`);
     return body.bands?.classes ?? [];
   } catch {
     return [];
@@ -243,21 +252,18 @@ async function getAllBands(): Promise<Record<string, BandClass[]>> {
 
 async function getExplanations(ticker: string): Promise<Explanation[]> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/companies/${ticker}/explanation`, { cache: "no-store" });
-    const body = (await res.json()) as { explanations?: Explanation[] };
+    const body = await apiGet<{ explanations?: Explanation[] }>(`/api/companies/${ticker}/explanation`);
     return body.explanations ?? [];
   } catch {
     return [];
   }
 }
 
+// The page's primary data: an unreachable API throws (no catch here), so a
+// background regeneration keeps the last good page instead of caching an error.
+// Supplementary fetches (bands, explanations, changes) still degrade to absent.
 async function getOverview(ticker: string): Promise<Overview> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/companies/${ticker}/overview`, { cache: "no-store" });
-    return (await res.json()) as Overview;
-  } catch {
-    return { state: "unreachable" };
-  }
+  return apiGet<Overview>(`/api/companies/${ticker}/overview`);
 }
 
 // FR-22. `since` is omitted so the API applies its default pivot — the instant
@@ -267,8 +273,7 @@ async function getOverview(ticker: string): Promise<Overview> {
 // rather than blocking the Verdict from rendering.
 async function getChanges(ticker: string): Promise<Changes> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/companies/${ticker}/changes`, { cache: "no-store" });
-    return (await res.json()) as Changes;
+    return await apiGet<Changes>(`/api/companies/${ticker}/changes`);
   } catch {
     return { state: "unreachable" };
   }
@@ -295,7 +300,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
         <h1 className="text-2xl font-semibold text-[var(--color-ink)]">{ticker.toUpperCase()}</h1>
         <Card>
           <p className="text-[var(--color-ink-muted)]">
-            {data.state === "not_available" ? "Not yet covered by ThesisTrace." : "Backend unreachable."}
+            {data.state === "not_available" ? "Not yet covered by ThesisTrace." : "No data for this company."}
           </p>
         </Card>
       </main>
