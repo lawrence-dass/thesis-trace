@@ -6203,7 +6203,51 @@ ops_4_famous_filer_trial:
     (data_quality_warnings_hide_year_and_concept).
 
 sga_fallback_omits_selling_and_marketing:
-  status: open
+  status: resolved
+  resolved: 2026-11-24
+  resolved_by: >
+    Ops 5, concepts_v21 (us-gaap_v20 + derivations_v6). G&A and selling and
+    marketing are operand concepts; sga is the filed total, else their sum
+    (sga_general_plus_selling, kind identity). G&A alone never resolves sga.
+  evidence:
+    identity: >
+      AAPL files the SG&A total and both parts FY2023-26 (disaggregated from its
+      FY2025 10-K); G&A + S&M equals the filed total exactly in all four years.
+      test_sga_derivation.py runs those filed figures through real
+      canonicalization: parts only derive the total; total + parts keeps the
+      filed line; G&A alone derives nothing (with a positive control).
+    recanonicalization: >
+      concepts_v20 vs v21 on the dev store, every issuer: sga changed for CPB
+      (18 years), MSFT (18), OTEX (20), SHOP (10); removed for QSR FY2021-25; the
+      two operand concepts added. NO other concept changed for any filer.
+    scores: >
+      Re-scored from stored facts (scripts/rescore_beneish.py): 36 Beneish years
+      moved, the largest by 0.031 (MSFT FY2023). NO band flipped in either
+      direction; OTEX FY2017 and SHOP FY2021 stay flagged. CPB FY2025 -2.704602,
+      SHOP FY2024 -2.011375 and OTEX FY2019 -2.880276 match
+      scripts/verify_sga_golden.py (imports nothing from scoring, and first
+      reproduces the old golden values exactly) to six places. MSFT FY2026
+      -2.638076 / SGAI 0.895175 matches the Ops 4 review's independent figures.
+    bound_correction: >
+      live_impact below argued "correcting SGAI can only RAISE M". Wrong
+      direction: adding S&M raised SGAI and so LOWERED M (SHOP 0.664 -> 0.838).
+      The argument did bound flips INTO the flagged band, not OUT of it, so the
+      re-score above checked both directions rather than trusting it.
+    stale_issues: >
+      Two open sga ambiguities were G&A conflicts raised under the old fallback
+      (MSFT FY2009, SHOP FY2022 - SHOP's is LIVE in production). Dismissed on the
+      dev store by scripts/dismiss_stale_sga_issues.py, a rule (every listed value
+      is a filed G&A figure) rather than ids; NKE's and NVDA's genuine total-SG&A
+      conflicts fail the rule and stay. PRODUCTION NEEDS THE SAME RUN after deploy.
+    golden_precision: >
+      test_golden_dataset.py compared M within 1e-3 while the golden values carry
+      six places, and the corrected SGAI lived only in comments. The Ops 5 review
+      showed the hole: CPB S&M 925M instead of 924M moves SGAI to 0.957178 and M
+      by ~0.0001, passing. FIXED in this story: M is compared exactly at six
+      places for every filer (the five active entries with a computed M, SHOP,
+      OTEX, CCJ, CPB and ZTS, already matched exactly; the other four expect null),
+      and an entry may declare `indices`, which are asserted (SHOP and CPB all
+      eight, OTEX sgai). The 925M mutation now fails.
   found: 2026-11-24
   found_by: Codex review of PR #163 (MSFT); the scope below re-derived from the dev store.
   finding: >
@@ -6249,3 +6293,64 @@ data_quality_warnings_hide_year_and_concept:
     the page drops them, so a reader cannot tell 2008 history from a current
     score. Pre-existing; the demonstration filers made it prominent.
   disposition: Deferred to its own story (group by year and concept, show the values).
+
+qsr_sga_split_into_ga_and_advertising_fy2021:
+  status: open
+  found: 2026-11-24
+  found_by: Ops 5, checking which filers relied on the retired G&A fallback.
+  finding: >
+    QSR tagged SellingGeneralAndAdministrativeExpense FY2012-20 (1,264M in
+    FY2019 and FY2020), then from its FY2021 10-K reports G&A and advertising as
+    separate lines, recasting 2019-20: G&A 406/407 + advertising 865/870 =
+    1,271/1,277 against the old 1,264 (close, not exact: some reclassification).
+    Through concepts_v20 sga fell back to G&A alone from FY2021, so FY2021's
+    SGAI compared 508M of G&A with FY2020's 1,264M SG&A: a live 0.347906, and
+    every FY2022-25 SGAI was G&A-only. Since concepts_v21 FY2021-25 are
+    insufficient_data (owner's decision, AD-16).
+  also_noted: >
+    The FY2018 jump (416M -> 1,214M) is real accounting, not tagging: QSR began
+    consolidating its advertising funds (advertising 7M -> 793M), so revenue and
+    SG&A both grossed up. A legitimate basis change that SGAI will register.
+  the_trap: >
+    AdvertisingExpense is an INCOME-STATEMENT line for QSR and a NOTE disclosure
+    inside selling and marketing for AAPL and MSFT. A general mapping would
+    double count for them; the fix must be scoped to QSR and verified per year.
+  next: >
+    Its own story: QSR's SG&A = G&A + its advertising line for FY2021+, with the
+    overlap years (2019-20, both presentations filed) as the evidence, and a
+    decision on whether 1,271 v 1,264 is close enough to call it the same concept.
+
+beneish_sga_scope_rnd_question:
+  status: open
+  found: 2026-11-24
+  question: >
+    Beneish (1999) built SGAI from Compustat's SG&A item. Does that item include
+    R&D? If it does, ThesisTrace's sga (G&A + S&M, or the filed SG&A line) is
+    narrower than the model's own input for R&D-heavy filers (MSFT, NVDA, SHOP,
+    OTEX, AAPL). Recalled, NOT verified: this project requires the primary
+    source before encoding a formula claim (project-context 2026-08-01/02).
+  disposition: >
+    Not answered by Ops 5, which fixed what is unambiguous (selling and
+    marketing is the S in SG&A under any definition). Needs a primary-source
+    check of Beneish (1999) and Compustat's item definition, then a decision.
+  scope_today: >
+    What sga_general_plus_selling sums is the filer's OWN selling/marketing and
+    administrative lines, nothing else. Functional lines presented separately
+    (R&D; OTEX's depreciation and amortization of acquired customer intangibles)
+    are NOT operands. Their presence is not evidence of an omitted SG&A
+    component (Ops 5 review); whether any belongs in SGAI is this question.
+  ops_5_review_evidence: >
+    The Ops 5 review read CPB's, SHOP's and MSFT's filed income statements:
+    each presents selling/marketing and administrative as explicit functions,
+    and no further selling/admin line was found that the committed sums omit.
+    AAPL's exact equality proves the arithmetic of the rule, not that every
+    filer's two lines are its whole SG&A; that is a per-filer reading.
+
+ccj_administrative_expense_as_sga:
+  status: open
+  found: 2026-11-24
+  question: >
+    Cameco (ifrs-full) resolves sga from AdministrativeExpense for 10 years and
+    files no selling line. Out of scope for a us-gaap mapping change; whether
+    administration alone is Cameco's whole SG&A, or its selling costs sit in
+    another line, was not checked.

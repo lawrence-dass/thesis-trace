@@ -7,7 +7,8 @@ started on the first valid candidate before reaching a later mismatch would
 still exit non-zero, so these tests assert that the pipeline was never entered,
 not merely that the script failed.
 
-Candidates are MSFT and NKE because they are NOT in PHASE1_UNIVERSE; a ticker
+Candidates are DIS and NKE because they are NOT in PHASE1_UNIVERSE (MSFT was,
+until Ops 5 re-admitted it); a ticker
 that is gets refused earlier, while parsing (tested separately below).
 """
 
@@ -52,7 +53,7 @@ class _TickerMap:
 
             def json(self) -> dict:
                 return {
-                    "0": {"cik_str": 789019, "ticker": "MSFT", "title": "MICROSOFT CORP"},
+                    "0": {"cik_str": 1744489, "ticker": "DIS", "title": "Walt Disney Co"},
                     "1": {"cik_str": 320187, "ticker": "NKE", "title": "NIKE, Inc."},
                 }
 
@@ -80,9 +81,9 @@ def trial(monkeypatch):
 
 def test_a_later_mismatch_stops_the_whole_batch_before_any_fetch(trial) -> None:
     module, calls = trial
-    # MSFT is valid and listed FIRST; NKE's CIK is wrong.
+    # DIS is valid and listed FIRST; NKE's CIK is wrong.
     with pytest.raises(SystemExit, match="NKE"):
-        asyncio.run(module.run(["MSFT:0000789019", "NKE:0000099999"]))
+        asyncio.run(module.run(["DIS:0001744489", "NKE:0000099999"]))
     assert calls == [], "the pipeline ran for a batch containing an unconfirmed CIK"
     assert len(_TickerMap.requests) == 1  # only the ticker map was requested
 
@@ -90,7 +91,7 @@ def test_a_later_mismatch_stops_the_whole_batch_before_any_fetch(trial) -> None:
 def test_a_ticker_missing_from_secs_map_is_refused(trial) -> None:
     module, calls = trial
     with pytest.raises(SystemExit, match="ZZZZ"):
-        asyncio.run(module.run(["MSFT:0000789019", "ZZZZ:0000000001"]))
+        asyncio.run(module.run(["DIS:0001744489", "ZZZZ:0000000001"]))
     assert calls == []
 
 
@@ -98,23 +99,23 @@ def test_an_existing_universe_ticker_is_refused_before_any_network(trial) -> Non
     module, calls = trial
     # SHOP is already in PHASE1_UNIVERSE: refused while parsing arguments.
     with pytest.raises(SystemExit, match="already in the universe"):
-        asyncio.run(module.run(["MSFT:0000789019", "SHOP:0001594805"]))
+        asyncio.run(module.run(["DIS:0001744489", "SHOP:0001594805"]))
     assert calls == []
     assert _TickerMap.requests == []
 
 
 def test_confirm_only_never_enters_the_pipeline(trial) -> None:
     module, calls = trial
-    asyncio.run(module.run(["--confirm-only", "MSFT:0000789019"]))
+    asyncio.run(module.run(["--confirm-only", "DIS:0001744489"]))
     assert calls == []
 
 
 def test_a_fully_confirmed_batch_runs_with_secs_titles(trial) -> None:
     """Positive control: without it, the refusals above would pass vacuously."""
     module, calls = trial
-    asyncio.run(module.run(["MSFT:0000789019", "NKE:0000320187"]))
+    asyncio.run(module.run(["DIS:0001744489", "NKE:0000320187"]))
     assert len(calls) == 1
     assert [(e.ticker, e.cik, e.name) for e in calls[0]] == [
-        ("MSFT", "0000789019", "MICROSOFT CORP"),
+        ("DIS", "0001744489", "Walt Disney Co"),
         ("NKE", "0000320187", "NIKE, Inc."),
     ]

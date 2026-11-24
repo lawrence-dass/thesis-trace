@@ -803,6 +803,44 @@
       }
      ]
     }
+   },
+   "SellingAndMarketingExpense": {
+    "label": "SellingAndMarketingExpense",
+    "description": "Added by Ops 5 from the dev store (filings of GeneralAndAdministrativeExpense).",
+    "units": {
+     "USD": [
+      {
+       "start": "2022-01-01",
+       "end": "2022-12-31",
+       "val": 1230000000,
+       "accn": "0001594805-25-000012",
+       "fy": 2024,
+       "fp": "FY",
+       "form": "10-K",
+       "filed": "2025-02-11"
+      },
+      {
+       "start": "2023-01-01",
+       "end": "2023-12-31",
+       "val": 1220000000,
+       "accn": "0001594805-25-000012",
+       "fy": 2024,
+       "fp": "FY",
+       "form": "10-K",
+       "filed": "2025-02-11"
+      },
+      {
+       "start": "2024-01-01",
+       "end": "2024-12-31",
+       "val": 1393000000,
+       "accn": "0001594805-25-000012",
+       "fy": 2024,
+       "fp": "FY",
+       "form": "10-K",
+       "filed": "2025-02-11"
+      }
+     ]
+    }
    }
   },
   "dei": {}

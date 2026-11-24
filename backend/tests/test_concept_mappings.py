@@ -80,6 +80,11 @@ NON_MODEL_CONCEPTS = {
     # Every us-gaap filer tags the combined concept directly and needs neither.
     "cash",
     "cash_equivalents",
+    # Ops 5: operand-only, us-gaap only. Summed by sga_general_plus_selling for
+    # filers that report the two parts of SG&A and no total (CPB, OTEX, SHOP,
+    # MSFT). Never SG&A on their own: G&A alone is what v19 got wrong.
+    "general_and_administrative",
+    "selling_and_marketing",
 }
 
 

@@ -9,7 +9,7 @@
 # components). Companies without a fixture yet are listed as
 # `pending_fixture` so coverage gaps are explicit, never silent. None
 # remained for the original nine; the three Ops 4 demonstration filers
-# (AAPL, NVDA, KO, 2026-11-24) are pending — see the end of this file.
+# (AAPL, NVDA, KO, 2026-11-24; MSFT, Ops 5) are pending — see the end of this file.
 #
 # SHOP uses shop_real_company_facts.json (real EDGAR data), NOT
 # shop_company_facts.json — the latter is an older, entirely SYNTHETIC
@@ -48,7 +48,7 @@
 # on/before its 2025-08-03 FYE) and ZTS's $125.82 (2025-12-31) are real Tiingo
 # EOD closes, live-fetched 2026-09-01.
 
-universe: [SHOP, CP, QSR, OTEX, CCJ, BCE, SU, CPB, ZTS, AAPL, NVDA, KO]
+universe: [SHOP, CP, QSR, OTEX, CCJ, BCE, SU, CPB, ZTS, AAPL, NVDA, KO, MSFT]
 
 companies:
   - ticker: SHOP
@@ -84,9 +84,17 @@ companies:
         # beneish_v1.yaml's quantization contract — every division rounded to 6
         # places, ROUND_HALF_EVEN. Two earlier hand-passes disagreed at 2e-5 by
         # quantizing only the final index.
-        # DSRI 0.964224  GMI 0.988624  AQI 1.080285  SGI 1.257790
-        # DEPI 1.356208  SGAI 0.663882  TATA 0.028943  LVGI 0.875001
-        m_score: -1.981461
+        # The eight indices were comments until the Ops 5 review: a wrong SG&A
+        # component could hide inside a right-looking M. Now asserted.
+        indices: {dsri: 0.964224, gmi: 0.988624, aqi: 1.080285, sgi: 1.257790,
+                  depi: 1.356208, sgai: 0.837797, tata: 0.028943, lvgi: 0.875001}
+        # RE-VERIFIED 2026-11-24 (Ops 5, scripts/verify_sga_golden.py, which imports
+        # nothing from scoring/formulas and first reproduced the old values
+        # exactly). SGAI was 0.663882 and M -1.981461: G&A alone. SG&A is now G&A
+        # + selling and marketing: (410 + 1,393) / 8,880 over (491 + 1,220) /
+        # 7,060, USD millions. The old values were verified arithmetic on an
+        # incomplete concept, which no hand check of the arithmetic could catch.
+        m_score: -2.011375
         band: "No manipulation flag"
       # RESOLVED at concepts_v9 (2026-08-21). Story 5.6 recorded this as
       # insufficient_data because `long_term_debt` was unmapped for SHOP, so the
@@ -158,8 +166,13 @@ companies:
         z_score: 1.471660
         band: "Distress"
       beneish:
-        m_score: -2.219847
-        band: "No manipulation flag"
+        # Ops 5 (2026-11-24): was -2.219847, computed on G&A alone. From FY2021
+        # QSR reports G&A and advertising as separate lines (2020: 407 + 870
+        # against the old 1,264 SG&A line), so G&A alone is not its SG&A, and
+        # us-gaap_v20 no longer pretends it is. insufficient_data until QSR's own
+        # story maps the advertising line (AD-16: no partial figure).
+        m_score: null
+        band: null
       # Story 5.6, hand-verified 2026-08-04 by a script importing nothing from
       # backend/debt: 67,000,000 / 12,921,000,000.
       near_term_debt_share:
@@ -312,7 +325,17 @@ companies:
         z_score: 2.699877
         band: "Grey"
       beneish:
-        m_score: -2.884422
+        # RE-VERIFIED 2026-11-24 (Ops 5, scripts/verify_sga_golden.py): was
+        # -2.884422 on G&A alone (SGAI 0.993761, which the script reproduces and
+        # which the live API served). SG&A is now G&A + selling and marketing:
+        # (207.909 + 518.035) / 2,868.755 over (205.313 + 529.381) / 2,815.241,
+        # USD millions, giving SGAI 0.969659. This entry pins no other index, so
+        # M is the old M plus -0.172 x the SGAI change: -2.880276 to within 1e-6,
+        # confirmed against the pipeline's own output at that precision. The Ops 5
+        # review independently recomputed all eight indices from the fixture and
+        # reproduced both the old (-2.884422) and the new M exactly.
+        indices: {sgai: 0.969659}
+        m_score: -2.880276
         band: "No manipulation flag"
       # Story 5.6, hand-verified 2026-08-04: 10,000,000 / 2,614,878,000.
       # OTEX switched its maturity-ladder near-term tag twice mid-history, which
@@ -591,13 +614,16 @@ companies:
         z_score: 1.850072
         band: "Grey"
       beneish:
-        # DSRI 0.866179  GMI 1.013540  AQI 0.978278  SGI 1.064031
-        # DEPI 0.975026  SGAI 0.859487  TATA -0.035513  LVGI 0.985953
+        indices: {dsri: 0.866179, gmi: 1.013540, aqi: 0.978278, sgi: 1.064031,
+                  depi: 0.975026, sgai: 0.956583, tata: -0.035513, lvgi: 0.985953}
+        # RE-VERIFIED 2026-11-24 (Ops 5, scripts/verify_sga_golden.py): SGAI was
+        # 0.859487 and M -2.687902 on G&A alone. Now (674 + 924) / 10,253 over
+        # (737 + 833) / 9,636, USD millions.
         # computed_with_caveat: CPB never resolves gross_profit as a filed
         # concept (same reason as the Piotroski note above), so GMI's implied
         # margin is unvalidated per Story 12.1 finding 2 — confirmed live
         # against the pipeline's own caveat_reason text.
-        m_score: -2.687902
+        m_score: -2.704602
         band: "No manipulation flag"
       near_term_debt_share:
         share: 0.061586
@@ -760,12 +786,14 @@ companies:
   # --- Ops 4 (2026-11-24): demonstration filers, D11 amendment ---------------
   # Live-trialled on the dev store and scored nightly, but NOT hand-verified:
   # no fixture exists yet, so nothing here pins a value. SM-1 does not hold for
-  # these three until each gets a real fixture and hand-computed expectations.
+  # these four until each gets a real fixture and hand-computed expectations.
   # Declared so the gap is explicit (test_universe_fully_partitioned warns).
-  # MSFT is withheld (sga mapping defect), so it is not listed.
+  # MSFT, withheld in Ops 4 for the sga mapping defect, re-admitted in Ops 5.
   - ticker: AAPL
     status: pending_fixture
   - ticker: NVDA
     status: pending_fixture
   - ticker: KO
+    status: pending_fixture
+  - ticker: MSFT
     status: pending_fixture

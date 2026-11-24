@@ -31,6 +31,7 @@ import { AlertIcon, ChevronIcon } from "../../components/ui/icons";
 import { issueLabel } from "../../components/issueLabels";
 import { apiGet, apiGetAtBuild } from "../../lib/api";
 import { exactScore, formatScore } from "../../components/ui/scoreFormat";
+import { isBackdated, newestVerdictYear, verdictYearLabel } from "../../components/ui/verdictYear";
 
 // Report sections (Story 10.1, D12). Order is the reading order AND the nav
 // order — Overview first (the Verdict, and from Story 10.2 the four-model
@@ -198,11 +199,28 @@ function FreshnessNote({ fiscalYear, periodEnd }: { fiscalYear: number | null; p
   );
 }
 
-export function CompactVerdictCard({ verdict, bands }: { verdict: VerdictItem; bands: BandClass[] }) {
+export function CompactVerdictCard({
+  verdict,
+  bands,
+  newestYear = null,
+}: {
+  verdict: VerdictItem;
+  bands: BandClass[];
+  newestYear?: number | null;
+}) {
   return (
     <Card className="space-y-2">
       <div className="text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-faint)]">
         {MODEL_LABEL[verdict.model] ?? verdict.model}
+      </div>
+      <div
+        className={`text-xs ${
+          isBackdated(verdict.fiscal_year, newestYear)
+            ? "font-semibold text-[var(--color-ink-muted)]"
+            : "text-[var(--color-ink-faint)]"
+        }`}
+      >
+        {verdictYearLabel(verdict.fiscal_year, newestYear)}
       </div>
       <div
         className="font-mono text-2xl font-semibold tabular-nums text-[var(--color-ink)]"
@@ -456,7 +474,12 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
             </p>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               {data.verdict.map((v) => (
-                <CompactVerdictCard key={v.model} verdict={v} bands={bandsByModel[v.model] ?? []} />
+                <CompactVerdictCard
+                  key={v.model}
+                  verdict={v}
+                  bands={bandsByModel[v.model] ?? []}
+                  newestYear={newestVerdictYear(data.verdict ?? [])}
+                />
               ))}
             </div>
             {data.lenses_pending && data.lenses_pending.length > 0 ? (

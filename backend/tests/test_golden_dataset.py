@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import warnings
 from datetime import date
+from decimal import ROUND_HALF_EVEN, Decimal
 from pathlib import Path
 
 import yaml
@@ -31,6 +32,12 @@ from sqlalchemy import select
 from tests.conftest import requires_db
 
 GOLDEN = yaml.safe_load((Path(__file__).parent / "golden" / "phase1_golden.yaml").read_text())
+
+
+def _six(x) -> Decimal:
+    """A stored or golden figure at the six places both are written to. Via str so
+    a YAML float compares by its written digits, not its binary approximation."""
+    return Decimal(str(x)).quantize(Decimal("0.000001"), rounding=ROUND_HALF_EVEN)
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
@@ -180,7 +187,29 @@ async def test_active_companies_match_golden(db_session) -> None:
         if expected["beneish"]["m_score"] is None:
             assert beneish_run.aggregate_value is None, f"{company['ticker']} Beneish expected insufficient_data"
         else:
-            assert abs(float(beneish_run.aggregate_value) - expected["beneish"]["m_score"]) < 1e-3, f"{company['ticker']} Beneish M"
+            # Exact at the six places the golden value is written to and the spec
+            # stores (beneish_v1.yaml ratio_places: 6). It was within 1e-3, which let
+            # a wrong component through: CPB S&M 925M instead of 924M moves SGAI to
+            # 0.957178 but M by only ~0.0001 (Ops 5 review).
+            assert _six(beneish_run.aggregate_value) == _six(expected["beneish"]["m_score"]), (
+                f"{company['ticker']} Beneish M"
+            )
+            # Component expectations, where an entry declares them. Comparing only
+            # the aggregate lets a wrong component hide behind a right-looking total.
+            indices = expected["beneish"].get("indices") or {}
+            if indices:
+                served = {
+                    r.signal_key: r.value
+                    for r in (
+                        await db_session.execute(
+                            select(ScoreResult).where(ScoreResult.score_run_id == beneish_run.id)
+                        )
+                    ).scalars()
+                }
+                for key, value in indices.items():
+                    assert key in served and _six(served[key]) == _six(value), (
+                        f"{company['ticker']} Beneish {key}: {served.get(key)} != {value}"
+                    )
 
         # Near-term debt share (Story 5.6). Not a model — a ThesisTrace presentation
         # rule computed from two canonical facts — so it is checked from the facts

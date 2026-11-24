@@ -7,6 +7,7 @@ import { Badge, applicabilityLabel, applicabilityVariant, bandTone } from "../co
 import { Card } from "../components/ui/Card";
 import { caveatReasonText } from "../components/CaveatReason";
 import type { VerdictItem } from "../components/VerdictGlyph";
+import { isBackdated, newestVerdictYear, verdictYearLabel } from "../components/ui/verdictYear";
 
 import { apiGet } from "../lib/api";
 import { exactScore, formatScore } from "../components/ui/scoreFormat";
@@ -73,7 +74,13 @@ function VerdictValue({ verdict }: { verdict: VerdictItem }): ReactNode {
   );
 }
 
-export function VerdictCell({ verdict }: { verdict: VerdictItem | undefined }): ReactNode {
+export function VerdictCell({
+  verdict,
+  newestYear = null,
+}: {
+  verdict: VerdictItem | undefined;
+  newestYear?: number | null;
+}): ReactNode {
   if (!verdict) return <span className="text-[var(--color-ink-faint)]">—</span>;
 
   const caveated = verdict.applicability === "computed_with_caveat";
@@ -83,6 +90,15 @@ export function VerdictCell({ verdict }: { verdict: VerdictItem | undefined }): 
         <VerdictValue verdict={verdict} />
         {caveated ? <Badge variant="caveat">Caveat</Badge> : null}
       </div>
+      <p
+        className={`text-xs ${
+          isBackdated(verdict.fiscal_year, newestYear)
+            ? "font-semibold text-[var(--color-ink-muted)]"
+            : "text-[var(--color-ink-faint)]"
+        }`}
+      >
+        {verdictYearLabel(verdict.fiscal_year, newestYear)}
+      </p>
       {verdict.aggregate_value === null && verdict.missing_signals.length > 0 ? (
         <p className="text-xs leading-snug text-[var(--color-ink-faint)]">
           Missing: {verdict.missing_signals.map((k) => SIGNAL_LABEL[k] ?? k).join(", ")}
@@ -155,7 +171,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
                   </td>
                   {verdicts.map((v, i) => (
                     <td key={i} className="border-b border-[var(--color-border)] p-4">
-                      <VerdictCell verdict={v} />
+                      <VerdictCell verdict={v} newestYear={newestVerdictYear(overviews[i].verdict ?? [])} />
                     </td>
                   ))}
                 </tr>
