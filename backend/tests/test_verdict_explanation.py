@@ -108,6 +108,36 @@ async def test_explanation_is_cited_and_deterministic(seeded_app) -> None:
     assert piotroski["citations"]  # grounded in provenance (accession numbers)
 
 
+@requires_db
+async def test_explanation_read_never_calls_the_llm(seeded_app, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ops 6a: a public read cannot spend LLM credits, even with a key set and
+    `polish_text=true`. The read used to make one call per explanation."""
+    import explanation.llm as llm
+
+    calls: list[str] = []
+
+    async def _fake_call(text: str, model: str) -> str:
+        calls.append(text)
+        return "POLISHED"
+
+    # The live seam `polish()` resolves at call time, so this catches a call made
+    # through any import of `polish`, not only through one module's binding.
+    monkeypatch.setattr(llm, "_call_anthropic", _fake_call)
+    monkeypatch.setenv("LLM_API_KEY", "test-key-not-real")
+    assert llm.rewrite_enabled() is True  # positive control: the paid path is armed
+
+    async with AsyncClient(transport=ASGITransport(app=seeded_app), base_url="http://test") as client:
+        polished = await client.get("/api/companies/SHOP/explanation", params={"polish_text": "true"})
+        plain = (await client.get("/api/companies/SHOP/explanation")).json()
+
+    assert polished.status_code == 200  # the flag is still accepted
+    body = polished.json()
+    assert len(body["explanations"]) > 0  # assert on rows that exist, not an empty list
+    assert calls == []
+    assert body["llm_rewrite"] is False
+    assert body["explanations"] == plain["explanations"]  # deterministic text, unchanged
+
+
 async def test_llm_rewrite_disabled_returns_text_unchanged(monkeypatch: pytest.MonkeyPatch) -> None:
     # No LLM key -> rewrite is a safe no-op (deterministic-only, AD-7).
     #

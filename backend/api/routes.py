@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api import repository
 from api.deps import get_session
-from explanation.llm import polish, rewrite_enabled
 from explanation.methodology import get_methodology
 from explanation.template import build_explanations
 
@@ -77,14 +76,15 @@ async def methodology(model: str):
 
 @router.get("/companies/{ticker}/explanation")
 async def explanation(ticker: str, polish_text: bool = False, session: AsyncSession = Depends(get_session)):
+    # `polish_text` is accepted and ignored (Ops 6a). A public read used to make one
+    # LLM call per explanation (84 for OTEX), so any caller could spend credits.
+    # Polishing moves to the write path in Ops 6b; until then a read never calls the LLM.
+    del polish_text
     overview = await repository.get_company_overview(session, ticker)
     if overview is None:
         return JSONResponse(status_code=200, content={"state": "not_available", "ticker": ticker.upper()})
-    lenses = build_explanations(overview)
-    out = []
-    for lens in lenses:
-        text = await polish(lens.text) if polish_text else lens.text
-        out.append(
-            {"model": lens.model, "fiscal_year": lens.fiscal_year, "text": text, "citations": lens.citations}
-        )
-    return {"state": "ok", "ticker": overview.ticker, "llm_rewrite": rewrite_enabled() and polish_text, "explanations": out}
+    out = [
+        {"model": lens.model, "fiscal_year": lens.fiscal_year, "text": lens.text, "citations": lens.citations}
+        for lens in build_explanations(overview)
+    ]
+    return {"state": "ok", "ticker": overview.ticker, "llm_rewrite": False, "explanations": out}
