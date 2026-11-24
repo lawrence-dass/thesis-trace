@@ -34,7 +34,12 @@ def q(x: Decimal) -> Decimal:
 
 
 def annual(payload: dict, concept: str) -> dict[str, Decimal]:
-    """period end -> value AS ORIGINALLY FILED (earliest filing carrying it).
+    """period end -> value from the EARLIEST filing in this trimmed fixture.
+
+    That approximates AD-3's "as originally filed" only when the fixture carries
+    the original filing. It does for these three cases (the Ops 5 review checked
+    OTEX FY2018, which carries both presentations), but this is not a general
+    proof of originally-filed selection.
 
     Annual means a 350-380 day DURATION, measured on the dates. The first version
     compared calendar years, which admits a Q4 fact (Oct-Dec) ending the same day

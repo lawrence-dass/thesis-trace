@@ -96,7 +96,17 @@ the finding); the wrong figure is the SGAI component and the exact M.
 
 ### Codex review (MERGE AFTER FIXES), every finding re-verified before acting
 
-The review text arrived truncated after finding 5's title; findings 1-5 handled.
+The full review had six findings; 1-5 in commit `778f8b2`, 6 below.
+
+- [x] **6. Corrected SGAI lived only in comments; M checked within 1e-3.** M is
+      now exact at six places for every filer, and entries declare asserted
+      `indices` (SHOP and CPB all eight, OTEX sgai). Codex's own mutation (CPB
+      S&M 925M for 924M) passed before and fails now.
+- [x] Judgement calls: the verifier's "as originally filed" reworded to what a
+      trimmed fixture can show; SG&A's scope (functional lines such as R&D and
+      OTEX's amortization are not operands) recorded with the open R&D question.
+      Codex independently recomputed OTEX's eight indices and reproduced old and
+      new M exactly.
 
 - [x] **Dismissal rule could hit a genuine conflict.** Value matching within +/-1
       year is coincidence, not proof. Now proven: the issuer files NO SG&A total

@@ -84,8 +84,10 @@ companies:
         # beneish_v1.yaml's quantization contract — every division rounded to 6
         # places, ROUND_HALF_EVEN. Two earlier hand-passes disagreed at 2e-5 by
         # quantizing only the final index.
-        # DSRI 0.964224  GMI 0.988624  AQI 1.080285  SGI 1.257790
-        # DEPI 1.356208  SGAI 0.837797  TATA 0.028943  LVGI 0.875001
+        # The eight indices were comments until the Ops 5 review: a wrong SG&A
+        # component could hide inside a right-looking M. Now asserted.
+        indices: {dsri: 0.964224, gmi: 0.988624, aqi: 1.080285, sgi: 1.257790,
+                  depi: 1.356208, sgai: 0.837797, tata: 0.028943, lvgi: 0.875001}
         # RE-VERIFIED 2026-11-24 (Ops 5, scripts/verify_sga_golden.py, which imports
         # nothing from scoring/formulas and first reproduced the old values
         # exactly). SGAI was 0.663882 and M -1.981461: G&A alone. SG&A is now G&A
@@ -329,7 +331,10 @@ companies:
         # (207.909 + 518.035) / 2,868.755 over (205.313 + 529.381) / 2,815.241,
         # USD millions, giving SGAI 0.969659. This entry pins no other index, so
         # M is the old M plus -0.172 x the SGAI change: -2.880276 to within 1e-6,
-        # confirmed against the pipeline's own output at that precision.
+        # confirmed against the pipeline's own output at that precision. The Ops 5
+        # review independently recomputed all eight indices from the fixture and
+        # reproduced both the old (-2.884422) and the new M exactly.
+        indices: {sgai: 0.969659}
         m_score: -2.880276
         band: "No manipulation flag"
       # Story 5.6, hand-verified 2026-08-04: 10,000,000 / 2,614,878,000.
@@ -609,8 +614,8 @@ companies:
         z_score: 1.850072
         band: "Grey"
       beneish:
-        # DSRI 0.866179  GMI 1.013540  AQI 0.978278  SGI 1.064031
-        # DEPI 0.975026  SGAI 0.956583  TATA -0.035513  LVGI 0.985953
+        indices: {dsri: 0.866179, gmi: 1.013540, aqi: 0.978278, sgi: 1.064031,
+                  depi: 0.975026, sgai: 0.956583, tata: -0.035513, lvgi: 0.985953}
         # RE-VERIFIED 2026-11-24 (Ops 5, scripts/verify_sga_golden.py): SGAI was
         # 0.859487 and M -2.687902 on G&A alone. Now (674 + 924) / 10,253 over
         # (737 + 833) / 9,636, USD millions.

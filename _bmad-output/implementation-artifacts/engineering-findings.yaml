@@ -6239,10 +6239,15 @@ sga_fallback_omits_selling_and_marketing:
       dev store by scripts/dismiss_stale_sga_issues.py, a rule (every listed value
       is a filed G&A figure) rather than ids; NKE's and NVDA's genuine total-SG&A
       conflicts fail the rule and stay. PRODUCTION NEEDS THE SAME RUN after deploy.
-    incidental: >
-      test_golden_dataset.py compares M within 1e-3, not to the six places the
-      golden values carry. Every change here exceeded it, but a smaller one would
-      pass silently. Not changed in this story.
+    golden_precision: >
+      test_golden_dataset.py compared M within 1e-3 while the golden values carry
+      six places, and the corrected SGAI lived only in comments. The Ops 5 review
+      showed the hole: CPB S&M 925M instead of 924M moves SGAI to 0.957178 and M
+      by ~0.0001, passing. FIXED in this story: M is compared exactly at six
+      places for every filer (the five active entries with a computed M, SHOP,
+      OTEX, CCJ, CPB and ZTS, already matched exactly; the other four expect null),
+      and an entry may declare `indices`, which are asserted (SHOP and CPB all
+      eight, OTEX sgai). The 925M mutation now fails.
   found: 2026-11-24
   found_by: Codex review of PR #163 (MSFT); the scope below re-derived from the dev store.
   finding: >
@@ -6328,6 +6333,18 @@ beneish_sga_scope_rnd_question:
     Not answered by Ops 5, which fixed what is unambiguous (selling and
     marketing is the S in SG&A under any definition). Needs a primary-source
     check of Beneish (1999) and Compustat's item definition, then a decision.
+  scope_today: >
+    What sga_general_plus_selling sums is the filer's OWN selling/marketing and
+    administrative lines, nothing else. Functional lines presented separately
+    (R&D; OTEX's depreciation and amortization of acquired customer intangibles)
+    are NOT operands. Their presence is not evidence of an omitted SG&A
+    component (Ops 5 review); whether any belongs in SGAI is this question.
+  ops_5_review_evidence: >
+    The Ops 5 review read CPB's, SHOP's and MSFT's filed income statements:
+    each presents selling/marketing and administrative as explicit functions,
+    and no further selling/admin line was found that the committed sums omit.
+    AAPL's exact equality proves the arithmetic of the rule, not that every
+    filer's two lines are its whole SG&A; that is a per-filer reading.
 
 ccj_administrative_expense_as_sga:
   status: open
