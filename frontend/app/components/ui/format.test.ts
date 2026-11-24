@@ -104,6 +104,34 @@ describe("compactAmount", () => {
     expect(compactAmount(209_000_000_000)).toBe("209.00B");
   });
 
+  it.each([
+    [994_999_999_999, "995.00B"],
+    [995_000_000_000, "1.00T"],
+    [999_994_999_999, "1.00T"],
+    [999_995_000_000, "1.00T"],
+    [1_004_999_999_999, "1.00T"],
+    [1_005_000_000_000, "1.01T"],
+    [1_015_000_000_000, "1.02T"],
+    [1_255_000_000_000, "1.26T"],
+  ])("rounds %i symmetrically at trillion boundaries and ties", (value, expected) => {
+    expect(compactAmount(value)).toBe(expected);
+    expect(compactAmount(-value)).toBe(`-${expected}`);
+  });
+
+  it.each([
+    [950_000, "1.0M"],
+    [3_150_000, "3.2M"],
+    [547_000_000, "547.0M"],
+    [994_999_999, "995.0M"],
+    [995_000_000, "1.00B"],
+    [3_130_000_000, "3.13B"],
+    [209_000_000_000, "209.00B"],
+    [994_995_000_000, "995.00B"],
+  ])("preserves the existing B/M output for %i and its negative", (value, expected) => {
+    expect(compactAmount(value)).toBe(expected);
+    expect(compactAmount(-value)).toBe(`-${expected}`);
+  });
+
   it("handles zero without a magnitude suffix", () => {
     expect(compactAmount(0)).toBe("0");
   });
