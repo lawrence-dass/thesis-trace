@@ -88,7 +88,7 @@ Everything runs on free tiers: Vercel, Render, Supabase and GitHub Actions. Free
 On this project a passing test suite has repeatedly *not* meant correct numbers, so correctness is checked in layers:
 
 - **Golden dataset.** All 9 companies' scores were verified outside the pipeline. Every input was cross-checked against the raw EDGAR JSON, then every model was recomputed independently, by hand or by a **script that imports nothing from the scoring code**, so agreement is corroboration rather than the same code run twice. A regression harness pins those outputs.
-- **577 backend tests and 93 frontend tests** run in CI against a real Postgres 17.
+- **680 backend tests and over 90 frontend tests** run in CI, the backend against a real Postgres 17.
 - **Live-data definition of done.** Any change to ingestion, mappings or formulas must be checked against live EDGAR coverage per year (not just "the tag exists") and **rendered in a browser** across filers chosen to exercise different code paths. Several real bugs were caught only at this step after the tests had passed.
 - **Engineering findings log.** Data quirks (a filer switching XBRL tags mid-history, an amendment restating only part of a statement) are recorded with the decision taken, so a deliberate gap isn't later "fixed" into a wrong number.
 
