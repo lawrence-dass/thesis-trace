@@ -20,6 +20,7 @@
 
 import { applicabilityLabel, applicabilityVariant, bandTone, type BadgeVariant } from "./ui/Badge";
 import { TONE_SOLID, domainPct } from "./ui/Gauge";
+import { formatScore } from "./ui/scoreFormat";
 
 export type VerdictItem = {
   model: string;
@@ -88,7 +89,7 @@ export function axisState(v: VerdictItem): AxisState {
   if (v.band_label) {
     return { model: v.model, label: v.band_label, tone: bandTone(v.band_label), pct, dashed: false, fiscalYear: v.fiscal_year };
   }
-  return { model: v.model, label: String(v.aggregate_value), tone: "neutral", pct, dashed: false, fiscalYear: v.fiscal_year };
+  return { model: v.model, label: formatScore(v.model, v.aggregate_value), tone: "neutral", pct, dashed: false, fiscalYear: v.fiscal_year };
 }
 
 const MODEL_SHORT_LABEL: Record<string, string> = {

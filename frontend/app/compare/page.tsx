@@ -9,6 +9,7 @@ import { caveatReasonText } from "../components/CaveatReason";
 import type { VerdictItem } from "../components/VerdictGlyph";
 
 import { apiGet } from "../lib/api";
+import { exactScore, formatScore } from "../components/ui/scoreFormat";
 
 type Overview = { state: string; ticker?: string; name?: string; verdict?: VerdictItem[] };
 
@@ -65,7 +66,11 @@ function VerdictValue({ verdict }: { verdict: VerdictItem }): ReactNode {
   }
   if (verdict.aggregate_value === null) return <Badge variant="pending">Insufficient data</Badge>;
   if (verdict.band_label) return <Badge variant={bandTone(verdict.band_label)} icon={false}>{verdict.band_label}</Badge>;
-  return <span className="font-mono tabular-nums text-[var(--color-ink-muted)]">{verdict.aggregate_value}</span>;
+  return (
+    <span className="font-mono tabular-nums text-[var(--color-ink-muted)]" title={exactScore(verdict.aggregate_value)}>
+      {formatScore(verdict.model, verdict.aggregate_value)}
+    </span>
+  );
 }
 
 export function VerdictCell({ verdict }: { verdict: VerdictItem | undefined }): ReactNode {
