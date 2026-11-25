@@ -10,6 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from api.schemas import CompanyOverviewOut, LensScoreOut
+from explanation.score_format import band_edges, format_score
+from explanation.signal_labels import signal_label
 
 MODEL_TITLE = {
     "piotroski": "Piotroski F-Score",
@@ -42,13 +44,15 @@ def _lens_sentences(lens: LensScoreOut) -> tuple[str, list[str]]:
     parts: list[str] = []
     if lens.aggregate_value is not None:
         band = f" — classified {lens.band_label}" if lens.band_label else ""
-        parts.append(f"{title} for FY{lens.fiscal_year} is {lens.aggregate_value}{band}.")
+        # Same display rule as the card's headline (Ops 3/6b), band edges from the spec.
+        score = format_score(lens.model, lens.aggregate_value, band_edges(lens.formula_version))
+        parts.append(f"{title} for FY{lens.fiscal_year} is {score}{band}.")
     else:
         parts.append(f"{title} for FY{lens.fiscal_year} could not be fully computed (some inputs were insufficient).")
 
-    passed = [s.signal_key for s in lens.signals if s.status == "pass"]
-    failed = [s.signal_key for s in lens.signals if s.status == "fail"]
-    insufficient = [s.signal_key for s in lens.signals if s.status == "insufficient_data"]
+    passed = [signal_label(s.signal_key) for s in lens.signals if s.status == "pass"]
+    failed = [signal_label(s.signal_key) for s in lens.signals if s.status == "fail"]
+    insufficient = [signal_label(s.signal_key) for s in lens.signals if s.status == "insufficient_data"]
     if passed:
         parts.append(f"Signals met: {', '.join(passed)}.")
     if failed:

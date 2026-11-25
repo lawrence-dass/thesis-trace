@@ -11,6 +11,10 @@
 ROOT := $(shell pwd)
 LOADENV := set -a && . $(ROOT)/.env && set +a
 DC := thesistrace-pg
+# Overridable so a second worktree can serve beside the first:
+# `make api API_PORT=8011` and `make web WEB_PORT=3011 API_PORT=8011`. Never 8000 (riskpulse).
+API_PORT ?= 8001
+WEB_PORT ?= 3001
 
 .DEFAULT_GOAL := help
 .PHONY: help test test-one lint api web web-lint web-test web-build web-types \
@@ -45,7 +49,7 @@ fmt:  ## ruff format
 	@cd backend && uv run ruff format .
 
 api:  ## Backend on :8001 — NOT :8000, which is the riskpulse dev server
-	@cd backend && $(LOADENV) && uv run uvicorn app.main:app --port 8001 --reload
+	@cd backend && $(LOADENV) && uv run uvicorn app.main:app --port $(API_PORT) --reload
 
 pipeline:  ## Full batch pipeline (LIVE EDGAR fetches — name every CIK first)
 	@cd backend && $(LOADENV) && uv run python -m pipeline.run
@@ -95,7 +99,7 @@ migration:  ## New revision: make migration M="add widgets table"
 # --- frontend --------------------------------------------------------------
 
 web:  ## Frontend on :3001, pointed at the :8001 backend
-	@cd frontend && NEXT_PUBLIC_API_BASE_URL=http://localhost:8001 npm run dev -- --port 3001
+	@cd frontend && NEXT_PUBLIC_API_BASE_URL=http://localhost:$(API_PORT) npm run dev -- --port $(WEB_PORT)
 
 web-lint:  ## eslint
 	@cd frontend && npm run lint

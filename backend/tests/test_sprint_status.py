@@ -139,6 +139,10 @@ CURATED_SECTIONS = (
     "qsr_sga_split_into_ga_and_advertising_fy2021",
     "beneish_sga_scope_rnd_question",
     "ccj_administrative_expense_as_sga",
+    "explanation_llm_polish_parked",
+    "explanation_components_read_as_signals_met",
+    "breakdown_rows_show_internal_keys",
+    "score_display_has_two_formatters",
 )
 
 pytestmark = pytest.mark.skipif(

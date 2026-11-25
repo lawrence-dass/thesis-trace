@@ -6354,3 +6354,67 @@ ccj_administrative_expense_as_sga:
     files no selling line. Out of scope for a us-gaap mapping change; whether
     administration alone is Cameco's whole SG&A, or its selling costs sit in
     another line, was not checked.
+
+explanation_llm_polish_parked:
+  status: parked
+  found: 2026-11-24
+  what: >
+    The FR-12 "constrained rewrite" (explanation/llm.py polish) was reachable
+    only via a public GET with polish_text=true, at one Claude call per
+    explanation (48 SHOP, 84 OTEX, 78 AAPL; dev store), with LLM_API_KEY set on
+    Render. No page used it. Ops 6a (#165) removed it from the read path.
+  decision: >
+    Lawrence (2026-11-24): fix readability deterministically instead (Ops 6b:
+    scores at the headline's display rule, plain-language signal names). The
+    deterministic text was unreadable for reasons an LLM need not fix.
+  revisit_when: >
+    Only if the Ops 6b text still reads poorly. Then polish on the WRITE path
+    (stored, keyed by hash of text + model + prompt version) and verify that
+    every number, year and signal name survives before storing, falling back
+    to the template. Today AD-7's "originates nothing" rests on the system
+    prompt alone.
+
+explanation_components_read_as_signals_met:
+  status: open
+  found: 2026-11-24
+  where: explanation/template.py
+  what: >
+    Altman's X1-X5 and Beneish's eight indices are COMPONENTS, not pass/fail
+    conditions, but they carry status "pass" when computed, so the sentence
+    says "Signals met: Leverage, Gross Margin, ...". Ops 6b's plain names make
+    this read as a claim ("met: Leverage") where the key hid it. Pre-dates
+    Ops 6b; only Piotroski and Sloan's signals are genuinely met or not.
+  next: >
+    Its own story: per-model wording (e.g. "Computed from: ..." for component
+    models), declared in data rather than inferred from the model name.
+
+breakdown_rows_show_internal_keys:
+  status: open
+  found: 2026-11-24
+  where: frontend/app/company/[ticker]/page.tsx (expanded per-year card)
+  what: >
+    Under the now-readable sentence, each breakdown row still shows the signal
+    key (cfo_positive) and canonical concept names (net_income FY2026). Rows
+    are Term-linked, so the key opens a definition, but the visible label is
+    still the key. Seen rendering AAPL FY2026 Piotroski in Ops 6b.
+
+score_display_has_two_formatters:
+  status: open
+  found: 2026-11-25
+  source: Ops 6b Codex review (findings 2 and 3; deferred, neither reachable on the normal path)
+  what: >
+    A score is formatted twice: scoreFormat.ts (headline) and
+    explanation/score_format.py (sentence). They agree on 476,046 ordinary
+    six-decimal comparisons (Codex) and on the shared vectors file, but not
+    universally. (a) Above ~1e10, TypeScript's toFixed(6) no longer recovers
+    the nominal digits: 10000000000.015 gives .02 in Python and .01 in TS. No
+    score approaches that (Altman's largest live value is ~75). (b) The headline
+    takes band edges from /methodology and falls back to NO bands if that
+    request fails, so OTEX FY2013's headline would print 2.99, the Safe line,
+    beside a Grey badge. That is an Ops 3 degraded-path defect in the headline
+    itself. The sentence reads the spec locally and still prints 2.987.
+  next: >
+    One formatter: the backend puts the formatted score (and the exact value)
+    on each lens/verdict item in the overview, and every frontend caller
+    renders it. That removes (a), (b) and the parity tests together, rather
+    than patching each.

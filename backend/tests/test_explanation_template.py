@@ -77,12 +77,15 @@ def test_a_later_years_explanation_never_describes_an_earlier_years_figures() ->
     by_year = {lens.fiscal_year: lens for lens in build_explanations(overview)}
 
     assert "FY2025" in by_year[2025].text
-    assert "6.0" in by_year[2025].text
+    # Piotroski is a whole-number count in the sentence, as on the headline (Ops 6b).
+    assert " is 6 — " in by_year[2025].text
     assert "Middle" in by_year[2025].text
     assert "FY2015" not in by_year[2025].text
+    assert " is 0 " not in by_year[2025].text
     assert "Weak" not in by_year[2025].text
 
     assert "FY2015" in by_year[2015].text
-    assert "0.0" in by_year[2015].text
+    assert " is 0 — " in by_year[2015].text
+    assert " is 6 " not in by_year[2015].text
     assert "Weak" in by_year[2015].text
     assert "FY2025" not in by_year[2015].text
