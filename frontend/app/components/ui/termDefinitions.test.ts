@@ -7,6 +7,7 @@
 import { describe, expect, it } from "vitest";
 import { SIGNAL_LABEL } from "../../company/[ticker]/page";
 import { TERM_DEFINITIONS } from "./termDefinitions";
+import signalLabels from "../../lib/signalLabels.json";
 
 describe("TERM_DEFINITIONS", () => {
   it("has a real definition for every key SIGNAL_LABEL currently declares", () => {
@@ -24,26 +25,15 @@ describe("TERM_DEFINITIONS", () => {
     }
   });
 
-  // Piotroski's 9 signal_keys (Story 11.7) have no frontend map to import
-  // from the way the other three models do via SIGNAL_LABEL — the backend's
-  // piotroski_v1.yaml is the authoritative source, so this list is the
-  // closest thing to a live cross-check available on the frontend side.
-  it("has a real definition for every Piotroski signal_key (piotroski_v1.yaml)", () => {
-    const piotroskiKeys = [
-      "roa_positive",
-      "cfo_positive",
-      "roa_increasing",
-      "accruals",
-      "leverage_decreasing",
-      "current_ratio_increasing",
-      "shares_not_diluted",
-      "gross_margin_increasing",
-      "asset_turnover_increasing",
-    ];
-    for (const key of piotroskiKeys) {
-      const definition = (TERM_DEFINITIONS as Record<string, string | undefined>)[key];
-      expect(definition, `missing TERM_DEFINITIONS entry for Piotroski signal_key "${key}"`).toBeTruthy();
-      expect(definition!.length, `definition for "${key}" reads as a placeholder`).toBeGreaterThan(20);
-    }
+  // Piotroski's nine keys used to need a hand-copied list here because no
+  // frontend map held them. Since Ops 6b, SIGNAL_LABEL carries every signal in
+  // the four specs (the backend's test_signal_labels.py enforces that), so the
+  // first test above covers them. This pins that they are really in it.
+  it("SIGNAL_LABEL carries Piotroski's signals, so the first test covers them", () => {
+    expect(Object.keys(SIGNAL_LABEL)).toEqual(expect.arrayContaining(["roa_positive", "asset_turnover_increasing"]));
+  });
+
+  it("both pages read the one shared map", () => {
+    expect(SIGNAL_LABEL).toBe(signalLabels);
   });
 });

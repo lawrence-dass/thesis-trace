@@ -65,4 +65,12 @@ chance of an LLM changing a number. Write-path polishing is parked
       `explanation_components_read_as_signals_met`, `breakdown_rows_show_internal_keys`
 - [x] `make api` / `make web` take `API_PORT` / `WEB_PORT` (another session held
       :8001 and :3001); defaults unchanged
+- [x] Codex round (MERGE AFTER FIXES). Finding 1 fixed: the label check regex-parsed
+      TypeScript and passed after real additions, removals and renames. The map is
+      now `frontend/app/lib/signalLabels.json`, imported by BOTH pages (the compare
+      page held a third, private copy), and compared as parsed JSON. The formatter
+      cases moved to a shared `scoreFormat.vectors.json` that both suites run.
+      Mutation-checked: an added key fails the label test; a changed expected
+      value fails both suites. Findings 2 and 3 deferred as
+      `score_display_has_two_formatters` (neither reachable on the normal path).
 - [ ] PR; after merge, **Manual Deploy on Render** (the text is built per request)

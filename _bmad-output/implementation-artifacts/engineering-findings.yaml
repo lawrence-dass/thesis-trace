@@ -6397,3 +6397,24 @@ breakdown_rows_show_internal_keys:
     key (cfo_positive) and canonical concept names (net_income FY2026). Rows
     are Term-linked, so the key opens a definition, but the visible label is
     still the key. Seen rendering AAPL FY2026 Piotroski in Ops 6b.
+
+score_display_has_two_formatters:
+  status: open
+  found: 2026-11-25
+  source: Ops 6b Codex review (findings 2 and 3; deferred, neither reachable on the normal path)
+  what: >
+    A score is formatted twice: scoreFormat.ts (headline) and
+    explanation/score_format.py (sentence). They agree on 476,046 ordinary
+    six-decimal comparisons (Codex) and on the shared vectors file, but not
+    universally. (a) Above ~1e10, TypeScript's toFixed(6) no longer recovers
+    the nominal digits: 10000000000.015 gives .02 in Python and .01 in TS. No
+    score approaches that (Altman's largest live value is ~75). (b) The headline
+    takes band edges from /methodology and falls back to NO bands if that
+    request fails, so OTEX FY2013's headline would print 2.99, the Safe line,
+    beside a Grey badge. That is an Ops 3 degraded-path defect in the headline
+    itself. The sentence reads the spec locally and still prints 2.987.
+  next: >
+    One formatter: the backend puts the formatted score (and the exact value)
+    on each lens/verdict item in the overview, and every frontend caller
+    renders it. That removes (a), (b) and the parity tests together, rather
+    than patching each.

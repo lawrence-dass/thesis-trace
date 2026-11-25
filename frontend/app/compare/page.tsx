@@ -10,29 +10,16 @@ import type { VerdictItem } from "../components/VerdictGlyph";
 import { isBackdated, newestVerdictYear, verdictYearLabel } from "../components/ui/verdictYear";
 
 import { apiGet } from "../lib/api";
+import signalLabels from "../lib/signalLabels.json";
 import { exactScore, formatScore } from "../components/ui/scoreFormat";
 
 type Overview = { state: string; ticker?: string; name?: string; verdict?: VerdictItem[] };
 
 // Plain-language names for a model's own sub-signals — used only to explain
 // WHY an aggregate is missing (shown as a hover tooltip in this compact
-// table), never to recompute or reclassify anything (AD-8, AD-16).
-const SIGNAL_LABEL: Record<string, string> = {
-  dsri: "Days Sales in Receivables",
-  gmi: "Gross Margin",
-  aqi: "Asset Quality",
-  sgi: "Sales Growth",
-  depi: "Depreciation Rate",
-  sgai: "SG&A Ratio",
-  tata: "Total Accruals",
-  lvgi: "Leverage",
-  x1_working_capital: "Working Capital",
-  x2_retained_earnings: "Retained Earnings",
-  x3_ebit: "EBIT",
-  x4_market_value_equity: "Market Value of Equity",
-  x5_sales: "Sales Turnover",
-  accruals_ratio: "Accruals",
-};
+// table), never to recompute or reclassify anything (AD-8, AD-16). One map,
+// shared with the company page and checked against the backend (Ops 6b).
+const SIGNAL_LABEL: Record<string, string> = signalLabels;
 
 // The page itself stays dynamic (it reads searchParams), but each overview
 // fetch is served from the same hourly data cache the company pages fill, so a

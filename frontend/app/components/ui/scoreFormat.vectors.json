@@ -1,0 +1,36 @@
+{
+  "_note": "Shared by scoreFormat.test.ts and backend/tests/test_score_format.py, so the TypeScript and Python formatters are held to one set of cases (Ops 6b). Bands use the spec's own keys: min, max, above, below.",
+  "bands": {
+    "none": [],
+    "beneish": [
+      { "label": "No manipulation flag", "below": -1.78 },
+      { "label": "Manipulation flag", "min": -1.78 }
+    ],
+    "altman": [
+      { "label": "Distress", "below": 1.81 },
+      { "label": "Grey", "min": 1.81, "max": 2.99 },
+      { "label": "Safe", "above": 2.99 }
+    ]
+  },
+  "cases": [
+    { "why": "two decimals for a ratio model (SHOP FY2025 Altman Z)", "model": "altman", "value": 74.998229, "bands": "none", "expected": "75.00" },
+    { "why": "two decimals", "model": "beneish", "value": -1.981461, "bands": "none", "expected": "-1.98" },
+    { "why": "two decimals", "model": "sloan", "value": -0.055096, "bands": "none", "expected": "-0.06" },
+    { "why": "Piotroski, a 0-9 count, is a whole number", "model": "piotroski", "value": 5, "bands": "none", "expected": "5" },
+    { "why": "Piotroski stored as 9.0", "model": "piotroski", "value": 9.0, "bands": "none", "expected": "9" },
+    { "why": "half-even tie keeps the even digit", "model": "sloan", "value": 0.125, "bands": "none", "expected": "0.12" },
+    { "why": "half-even tie keeps the even digit", "model": "sloan", "value": 0.135, "bands": "none", "expected": "0.14" },
+    { "why": "a decimal tie, not the binary value below it", "model": "altman", "value": 1.005, "bands": "none", "expected": "1.00" },
+    { "why": "a decimal tie", "model": "altman", "value": 1.015, "bands": "none", "expected": "1.02" },
+    { "why": "never a negative zero", "model": "sloan", "value": -0.001, "bands": "none", "expected": "0.00" },
+    { "why": "below -1.78 must not print as the boundary", "model": "beneish", "value": -1.7849, "bands": "beneish", "expected": "-1.785" },
+    { "why": "needs four decimals to clear -1.78", "model": "beneish", "value": -1.7801, "bands": "beneish", "expected": "-1.7801" },
+    { "why": "exactly on the boundary may print as it", "model": "beneish", "value": -1.78, "bands": "beneish", "expected": "-1.78" },
+    { "why": "far from a boundary, bands change nothing", "model": "beneish", "value": -2.5, "bands": "beneish", "expected": "-2.50" },
+    { "why": "Altman 2.99 line", "model": "altman", "value": 2.994, "bands": "altman", "expected": "2.994" },
+    { "why": "Altman 1.81 line", "model": "altman", "value": 1.8149, "bands": "altman", "expected": "1.815" },
+    { "why": "Altman, clear of both lines", "model": "altman", "value": 3.4, "bands": "altman", "expected": "3.40" },
+    { "why": "OTEX FY2013, live", "model": "altman", "value": 2.98734, "bands": "altman", "expected": "2.987" },
+    { "why": "CCJ FY2018, live", "model": "beneish", "value": -1.78136, "bands": "beneish", "expected": "-1.781" }
+  ]
+}
