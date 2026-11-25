@@ -7,8 +7,32 @@ import {
   inlineLabel,
   joinList,
   labelFor,
+  priceBasis,
   showsCaveats,
 } from "./ReverseDcf";
+
+describe("priceBasis (Ops 8)", () => {
+  const op = (o: Record<string, unknown>) => ({ name: "market_price", value: 341.07, unit: "USD", observed_on: "2026-09-25", ...o });
+
+  it("names the stored price and the day it was observed — AAPL FY2026's real operand", () => {
+    expect(priceBasis({ operands: [op({})] })).toEqual({ price: "341.07", unit: "USD", date: "2026-09-25" });
+  });
+
+  it("keeps the operand's own currency: CP's price is converted into CAD to match its filings", () => {
+    expect(priceBasis({ operands: [op({ value: 100.917278, unit: "CAD", observed_on: "2025-12-31" })] })).toEqual({
+      price: "100.92",
+      unit: "CAD",
+      date: "2025-12-31",
+    });
+  });
+
+  it("returns null rather than inventing a date when the operand or its date is missing", () => {
+    expect(priceBasis({ operands: [] })).toBeNull();
+    expect(priceBasis({ operands: undefined })).toBeNull();
+    expect(priceBasis({ operands: [op({ observed_on: null })] })).toBeNull();
+    expect(priceBasis({ operands: [op({ name: "market_cap" })] })).toBeNull();
+  });
+});
 
 /** Story 6.6 shipped these as pure, trivially testable, untested functions —
  *  there was no frontend test runner at all. Each block below pins a rule the

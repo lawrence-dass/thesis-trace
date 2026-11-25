@@ -6,7 +6,7 @@
 // aria-expanded — which a pure-function test cannot verify.
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { Term } from "./Term";
+import { COLLAPSED_WIDTH, Term } from "./Term";
 
 afterEach(cleanup);
 
@@ -45,6 +45,21 @@ describe("Term", () => {
     const definitionId = button.getAttribute("aria-controls");
     expect(definitionId).toBeTruthy();
     expect(document.getElementById(definitionId!)).not.toBeNull();
+  });
+
+  it("a collapsed definition claims no width; an open one sizes itself (Ops 8)", () => {
+    // jsdom does no layout, so this pins the class contract; the row it fixes was
+    // verified by rendering the reverse DCF card in a browser.
+    render(<Term id="discount-rate">Discount rate</Term>);
+    const button = screen.getByRole("button", { name: "Discount rate" });
+    const definition = document.getElementById(button.getAttribute("aria-controls")!)!;
+    for (const cls of COLLAPSED_WIDTH.split(" ")) {
+      expect(definition.classList.contains(cls)).toBe(true);
+    }
+    fireEvent.click(button);
+    for (const cls of COLLAPSED_WIDTH.split(" ")) {
+      expect(definition.classList.contains(cls)).toBe(false);
+    }
   });
 
   it("the expand transition is gated behind motion-safe:, never applied unconditionally", () => {
