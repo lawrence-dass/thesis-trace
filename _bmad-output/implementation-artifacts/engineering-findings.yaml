@@ -6283,7 +6283,18 @@ sga_fallback_omits_selling_and_marketing:
     canonicalize, re-verify the three golden entries, then re-admit MSFT.
 
 data_quality_warnings_hide_year_and_concept:
-  status: open
+  status: resolved
+  resolved: 2026-11-25
+  resolved_by: >
+    Ops 8. `frontend/app/components/ui/dataQuality.ts` reads `detail` and each
+    warning now shows its fiscal year (or period), concept (taxonomy-qualified
+    for ingestion conflicts), member where present, the competing values EXACT
+    from the stored decimal strings, and the resolution text; newest year first.
+    compactAmount was deliberately not reused: it renders AAPL's FY2007 equity
+    conflict (14,531,000,000 vs 14,532,000,000) as 14.53B on both sides and
+    MSFT's par values (0.000006 vs 0.00000625) as "0" vs "0". Rendered on the
+    dev store: AAPL's 17 are all FY2007-FY2008 (the verified 10-K/A
+    restatement), MSFT's 7 ingestion conflicts are par value only.
   found: 2026-11-24
   found_by: Codex review of PR #163 (AAPL's page)
   finding: >
@@ -6418,3 +6429,20 @@ score_display_has_two_formatters:
     on each lens/verdict item in the overview, and every frontend caller
     renders it. That removes (a), (b) and the parity tests together, rather
     than patching each.
+
+reverse_dcf_attribution_says_todays_price:
+  status: open
+  found: 2026-11-25
+  found_by: Demo-readiness pass over AAPL's live reverse DCF card (Ops 8).
+  finding: >
+    reverse_dcf_v1.yaml's attribution, description and solve_target rationale say
+    "today's price", but the solve uses the close on the fiscal-year-end date
+    (AAPL FY2026: 2026-09-25, two months old; BCE's card is FY2023 by a recorded
+    comparability decision, so its price is from 2023-12-29). The attribution is
+    stored on every reverse_dcf_runs row (valuation/store.py), so editing v1's
+    text in place would leave stored runs disagreeing with their own spec.
+  disposition: >
+    Deferred, not blocking Ops 8: the card now states the price and its date
+    beside the fiscal year, and the frontend's own copy no longer says today's.
+    Fix with reverse_dcf_v2 (wording only, no computation change) so the next
+    pipeline run re-stamps every row.

@@ -69,7 +69,7 @@ export const TERM_DEFINITIONS = {
 
   // Reverse-DCF jargon (Story 11.6) — ThesisTrace's own assumption-driven
   // exercise (Story 6.6), distinct from the four published models above.
-  "implied-growth-rate": "The constant annual revenue growth rate that would make a standard discounted cash flow model land on today's market price. Not a forecast — it's what the price is already assuming.",
+  "implied-growth-rate": "The constant annual revenue growth rate that would make a standard discounted cash flow model land on the market price at the fiscal year end. Not a forecast — it's what the price is already assuming.",
   "discount-rate": "The annual rate future cash flows are reduced by to express them in today's money. A higher rate values cash further in the future less.",
   "terminal-growth": "The growth rate cash flows are assumed to keep compounding at forever, past the modeled horizon. Small changes here move the answer a lot — which is why it's shown as a labelled assumption, not hidden inside the figure.",
   "reverse-dcf-horizon": "How many years of explicit growth the model solves for before switching to the terminal growth rate.",

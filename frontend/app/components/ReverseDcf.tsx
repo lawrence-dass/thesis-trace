@@ -174,6 +174,25 @@ export function showsCaveats(dcf: Pick<ReverseDcf, "insufficient_data" | "implie
   return !hasNoFigure(dcf) && !!dcf.caveats && dcf.caveats.length > 0;
 }
 
+/** The market price the solve used, and the day it was observed (Ops 8).
+ *
+ *  The price is the close on the fiscal-year-end date, not today's: AAPL's FY2026
+ *  card uses 2026-09-25's close two months after it. The copy used to say "today's
+ *  price", so a viewer could not tell. Read from the stored `market_price` operand
+ *  rather than restated, so the label can only ever name the price the figure was
+ *  actually solved against. Null when that operand or its date is absent. */
+export function priceBasis(
+  dcf: Pick<ReverseDcf, "operands">,
+): { price: string; unit: string; date: string } | null {
+  const op = dcf.operands?.find((o) => o.name === "market_price");
+  if (!op || op.value == null || !op.observed_on) return null;
+  return {
+    price: op.value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    unit: op.unit ?? "",
+    date: op.observed_on,
+  };
+}
+
 export function ReverseDcfCard({ dcf, cik }: { dcf?: ReverseDcf | null; cik?: string }) {
   // `null` means the filer resolved NO fiscal year at all — there is no run to
   // describe, so there is nothing to be missing. This is not the AD-16 case:
@@ -192,7 +211,7 @@ export function ReverseDcfCard({ dcf, cik }: { dcf?: ReverseDcf | null; cik?: st
           chips, and once more in the API's own attribution line at the foot. */}
       <p className="text-label text-[var(--color-ink-faint)]">
         Not a published model and not a valuation — ThesisTrace runs a discounted cash
-        flow backwards to ask what growth today&apos;s price would require.
+        flow backwards to ask what growth the market price would require.
       </p>
 
       <Card className="space-y-5">
@@ -205,7 +224,22 @@ export function ReverseDcfCard({ dcf, cik }: { dcf?: ReverseDcf | null; cik?: st
               ThesisTrace assumptions
             </Badge>
           </div>
-          <span className="text-caption text-[var(--color-ink-faint)]">FY{dcf.fiscal_year}</span>
+          <span className="text-caption text-[var(--color-ink-faint)]">
+            FY{dcf.fiscal_year}
+            {(() => {
+              const basis = priceBasis(dcf);
+              return basis ? (
+                <>
+                  {" · price "}
+                  <span className="font-mono tabular-nums">
+                    {basis.price}
+                    {basis.unit ? ` ${basis.unit}` : ""}
+                  </span>
+                  {` on ${basis.date}`}
+                </>
+              ) : null;
+            })()}
+          </span>
         </div>
 
         {hasNoFigure(dcf) ? <InsufficientData dcf={dcf} /> : <Resolved dcf={dcf} />}

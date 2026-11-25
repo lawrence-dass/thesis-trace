@@ -143,6 +143,7 @@ CURATED_SECTIONS = (
     "explanation_components_read_as_signals_met",
     "breakdown_rows_show_internal_keys",
     "score_display_has_two_formatters",
+    "reverse_dcf_attribution_says_todays_price",
 )
 
 pytestmark = pytest.mark.skipif(

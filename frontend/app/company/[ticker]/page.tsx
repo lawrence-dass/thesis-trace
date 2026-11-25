@@ -29,7 +29,7 @@ import { FundamentalsCard, type Fundamentals } from "../../components/Fundamenta
 import { ProvenanceFooter, type ReportFooter } from "../../components/ProvenanceFooter";
 import { AlertIcon, ChevronIcon } from "../../components/ui/icons";
 import signalLabels from "../../lib/signalLabels.json";
-import { issueLabel } from "../../components/issueLabels";
+import { describeIssues, type DataQualityItem } from "../../components/ui/dataQuality";
 import { apiGet, apiGetAtBuild } from "../../lib/api";
 import { exactScore, formatScore } from "../../components/ui/scoreFormat";
 import { isBackdated, newestVerdictYear, verdictYearLabel } from "../../components/ui/verdictYear";
@@ -84,7 +84,7 @@ type LensScore = {
   // in place of it.
   trajectory?: Trajectory | null;
 };
-type DataQuality = { issue_type: string; status: string; raised_by: string };
+type DataQuality = DataQualityItem;
 type Overview = {
   state: string;
   cik?: string;
@@ -535,13 +535,25 @@ export default async function CompanyPage({ params }: { params: Promise<{ ticker
                 <p className="font-semibold uppercase tracking-[var(--tracking-label)] text-[var(--color-signal-caveat)]">
                   Data-quality warnings
                 </p>
-                <ul className="space-y-0.5 text-[var(--color-ink-muted)]">
-                  {data.data_quality.map((dq, i) => (
-                    <li key={i}>
-                      {issueLabel(dq.issue_type)}{" "}
-                      <span className="text-caption text-[var(--color-ink-muted)]">
-                        ({dq.status}, raised by {dq.raised_by})
-                      </span>
+                {/* Ops 8: each warning says WHICH year and concept it is about, with
+                    the competing values exact, newest year first — seventeen
+                    identical lines told a reader nothing. */}
+                <ul className="space-y-2 text-[var(--color-ink-muted)]">
+                  {describeIssues(data.data_quality).map((d, i) => (
+                    <li key={i} className="space-y-0.5">
+                      <div className="flex flex-wrap items-baseline gap-x-2">
+                        {d.when ? (
+                          <span className="font-mono tabular-nums text-[var(--color-ink)]">{d.when}</span>
+                        ) : null}
+                        {d.concept ? <span className="font-mono text-[var(--color-ink)]">{d.concept}</span> : null}
+                        {d.member ? <span className="font-mono text-caption">{d.member}</span> : null}
+                        <span>{d.label}</span>
+                        <span className="text-caption">({d.meta})</span>
+                      </div>
+                      {d.values.length > 0 ? (
+                        <p className="font-mono text-caption tabular-nums">{d.values.join("  vs  ")}</p>
+                      ) : null}
+                      {d.resolution ? <p className="text-caption">{d.resolution}</p> : null}
                     </li>
                   ))}
                 </ul>

@@ -33,6 +33,15 @@
 import { useId, useState } from "react";
 import { TERM_DEFINITIONS, type TermId } from "./termDefinitions";
 
+/** Collapsing `grid-template-rows` to 0fr removes the panel's HEIGHT only; its text
+ *  still sets the WIDTH the panel asks for, so in a shrink-to-fit container (a flex
+ *  row item) every label grew as wide as its hidden definition. The reverse DCF
+ *  assumptions row (Ops 8) put each of three labels on its own line, with the value
+ *  pushed out by the length of that label's definition. `w-0` contributes nothing to
+ *  the container's size; `min-w-full` then fills whatever width the container gets.
+ *  Applied only while collapsed, so an open definition still sizes itself. */
+export const COLLAPSED_WIDTH = "w-0 min-w-full";
+
 export function Term({ id, children }: { id: TermId; children: React.ReactNode }) {
   const [expanded, setExpanded] = useState(false);
   const definitionId = useId();
@@ -54,7 +63,7 @@ export function Term({ id, children }: { id: TermId; children: React.ReactNode }
         role="note"
         aria-hidden={!expanded}
         className={`grid overflow-hidden motion-safe:transition-[grid-template-rows] motion-safe:duration-200 motion-safe:ease-out ${
-          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+          expanded ? "grid-rows-[1fr]" : `grid-rows-[0fr] ${COLLAPSED_WIDTH}`
         }`}
       >
         <span className="block overflow-hidden pt-1 text-caption normal-case leading-relaxed text-[var(--color-ink)]">
