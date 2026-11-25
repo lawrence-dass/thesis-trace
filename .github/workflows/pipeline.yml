@@ -16,8 +16,11 @@ name: Nightly pipeline
 
 on:
   schedule:
-    # 10:00 UTC daily: after EDGAR's overnight batch, before North American mornings.
-    - cron: "0 10 * * *"
+    # 10:23 UTC daily: after EDGAR's overnight batch, before North American mornings.
+    # Off the top of the hour, which GitHub documents as its high-load slot for
+    # scheduled runs (delayed or dropped); the 10:00 schedule never fired (Ops 7).
+    # pipeline-watchdog.yml alerts if a run goes missing anyway.
+    - cron: "23 10 * * *"
   workflow_dispatch:
 
 # Never two pipeline runs writing the same store at once.

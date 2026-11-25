@@ -1,0 +1,37 @@
+name: Pipeline watchdog
+
+# Ops 7. A nightly pipeline that FAILS exits non-zero and GitHub emails about it;
+# one whose scheduled trigger never FIRES says nothing (2026-11-25: the 10:00 UTC
+# run never started). This job fails when the newest successful pipeline.yml run
+# finished more than 26h ago, and a failed scheduled run is GitHub's own email to
+# the person who last changed this file's cron. No new service, no new secret.
+#
+# It also guards the database: the nightly write keeps the free Supabase project
+# from auto-pausing after a week idle (see pipeline.yml).
+#
+# Known limit: this is a scheduled workflow too, so GitHub can drop it as well. Two
+# slots a day, off the top of the hour, make a silent day unlikely, not impossible.
+
+on:
+  schedule:
+    # 04:17 and 16:17 UTC: ~18h and ~6h after the 10:23 nightly, off the busy :00.
+    - cron: "17 4,16 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the nightly pipeline ran recently
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run list --repo "${{ github.repository }}" --workflow pipeline.yml --limit 30 \
+            --json status,conclusion,createdAt,updatedAt,event,databaseId \
+            | python3 scripts/pipeline_watchdog.py --max-age-hours 26
