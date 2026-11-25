@@ -1,54 +1,45 @@
-# Handover — 2026-10-08 08:45 | Claude Opus 5.5
+# Handover — 2026-11-25 07:58 MST | Claude Code (Opus 5.5)
 
 ## Mode
-Task complete — four PRs merged (#149-#152). A SECOND session is still active on
-13.4b review fixes; its state is not this handover's to describe.
+General handover — Ops 6a/6b merged and live; Ops 7 (#167) open for review.
 
 ## Focus
-- **Task**: BMad drift fix → BMad 6.12.1 upgrade → Story 13.4b → permission-prompt audit
-- **Branch**: `main` @ `74b72ab` (this handover lands via its own branch/PR)
-- **State**: complete; 13.4b sits at `review` pending the other session
-- **Progress**: Epic 13 — 13.4b merged (#151); 13.4c is next after review fixes land
+- **Task**: Ops 7, pipeline watchdog (PR #167, branch `claude/pipeline-watchdog-2026-11-25`)
+- **Branch**: work in `.worktrees/pipeline-watchdog`; main checkout is stale at `7408041`
+- **State**: complete-pending-review (Codex round 1 addressed, 730 tests pass)
+- **Progress**: 4 new filers live (AAPL, MSFT, NVDA, KO); all 13 filers on new explanation wording
 
 ## Resume Point
-First run `git worktree list`. If `.worktrees/13-4b-review-fixes` still exists, that session
-owns Story 13.4b (Codex fixes; tip carries a stray commit `9cd834d` from this session —
-it must `git rebase origin/main` before its PR, which drops it since #152 holds the same
-content). Do NOT touch that worktree or flip 13.4b to `done` yourself. Once its PR merges,
-start Story 13.4c with `bmad-create-story` (in a `.worktrees/` worktree).
+1. Lawrence merges #167, then trigger the watchdog once by hand (Actions > Pipeline watchdog > Run workflow) and confirm it passes in Actions with `github.token`. Tick the story's last box in `ops-7-a-missed-nightly-run-is-noticed.md`.
+2. Confirm the first scheduled `pipeline.yml` run fires at 10:23 UTC on 2026-11-26 (`gh run list --workflow pipeline.yml`). If not, the watchdog alerts at 16:17.
+3. Main checkout: discard the stale uncommitted `CURRENT.md` and the untracked `archive/2026-11-24-10-07.md`, then `git pull`.
 
 ## Uncommitted Files
-`.claude/settings.local.json.bak-2026-10-08` — untracked backup of the pre-prune local
-allowlist (~200 entries). Delete once the pruned 26-entry version has proven fine.
+- Main checkout: stale `.claude/handoff/CURRENT.md` (Nov 24), `archive/2026-11-24-10-07.md`, `.claude/settings.local.json.bak-2026-10-08`. Superseded by this handover.
 
 ## What Happened This Session
-- #149: CLAUDE.md story/DoD rules moved into `_bmad/custom/bmad-{create,dev}-story.toml`.
-- #150: BMad 6.10.0 → 6.12.1 with `--shims`; Pact flag pinned in `_bmad/custom/config.toml`.
-- #151: Story 13.4b — axis-scoped exclusions, us-gaap_v18 / concepts_v19; 7 of 9 exclusions
-  were unreachable and removed. Merged WITHOUT the Codex review (Lawrence's call).
-- #152: 63 manual approvals traced to command shape; rules in CLAUDE.md "Command shapes
-  that defeat auto mode"; worktrees now in `.worktrees/`; `make permissions-audit`.
-- A second session switched the shared checkout mid-task (Git rule 5, live); recovered by
-  cherry-pick, nothing lost.
+- Famous-filer trial was already done by a parallel session (#163, #164); NKE not added (Altman insufficient).
+- #165 Ops 6a: `/explanation` never calls the LLM (was ~80 Claude calls per public request; key set on Render).
+- #166 Ops 6b: explanation sentence uses the headline's score format and plain-language signal names (`frontend/app/lib/signalLabels.json`, shared vectors `scoreFormat.vectors.json`).
+- `pipeline.yml`'s schedule had never fired. Ran it by hand 13:37 UTC: 13/13 OK. Ran `dismiss_stale_sga_issues.py --apply` on prod (1 row: SHOP FY2022).
+- `make api`/`make web` take `API_PORT`/`WEB_PORT`.
 
 ## Decisions Made
-- create-story/dev-story kept as 6.12 shims; adopting `bmad-build` is a separate, undecided call.
-- 13.4b decision A: remove unreachable exclusions, never re-declare on an unobserved axis.
-- Worktrees live in `.worktrees/<task>` (gitignored), never `../ThesisTrace-*`.
-- Deferred: ~58 BMad skills no longer auto-load project-context.md (6.12 default);
-  `bmad-loop-setup` not run; DoD override still names company-facts (no dimensions).
+- LLM polishing parked (`explanation_llm_polish_parked`); readability fixed deterministically.
+- Watchdog measures from `startedAt`, not `updatedAt`; alerts via GitHub's failed-workflow email; no new service.
+- Deferred: `score_display_has_two_formatters`, `explanation_components_read_as_signals_met`, `breakdown_rows_show_internal_keys`.
+
+## Context Needed
+- Render auto-deploy is OFF: Manual Deploy after backend merges.
+- After a backend deploy, live pages can show new figures in old wording for up to 1h (data cache); not a defect.
+- `.worktrees/sga-mapping` (Ops 5, merged) and `.worktrees/13-5b` belong to other sessions.
 
 ## Next Action
-`git worktree list` → wait for / merge the 13.4b review-fixes PR → `bmad-create-story 13.4c`.
-After that story, run `make permissions-audit` and expect near-zero manual approvals.
+After #167 merges: `gh workflow run pipeline-watchdog.yml -R lawrence-dass/thesis-trace`, then start `score_display_has_two_formatters` (backend sends formatted score on the overview).
 
 ## References
-- `_bmad-output/implementation-artifacts/13-4b-an-exclusion-says-which-axis-it-speaks-for.md`
-- `_bmad-output/implementation-artifacts/sprint-status.yaml:219-220`
-- `_bmad-output/planning-artifacts/epics.md:1510` (`### Story 13.4c`)
-- `CLAUDE.md` — "Command shapes that defeat auto mode", Git rule 5
-- `_bmad/custom/` — the three team overrides
-- project-context.md: .claude/context/project-context.md (2026-10-08 learnings)
+- `_bmad-output/implementation-artifacts/ops-7-a-missed-nightly-run-is-noticed.md`
+- `_bmad-output/implementation-artifacts/engineering-findings.yaml` (the three deferred findings above)
 
 ---
-*Generated by /session-end — 2026-10-08 08:45*
+*Generated by /session-end — 2026-11-25 07:58*
