@@ -7,9 +7,16 @@ finished too long ago, so the watchdog workflow fails and GitHub sends the email
 
 Standard library only, so the workflow needs no install step:
 
-    gh run list --workflow pipeline.yml --limit 30 \
-        --json status,conclusion,createdAt,updatedAt,event,databaseId \
+    gh run list --workflow pipeline.yml --status success --limit 100 \
+        --json status,conclusion,createdAt,startedAt,updatedAt,event,databaseId \
       | python3 scripts/pipeline_watchdog.py --max-age-hours 26
+
+Freshness is measured from `startedAt`, the start of the run's latest attempt, NOT
+`updatedAt`: GitHub advances `updatedAt` on later housekeeping such as log deletion,
+which would make an old success look new (Ops 7 review). `startedAt` is fixed for an
+attempt and moves forward on a re-run, which is the freshness that matters. It is
+conservative: a run finishes at most `timeout-minutes` (45) after it starts, so the
+age is overstated by under an hour, never understated.
 """
 
 from __future__ import annotations
@@ -32,11 +39,11 @@ def check(runs: list[dict], now: datetime, max_age_hours: float = MAX_AGE_HOURS)
     successes = [r for r in runs if r.get("status") == "completed" and r.get("conclusion") == "success"]
     if not successes:
         return False, "No successful pipeline run in the history. Run pipeline.yml by hand (Actions > Nightly pipeline > Run workflow)."
-    latest = max(successes, key=lambda r: _when(r["updatedAt"]))
-    finished = _when(latest["updatedAt"])
-    age = now - finished
+    latest = max(successes, key=lambda r: _when(r["startedAt"]))
+    started = _when(latest["startedAt"])
+    age = now - started
     hours = age.total_seconds() / 3600
-    detail = f"last successful run {latest.get('databaseId')} ({latest.get('event')}) finished {finished:%Y-%m-%d %H:%M} UTC, {hours:.1f}h ago"
+    detail = f"last successful run {latest.get('databaseId')} ({latest.get('event')}) started {started:%Y-%m-%d %H:%M} UTC, {hours:.1f}h ago"
     if age > timedelta(hours=max_age_hours):
         return False, f"STALE: {detail}; limit {max_age_hours}h. Run pipeline.yml by hand (Actions > Nightly pipeline > Run workflow)."
     return True, f"OK: {detail}."

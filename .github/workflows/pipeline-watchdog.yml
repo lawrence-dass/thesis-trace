@@ -32,6 +32,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh run list --repo "${{ github.repository }}" --workflow pipeline.yml --limit 30 \
-            --json status,conclusion,createdAt,updatedAt,event,databaseId \
+          # Successes only, 100 deep: a re-run keeps its original createdAt, so a
+          # short unfiltered list could push today's successful re-run out of view.
+          gh run list --repo "${{ github.repository }}" --workflow pipeline.yml \
+            --status success --limit 100 \
+            --json status,conclusion,createdAt,startedAt,updatedAt,event,databaseId \
             | python3 scripts/pipeline_watchdog.py --max-age-hours 26

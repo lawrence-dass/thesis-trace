@@ -47,14 +47,30 @@ often at the top of the hour, which is exactly where `0 10 * * *` sits.
       with `--now` three days ahead
 - [x] `make test` 725 passed; lint clean (including the new script)
 
+- [x] Codex round (MERGE AFTER FIXES), all three fixed:
+      1. Freshness reads `startedAt`, not `updatedAt`, which housekeeping such as
+         log deletion can advance after a run ends. Chosen over the per-job
+         `completed_at` Codex suggested: no extra API call per run, fixed for an
+         attempt, reset by a re-run; it overstates age by under 45 min (the job
+         timeout), so it can only alert early.
+      2. `gh run list --status success --limit 100`: a re-run keeps its old
+         `createdAt`, so an unfiltered 30 could push today's success out of view.
+      3. Fixtures now carry `createdAt`/`updatedAt` far from `startedAt`, with
+         Codex's log-deletion and re-run cases, and CLI exit-code tests.
+         Mutation-checked: reading `updatedAt`, reading `createdAt`, and an
+         always-0 exit each fail the suite.
+
 ## Detection time (measured, not assumed)
 
-A missed scheduled run is caught the SAME afternoon: the last good run is
-yesterday's ~10:30, so the 16:17 slot sees ~30h. The actual 2026-11-25 incident
-would have been caught one slot later, at 04:17 on 11-26: its last success was a
-manual run at 15:52 on 11-24, only 24.4h old at 16:17 on 11-25. The first draft
-of the test assumed same-day detection for that case and failed, which is how this
-was found; both shapes are now tested.
+Same-day detection is CONDITIONAL on when the last success started:
+
+- After a normal 10:23 nightly, a missed next run is caught at 16:17 that day (~30h).
+- A success that started at 14:17 or later is still within 26h at the next day's
+  16:17, so a miss after it is caught at 04:17 the day after (up to ~38h). The
+  actual 2026-11-25 incident is this shape (last success a manual run at 15:50).
+
+Every slot satisfies the 26h freshness policy. Guaranteed same-day detection would
+need more slots, and two were judged enough. Both shapes are tested.
 - [ ] PR; after merge, trigger the watchdog once by hand to prove it runs in Actions
 
 ## Known limit
