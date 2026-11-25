@@ -131,8 +131,18 @@ const MODEL_CAPTION: Record<string, string> = {
 // WHY an aggregate is missing (e.g. "Missing: Gross Margin, SG&A Ratio")
 // rather than showing a bare dash with no reason. Presentational only; the
 // underlying pass/fail/insufficient_data classification is never recomputed
-// here (AD-8, AD-16).
+// here (AD-8, AD-16). Identical to the backend's `explanation/signal_labels.py`,
+// which builds the explanation sentence; `test_signal_labels.py` fails on drift.
 export const SIGNAL_LABEL: Record<string, string> = {
+  roa_positive: "Positive Return on Assets",
+  cfo_positive: "Positive Operating Cash Flow",
+  roa_increasing: "Rising Return on Assets",
+  accruals: "Cash Flow Above Earnings",
+  leverage_decreasing: "Falling Leverage",
+  current_ratio_increasing: "Rising Current Ratio",
+  shares_not_diluted: "No Share Dilution",
+  gross_margin_increasing: "Rising Gross Margin",
+  asset_turnover_increasing: "Rising Asset Turnover",
   dsri: "Days Sales in Receivables",
   gmi: "Gross Margin",
   aqi: "Asset Quality",
